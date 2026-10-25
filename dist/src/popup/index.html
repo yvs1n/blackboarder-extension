@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blackboarder</title>
+  <script type="module" crossorigin src="../../assets/popup-Bvcnrlui.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-U9U5ybMP.css">
+</head>
+<body>
+  <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display: none;" aria-hidden="true">
+    <defs>
+      <symbol id="icon-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+      </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+      </symbol>
+      <symbol id="icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </symbol>
+      <symbol id="icon-clipboard" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+      </symbol>
+      <symbol id="icon-schedule" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+        <circle cx="12" cy="15" r="2"></circle>
+      </symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </symbol>
+      <symbol id="icon-urgent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+        <line x1="12" y1="9" x2="12" y2="13"></line>
+        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      </symbol>
+      <symbol id="icon-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </symbol>
+      <symbol id="icon-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1zM2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"></path>
+        <line x1="12" y1="3" x2="12" y2="21"></line>
+        <line x1="5" y1="8" x2="19" y2="8"></line>
+        <circle cx="12" cy="3" r="1"></circle>
+      </symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+      </symbol>
+      <symbol id="icon-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </symbol>
+      <symbol id="icon-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"></path>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      </symbol>
+      <symbol id="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </symbol>
+      <symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+      </symbol>
+      <symbol id="icon-flask" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2v7.31L4.14 19.34A2 2 0 0 0 5.86 22h12.28a2 2 0 0 0 1.72-2.66L14 9.31V2"></path>
+        <line x1="8" y1="2" x2="16" y2="2"></line>
+        <line x1="6.5" y1="15" x2="17.5" y2="15"></line>
+      </symbol>
+      <symbol id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 17 10 11 4 5"></polyline>
+        <line x1="12" y1="19" x2="20" y2="19"></line>
+      </symbol>
+      <symbol id="icon-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </symbol>
+      <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </symbol>
+      <symbol id="icon-coffee" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+        <line x1="6" y1="1" x2="6" y2="4"></line>
+        <line x1="10" y1="1" x2="10" y2="4"></line>
+        <line x1="14" y1="1" x2="14" y2="4"></line>
+      </symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </symbol>
+      <symbol id="icon-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </symbol>
+      <symbol id="icon-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </symbol>
+      <symbol id="icon-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </symbol>
+      <symbol id="icon-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </symbol>
+      <symbol id="icon-external-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        <polyline points="15 3 21 3 21 9"></polyline>
+        <line x1="10" y1="14" x2="21" y2="3"></line>
+      </symbol>
+      <symbol id="icon-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+        <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"></path>
+      </symbol>
+      <symbol id="icon-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M2 12h20"></path>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </symbol>
+      <symbol id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+      </symbol>
+      <symbol id="icon-message" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </symbol>
+      <symbol id="icon-smartphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+      </symbol>
+      <symbol id="icon-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+      </symbol>
+      <symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </symbol>
+      <symbol id="icon-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+      </symbol>
+      <symbol id="icon-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </symbol>
+      <symbol id="icon-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+        <path d="M5 3v4"></path>
+        <path d="M19 17v4"></path>
+        <path d="M3 5h4"></path>
+        <path d="M17 19h4"></path>
+      </symbol>
+      <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+      </symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </symbol>
+      <symbol id="icon-notebook-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4M2 6h4m-4 4h4m-4 4h4m-4 4h4"></path>
+        <path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"></path>
+      </symbol>
+      <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+      </symbol>
+      <symbol id="icon-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2h4m-2 12l3-3"></path>
+        <circle cx="12" cy="14" r="8"></circle>
+      </symbol>
+      <symbol id="icon-list-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 5.5L5 7l2.5-2.5m-4 7L5 13l2.5-2.5m-4 7L5 19l2.5-2.5M11 6h9m-9 6h9m-9 6h9"></path>
+      </symbol>
+      <symbol id="icon-presentation" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 3h20m-1 0v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3m4 18l5-5l5 5"></path>
+      </symbol>
+      <symbol id="icon-flask-conical" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"></path>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- App Header -->
+  <header class="header">
+    <div class="header-top">
+      <div class="brand" title="Blackboarder (Shortcut: Alt+B)">
+        <div class="brand-icon">
+          <svg class="ui-icon" style="width: 16px; height: 16px;"><use href="#icon-bolt"></use></svg>
+        </div>
+        <div class="brand-title">Blackboarder <span class="brand-badge">UOS</span></div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-scan-main" id="btn-scan-tab" title="Scan Current Blackboard Page (Shortcut: Alt+B)" aria-label="Scan Current Blackboard Page">
+          <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+          <span>Scan</span>
+        </button>
+        <!-- Only everyday actions live here; sync, calendar export, quick links and theme are in Settings -->
+        <button class="icon-btn" id="btn-add-modal" title="Add Deadline Manually" aria-label="Add Deadline Manually">
+          <svg class="ui-icon"><use href="#icon-plus"></use></svg>
+        </button>
+        <button class="icon-btn" id="btn-settings-toggle" title="Settings" aria-label="Settings">
+          <svg class="ui-icon"><use href="#icon-settings"></use></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Extended Scan Status Banner (slides down smoothly without horizontal layout shift) -->
+    <div class="header-scan-banner" id="header-scan-banner" aria-live="polite">
+      <div class="hsb-inner">
+        <div class="hsb-indicator">
+          <svg class="ui-icon hsb-spinner" id="hsb-icon"><use href="#icon-sparkles"></use></svg>
+        </div>
+        <div class="hsb-content">
+          <span class="hsb-text" id="hsb-text">Scanning Blackboard...</span>
+        </div>
+      </div>
+      <div class="hsb-progress-bar"><div class="hsb-progress-fill" id="hsb-progress-fill"></div></div>
+    </div>
+
+    <!-- Main Navigation: Monthly Calendar (Default) vs Details -->
+    <nav class="main-nav-tabs">
+      <button class="nav-tab active" id="tab-nav-calendar" data-view="calendar">
+        <span class="nav-tab-icon"><svg class="ui-icon"><use href="#icon-calendar"></use></svg></span>
+        <span>Monthly Calendar</span>
+      </button>
+      <button class="nav-tab" id="tab-nav-details" data-view="details">
+        <span class="nav-tab-icon"><svg class="ui-icon"><use href="#icon-clipboard"></use></svg></span>
+        <span>Deadline Details</span>
+        <span class="nav-badge" id="nav-badge-count">0</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- Extension GitHub Update Prompt Banner -->
+  <aside id="ext-update-banner" class="ext-update-banner" style="display: none;" role="status" aria-live="polite">
+    <div class="eub-top-row">
+      <div class="eub-badge-group">
+        <span class="eub-pill">Update</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.2.1</span>
+      </div>
+      <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
+    </div>
+    <div class="eub-content">
+      <h4 class="eub-title" id="eub-title">New version on GitHub</h4>
+      <p class="eub-desc" id="eub-desc">A new version is available. Your data stays intact.</p>
+    </div>
+    <div class="eub-actions">
+      <button type="button" class="btn-eub-primary" id="btn-ext-download-update">
+        <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+        <span>Download Update (.zip)</span>
+      </button>
+      <button type="button" class="btn-eub-secondary" id="btn-ext-reload">
+        <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
+        <span>Reload</span>
+      </button>
+      <button type="button" class="btn-eub-ghost" id="btn-ext-update-later">
+        <span>Later</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- VIEW 1: Monthly Calendar (Default Main Page) -->
+  <main id="view-calendar" class="view-panel active">
+    <!-- Course Colors Legend & Quick Filter Bar -->
+    <div class="course-legend-bar" id="course-legend-panel">
+      <div class="legend-chips-container" id="legend-chips-container">
+        <!-- Rendered dynamically from PERMANENT_COURSE_LEGEND with interactive chips -->
+      </div>
+    </div>
+
+    <!-- Month Navigation -->
+    <div class="calendar-controls">
+      <div class="calendar-title-group">
+        <button class="calendar-nav-btn" id="btn-cal-prev" title="Previous Month" aria-label="Previous Month">
+          <svg class="ui-icon"><use href="#icon-chevron-left"></use></svg>
+        </button>
+        <h2 class="calendar-month-title" id="cal-month-title">Month Year</h2>
+        <button class="calendar-nav-btn" id="btn-cal-next" title="Next Month" aria-label="Next Month">
+          <svg class="ui-icon"><use href="#icon-chevron-right"></use></svg>
+        </button>
+      </div>
+      <button class="calendar-today-btn" id="btn-cal-today" aria-label="Jump to Today">Today</button>
+    </div>
+
+    <!-- Weekday headers (Monday first) -->
+    <div class="calendar-weekdays" id="calendar-weekdays">
+      <span>Mon</span>
+      <span>Tue</span>
+      <span>Wed</span>
+      <span>Thu</span>
+      <span>Fri</span>
+      <span>Sat</span>
+      <span>Sun</span>
+    </div>
+
+    <!-- 7-Column Day Grid -->
+    <div class="calendar-grid" id="calendar-grid">
+      <!-- Generated dynamically -->
+    </div>
+
+    <!-- Selected Day Deadlines Drawer -->
+    <section class="selected-day-container" id="selected-day-container">
+      <div class="selected-day-header">
+        <div class="selected-day-title" id="selected-day-title">
+          <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
+          <span>Deadlines for Today</span>
+        </div>
+        <button class="btn-xs-add" id="btn-add-on-date" title="Add deadline on this date">
+          <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+          <span>Add</span>
+        </button>
+      </div>
+      <div class="selected-day-list" id="selected-day-list">
+        <!-- Injected dynamically -->
+      </div>
+    </section>
+
+    <!-- Academic Quick Links Bar -->
+    <div class="calendar-quick-links-bar" id="calendar-quick-links-bar">
+      <div class="quick-links-bar-header">
+        <span class="quick-links-bar-title"><svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>Quick Links</span>
+        <button type="button" class="btn-xs-manage-links" id="btn-bar-manage-links" title="Manage Quick Links">+ Manage</button>
+      </div>
+      <div class="quick-links-chips-row" id="calendar-quick-links-chips">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW 2: Deadline Details (Cards Dashboard) -->
+  <section id="view-details" class="view-panel">
+    <!-- Stat bar -->
+    <div class="stats-bar">
+      <div class="stat-card stat-urgent">
+        <span class="stat-number" id="stat-urgent-count">0</span>
+        <span class="stat-label">
+          <svg class="ui-icon mr-1" style="color: var(--danger);"><use href="#icon-urgent"></use></svg>
+          <span>Urgent (&lt;48h)</span>
+        </span>
+      </div>
+      <div class="stat-card stat-week">
+        <span class="stat-number" id="stat-week-count">0</span>
+        <span class="stat-label">
+          <svg class="ui-icon mr-1" style="color: var(--warning);"><use href="#icon-calendar"></use></svg>
+          <span>This Week</span>
+        </span>
+      </div>
+      <div class="stat-card stat-all">
+        <span class="stat-number" id="stat-total-count">0</span>
+        <span class="stat-label">
+          <svg class="ui-icon mr-1" style="color: var(--primary);"><use href="#icon-book"></use></svg>
+          <span>Total Tasks</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Marks: every graded and submitted item, grouped by course -->
+    <div class="grade-tracker-widget" id="popup-grade-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
+      <div class="grade-tracker-header" id="grade-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <svg class="ui-icon"><use href="#icon-scale"></use></svg>
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Marks</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span class="info-badge blue" id="grade-tracker-overall-badge" style="font-size: 11px;">No marks yet</span>
+          <svg class="ui-icon" id="grade-tracker-arrow" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
+        </div>
+      </div>
+      <div class="grade-tracker-breakdown" id="grade-tracker-breakdown" style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;">
+        <!-- Dynamically populated per course -->
+      </div>
+    </div>
+
+    <!-- GPA: each course's grade so far on the UOS scale, and the projected GPA -->
+    <div class="grade-tracker-widget" id="gpa-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
+      <div class="grade-tracker-header" id="gpa-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <svg class="ui-icon"><use href="#icon-scale"></use></svg>
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">GPA</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span class="info-badge blue" id="gpa-tracker-badge" style="font-size: 11px;">No marks yet</span>
+          <svg class="ui-icon" id="gpa-tracker-arrow" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
+        </div>
+      </div>
+      <div class="grade-tracker-breakdown" id="gpa-tracker-breakdown" style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;"></div>
+    </div>
+
+    <!-- Syllabus Progress: how much of each course's weight is done, pending, or not announced yet -->
+    <div class="grade-tracker-widget" id="syllabus-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
+      <div class="grade-tracker-header" id="syllabus-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <svg class="ui-icon"><use href="#icon-scale"></use></svg>
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Syllabus Progress</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span class="info-badge blue" id="syllabus-tracker-badge" style="font-size: 11px;">0% done</span>
+          <svg class="ui-icon" id="syllabus-tracker-arrow" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
+        </div>
+      </div>
+      <div class="grade-tracker-breakdown" id="syllabus-tracker-breakdown" style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;"></div>
+    </div>
+
+    <!-- Controls & Filters -->
+    <div class="controls-bar">
+      <div class="search-input-wrapper">
+        <span class="search-icon"><svg class="ui-icon"><use href="#icon-search"></use></svg></span>
+        <input type="text" id="search-input" class="search-input" placeholder="Search tasks, quizzes, courses...">
+      </div>
+      <div class="filter-chips">
+        <button class="filter-chip tab-btn active" data-status="pending">Pending</button>
+        <button class="filter-chip tab-btn" data-status="all">All</button>
+        <button class="filter-chip tab-btn" data-status="completed">Completed</button>
+      </div>
+
+      <div class="filter-dropdowns">
+        <select id="filter-course" class="filter-select mobile-select">
+          <option value="all">All Courses</option>
+        </select>
+
+        <select id="filter-type" class="filter-select mobile-select">
+          <option value="all">All Types</option>
+          <option value="quiz">Quizzes</option>
+          <option value="assignment">Assignments</option>
+          <option value="exam">Exams</option>
+          <option value="project">Projects</option>
+          <option value="lab">Labs</option>
+        </select>
+      </div>
+
+      <!-- Action Buttons Bar -->
+      <div class="deadlines-action-bar">
+        <button id="btn-ai-extract-modal" class="btn-primary-action" type="button">
+          <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+          <span class="btn-responsive-label">Extract Announcement</span>
+        </button>
+        <button id="btn-add-deadline-header" class="btn-add-action" type="button">
+          <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+          <span class="btn-responsive-label">Add Custom</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Task List Container -->
+    <div id="task-list" class="task-list">
+      <!-- Injected dynamically -->
+    </div>
+  </section>
+
+  <!-- VIEW 3: Add Task Manually -->
+  <section id="view-add" class="view-panel">
+    <h3 style="font-size: 15px; margin-bottom: 12px; font-weight: 700;">Add Custom Deadline</h3>
+    <form id="form-add-task">
+      <div class="form-group">
+        <label class="form-label">Task / Title</label>
+        <input type="text" id="add-title" class="form-input" placeholder="e.g. Quiz 2: Binary Trees" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Course Code & Name</label>
+        <input type="text" id="add-course" class="form-input" placeholder="e.g. Calculus 1 for Engineering" required>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="form-group">
+          <label class="form-label">Due Date</label>
+          <input type="date" id="add-date" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Time</label>
+          <input type="time" id="add-time" class="form-input" value="23:59">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Room / Location <span style="font-weight: normal; color: var(--text-muted);">(Optional - defaults to course schedule)</span></label>
+        <input type="text" id="add-room" class="form-input" placeholder="e.g. A8-103, A12-110, A3-184">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="add-type" class="form-select">
+            <option value="quiz">Quiz</option>
+            <option value="assignment" selected>Assignment / HW</option>
+            <option value="exam">Exam / Midterm</option>
+            <option value="project">Project</option>
+            <option value="lab">Lab Report</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select id="add-priority" class="form-select">
+            <option value="high">High (Urgent)</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Grade Weight (%) <span style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
+        <div style="display: flex; gap: 6px;">
+          <input type="number" id="add-weight" class="form-input" placeholder="e.g. 5" step="0.1" min="0" max="100">
+          <button type="button" class="btn-secondary" id="btn-calc-add-weight" title="Auto-detect weight from course syllabus" style="font-size: 11px; white-space: nowrap; padding: 0 8px;">
+            <svg class="ui-icon mr-1"><use href="#icon-scale"></use></svg>
+            <span>Auto-Weight</span>
+          </button>
+        </div>
+        <span id="add-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes / Instructions</label>
+        <textarea id="add-notes" class="form-textarea" placeholder="Optional notes..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-cancel-add">Cancel</button>
+        <button type="submit" class="btn-primary">Save Deadline</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- VIEW 4: Settings -->
+  <section id="view-settings" class="view-panel">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+      <div>
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-main);">Settings &amp; Preferences</h3>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Pick a section below. Save Settings saves every section.</p>
+      </div>
+    </div>
+
+    <form id="form-settings">
+      <!-- Settings pages: one tab per group, all inside the same form so Save keeps saving every field -->
+      <div class="settings-nav" role="tablist" aria-label="Settings sections">
+        <button type="button" class="settings-nav-tab active" role="tab" id="settings-tab-general" data-settings-page="general" aria-selected="true" aria-controls="settings-page-general" tabindex="0">
+          <svg class="ui-icon"><use href="#icon-settings"></use></svg>
+          <span>General</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-courses" data-settings-page="courses" aria-selected="false" aria-controls="settings-page-courses" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-book"></use></svg>
+          <span>Courses</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-scanning" data-settings-page="scanning" aria-selected="false" aria-controls="settings-page-scanning" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-bolt"></use></svg>
+          <span>Scanning</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-sync" data-settings-page="sync" aria-selected="false" aria-controls="settings-page-sync" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-smartphone"></use></svg>
+          <span>Sync</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-alerts" data-settings-page="alerts" aria-selected="false" aria-controls="settings-page-alerts" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-bell"></use></svg>
+          <span>Alerts</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-data" data-settings-page="data" aria-selected="false" aria-controls="settings-page-data" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-download"></use></svg>
+          <span>Data</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-updates" data-settings-page="updates" aria-selected="false" aria-controls="settings-page-updates" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-refresh"></use></svg>
+          <span>Updates</span>
+        </button>
+      </div>
+
+      <div class="settings-page" id="settings-page-general" role="tabpanel" aria-labelledby="settings-tab-general">
+        <!-- Setup Guide / Walkthrough Replay Button -->
+        <button type="button" class="btn-outline-action" id="btn-replay-walkthrough" style="margin-bottom: 12px; justify-content: center; width: 100%; border-style: dashed; padding: 8px 12px;">
+          <svg class="ui-icon mr-1" style="color: var(--primary);"><use href="#icon-sparkles"></use></svg>
+          <span>Replay Setup Walkthrough &amp; Guide</span>
+        </button>
+
+        <!-- Quick links editor (was a header button; the calendar's Quick Links bar opens it too) -->
+        <button type="button" class="btn-outline-action" id="btn-quick-links-toggle" title="Academic Quick Links (Attendance, Study Plan, Marks)" aria-label="Academic Quick Links" style="margin-bottom: 12px; justify-content: center; width: 100%;">
+          <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
+          <span>Manage Quick Links (Attendance, Study Plan, Marks)</span>
+        </button>
+
+        <!-- Card 3: Appearance & Shortcuts -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-moon"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Appearance &amp; Blackboard Dark Mode</h3>
+                <p class="settings-card-subtitle">Interface styling and native Blackboard Ultra dark theme</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-purple">Ultra Theme</span>
+          </div>
+
+          <!-- Blackboard Ultra Native Dark Mode Toggle -->
+          <div class="setting-toggle-row" style="margin-bottom: 12px; padding: 10px 12px; background: var(--surface-hover); border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
+            <div class="toggle-info">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="setting-title" style="font-weight: 600;">Blackboard Web Dark Mode</span>
+                <span class="settings-pill pill-green" style="font-size: 10px;">Native Theme</span>
+              </div>
+              <span class="setting-desc">Injects native high-contrast dark theme directly into University of Sharjah Blackboard Ultra web pages.</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-blackboard-dark-mode" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-theme">Popup &amp; Dashboard Theme</label>
+            <select id="setting-theme" class="form-select">
+              <option value="system">Match System Theme (Default)</option>
+              <option value="light">Light Mode (Classic Academic)</option>
+              <option value="dark">Dark Mode (Focused Night)</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Keyboard Shortcut</label>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-sm);">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <svg class="ui-icon" style="color: var(--text-muted); width: 14px; height: 14px;"><use href="#icon-terminal"></use></svg>
+                <span style="font-size: 12px; color: var(--text-main); font-weight: 500;">Open Blackboarder</span>
+              </div>
+              <span style="display: inline-flex; gap: 3px; align-items: center;">
+                <kbd class="kbd-badge">Alt</kbd>+<kbd class="kbd-badge">B</kbd>
+              </span>
+            </div>
+            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 4px;">
+              Press anywhere in Chrome to open popup. (Mac: <kbd class="kbd-badge">Alt</kbd>+<kbd class="kbd-badge">Shift</kbd>+<kbd class="kbd-badge">B</kbd>)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-courses" role="tabpanel" aria-labelledby="settings-tab-courses" hidden>
+        <!-- Card 5: My Courses, Schedule & Grading (Unified Interactive Manager) -->
+        <div class="settings-card" id="card-my-courses">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">My Courses, Schedule &amp; Grading</h3>
+                <p class="settings-card-subtitle">Manage class times, room locations, and syllabus mark allocations</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue" id="pill-course-count">6 Active</span>
+          </div>
+
+          <p class="settings-card-desc">
+            Configure your enrolled courses, weekly lecture slots, and grade distributions. Deadlines auto-calculate marks and lecture rooms based on these settings.
+          </p>
+
+          <!-- Course Manager Action Toolbar -->
+          <div class="courses-toolbar" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center;">
+            <button type="button" class="btn-primary" id="btn-add-course" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+              <svg class="ui-icon"><use href="#icon-plus"></use></svg>
+              <span>Add Course</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-import-courses" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;" title="Import from Banner SSB schedule text or JSON backup">
+              <svg class="ui-icon"><use href="#icon-upload"></use></svg>
+              <span>Import / Paste</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-export-courses" style="font-size: 11px; padding: 5px 9px; width: auto; min-height: 28px; display: inline-flex; align-items: center; gap: 4px;" title="Download JSON course configuration backup">
+              <svg class="ui-icon"><use href="#icon-download"></use></svg>
+              <span>Export JSON</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-reset-courses" style="font-size: 11px; padding: 5px 9px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px;" title="Reset to standard 6 UOS courses">
+              <span>Reset Defaults</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Courses List -->
+          <div id="user-courses-list" class="user-courses-container" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Populated dynamically by renderUserCoursesManager() -->
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-scanning" role="tabpanel" aria-labelledby="settings-tab-scanning" hidden>
+        <!-- Card 1: AI & Hybrid Extraction Engine -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-bolt"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">AI &amp; Extraction Engine</h3>
+                <p class="settings-card-subtitle">Built-in parser with an optional AI model</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue">Hybrid Engine</span>
+          </div>
+
+          <p class="settings-card-desc">
+            The built-in parser reads announcements on its own. If you add an API key, an AI model reads only the ones the parser cannot date. Without a key, the built-in parser is used automatically. The web app uses the same model through your server, so set it up here.
+          </p>
+
+          <!-- Toggle: Enable AI Deep Extraction -->
+          <div class="toggle-control-row">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label">Enable AI Deep Extraction</span>
+              <span class="toggle-status-desc">Use an AI model for conversational announcements</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-use-ai">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-top: 8px;">
+            <label class="form-label" for="setting-apikey" id="setting-apikey-label">OpenRouter API Key (AI Fallback)</label>
+            <input type="password" id="setting-apikey" class="form-input" placeholder="sk-or-v1-..." autocomplete="off">
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Used when local parser encounters ambiguous or conversational announcements.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-ai-provider">AI Provider</label>
+            <select id="setting-ai-provider" class="form-select">
+              <option value="openrouter">OpenRouter (Gemini, GPT and more)</option>
+              <option value="ifm">IFM K2 Horizon (free daily tokens)</option>
+              <option value="custom">Custom (any OpenAI-compatible API)</option>
+            </select>
+            <span class="ai-provider-hint" id="setting-ai-provider-hint">Each provider keeps its own key, so switching back loses nothing.</span>
+          </div>
+
+          <div class="form-group ai-provider-field" id="ai-custom-fields" hidden>
+            <label class="form-label" for="setting-ai-base-url">API Base URL</label>
+            <input type="url" id="setting-ai-base-url" class="form-input" placeholder="https://api.example.com/v1" autocomplete="off">
+            <label class="form-label" for="setting-ai-custom-model" style="margin-top: 6px;">Model Name</label>
+            <input type="text" id="setting-ai-custom-model" class="form-input" placeholder="provider/model-name" autocomplete="off">
+          </div>
+
+          <div class="ai-test-row">
+            <button type="button" class="btn-secondary" id="btn-test-ai">Test connection</button>
+            <span class="ai-test-status" id="ai-test-status" aria-live="polite"></span>
+          </div>
+          <span class="ai-provider-hint" id="ai-webapp-status" style="margin: -4px 0 4px;"></span>
+          <div class="ai-test-row">
+            <button type="button" class="btn-secondary" id="btn-new-ai-pass">New AI pass</button>
+            <span class="ai-test-status">Only phones opened with the pairing link can use this model. A new pass signs all phones out of AI until you send the link again.</span>
+          </div>
+
+          <div class="form-group ai-provider-field" id="ai-openrouter-model">
+            <label class="form-label" for="setting-model">AI Model</label>
+            <select id="setting-model" class="form-select">
+              <option value="google/gemini-3.8-flash">Google Gemini 3.8 Flash (Fast &amp; Recommended)</option>
+              <option value="google/gemini-3.7-flash">Google Gemini 3.7 Flash</option>
+              <option value="google/gemini-flash-latest">Google Gemini Flash Latest</option>
+              <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini</option>
+            </select>
+          </div>
+
+          <!-- Toggle: Auto-scan announcements -->
+          <div class="toggle-control-row" style="margin-top: 10px; margin-bottom: 0;">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label">Auto-Scan on Page Load</span>
+              <span class="toggle-status-desc">Automatically inspects Blackboard announcements when visiting stream</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-autoscan">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Card 7: Scanner Maintenance & Cache -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-settings"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Scanner Maintenance &amp; Cache</h3>
+                <p class="settings-card-subtitle">Checkpoint cache and rescan utilities</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-orange">Non-Destructive</span>
+          </div>
+
+          <p class="settings-card-desc">
+            Blackboarder caches scanned announcement IDs to make rescans instant. Full Re-scan refreshes all details without resetting completed tasks. Clear Scan Cache forces a clean re-scan of all announcements from scratch.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <button type="button" class="btn-primary" id="btn-trigger-full-rescan" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+              <span>Full Re-scan Blackboard</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-reset-checkpoint" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;" title="Clear cached announcement IDs so next scan inspects all announcements">
+              <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
+              <span>Clear Scan Cache</span>
+            </button>
+          </div>
+          <div id="rescan-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px;"></div>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-sync" role="tabpanel" aria-labelledby="settings-tab-sync" hidden>
+        <!-- Card 4: Mobile Phone & Cloud Sync -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-smartphone"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Mobile Phone &amp; Cloud Sync</h3>
+                <p class="settings-card-subtitle">Real-time sync to phone PWA and live calendar feeds</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-green">Live Sync</span>
+          </div>
+
+          <p class="settings-card-desc">
+            Access your deadlines on your phone via Mobile Web App (PWA) and subscribe natively in Apple Calendar (iOS) or Google Calendar.
+          </p>
+
+          <!-- Personal Sync Key Prominent Box -->
+          <div class="settings-panel-box" style="margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 0;">Personal Sync Pairing Key</label>
+              <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
+                <span>Copy Key</span>
+              </button>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K" maxlength="24" autocomplete="off" spellcheck="false" style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1;">
+              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;" title="Generate new random key">New Key</button>
+            </div>
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 4px;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
+          </div>
+
+          <!-- Action Buttons -->
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button type="button" class="btn-primary" id="btn-sync-to-server" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
+                <span>Sync Now to Mobile</span>
+              </button>
+              <button type="button" class="btn-secondary" id="btn-open-mobile-web" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-smartphone"></use></svg>
+                <span>Open Mobile App</span>
+              </button>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-copy-pairing-link">
+              <svg class="ui-icon mr-1"><use href="#icon-share"></use></svg>
+              <span>Copy Phone Pairing Link (?key=...)</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-show-pairing-qr" aria-expanded="false" aria-controls="pairing-qr-panel">
+              <svg class="ui-icon mr-1"><use href="#icon-qr"></use></svg>
+              <span>Show Pairing QR Code</span>
+            </button>
+            <div id="pairing-qr-panel" class="pairing-qr-panel" hidden>
+              <div id="pairing-qr-code" class="pairing-qr-code"></div>
+              <p class="pairing-qr-help">On your phone, open the Blackboarder app, go to <strong>Settings &gt; Sync</strong> and tap <strong>Scan QR</strong>. It pairs right away, AI included. The code carries your AI pass, so only show it to your own phone.</p>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-copy-webcal-link">
+              <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
+              <span>Copy WebCal Feed Link (Apple/Google Cal)</span>
+            </button>
+            <div id="firebase-status-badge" class="firebase-status-badge">
+              <div class="fb-status-main">
+                <svg class="ui-icon fb-status-icon"><use href="#icon-flame"></use></svg>
+                <span>Firebase Cloud DB: Connected</span>
+              </div>
+              <span class="fb-status-sub">24/7 Always Online</span>
+            </div>
+            <div id="sync-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;"></div>
+          </div>
+
+          <!-- Advanced server options collapsible -->
+          <details class="settings-advanced-details" style="margin-top: 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--surface);">
+            <summary style="font-size: 11px; font-weight: 600; color: var(--text-muted); cursor: pointer; user-select: none;">
+              Advanced Server &amp; Endpoints
+            </summary>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+              <div class="form-group">
+                <label class="form-label" for="setting-sync-url">Own Sync Server (optional)</label>
+                <input type="text" id="setting-sync-url" class="form-input" placeholder="Leave empty to sync through Firebase only" value="">
+                <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">Only needed for a custom sync server. Firebase handles sync without it.</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-hosted-url">Hosted Web Dashboard URL</label>
+                <input type="text" id="setting-hosted-url" class="form-input" placeholder="https://blackboarder.pages.dev" value="https://blackboarder.pages.dev">
+                <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">The phone app and website this extension pairs with.</span>
+              </div>
+              <div class="form-group" style="margin-top: 2px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
+                  <input type="checkbox" id="setting-sync-midnight" checked>
+                  <span>Auto-sync every day at 12:00 AM midnight</span>
+                </label>
+              </div>
+              <div class="form-group" style="margin-top: 2px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
+                  <input type="checkbox" id="setting-sync-onscan" checked>
+                  <span>Auto-push to mobile after scanning Blackboard</span>
+                </label>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-alerts" role="tabpanel" aria-labelledby="settings-tab-alerts" hidden>
+        <!-- Card 2: Notifications & Alerts -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-bell"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Notifications &amp; Alerts</h3>
+                <p class="settings-card-subtitle">Extension icon badge and advance reminder windows</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-orange">Reminders</span>
+          </div>
+
+          <!-- Toggle: Badge notification -->
+          <div class="toggle-control-row">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label">Extension Icon Badge</span>
+              <span class="toggle-status-desc">Show pending deadline counter directly on toolbar icon</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-badge-notif">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="setting-reminder-hours">Notification Alert Window</label>
+            <select id="setting-reminder-hours" class="form-select">
+              <option value="12">12 hours before deadline</option>
+              <option value="24">24 hours before deadline (Default)</option>
+              <option value="48">48 hours before deadline</option>
+            </select>
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Controls when advance desktop push notifications are dispatched.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-data" role="tabpanel" aria-labelledby="settings-tab-data" hidden>
+        <!-- Card 8: Backup & Data Management -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-download"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Permanent Data Backup</h3>
+                <p class="settings-card-subtitle">Export or restore your deadlines offline</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue">Local Storage</span>
+          </div>
+
+          <p class="settings-card-desc">
+            Your scanned deadlines are safely stored in browser storage. Export a JSON backup file anytime for 100% peace of mind.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button type="button" class="btn-outline-action" id="btn-backup-json" style="justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Export JSON</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-restore-json-trigger" style="justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-upload"></use></svg>
+              <span>Restore JSON</span>
+            </button>
+          </div>
+          <input type="file" id="input-restore-json" accept=".json" style="display: none;">
+          <!-- Calendar file export (was a header button) -->
+          <button type="button" class="btn-outline-action" id="btn-export-all-ics" title="Export All to .ICS Calendar" aria-label="Export All to .ICS Calendar" style="margin-top: 8px; justify-content: center; width: 100%;">
+            <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
+            <span>Export Pending Deadlines to Calendar (.ics)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-updates" role="tabpanel" aria-labelledby="settings-tab-updates" hidden>
+        <!-- Card 9: Extension Updates & GitHub Version -->
+        <div class="settings-card" id="card-extension-updates">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Extension Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.2.1</span></h3>
+                <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-green" id="ext-update-status-pill">Up to Date</span>
+          </div>
+
+          <p class="settings-card-desc" id="ext-update-status-desc">
+            Installed build: <code id="ext-local-commit">local</code> (<span id="ext-local-date">just now</span>). Checks GitHub every hour and installs new versions automatically.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button type="button" class="btn-primary" id="btn-check-ext-update" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
+                <span>Check for Updates</span>
+              </button>
+              <button type="button" class="btn-secondary" id="btn-reload-ext-settings" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+                <span>Reload Extension</span>
+              </button>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-download-ext-zip">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Download Latest Extension (.zip)</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-open-github-repo">
+              <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
+              <span>View GitHub Repository</span>
+            </button>
+          </div>
+          <p class="settings-card-desc" style="margin-top: 10px; font-size: 11px;">
+            Built by <a href="https://yassinr.me" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: underline;">Yassin Ragab</a>, a freshman at UOS.
+          </p>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--surface-border); display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn-secondary" id="btn-cancel-settings" style="min-height: 36px; padding: 6px 14px;">Back</button>
+        <button type="submit" class="btn-primary" style="min-height: 36px; padding: 6px 18px; font-weight: 700;">Save Settings</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- MODAL: Edit Task -->
+  <div id="modal-edit-task" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-edit-task-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg class="ui-icon"><use href="#icon-pencil"></use></svg>
+          <span>Edit Deadline</span>
+        </h3>
+        <button type="button" class="modal-close-btn" id="btn-close-edit-modal" aria-label="Close edit task dialog">✕</button>
+      </div>
+      <form id="form-edit-task">
+        <input type="hidden" id="edit-task-id">
+        <div class="form-group">
+          <label class="form-label">Task / Title</label>
+          <input type="text" id="edit-title" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Course Name or Code</label>
+          <input type="text" id="edit-course" class="form-input" required>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" id="edit-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Time</label>
+            <input type="time" id="edit-time" class="form-input">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Room / Location</label>
+          <input type="text" id="edit-room" class="form-input" placeholder="e.g. A8-103, A12-110, A3-184">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="edit-type" class="form-select">
+              <option value="quiz">Quiz</option>
+              <option value="assignment">Assignment / HW</option>
+              <option value="exam">Exam / Midterm</option>
+              <option value="project">Project</option>
+              <option value="lab">Lab Report</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="edit-priority" class="form-select">
+              <option value="high">High (Urgent)</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="edit-status" class="form-select">
+            <option value="pending">Pending (Active)</option>
+            <option value="completed">Completed (Done)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Grade Weight (%) <span style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="edit-weight" class="form-input" placeholder="e.g. 5" step="0.1" min="0" max="100">
+            <button type="button" class="btn-secondary" id="btn-calc-edit-weight" title="Auto-detect weight from course syllabus" style="font-size: 11px; white-space: nowrap; padding: 0 8px;">
+              <svg class="ui-icon mr-1"><use href="#icon-scale"></use></svg>
+              <span>Auto-Weight</span>
+            </button>
+          </div>
+          <span id="edit-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-desc">Full Announcement / Doctor's Message</label>
+          <textarea id="edit-desc" class="form-textarea" rows="3" placeholder="Full announcement text from doctor..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-notes">Student Notes</label>
+          <textarea id="edit-notes" class="form-textarea" rows="2" placeholder="Personal notes or reminders..."></textarea>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn-danger" id="btn-delete-from-modal">
+            <svg class="ui-icon mr-1"><use href="#icon-trash"></use></svg>
+            <span>Delete</span>
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn-secondary" id="btn-cancel-edit">Cancel</button>
+            <button type="submit" class="btn-primary">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Expanded Day View Bottom Sheet Drawer -->
+  <div id="day-expanded-backdrop" class="day-expanded-backdrop hidden"></div>
+  <aside id="day-expanded-drawer" class="day-expanded-drawer hidden" role="dialog" aria-modal="true" aria-labelledby="day-drawer-title">
+    <div class="day-drawer-handle-bar">
+      <div class="day-drawer-handle"></div>
+    </div>
+    <div class="day-drawer-header">
+      <div class="day-drawer-title-group">
+        <div class="day-drawer-title" id="day-drawer-title">
+          <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
+          <span>Tuesday, Sep 15</span>
+        </div>
+        <div class="day-drawer-subtitle" id="day-drawer-subtitle">2 Deadlines Scheduled</div>
+      </div>
+      <div class="day-drawer-actions">
+        <button type="button" class="btn-drawer-add" id="btn-drawer-add" title="Add deadline on this date">
+          <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+          <span>Add</span>
+        </button>
+        <button type="button" class="btn-drawer-close" id="btn-drawer-close" title="Close day view">✕</button>
+      </div>
+    </div>
+    <div class="day-drawer-body" id="day-drawer-body">
+      <!-- Injected dynamically with short summary cards -->
+    </div>
+  </aside>
+
+  <!-- MODAL: Mobile & Extension Full Reading Sheet -->
+  <div id="modal-reading-sheet" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="reading-sheet-title">
+    <div class="modal-dialog reading-sheet-modal-card">
+      <div class="modal-header">
+        <div class="reading-modal-badge-group" id="reading-modal-badges"></div>
+        <button type="button" class="modal-close-btn" id="btn-close-reading-sheet" aria-label="Close announcement view">✕</button>
+      </div>
+      <div class="reading-modal-body" id="reading-modal-content">
+        <!-- Rendered dynamically via openReadingSheet() -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: 1-Click Room Picker -->
+  <div id="modal-room-picker" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="room-picker-title">
+    <div class="modal-dialog room-picker-modal-card">
+      <div class="modal-header">
+        <h3 id="room-picker-title" class="modal-title"><svg class="ui-icon mr-1"><use href="#icon-pin"></use></svg>Select Room / Location</h3>
+        <button type="button" class="modal-close-btn" id="btn-close-room-picker" aria-label="Close room picker">✕</button>
+      </div>
+      <div class="room-picker-body">
+        <p class="room-picker-instruction">Choose an official campus room or enter a new room number:</p>
+        <div class="room-presets-list" id="room-presets-container">
+          <!-- Populated from schedule -->
+        </div>
+        <div class="room-custom-wrapper">
+          <label class="form-label" for="input-custom-room">Custom Room / Hall</label>
+          <div class="room-custom-input-row">
+            <input type="text" id="input-custom-room" class="form-input" placeholder="e.g. A8-204, A8-101, or M1-102">
+            <button type="button" class="btn-primary" id="btn-apply-custom-room" style="white-space: nowrap; padding: 6px 12px; font-size: 11.5px;">Save Room</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Announcement Extractor -->
+  <div id="modal-ai-extract" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="extract-modal-title">
+    <div class="modal-dialog extract-modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="ui-icon" style="width: 18px; height: 18px;"><use href="#icon-bolt"></use></svg>
+          <h3 id="extract-modal-title" class="modal-title">Extract from Announcement</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-extract-modal" aria-label="Close extract modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 12px 4px 4px;">
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.45;">
+          Paste any message or announcement from Blackboard. The Hybrid Engine will extract deadlines, room numbers, and syllabus weights automatically.
+        </p>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label class="form-label" for="extract-course-hint">Course <span style="font-weight: normal; color: var(--text-muted);">(Optional hint)</span></label>
+          <select id="extract-course-hint" class="filter-select mobile-select" style="width: 100%;">
+            <option value="">Auto-detect from text</option>
+            <option value="Calculus I for Engineering">Calculus I for Engineering (A12-110)</option>
+            <option value="Intro to Comp Eng.">Introduction to Computer Engineering (A8-103)</option>
+            <option value="Physics 1">Physics 1 (A8-110)</option>
+            <option value="Physics 1 Lab">Physics 1 Lab (Central Lab Men - 105)</option>
+            <option value="English for Academic Purposes">English for Academic Purposes (A3-184)</option>
+            <option value="Islamic Culture">Islamic Culture (A8-TH005)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label class="form-label" for="input-extract-text">Announcement / Message Text</label>
+          <textarea id="input-extract-text" class="form-textarea" rows="4" placeholder="e.g. Dear students, Quiz 2 will be conducted on Tuesday, 29 September 2026, during the lecture time in room A8-103..."></textarea>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <button type="button" class="btn-secondary" id="btn-cancel-extract">Cancel</button>
+          <button type="button" class="btn-primary" id="btn-run-extract" style="padding: 6px 14px; font-size: 12px;">
+            <span id="extract-btn-icon"><svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg></span>
+            <span id="extract-btn-text">Extract Deadlines</span>
+          </button>
+        </div>
+        <div id="extract-status-box" style="margin-top: 10px; display: none;"></div>
+        <div id="extract-preview-list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Academic Quick Links Manager -->
+  <div id="modal-quick-links" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="quick-links-modal-title">
+    <div class="modal-dialog quick-links-modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="ui-icon" style="width: 18px; height: 18px; "><use href="#icon-link"></use></svg>
+          <h3 id="quick-links-modal-title" class="modal-title">Academic Quick Links</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-quick-links" aria-label="Close Quick Links">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 14px 16px;">
+        <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.45;">
+          Quickly jump to your attendance, study plan, marks, or custom student portals in one click.
+        </p>
+
+        <!-- Top Action Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px;">
+          <button type="button" class="btn-primary" id="btn-toggle-add-link-form" style="font-size: 11.5px; padding: 5px 12px;">
+            <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+            <span>Add Link</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-reset-quick-links" style="font-size: 11px; padding: 5px 9px;" title="Reset to standard university links">
+            <span>Reset Defaults</span>
+          </button>
+        </div>
+
+        <!-- Add / Edit Link Form (Collapsible) -->
+        <form id="form-quick-link" style="display: none; background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px;">
+          <input type="hidden" id="ql-edit-id" value="">
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label class="form-label" for="ql-title" style="font-size: 11px; font-weight: 600;">Link Title</label>
+            <input type="text" id="ql-title" class="form-input" placeholder="e.g. My Attendance, Study Plan, Marks" required style="font-size: 12px; padding: 6px 8px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label class="form-label" for="ql-url" style="font-size: 11px; font-weight: 600;">Web Address (URL)</label>
+            <input type="url" id="ql-url" class="form-input" placeholder="https://banner.sharjah.ac.ae" required style="font-size: 12px; padding: 6px 8px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label class="form-label" for="ql-category" style="font-size: 11px; font-weight: 600;">Category</label>
+            <select id="ql-category" class="form-select" style="font-size: 12px; padding: 6px 8px;">
+              <option value="attendance">Attendance</option>
+              <option value="study_plan">Study Plan &amp; Degree Audit</option>
+              <option value="marks">Marks &amp; Academic Transcript</option>
+              <option value="portal">University Portal</option>
+              <option value="other">Other / Custom</option>
+            </select>
+          </div>
+
+          <!-- Quick Fill Preset Chips -->
+          <div style="margin-bottom: 10px;">
+            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Quick Fill Presets:</span>
+            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+              <button type="button" class="btn-preset-ql" data-preset="attendance" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Attendance</button>
+              <button type="button" class="btn-preset-ql" data-preset="study_plan" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Study Plan</button>
+              <button type="button" class="btn-preset-ql" data-preset="marks" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Marks</button>
+              <button type="button" class="btn-preset-ql" data-preset="portal" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Blackboard</button>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 6px;">
+            <button type="button" class="btn-secondary" id="btn-cancel-ql-form" style="font-size: 11px; padding: 5px 10px;">Cancel</button>
+            <button type="submit" class="btn-primary" id="btn-save-ql" style="font-size: 11px; padding: 5px 12px;">Save Link</button>
+          </div>
+        </form>
+
+        <!-- Quick Links List Container -->
+        <div class="quick-links-manager-list" id="quick-links-manager-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Course, Schedule & Syllabus Editor -->
+  <div id="modal-course-editor" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="course-editor-title">
+    <div class="modal-dialog course-editor-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="editor-header-dot" class="course-color-preview-dot" style="width: 14px; height: 14px; border-radius: 50%; background: #2563eb; display: inline-block;"></span>
+          <h3 id="course-editor-title" class="modal-title">Edit Course</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-course-editor" aria-label="Close Course Editor">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 12px 14px; max-height: calc(85vh - 110px); overflow-y: auto;">
+        <form id="form-course-editor">
+          <input type="hidden" id="editor-course-id" value="">
+
+          <!-- Basic Course Info -->
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-bottom: 8px;">
+            <div class="form-group">
+              <label class="form-label" for="editor-course-code">Course Code</label>
+              <input type="text" id="editor-course-code" class="form-input" placeholder="e.g. 1502101" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editor-course-name">Course Name</label>
+              <input type="text" id="editor-course-name" class="form-input" placeholder="e.g. Intro to Comp Eng" required>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <div>
+                <label class="form-label" for="editor-course-crn">CRN <span style="font-weight: normal; color: var(--text-muted);">(Optional)</span></label>
+                <input type="text" id="editor-course-crn" class="form-input" placeholder="e.g. 12345">
+              </div>
+              <div>
+                <label class="form-label" for="editor-course-credits">Credit hours</label>
+                <input type="number" id="editor-course-credits" class="form-input" min="0" max="12" step="1" placeholder="3" title="Used for the GPA">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="editor-color-hex">Color Theme</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="editor-color-picker" value="#2563eb" style="width: 28px; height: 28px; padding: 0; border: none; border-radius: 4px; cursor: pointer; background: transparent;">
+                <input type="text" id="editor-color-hex" class="form-input" placeholder="#2563eb" pattern="^#([A-Fa-f0-9]{6})$" required style="font-family: monospace; font-size: 11px;">
+              </div>
+            </div>
+          </div>
+
+          <!-- Color Palette Quick Swatches -->
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label class="form-label" style="font-size: 10.5px;">Preset Palette Swatches</label>
+            <div class="color-swatches-grid" id="editor-color-swatches" style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <!-- 8 presets populated dynamically or statically -->
+              <button type="button" class="swatch-btn" data-color="#dc2626" style="width: 22px; height: 22px; border-radius: 4px; background: #dc2626; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Red"></button>
+              <button type="button" class="swatch-btn" data-color="#4b99d2" style="width: 22px; height: 22px; border-radius: 4px; background: #4b99d2; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Sky Blue"></button>
+              <button type="button" class="swatch-btn" data-color="#489160" style="width: 22px; height: 22px; border-radius: 4px; background: #489160; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Green"></button>
+              <button type="button" class="swatch-btn" data-color="#7c7c7c" style="width: 22px; height: 22px; border-radius: 4px; background: #7c7c7c; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Gray"></button>
+              <button type="button" class="swatch-btn" data-color="#525252" style="width: 22px; height: 22px; border-radius: 4px; background: #525252; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Charcoal"></button>
+              <button type="button" class="swatch-btn" data-color="#7c3aed" style="width: 22px; height: 22px; border-radius: 4px; background: #7c3aed; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Purple"></button>
+              <button type="button" class="swatch-btn" data-color="#d97706" style="width: 22px; height: 22px; border-radius: 4px; background: #d97706; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Amber"></button>
+              <button type="button" class="swatch-btn" data-color="#2563eb" style="width: 22px; height: 22px; border-radius: 4px; background: #2563eb; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Blue"></button>
+            </div>
+          </div>
+
+          <!-- Aliases / Keywords -->
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label" for="editor-course-aliases">Keywords &amp; Aliases <span style="font-weight: normal; color: var(--text-muted);">(comma-separated)</span></label>
+            <input type="text" id="editor-course-aliases" class="form-input" placeholder="e.g. comp eng, computer engineering, حاسوب">
+            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">Used to auto-match announcements and Blackboard posts to this course.</span>
+          </div>
+
+          <!-- Section 1: Weekly Class Schedule Slots -->
+          <div class="editor-section" style="border-top: 1px solid var(--surface-border); padding-top: 10px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="font-size: 11.5px; font-weight: 700; margin: 0;">Weekly Class Meeting Times</label>
+              <button type="button" class="btn-secondary" id="btn-add-schedule-slot" style="font-size: 10.5px; padding: 3px 8px;">
+                <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+                <span>Add Meeting Time</span>
+              </button>
+            </div>
+            <div id="course-editor-slots" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic rows of slots -->
+            </div>
+          </div>
+
+          <!-- Section 2: Syllabus Grade Breakdown -->
+          <div class="editor-section" style="border-top: 1px solid var(--surface-border); padding-top: 10px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="font-size: 11.5px; font-weight: 700; margin: 0;">Syllabus Mark Allocations</label>
+              <button type="button" class="btn-secondary" id="btn-add-syllabus-row" style="font-size: 10.5px; padding: 3px 8px;">
+                <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+                <span>Add Component</span>
+              </button>
+            </div>
+
+            <!-- Quick Syllabus Paste Helper (<details>) -->
+            <details class="syllabus-paste-helper" style="background: var(--surface-hover); border: 1px dashed var(--surface-border); border-radius: var(--radius-sm); padding: 6px 8px; margin-bottom: 8px;">
+              <summary style="font-size: 10.5px; font-weight: 600; cursor: pointer; color: var(--text-main);">
+                Quick Syllabus Text Paste (Auto-Parse)
+              </summary>
+              <div style="margin-top: 6px;">
+                <textarea id="editor-syllabus-paste-text" class="form-textarea" rows="2" placeholder="Paste mark breakdown lines (e.g. Midterm 30%, Quizzes (4) 20%, Final Exam 40%, Lab Reports 10%)..." style="font-size: 11px;"></textarea>
+                <button type="button" class="btn-secondary" id="btn-parse-syllabus-paste" style="font-size: 10.5px; padding: 3px 8px; margin-top: 4px;">
+                  Parse Breakdown Text
+                </button>
+              </div>
+            </details>
+
+            <div id="course-editor-syllabus" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Dynamic rows of syllabus components -->
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="editor-modal-footer" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--surface-border); padding-top: 10px; margin-top: 8px;">
+            <div id="editor-syllabus-total-badge" class="settings-pill pill-blue" style="font-weight: 700; font-size: 11px;">
+              Total: 0% / 100%
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn-secondary" id="btn-cancel-course-editor" style="font-size: 11px; padding: 5px 12px;">Cancel</button>
+              <button type="submit" class="btn-primary" id="btn-save-course" style="font-size: 11px; padding: 5px 14px;">Save Course</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Smart Course & Schedule Importer -->
+  <div id="modal-course-import" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="course-import-title">
+    <div class="modal-dialog course-import-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="ui-icon"><use href="#icon-upload"></use></svg>
+          <h3 id="course-import-title" class="modal-title">Import Courses &amp; Schedule</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-course-import" aria-label="Close Importer">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 12px 14px; max-height: calc(85vh - 100px); overflow-y: auto;">
+        <!-- Tab Navigation -->
+        <div class="importer-tabs" style="display: flex; border-bottom: 1px solid var(--surface-border); margin-bottom: 12px;">
+          <button type="button" class="importer-tab-btn active" id="tab-import-banner" style="flex: 1; padding: 7px; font-size: 11.5px; font-weight: 600; background: none; border: none; border-bottom: 2px solid var(--text-main); cursor: pointer; color: var(--text-main);">
+            Banner SSB Schedule
+          </button>
+          <button type="button" class="importer-tab-btn" id="tab-import-json" style="flex: 1; padding: 7px; font-size: 11.5px; font-weight: 600; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: var(--text-muted);">
+            JSON Backup
+          </button>
+        </div>
+
+        <!-- Tab Content 1: Banner SSB Paste -->
+        <div id="tab-content-banner">
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
+            Paste schedule text from Banner Self-Service (SSB) or your student portal. Course titles, codes, CRNs, meeting days, class times, and lecture rooms are detected automatically.
+          </p>
+          <textarea id="import-banner-text" class="form-textarea" rows="5" placeholder="Paste Banner schedule table or text here...&#10;e.g.&#10;1502 101 - Introduction to Computer Engineering&#10;CRN: 12345&#10;Days: M W Time: 11:00 am - 12:15 pm Room: A8-103&#10;1440 133 - Calculus I for Engineering&#10;CRN: 14210&#10;Days: T R Time: 09:30 am - 10:45 am Room: A12-110" style="font-size: 11px;"></textarea>
+
+          <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+            <button type="button" class="btn-primary" id="btn-preview-banner" style="font-size: 11.5px; padding: 5px 12px;">
+              Preview Detected Courses
+            </button>
+          </div>
+
+          <div id="import-banner-preview-container" style="display: none; margin-top: 12px; border-top: 1px dashed var(--surface-border); padding-top: 8px;">
+            <h4 style="font-size: 11.5px; margin: 0 0 6px 0; font-weight: 700;">Detected Courses Preview:</h4>
+            <div id="import-banner-preview-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;">
+              <!-- Dynamic preview cards -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px;">
+              <button type="button" class="btn-secondary" id="btn-cancel-banner-import" style="font-size: 11px; padding: 5px 10px;">Cancel</button>
+              <button type="button" class="btn-primary" id="btn-confirm-banner-import" style="font-size: 11px; padding: 5px 14px;">
+                Import &amp; Merge Courses
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content 2: JSON Import -->
+        <div id="tab-content-json" style="display: none;">
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
+            Upload a <code>blackboarder-courses.json</code> file or paste a JSON course configuration array.
+          </p>
+          <div style="margin-bottom: 10px;">
+            <input type="file" id="input-import-json-file" accept=".json" style="font-size: 11px;">
+          </div>
+          <textarea id="import-json-text" class="form-textarea" rows="5" placeholder='Paste JSON courses array here... e.g. [{"courseCode": "1502101", "courseName": "Intro to Comp Eng", ...}]' style="font-size: 11px; font-family: monospace;"></textarea>
+          <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+            <button type="button" class="btn-primary" id="btn-confirm-json-import" style="font-size: 11.5px; padding: 5px 14px;">
+              Import Courses JSON
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: First-Time Setup & Walkthrough Guide -->
+  <div id="modal-walkthrough" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="walkthrough-modal-title">
+    <div class="modal-dialog walkthrough-modal-dialog">
+      <div class="modal-header walkthrough-header">
+        <div>
+          <div class="walkthrough-badge">
+            <svg class="ui-icon"><use href="#icon-sparkles"></use></svg>
+            <span>Quick Tour</span>
+          </div>
+          <h3 id="walkthrough-modal-title" class="modal-title" style="margin: 0; font-size: 14px; font-weight: 700;">Welcome to Blackboarder</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-walkthrough" aria-label="Close walkthrough">✕</button>
+      </div>
+
+      <!-- Stepper -->
+      <div class="walkthrough-stepper">
+        <button type="button" class="walkthrough-step-btn active" data-step="1">
+          <span class="wt-step-num">1</span>
+          <span>Phone</span>
+        </button>
+        <div class="wt-step-line"></div>
+        <button type="button" class="walkthrough-step-btn" data-step="2">
+          <span class="wt-step-num">2</span>
+          <span>Scan</span>
+        </button>
+        <div class="wt-step-line"></div>
+        <button type="button" class="walkthrough-step-btn" data-step="3">
+          <span class="wt-step-num">3</span>
+          <span>Courses</span>
+        </button>
+        <div class="wt-step-line"></div>
+        <button type="button" class="walkthrough-step-btn" data-step="4">
+          <span class="wt-step-num">4</span>
+          <span>Marks</span>
+        </button>
+      </div>
+
+      <div class="walkthrough-body">
+        <!-- Step 1: Sync key and phone -->
+        <div class="walkthrough-pane active" id="walkthrough-pane-1">
+          <div class="walkthrough-hero">
+            <div class="walkthrough-hero-icon">
+              <svg class="ui-icon"><use href="#icon-smartphone"></use></svg>
+            </div>
+            <div>
+              <h4 class="walkthrough-hero-title">1. Your Sync Key and Phone</h4>
+              <p class="walkthrough-hero-desc">Blackboarder made a private sync key for you. Your deadlines, courses and marks sync only to devices that have it.</p>
+            </div>
+          </div>
+
+          <div class="walkthrough-sync-card">
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your Sync Key</div>
+            <div class="walkthrough-key-display">
+              <span class="walkthrough-key-value" id="wt-key-display">BBS-XXXX</span>
+              <button type="button" class="btn-secondary" id="btn-wt-copy-key" style="font-size: 10.5px; padding: 3px 8px;">
+                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
+                <span>Copy</span>
+              </button>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-wt-copy-pairing-link" style="margin-top: 8px; width: 100%; justify-content: center; font-size: 11px; padding: 6px 10px;">
+              <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
+              <span>Copy Phone Pairing Link</span>
+            </button>
+          </div>
+
+          <div class="walkthrough-feature-list">
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Scan to pair:</strong> In Settings &gt; Sync, click <strong>Show Pairing QR Code</strong>, then tap <strong>Scan QR</strong> in the phone app. Nothing to copy or type.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Phone app:</strong> Open the pairing link on your phone (also in Settings &gt; Sync), then add it to your Home Screen. It works offline.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Keep the link to yourself:</strong> It also lets that phone use your AI model. The sync key alone only syncs deadlines.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Calendar feed:</strong> Subscribe in Apple or Google Calendar from Settings &gt; Sync.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Scan Blackboard -->
+        <div class="walkthrough-pane" id="walkthrough-pane-2">
+          <div class="walkthrough-hero">
+            <div class="walkthrough-hero-icon">
+              <svg class="ui-icon"><use href="#icon-bolt"></use></svg>
+            </div>
+            <div>
+              <h4 class="walkthrough-hero-title">2. Scan Blackboard</h4>
+              <p class="walkthrough-hero-desc">Each scan reads your announcements and gradebook.</p>
+            </div>
+          </div>
+
+          <div class="walkthrough-feature-list">
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">1</span>
+              <span>Open <strong>elearning.sharjah.ac.ae</strong> and sign in.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">2</span>
+              <span>Click <strong>Scan Blackboard</strong> at the bottom right of the page, or <strong>Scan</strong> in this popup (<strong>Alt+B</strong>).</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">3</span>
+              <span><strong>Courses found for you:</strong> each gets its own colour, and reposted or edited announcements are merged, not duplicated.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">4</span>
+              <span><strong>AI is optional:</strong> the built-in parser reads most announcements. For vague ones, add a key in Settings &gt; Scanning (OpenRouter, IFM or a custom provider).</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Courses, colours and syllabus -->
+        <div class="walkthrough-pane" id="walkthrough-pane-3">
+          <div class="walkthrough-hero">
+            <div class="walkthrough-hero-icon">
+              <svg class="ui-icon"><use href="#icon-settings"></use></svg>
+            </div>
+            <div>
+              <h4 class="walkthrough-hero-title">3. Courses and Syllabus</h4>
+              <p class="walkthrough-hero-desc">Weights and rooms come from your courses, so check them once.</p>
+            </div>
+          </div>
+
+          <div class="walkthrough-feature-list">
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Edit a course:</strong> In Settings &gt; Courses, edit any course to change its colour (palette or hex code).</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Class times and rooms:</strong> Add them (e.g. A8-103) and exams without a room use your class room.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Syllabus weights:</strong> Add the mark split (e.g. 10% quizzes, 30% midterm) or paste the syllabus text and it is read for you.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Submissions and marks -->
+        <div class="walkthrough-pane" id="walkthrough-pane-4">
+          <div class="walkthrough-hero">
+            <div class="walkthrough-hero-icon">
+              <svg class="ui-icon"><use href="#icon-check"></use></svg>
+            </div>
+            <div>
+              <h4 class="walkthrough-hero-title">4. Submissions and Marks</h4>
+              <p class="walkthrough-hero-desc">Every scan also reads your gradebook.</p>
+            </div>
+          </div>
+
+          <div class="walkthrough-feature-list">
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Submitted:</strong> Work you turned in shows a <span class="task-submitted-pill" style="font-size: 10px; padding: 1px 5px;">✓ Submitted</span> badge.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Marks:</strong> Posted marks appear on their deadline, like <span class="task-grade-pill" style="font-size: 10px; padding: 1px 5px;">★ 9.5 / 10</span>.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Marks, GPA and Syllabus Progress cards:</strong> See every mark by course, newest first, each course's grade so far on the UOS scale with your projected GPA (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours in Settings &gt; Courses.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="walkthrough-footer">
+        <button type="button" class="btn-secondary" id="btn-walkthrough-back" style="font-size: 11px; padding: 5px 12px; visibility: hidden;">Back</button>
+        <button type="button" class="btn-secondary" id="btn-walkthrough-skip" style="font-size: 11px; padding: 5px 10px; color: var(--text-muted);">Skip Tour</button>
+        <button type="button" class="btn-primary" id="btn-walkthrough-next" style="font-size: 11px; padding: 5px 14px;">Next Step →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+</body>
+</html>

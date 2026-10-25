@@ -1,0 +1,263 @@
+/* Blackboarder Floating Widget Styles */
+#bbs-floating-root {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999999;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+#bbs-floating-root * {
+  box-sizing: border-box;
+}
+
+.bbs-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 40px;
+  height: 40px;
+  background: rgba(24, 24, 28, 0.95);
+  color: #f4f4f6;
+  padding: 0 10px;
+  border-radius: 0px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.15s ease;
+  user-select: none;
+  opacity: 0.9;
+}
+
+.bbs-pill-btn:hover {
+  opacity: 1;
+  background: #000000;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.bbs-pill-btn:active {
+  transform: translateY(0);
+}
+
+.bbs-pill-btn:focus-visible {
+  outline: 2px solid #f4f4f6;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.bbs-pill-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.bbs-pill-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.bbs-pill-label[hidden] {
+  display: none;
+}
+
+.bbs-toast-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bbs-toast-title svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.bbs-pill-badge {
+  background: #3f3f46;
+  color: #f4f4f6;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Toast notification */
+.bbs-toast {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  max-width: 330px;
+  background: rgba(24, 24, 28, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  padding: 13px 15px;
+  transform: translateY(12px);
+  opacity: 0;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  z-index: 99999999;
+  color: #f4f4f6;
+}
+
+.bbs-toast.bbs-toast-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bbs-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: #f4f4f6;
+}
+
+.bbs-toast-body {
+  font-size: 11.5px;
+  color: #a1a1aa;
+  line-height: 1.45;
+}
+
+.bbs-toast-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.bbs-toast-btn-primary {
+  background: #f4f4f6;
+  color: #18181b;
+  border: none;
+  padding: 5px 11px;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.bbs-toast-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.bbs-toast-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 5px 11px;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.bbs-toast-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+
+/* Course colours: pseudo-element parts that carried Blackboard's course colour (set by courseColorPainter) */
+html body [data-bbs-cc-before~="bg"]::before { background-color: var(--bbs-cc) !important; }
+html body [data-bbs-cc-before~="border"]::before { border-color: var(--bbs-cc) !important; }
+html body [data-bbs-cc-before~="fg"]::before { color: var(--bbs-cc) !important; }
+html body [data-bbs-cc-after~="bg"]::after { background-color: var(--bbs-cc) !important; }
+html body [data-bbs-cc-after~="border"]::after { border-color: var(--bbs-cc) !important; }
+html body [data-bbs-cc-after~="fg"]::after { color: var(--bbs-cc) !important; }
+
+/* Activity page filter bar */
+html body li.bbs-af-hidden {
+  display: none !important;
+}
+
+#bbs-activity-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 0 !important;
+  font-family: inherit;
+  font-size: 13px;
+  color: inherit;
+}
+
+#bbs-activity-filter .bbs-af-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+#bbs-activity-filter .bbs-af-row-title {
+  min-width: 56px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+#bbs-activity-filter .bbs-af-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(128, 128, 128, 0.5);
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+#bbs-activity-filter .bbs-af-chip:hover {
+  border-color: currentColor;
+}
+
+#bbs-activity-filter .bbs-af-chip:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+#bbs-activity-filter .bbs-af-chip[aria-pressed="true"] {
+  background: #18181b !important;
+  border-color: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+html.bbs-dark-active #bbs-activity-filter .bbs-af-chip[aria-pressed="true"] {
+  background: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+#bbs-activity-filter .bbs-af-swatch {
+  width: 9px;
+  height: 9px;
+  flex: none;
+}
+
+#bbs-activity-filter .bbs-af-status {
+  font-size: 12px;
+  opacity: 0.7;
+}

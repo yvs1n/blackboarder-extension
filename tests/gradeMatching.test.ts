@@ -1,0 +1,45 @@
+import { describe, it, expect } from 'vitest';
+import { parseSubmissionOrGradeCard, findTaskForUpdate } from '../src/utils/streamParser';
+import type { DeadlineTask } from '../src/types';
+
+function task(id: string, title: string, courseName: string, courseCode = ''): DeadlineTask {
+  return { id, title, courseName, courseCode, type: 'quiz', dueDate: '2026-10-01T10:00:00.000Z' } as DeadlineTask;
+}
+
+const tasks = [
+  task('hw1', 'HW1_Phys.1_Fall26-27 (chap. 1 & Chap. 2)', 'Physics 1'),
+  task('calc-q1', 'Quiz 1', 'Calculus I for Engineering'),
+  task('cpe-q1', 'Quiz 1', 'Introduction to Computer Eng.'),
+  task('lab-q1', 'Quiz 1', 'Physics 1 Lab'),
+  task('phys-q1', 'Quiz 1', 'Physics 1')
+];
+
+describe('posted marks find the right task', () => {
+  it('drops the "Grade posted:" prefix so the title matches the task', () => {
+    const up = parseSubmissionOrGradeCard('Physics 1 - ALL - 1 - الفيزياء-1\nGrade posted: HW1_Phys.1_Fall26-27\n9.5 / 10');
+    expect(up?.title).toBe('HW1_Phys.1_Fall26-27');
+    expect(findTaskForUpdate(tasks, up!)?.id).toBe('hw1');
+  });
+
+  it('drops "New grade available:" too', () => {
+    const up = parseSubmissionOrGradeCard('Calculus I for Engineering - 02\nNew grade available: Quiz 1\n85%');
+    expect(up?.title).toBe('Quiz 1');
+    expect(findTaskForUpdate(tasks, up!)?.id).toBe('calc-q1');
+  });
+
+  it('never gives one course\'s Quiz 1 mark to another course', () => {
+    const up = parseSubmissionOrGradeCard('Introduction to Computer Eng. - 01\nGrade posted: Quiz 1\n8 / 10');
+    expect(findTaskForUpdate(tasks, up!)?.id).toBe('cpe-q1');
+  });
+
+  it('keeps Physics 1 and Physics 1 Lab apart', () => {
+    const up = parseSubmissionOrGradeCard('Physics 1 Lab - 07\nGrade posted: Quiz 1\n9 / 10');
+    expect(findTaskForUpdate(tasks, up!)?.id).toBe('lab-q1');
+    const up2 = parseSubmissionOrGradeCard('Physics 1 - ALL - 1\nGrade posted: Quiz 1\n7 / 10');
+    expect(findTaskForUpdate(tasks, up2!)?.id).toBe('phys-q1');
+  });
+
+  it('skips a mark it cannot place rather than guessing', () => {
+    expect(findTaskForUpdate(tasks, { title: 'Quiz 1', submissionStatus: 'graded', score: 5 })).toBeUndefined();
+  });
+});

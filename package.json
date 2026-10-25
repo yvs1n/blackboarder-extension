@@ -1,0 +1,37 @@
+{
+  "name": "blackboarder",
+  "version": "1.2.1",
+  "description": "Blackboarder: Smart Academic Companion and Deadline Intelligence for Blackboard Learn",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build.js",
+    "build": "node scripts/build.js",
+    "lint": "node scripts/lint-check.js",
+    "check": "node scripts/lint-check.js",
+    "package": "node scripts/package.js",
+    "release": "npm test && node scripts/package.js",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "blackboard",
+    "extension",
+    "uos",
+    "deadlines",
+    "calendar",
+    "tasks"
+  ],
+  "author": "Yassin Ragab (https://yassinr.me)",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.2.9",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.5",
+    "jsdom": "^29.1.1",
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^2.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  },
+  "homepage": "https://blackboarder.pages.dev"
+}

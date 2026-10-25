@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Activity Stream - Blackboard Learn</title>
+</head>
+<body>
+  <div id="main-content">
+    <div role="feed" class="stream-container">
+      <!-- 1. Direct Ultra Deadline Card: Assignment 1 -->
+      <div class="stream-item-container" id="stream-card-1">
+        <div class="activity-card">
+          <div class="course-title">Calculus I for Engineering - 02 - حسبان 1 للمهندسين</div>
+          <a class="js-title-link" href="/ultra/courses/_101_1/grades">Due: Assignment-1-Graded</a>
+          <div class="stream-date">Due Date: 9/25/26, 11:59 PM (UTC+4)</div>
+        </div>
+      </div>
+
+      <!-- 2. Direct Ultra Deadline Card: Arabic Quiz -->
+      <div class="stream-item-container" id="stream-card-2">
+        <div class="activity-card">
+          <div class="course-title">Islamic Culture - 0104100</div>
+          <a class="js-title-link" href="/ultra/courses/_102_1/grades">Due: كويز 1: الثقافة الإسلامية</a>
+          <div class="stream-date">تاريخ الاستحقاق: 10/12/26, 10:00 AM (UTC+4)</div>
+        </div>
+      </div>
+
+      <!-- 3. Submission Confirmation (Should be IGNORED as a deadline) -->
+      <div class="stream-item-container" id="stream-card-3">
+        <div class="activity-card">
+          <div class="course-title">Physics 1 - ALL</div>
+          <div class="receipt-text">You submitted: HW1_Phys.1_Fall26-27 (Confirmation #987654)</div>
+        </div>
+      </div>
+
+      <!-- 4. Grade Posted Notification (Should be IGNORED as a deadline) -->
+      <div class="stream-item-container" id="stream-card-4">
+        <div class="activity-card">
+          <div class="course-title">English for Academic Purposes</div>
+          <div class="grade-text">Grade posted: Cause-Effect Essay (Score: 9.5 / 10)</div>
+        </div>
+      </div>
+
+      <!-- 5. Doctor Announcement Card with exam date & room -->
+      <li class="stream-item-container" id="stream-card-5">
+        <div class="stream-entry">
+          <a class="js-title-link" bb-peek-sref="courseId:'_103_1',announcementId:'_999_1'">Midterm Exam Announcement</a>
+          <span class="course-name">Introduction to Computer Eng.</span>
+          <div class="announcement-body">
+            Dear students, our Midterm Exam will be held on Thursday Oct 22 at 11:00 AM in room A8-103. Please bring your student ID and non-programmable calculator.
+          </div>
+          <time datetime="2026-10-10T08:00:00Z">Oct 10, 2026</time>
+        </div>
+      </li>
+
+      <!-- 6. Generic Fallback Container (Strategy 3 test) -->
+      <article class="generic-notice-item">
+        <h3>Bonus Project Notice</h3>
+        <p>The optional bonus project is due next Sunday November 15 at 11:59 PM. Submit via the course link.</p>
+      </article>
+    </div>
+
+    <!-- Enrolled Courses Links -->
+    <nav class="course-list-nav">
+      <a href="/ultra/courses/_101_1">Calculus I for Engineering (1440133)</a>
+      <a href="/ultra/courses/_102_1">Islamic Culture (0104100)</a>
+      <a href="/ultra/courses/_103_1">Introduction to Computer Eng. (1502101)</a>
+    </nav>
+  </div>
+</body>
+</html>

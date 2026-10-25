@@ -1,0 +1,104 @@
+# Keeps the GitHub release up to date. Runs on every push to main (each publish from the private
+# source repository): the release for the current version (package.json) is moved to the newest
+# commit and its zip is replaced. Bumping the version creates a new release.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Only the newest run matters; an older one would upload an older zip
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Verify types and lint
+        run: |
+          npx tsc --noEmit -p .
+          npm run lint
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Package release archive
+        run: node scripts/package.js
+
+      - name: Determine tag name
+        id: tag_info
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $tag"
+
+      # Points the tag at this commit, so the release matches what was built
+      - name: Move tag to this commit
+        env:
+          TAG: ${{ steps.tag_info.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git tag -f "$TAG"
+          git push -f origin "refs/tags/$TAG"
+
+      - name: Write release notes
+        env:
+          TAG: ${{ steps.tag_info.outputs.tag }}
+        run: |
+          short_sha="$(git rev-parse --short HEAD)"
+          built_at="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          cat > release-notes.md <<EOF
+          ## Blackboarder ${TAG}
+
+          Built from \`${short_sha}\` on ${built_at}. This download is always the newest version. See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for what changed.
+
+          Student companion for Blackboard Learn Ultra at the University of Sharjah (\`elearning.sharjah.ac.ae\`). It reads announcements and the gradebook and turns them into deadlines and marks. The phone app is at [blackboarder.pages.dev](https://blackboarder.pages.dev).
+
+          ### Install in 60 seconds
+
+          1. Download **\`blackboarder-extension.zip\`** below.
+          2. Unzip it somewhere you will keep (for example Documents). Moving or deleting the folder removes the extension.
+          3. Open your browser's extensions page: \`chrome://extensions\`, \`edge://extensions\`, \`brave://extensions\` or \`opera://extensions\`.
+          4. Turn on **Developer mode** and click **Load unpacked**, then pick the unzipped folder.
+          5. Pin Blackboarder, open [Blackboard](https://elearning.sharjah.ac.ae/ultra/stream) and click **Scan Blackboard** at the bottom right.
+
+          Already installed? The extension updates itself; nothing to download.
+          EOF
+          sed -i 's/^          //' release-notes.md
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag_info.outputs.tag }}
+        run: |
+          files="release/blackboarder-extension.zip docs/INSTALL_EXTENSION.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $files --clobber
+            gh release edit "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --draft=false --prerelease=false --latest
+          else
+            gh release create "$TAG" $files --title "Blackboarder $TAG" --notes-file release-notes.md --latest
+          fi

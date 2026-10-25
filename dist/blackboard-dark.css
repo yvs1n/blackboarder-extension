@@ -1,0 +1,842 @@
+/* ============================================================
+   UoS Blackboard Dark Mode - Native Token & Surgical Stylesheet
+   Version 2.0 - Safe, Fast, and Native Theme Styling
+   ============================================================ */
+
+/* 1. Native Blackboard Palette & Editor Tokens */
+html.bbs-dark-active,
+html.bbs-dark-active.mode-dark,
+:root.bbs-dark-active,
+:root.bbs-dark-active.mode-dark {
+  color-scheme: dark;
+
+  /* Mode & Brand (UoS Emerald / Teal) */
+  --palette-mode: dark;
+  --palette-brand-main: #26a69a;
+  --palette-brand-contrastText: #121214;
+  --palette-brand-light: rgba(38, 166, 154, 0.16);
+  --palette-brand-dark: #00695c;
+  --palette-brandAlt-main: #00897b;
+  --palette-brandAlt-contrastText: #ffffff;
+
+  /* Primary & Secondary Actions */
+  --palette-primary-main: #00897b;
+  --palette-primary-contrastText: #f4f4f5;
+  --palette-primary-light: #26a69a;
+  --palette-primary-dark: #00695c;
+  --palette-secondary-main: #2a2a30;
+  --palette-secondary-contrastText: #f4f4f5;
+  --palette-secondary-light: #3f3f46;
+  --palette-secondary-dark: #18181b;
+
+  /* Semantic Status Colors */
+  --palette-error-main: #ff5252;
+  --palette-error-contrastText: #121214;
+  --palette-error-light: rgba(255, 82, 82, 0.16);
+  --palette-error-dark: #991b1b;
+  --palette-success-main: #39e379;
+  --palette-success-contrastText: #121214;
+  --palette-success-light: rgba(57, 227, 121, 0.14);
+  --palette-success-dark: #166534;
+  --palette-info-main: #38bdf8;
+  --palette-info-contrastText: #121214;
+  --palette-info-light: rgba(56, 189, 248, 0.15);
+  --palette-info-dark: #075985;
+  --palette-warning-main: #facc15;
+  --palette-warning-contrastText: #121214;
+  --palette-warning-light: rgba(250, 204, 21, 0.16);
+  --palette-warning-dark: #854d0e;
+  --palette-caution-main: #fb923c;
+  --palette-caution-light: rgba(251, 146, 60, 0.16);
+
+  /* Interactive States */
+  --palette-action-active: #a1a1aa;
+  --palette-action-hover: #f4f4f5;
+  --palette-action-selected: #ffffff;
+  --palette-action-disabled: #52525b;
+  --palette-action-disabledBackground: #202024;
+  --palette-action-hoverOpacity: 0.06;
+  --palette-action-selectedOpacity: 0.12;
+  --palette-action-focus: rgba(255, 255, 255, 0.1);
+  --palette-action-activatedOpacity: 0.18;
+
+  /* Typography */
+  --palette-text-primary: #f4f4f5;
+  --palette-text-secondary: #a1a1aa;
+  --palette-text-disabled: #6e6e77;
+  --palette-text-hint: #71717a;
+
+  /* Focus, Links & Indicators */
+  --palette-focus-main: #26a69a;
+  --palette-focus-light: #00897b;
+  --palette-focus-dark: #00695c;
+  --palette-link-active: #4db6ac;
+  --palette-link-hover: #80cbc4;
+  --palette-link-selected: #4db6ac;
+  --palette-link-disabled: #6e6e77;
+  --palette-indicatorPrimary-main: #26a69a;
+  --palette-indicatorPrimary-contrastText: #121214;
+  --palette-indicatorPrimary-dark: #4db6ac;
+
+  /* Borders & Dividers */
+  --palette-border-main: #2a2a30;
+  --palette-border-dark: #3f3f46;
+  --palette-divider: rgba(255, 255, 255, 0.08);
+
+  /* Carbon Surface Hierarchy */
+  --palette-background-default: #121214;
+  --palette-background-paper: #18181b;
+  --palette-background-b1: #18181b;
+  --palette-background-b2: #141417;
+  --palette-background-b3: #202024;
+  --palette-background-b4: #27272c;
+  --palette-background-b5: #3a3a42;
+  --palette-background-b6: #71717a;
+  --palette-background-b7: #27272c;
+  --palette-background-b8: #3f3f46;
+  --palette-background-b9: #18181b;
+  --palette-background-b10: #ffffff;
+
+  /* Common & Grey Scale */
+  --palette-common-white: #ffffff;
+  --palette-common-black: #000000;
+  --palette-grey-50: #18181b;
+  --palette-grey-100: #202024;
+  --palette-grey-200: #27272c;
+  --palette-grey-300: #2e2e34;
+  --palette-grey-400: #3f3f46;
+  --palette-grey-500: #52525b;
+  --palette-grey-600: #71717a;
+  --palette-grey-700: #a1a1aa;
+  --palette-grey-800: #d4d4d8;
+  --palette-grey-900: #f4f4f5;
+  --palette-grey-A100: #202024;
+  --palette-grey-A200: #27272c;
+  --palette-grey-A400: #3f3f46;
+  --palette-grey-A700: #a1a1aa;
+
+  /* Urgency & Grade Tokens (Native Blackboard Dark Palette) */
+  --palette-urgency-high: #e3793e;
+  --palette-urgency-medium: #66b6e1;
+  --palette-urgency-low: #cde2ee;
+  --palette-grade-excellent: #1dcd6a;
+  --palette-grade-veryGood: #86e64f;
+  --palette-grade-good: #c9e04a;
+  --palette-grade-fair: #67dbe2;
+  --palette-grade-borderline: #6cc0f7;
+  --palette-grade-warning: #96adff;
+  --palette-grade-low: #c2a6e1;
+  --palette-grade-veryLow: #e899e1;
+  --palette-grade-critical: #ffe54a;
+  --palette-grade-failing: #ffc04a;
+  --palette-grade-severeFailing: #ffa557;
+  --palette-grade-extremeFailing: #ff9192;
+  --palette-highContrastOnly-main: rgba(0, 0, 0, 0.001);
+
+  /* Rich Text Editor Tokens */
+  --editor-font-gray: #d4d4d8;
+  --editor-font-purple: #e9d5ff;
+  --editor-font-blue: #bae6fd;
+  --editor-font-green: #bbf7d0;
+  --editor-font-red: #fecaca;
+  --editor-highlight-gray: #27272c;
+  --editor-highlight-purple: #581c87;
+  --editor-highlight-blue: #0c4a6e;
+  --editor-highlight-green: #14532d;
+  --editor-highlight-yellow: #713f12;
+  --editor-highlight-orange: #7c2d12;
+  --editor-highlight-red: #7f1d1d;
+}
+
+/* 2. Root Canvas & Scrollbars */
+html.bbs-dark-active,
+html.bbs-dark-active body,
+html.bbs-dark-active .attendance-app body {
+  background-color: var(--palette-background-default) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.bbs-dark-active ::-webkit-scrollbar-track {
+  background: #121214;
+}
+
+html.bbs-dark-active ::-webkit-scrollbar-thumb {
+  background: #2e2e34;
+  border-radius: 4px;
+}
+
+html.bbs-dark-active ::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* 3. Left Navigation Sidebar (Preserves Native UoS Emerald Accent) */
+html.bbs-dark-active #global-nav-flyout,
+html.bbs-dark-active .left-off-canvas-menu,
+html.bbs-dark-active nav.Global-navigation {
+  background-color: #0e0e10 !important;
+  border-inline-end: 1px solid var(--palette-border-main) !important;
+}
+
+/* 4. Legacy Foundation / AngularJS Shell Surfaces */
+html.bbs-dark-active .tabs-content,
+html.bbs-dark-active .off-canvas-overlay .right-off-canvas-menu,
+html.bbs-dark-active .bb-offcanvas-panel .bb-offcanvas-panel-content,
+html.bbs-dark-active .reveal-modal,
+html.bbs-dark-active .f-dropdown,
+html.bbs-dark-active .f-dropdown.content {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .tooltip,
+html.bbs-dark-active .inline-validation.f-dropdown.content,
+html.bbs-dark-active span.enhanced-tooltip,
+html.bbs-dark-active .grade-grid-reborn-message .validation-message-wrapper {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+}
+
+html.bbs-dark-active .tooltip > .nub::after,
+html.bbs-dark-active .inline-validation.f-dropdown.content > .nub::after,
+html.bbs-dark-active span.enhanced-tooltip-pip {
+  background-color: var(--palette-background-b3) !important;
+  border-color: var(--palette-border-main) !important;
+  box-shadow: none !important;
+}
+
+html.bbs-dark-active .button.secondary,
+html.bbs-dark-active .button.secondary:focus,
+html.bbs-dark-active .attendance-app .dropdown-wrapper .button.secondary {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border: 1px solid var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .button.secondary:hover {
+  background-color: var(--palette-background-b4) !important;
+}
+
+html.bbs-dark-active .button--secondary.disabled,
+html.bbs-dark-active .button--secondary[disabled],
+html.bbs-dark-active .attendance-app .dropdown-wrapper .button--secondary.disabled,
+html.bbs-dark-active .attendance-app .dropdown-wrapper .button--secondary[disabled] {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-disabled) !important;
+}
+
+html.bbs-dark-active .button--dashed:active,
+html.bbs-dark-active .button--dashed:focus:not(:hover),
+html.bbs-dark-active .is-empty-page .element-list-add-menu li a:active,
+html.bbs-dark-active .is-empty-page .element-list-add-menu li button:active {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active .alert-box.secondary,
+html.bbs-dark-active .label.secondary {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active code {
+  background-color: var(--palette-background-b3) !important;
+  border-color: var(--palette-border-main) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .fs-table thead,
+html.bbs-dark-active .fs-table tfoot {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active .reveal-modal__divider::before {
+  background: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .add-element .button-add-content .add-circle-default,
+html.bbs-dark-active .avatar.outline::before,
+html.bbs-dark-active .element-image.avatar.outline::before {
+  background-color: var(--palette-background-b1) !important;
+}
+
+/* 5. Activity Stream & Courses Legacy Elements */
+html.bbs-dark-active .base-recent-activity .activity-stream .activity-group::after {
+  background-color: var(--palette-background-b3) !important;
+  border-color: var(--palette-border-dark) !important;
+}
+
+html.bbs-dark-active .base-courses .course-columns.list-column-view .element-card .element-details .status-bar .course-status .status-icon,
+html.bbs-dark-active .base-courses .multi-column-view .course-org-list .element-card .element-details.summary .controls .info-icon,
+html.bbs-dark-active .usercard .header .element-details .userId,
+html.bbs-dark-active .usercard .header .element-details .profile,
+html.bbs-dark-active .student-card .student-info .info .profile {
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active bb-search-box > div > bb-svg-icon[icon="search"],
+html.bbs-dark-active bb-search-box > div > button,
+html.bbs-dark-active .filter-list-content .filter-panel-container .filter-panel-clear-all {
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .filter-list-content .filter-panel-container .filter-panel-item-checkbox .check-box-label,
+html.bbs-dark-active .slider-tab-navigation-small__tab:hover,
+html.bbs-dark-active .slider-tab-navigation-small__tab_active {
+  color: var(--palette-text-primary) !important;
+}
+
+/* 6. Attendance Grid (10818-*.css static hex overrides) */
+html.bbs-dark-active .attendance-app .grid__cell,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-readonly,
+html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header.-exempt,
+html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header.-readonly {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .attendance-app .grid__cell.-exempt,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty:hover,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty:focus,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-exempt,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-readonly:hover,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-readonly:focus,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-readonly.-exempt,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-exempt:not(.-header):hover,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-exempt:not(.-header):focus,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-exempt:not(.-header).-active,
+html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header,
+html.bbs-dark-active .attendance-app .list-row__button--unmarked {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-excused,
+html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-incomplete.-readonly,
+html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-exempt,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-active.-excused,
+html.bbs-dark-active .attendance-app .list-row__button--excused {
+  background-color: var(--palette-background-b4) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-late,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-active.-late,
+html.bbs-dark-active .attendance-app .list-row__button--late {
+  background-color: rgba(250, 204, 21, 0.2) !important;
+  color: #fde047 !important;
+}
+
+html.bbs-dark-active .attendance-app .attendance-grade-pill {
+  color: #121214 !important;
+}
+
+html.bbs-dark-active .attendance-app .attendance-grade-pill.-empty {
+  background-color: var(--palette-background-b3) !important;
+  border-color: var(--palette-border-dark) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .attendance-app .attendance-grade-pill.-pending {
+  background-color: var(--palette-background-b4) !important;
+  color: var(--palette-text-secondary) !important;
+}
+
+/* 7. Assessments, Submissions & Gradebook Legacy Rules */
+html.bbs-dark-active .student-submission .submission-to-grade .answer-to-grade,
+html.bbs-dark-active .tests .multiple-choice-question-saved ol li,
+html.bbs-dark-active .attempt-grading-container .multiple-choice-question-saved ol li,
+html.bbs-dark-active .assessment-question .question-content:not(.active) div.multiple-answer-answers .option-answer.answer-not-selected-not-posted,
+html.bbs-dark-active .assessment-question .question-content:not(.active) div.true-false-answers .option-answer.answer-not-selected-not-posted,
+html.bbs-dark-active .readonly-question-component-react .readonly-question-header__pill {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .grade-grid-container .overall-grade-setup,
+html.bbs-dark-active .rb-grid .rb-cell,
+html.bbs-dark-active .typeahead-search .typeahead-search-autocomplete .typeahead-search-entry {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .rb-grid .rb-grid-scrollbar-placeholder-x,
+html.bbs-dark-active .rb-grid .rb-grid-scrollbar-placeholder-y,
+html.bbs-dark-active .not-graded-exempt {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .grade-grid-container .grade-grid-header-cell .grade-grid-header-summary button bb-svg-icon,
+html.bbs-dark-active .base-grades .base-grades-course-tile .grade-progress-chart-btn .grade-progress-chart-link bb-svg-icon,
+html.bbs-dark-active *[bb-timed-test-indicator] *[bb-timed-test-indicator-label] .label-timed-indicator span,
+html.bbs-dark-active .discussion-insights h2,
+html.bbs-dark-active .discussion-insights h3,
+html.bbs-dark-active .discussion-insights .discussion-insights-heading,
+html.bbs-dark-active .discussion-insights .non-participant .stacked bdi {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .notice__text,
+html.bbs-dark-active .percentage-label,
+html.bbs-dark-active .rubric-list .rubric-list-association-item .item-rubric-type,
+html.bbs-dark-active .grade-grid-search-box .typehead-title .grade-type,
+html.bbs-dark-active .grade-grid-search-box .no-result,
+html.bbs-dark-active .grade-grid-container .grade-grid-body-cell .exception-icon,
+html.bbs-dark-active .matching-attempt-review-pair__answer__text--ungraded .bb-editor-root .ql-editor.bb-editor,
+html.bbs-dark-active .matching-attempt-review-pair__answer__text--ungraded .selectboxArrowIcon {
+  color: var(--palette-text-secondary) !important;
+}
+
+/* 8. FullCalendar & Messages Legacy Rules */
+html.bbs-dark-active .calendar-wrapper .fullcalendar-container .fc-monthWithoutDD-view .fc-other-month.fc-day {
+  background-color: #0e0e10 !important;
+}
+
+html.bbs-dark-active .fc-unthemed .fc-popover,
+html.bbs-dark-active .fc-unthemed .fc-popover .fc-header {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .fc-state-default {
+  background: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+html.bbs-dark-active .fc-state-hover,
+html.bbs-dark-active .fc-state-down,
+html.bbs-dark-active .fc-state-active {
+  background: var(--palette-background-b4) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .messages-container-summary .messages-header .messages-off {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .messages-container .conversation-container .message-card .message-info .message-meta-info .recipients {
+  color: var(--palette-text-secondary) !important;
+}
+
+/* 9. Ally & Video Playback Containers */
+html.bbs-dark-active .bb-video-everywhere-playback,
+html.bbs-dark-active .ally-wysiwyg-feedback-quill-fullscreen,
+html.bbs-dark-active .ally-wysiwyg-feedback-quill-fullscreen .bb-editor-root .word-count,
+html.bbs-dark-active .ally-wysiwyg-feedback-atto-fullscreen {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+/* 10. Material-UI (MUI) Cards, Dialogs, Tables & Popovers */
+html.bbs-dark-active .MuiPaper-root,
+html.bbs-dark-active .MuiCard-root,
+html.bbs-dark-active .MuiAccordion-root {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .MuiDrawer-paper,
+html.bbs-dark-active .MuiDialog-paper,
+html.bbs-dark-active .MuiPopover-paper,
+html.bbs-dark-active .MuiMenu-paper {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+  border: 1px solid var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .MuiTableCell-root {
+  color: var(--palette-text-primary) !important;
+  border-bottom: 1px solid var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .MuiTableCell-head {
+  color: var(--palette-text-secondary) !important;
+  background-color: var(--palette-background-b2) !important;
+}
+
+html.bbs-dark-active .MuiTableRow-root:hover {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active .MuiOutlinedInput-root {
+  background-color: var(--palette-background-b2) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .MuiOutlinedInput-notchedOutline {
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: var(--palette-border-dark) !important;
+}
+
+html.bbs-dark-active .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: var(--palette-focus-main) !important;
+}
+
+html.bbs-dark-active .MuiInputLabel-root {
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .MuiSelect-select {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .MuiMenuItem-root {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .MuiMenuItem-root:hover,
+html.bbs-dark-active .MuiMenuItem-root.Mui-focusVisible {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active .MuiMenuItem-root.Mui-selected {
+  background-color: rgba(38, 166, 154, 0.16) !important;
+  color: #26a69a !important;
+}
+
+html.bbs-dark-active .MuiChip-root {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .MuiTooltip-tooltip {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border: 1px solid var(--palette-border-main) !important;
+}
+
+/* 11. Office UI Fabric Components (Peek panels, dialogs, inputs, dropdowns) */
+html.bbs-dark-active .ms-Panel-main,
+html.bbs-dark-active .ms-Dialog-main,
+html.bbs-dark-active .ms-Callout-main,
+html.bbs-dark-active [class*="calloutIsIconDropdown_"] {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .ms-Panel-header,
+html.bbs-dark-active .ms-Dialog-header {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .ms-TextField-fieldGroup,
+html.bbs-dark-active .ms-Dropdown-title,
+html.bbs-dark-active [class*="fieldGroup_"],
+html.bbs-dark-active [class*="title_03f08ace"],
+html.bbs-dark-active [class*="title_b5f9cc14"] {
+  background-color: var(--palette-background-b2) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .ms-Dropdown-items,
+html.bbs-dark-active .ms-ContextualMenu {
+  background-color: var(--palette-background-b1) !important;
+}
+
+html.bbs-dark-active .ms-Dropdown-item,
+html.bbs-dark-active .ms-ContextualMenu-item {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .ms-Dropdown-item:hover,
+html.bbs-dark-active .ms-ContextualMenu-item:hover {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active [class*="choiceField_"]::before,
+html.bbs-dark-active [class*="field_b767b14a"]::before {
+  background-color: var(--palette-background-b2) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active [class*="footer_56e96089"] {
+  background-color: var(--palette-background-b1) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+/* 12. Rich Text & Content Editors */
+html.bbs-dark-active .ql-container,
+html.bbs-dark-active .ql-editor,
+html.bbs-dark-active .bb-editor-root {
+  background-color: var(--palette-background-b2) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .ql-toolbar {
+  background-color: var(--palette-background-b3) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .ql-toolbar button,
+html.bbs-dark-active .ql-toolbar .ql-picker-label {
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .ql-toolbar button:hover,
+html.bbs-dark-active .ql-toolbar .ql-picker-label:hover {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .ql-snow .ql-stroke {
+  stroke: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .ql-snow .ql-fill {
+  fill: var(--palette-text-secondary) !important;
+}
+
+/* 13. Course Content Items, Course Faculty, and To-Do Sidebar (JSS & Emotion Components) */
+html.bbs-dark-active .content-list-item .itemContainer,
+html.bbs-dark-active [class*="makeStylesitemContainer-"],
+html.bbs-dark-active [class*="makeStylesfolderContents-"],
+html.bbs-dark-active [class*="makeStyleslearningModuleContents-"],
+html.bbs-dark-active [class*="makeStylesminiPlayer-"],
+html.bbs-dark-active [class*="makeStyleseditBannerButton-"],
+html.bbs-dark-active [class*="makeStylesopenStatus-"],
+html.bbs-dark-active [class*="makeStylescolorPrimary-"],
+html.bbs-dark-active [class*="makeStylescomboboxInputDefaultColor-"] {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active .content-list-item .itemContainer:hover,
+html.bbs-dark-active [class*="makeStylesitemContainer-"]:hover,
+html.bbs-dark-active [class*="makeStylesnestedItemContainer-"]:hover {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active [class*="makeStylesparentItem-"],
+html.bbs-dark-active [class*="makeStylesisOpen-"],
+html.bbs-dark-active [class*="makeStyleslistWrapper-"],
+html.bbs-dark-active [class*="makeStylescontentRoot-"],
+html.bbs-dark-active [class*="makeStylesauthoring-"],
+html.bbs-dark-active [class*="makeStylessubmissionValue-"] {
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active [class*="makeStylescontentItemTitle-"],
+html.bbs-dark-active .ax-focusable-title,
+html.bbs-dark-active .js-instructor-username,
+html.bbs-dark-active .js-instructor-username *,
+html.bbs-dark-active [class*="makeStylesusername-"],
+html.bbs-dark-active [class*="makeStylesbaseText-"],
+html.bbs-dark-active .js-send-message-link,
+html.bbs-dark-active [class*="makeStylesmessageLinkRoot-"],
+html.bbs-dark-active [class*="makeStylesaddCourseScheduleButton-"],
+html.bbs-dark-active [class*="makeStylessearchAction-"],
+html.bbs-dark-active .peek [class*="makeStylesheaderText-"],
+html.bbs-dark-active body:not(.is-in-mobile-app) [class*="makeStylesheaderText-"] {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active [class*="makeStylesgradeDetail-"],
+html.bbs-dark-active [class*="makeStylesgradeInfo-"],
+html.bbs-dark-active [class*="makeStylessubtext-"],
+html.bbs-dark-active [class*="makeStyleshelpText-"],
+html.bbs-dark-active [class*="makeStylesemptyListMessage-"],
+html.bbs-dark-active [class*="makeStylesisRestricted-"],
+html.bbs-dark-active [class*="makeStyleschevron-"] {
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active .js-role-badge,
+html.bbs-dark-active [class*="makeStylesroleBadge-"],
+html.bbs-dark-active [class*="makeStylesemptyState-"],
+html.bbs-dark-active [class*="makeStylesautoMarked-"],
+html.bbs-dark-active [class*="makeStylessmallScreen-"],
+html.bbs-dark-active [class*="makeStylesdragOverlayOuter-"] {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active [class*="makeStylesfooterRoot-"],
+html.bbs-dark-active [class*="makeStylesinputContainer-"],
+html.bbs-dark-active [class*="makeStylessubmissionContent-"] {
+  background-color: var(--palette-background-b2) !important;
+  color: var(--palette-text-primary) !important;
+  border-color: var(--palette-border-main) !important;
+}
+
+html.bbs-dark-active [class*="makeStylesclosedStatus-"],
+html.bbs-dark-active [class*="makeStylesinputContainerDisabled-"] {
+  background-color: var(--palette-background-b4) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .MuiAccordionDetails-root,
+html.bbs-dark-active .MuiCollapse-root,
+html.bbs-dark-active .MuiCollapse-wrapper,
+html.bbs-dark-active .MuiCollapse-wrapperInner {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .MuiInputLabel-root::before,
+html.bbs-dark-active .MuiInputLabel-shrink::before {
+  background: transparent !important;
+}
+
+/* 14. Remaining Static CSS Hardcoded Selectors */
+html.bbs-dark-active .attendance-app .grid__cell,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-readonly,
+html.bbs-dark-active .rb-grid .rb-cell,
+html.bbs-dark-active .tabs-content,
+html.bbs-dark-active .grade-grid-container .overall-grade-setup,
+html.bbs-dark-active .typeahead-search .typeahead-search-autocomplete .typeahead-search-entry,
+html.bbs-dark-active .fc-unthemed .fc-popover,
+html.bbs-dark-active .fc-time-grid-event .fc-bg,
+html.bbs-dark-active .tooltip,
+html.bbs-dark-active span.enhanced-tooltip {
+  background-color: var(--palette-background-b1) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .attendance-app .grid__cell.-exempt,
+html.bbs-dark-active .attendance-app .meeting-view-cell.-empty,
+html.bbs-dark-active .student-submission .submission-to-grade .answer-to-grade,
+html.bbs-dark-active .bb-video-everywhere-playback,
+html.bbs-dark-active .fs-table thead,
+html.bbs-dark-active .fs-table tfoot,
+html.bbs-dark-active .fs-table tr.even,
+html.bbs-dark-active .fs-table tr.alt,
+html.bbs-dark-active .fs-table tr:nth-of-type(even) {
+  background-color: var(--palette-background-b2) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active code,
+html.bbs-dark-active .panel,
+html.bbs-dark-active .fc-state-default,
+html.bbs-dark-active .fc-unthemed .fc-popover .fc-header,
+html.bbs-dark-active .messages-container-summary .messages-header .messages-off,
+html.bbs-dark-active .calendar-wrapper .element-card-container,
+html.bbs-dark-active .attendance-app .list-row__button--excused,
+html.bbs-dark-active .attendance-app .list-row__button--unmarked {
+  background-color: var(--palette-background-b3) !important;
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active .wrapping-input-style,
+html.bbs-dark-active .wrapping-input-style input,
+html.bbs-dark-active .grade-callout,
+html.bbs-dark-active .grade-callout input {
+  color: var(--palette-text-primary) !important;
+}
+
+/* 15. Computed-Style Fallback Attributes (Set by content.js for Dynamic/Cross-Origin Elements) */
+html.bbs-dark-active [data-bbs-bg="b1"] {
+  background-color: var(--palette-background-b1) !important;
+}
+
+html.bbs-dark-active [data-bbs-bg="b2"] {
+  background-color: var(--palette-background-b2) !important;
+}
+
+html.bbs-dark-active [data-bbs-bg="b3"] {
+  background-color: var(--palette-background-b3) !important;
+}
+
+html.bbs-dark-active [data-bbs-bg="b4"] {
+  background-color: var(--palette-background-b4) !important;
+}
+
+html.bbs-dark-active [data-bbs-fg="pri"] {
+  color: var(--palette-text-primary) !important;
+}
+
+html.bbs-dark-active [data-bbs-fg="sec"] {
+  color: var(--palette-text-secondary) !important;
+}
+
+html.bbs-dark-active [data-bbs-fg="warn"] {
+  color: var(--palette-urgency-high) !important;
+}
+
+html.bbs-dark-active [data-bbs-border="dark"] {
+  border-color: var(--palette-border-main) !important;
+}
+
+/* ---- Polish (2026-10-25): states that read clearly on dark ---- */
+
+/* Main menu: the selected page is a light bar and lighter row, not white text on bright green */
+html.bbs-dark-active a.base-navigation-button-content.active {
+  background-color: var(--palette-background-b4) !important;
+  box-shadow: inset 3px 0 0 var(--palette-text-primary) !important;
+}
+html.bbs-dark-active a.base-navigation-button-content.active * {
+  color: var(--palette-text-primary) !important;
+}
+
+/* Two-way switches (Schedule / Due Dates, Day / Month): the selected half is light */
+html.bbs-dark-active button.active-switch,
+html.bbs-dark-active button.active-switch:hover {
+  background-color: var(--palette-text-primary) !important;
+  color: var(--palette-background-default) !important;
+  border-color: var(--palette-text-primary) !important;
+}
+
+/* Calendar: the selected day is a light circle */
+html.bbs-dark-active .fc-today.date-selected,
+html.bbs-dark-active button.date-selected {
+  background-color: var(--palette-text-primary) !important;
+  color: var(--palette-background-default) !important;
+  border-color: var(--palette-text-primary) !important;
+}
+
+/* Field labels on outlined inputs: no dark patch behind the label */
+html.bbs-dark-active .MuiOutlinedInput-notchedOutline > legend {
+  background: transparent !important;
+}
+
+/* Count badges (new announcements): light with dark text */
+html.bbs-dark-active .MuiBadge-badge.themed-background-primary-fill {
+  background-color: var(--palette-text-primary) !important;
+  color: var(--palette-background-default) !important;
+}
+
+/* Grade pills keep their colour; their text stays dark so it can be read */
+html.bbs-dark-active .customGradePill,
+html.bbs-dark-active .customGradePill * {
+  color: #121214 !important;
+}
+
+/* Grades page "recently graded work will appear here": a quiet dashed box instead of bright stripes */
+html.bbs-dark-active .base-grades-empty-element {
+  background-image: none !important;
+  border: 1px dashed var(--palette-border-dark) !important;
+}
+
+/* Activity items: Blackboard's hover layer and icon tile are near-white, which hides the light text and icon */
+html.bbs-dark-active .stream-item-container .stream-item::before {
+  background-color: var(--palette-background-b4) !important;
+}
+
+html.bbs-dark-active .stream-item-container .element-image,
+html.bbs-dark-active .child-is-invokable:hover .element-image {
+  background-color: var(--palette-background-b1) !important;
+  outline: 1px solid var(--palette-border-main);
+}
