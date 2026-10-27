@@ -97,6 +97,7 @@ export interface DeadlineTask {
   maxScore?: number; // Total possible points (e.g. 10)
   scoreDisplay?: string; // Formatted badge text (e.g. "9.5 / 10" or "95%")
   gradeFeedback?: string; // Instructor feedback comments
+  gradedAt?: string; // When Blackboard says that column was graded; a later-graded column replaces an earlier one
   gradeSourceId?: string; // Gradebook column the mark came from ("gb:_123_1"); only that column updates it
   gradeSourcesBefore?: string[]; // Gradebook columns already graded before this task's date (a practice run), never applied to it
   calendarSynced?: boolean;

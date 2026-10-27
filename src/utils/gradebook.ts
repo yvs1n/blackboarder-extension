@@ -124,6 +124,25 @@ export function dropImpossibleMarks(tasks: DeadlineTask[], nowMs: number = Date.
   return cleared;
 }
 
+/**
+ * True when the update was graded before the task's date, so it is a practice run. A column once
+ * refused for that reason is tried again when Blackboard dates its grade and the task's date has
+ * since been corrected; a column with no grade date stays refused.
+ */
+/** A dated column graded after the one the task has its mark from replaces it (an undated practice column came first). */
+function gradedLater(t: DeadlineTask, update: import('../types').TaskSubmissionUpdate): boolean {
+  const next = update.gradedAt ? new Date(update.gradedAt).getTime() : NaN;
+  if (isNaN(next)) return false;
+  const had = t.gradedAt ? new Date(t.gradedAt).getTime() : NaN;
+  return isNaN(had) || next > had;
+}
+
+function gradedBeforeItem(t: DeadlineTask, update: import('../types').TaskSubmissionUpdate, nowMs: number): boolean {
+  const due = dueTime(t);
+  const gradedMs = update.gradedAt ? new Date(update.gradedAt).getTime() : nowMs;
+  return !isNaN(due) && gradedMs + MARK_SLACK_MS < due;
+}
+
 export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmissionUpdate[], nowMs: number = Date.now()): number {
   let marksChanged = 0;
   const now = new Date(nowMs).toISOString();
@@ -133,10 +152,13 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
     const match = findTaskForUpdate(tasks, update, t =>
       // A task that already has its mark from one column is not taken by another one,
       // and a column seen graded before this task's date (a practice run) never applies to it
-      !(src && t.gradeSourceId && t.gradeSourceId !== src) &&
-      !(src && (t.gradeSourcesBefore || []).includes(src))
+      !(src && t.gradeSourceId && t.gradeSourceId !== src && !gradedLater(t, update)) &&
+      !(src && (t.gradeSourcesBefore || []).includes(src) && (!update.gradedAt || gradedBeforeItem(t, update, nowMs)))
     );
     if (!match) continue;
+    if (src && (match.gradeSourcesBefore || []).includes(src)) {
+      match.gradeSourcesBefore = match.gradeSourcesBefore!.filter(s => s !== src);
+    }
     if (update.submissionStatus === 'graded') {
       const due = dueTime(match);
       const gradedMs = update.gradedAt ? new Date(update.gradedAt).getTime() : nowMs;
@@ -149,12 +171,14 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
         continue;
       }
       const changed = match.submissionStatus !== 'graded' ||
+        (!!src && match.gradeSourceId !== src) ||
         (update.score !== undefined && match.score !== update.score) ||
         (update.maxScore !== undefined && match.maxScore !== update.maxScore) ||
         (!!update.scoreDisplay && match.scoreDisplay !== update.scoreDisplay);
       if (!changed) continue;
       match.submissionStatus = 'graded';
       if (src) match.gradeSourceId = src;
+      if (update.gradedAt) match.gradedAt = update.gradedAt;
       if (update.score !== undefined) match.score = update.score;
       if (update.maxScore !== undefined) match.maxScore = update.maxScore;
       if (update.scoreDisplay) match.scoreDisplay = update.scoreDisplay;

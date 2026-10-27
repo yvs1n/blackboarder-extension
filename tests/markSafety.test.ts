@@ -97,3 +97,35 @@ describe('a task added by hand gets its gradebook mark', () => {
     expect(findTaskForUpdate([t], graded({ title: 'Quiz 10', courseName: 'Calculus I for Engineering' }))).toBeUndefined();
   });
 });
+
+describe('a refused column is tried again once the task date is corrected', () => {
+  const english = { courseName: "English for Academic Purposes", courseCode: "0202 112" };
+  it('only when Blackboard dates the grade', () => {
+    const NOW2 = new Date('2026-10-30T12:00:00Z').getTime();
+    const mid = task({ title: 'Midterm', ...english, dueDate: '2026-11-20T06:00:00.000Z' });
+    const real = graded({ title: 'Midterm Exam', ...english, score: 17, sourceId: 'gb:real', gradedAt: '2026-10-28T09:00:00Z' });
+    expect(applySubmissionUpdates([mid], [real], NOW2)).toBe(0);
+    expect(mid.gradeSourcesBefore).toEqual(['gb:real']);
+    mid.dueDate = '2026-10-27T06:00:00.000Z';
+    expect(applySubmissionUpdates([mid], [real], NOW2)).toBe(1);
+    expect(mid.score).toBe(17);
+    expect(mid.gradeSourcesBefore).toEqual([]);
+  });
+});
+
+describe('the column graded last wins when two columns fit one task', () => {
+  const english = { courseName: 'English for Academic Purposes', courseCode: '0202 112' };
+  it('a dated real grade replaces an undated practice mark taken after the exam', () => {
+    const after = new Date('2026-10-30T12:00:00Z').getTime();
+    const mid = task({ title: 'Midterm', ...english, dueDate: '2026-10-25T06:00:00.000Z' });
+    const practice = graded({ title: 'EAP Midterm Exam', ...english, score: 20, sourceId: 'gb:practice' });
+    expect(applySubmissionUpdates([mid], [practice], after)).toBe(1);
+    expect(mid.gradeSourceId).toBe('gb:practice');
+    const real = graded({ title: 'Midterm Exam', ...english, score: 17, sourceId: 'gb:real', gradedAt: '2026-10-28T09:00:00Z' });
+    expect(applySubmissionUpdates([mid], [practice, real], after)).toBe(1);
+    expect(mid.score).toBe(17);
+    expect(mid.gradeSourceId).toBe('gb:real');
+    expect(applySubmissionUpdates([mid], [practice, real], after)).toBe(0);
+    expect(mid.score).toBe(17);
+  });
+});

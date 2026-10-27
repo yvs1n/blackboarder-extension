@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.5] - 2026-10-27
+
+### Added
+
+- **Edit your courses from the phone.** The Schedule tab has a **My Courses** card: add a course, or edit its name, code, CRN, credit hours, colour, keywords, weekly meeting times and rooms, and mark breakdown, or delete it. These are the same fields as in the extension, and changes sync both ways.
+
+### Fixed
+
+- **A midterm grade could stay missing after an earlier, undated column was applied.** When two gradebook columns fit one exam (a practice run and the real one), the one Blackboard dated as graded last now wins. A column refused because it looked graded before the exam is tried again once the exam's date is corrected.
+
+---
+
 ## [1.2.4] - 2026-10-27
 
 ### Fixed
