@@ -11,6 +11,7 @@ import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
 import { SESSION_STATUS_KEY, isSessionExpiredResponse } from '../utils/sessionStatus';
+import { ScanGate, ScanRun } from './scanGate';
 
 /**
  * Known University of Sharjah Blackboard Course IDs mapped to courses.
@@ -1219,26 +1220,32 @@ function injectFloatingButton(onScanClick: () => void) {
 /**
  * Main scan execution routine. Supports incremental scanning by default.
  */
-let scanRunning = false;
+const scanGate = new ScanGate({
+  scan: runScanInner,
+  onBecameInteractive: run => setScanStatus({
+    state: 'running',
+    message: run.fullRescan ? 'Full re-scan: reading Blackboard...' : 'Reading Blackboard...'
+  }),
+  onUnreported: async run => {
+    run.reported = true;
+    await setScanStatus({ state: 'done', message: 'Scan finished.', newCount: 0 });
+  }
+});
 
 /**
  * Runs a scan in this Blackboard tab and saves the result. Lives here, not in the popup,
  * so closing the popup does not cancel it; progress goes to storage for the popup to show.
+ * A Scan press during a quiet scan joins it instead of being dropped (see ScanGate).
  */
-async function runScan(interactive: boolean = false, fullRescan: boolean = false) {
-  if (scanRunning) return;
-  scanRunning = true;
-  try {
-    await runScanInner(interactive, fullRescan);
-  } finally {
-    scanRunning = false;
-  }
+function runScan(interactive: boolean = false, fullRescan: boolean = false): Promise<void> {
+  return scanGate.run(interactive, fullRescan);
 }
 
-async function runScanInner(interactive: boolean, fullRescan: boolean) {
+async function runScanInner(run: ScanRun) {
+  const { fullRescan } = run;
   if (!isExtensionContextValid()) {
     teardownOrphanedContentScript();
-    if (interactive) {
+    if (run.interactive) {
       showExtensionReloadToast();
     } else {
       console.info('[Blackboarder] Extension was reloaded; refresh this tab to reconnect.');
@@ -1249,7 +1256,7 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
   // Hydrate user-configured courses & schedules before scanning
   await getUserCourses().catch(() => {});
 
-  if (interactive) {
+  if (run.interactive) {
     await setScanStatus({ state: 'running', message: fullRescan ? 'Full re-scan: reading Blackboard...' : 'Reading Blackboard...' });
   }
 
@@ -1287,8 +1294,9 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
     await autoRegisterDiscoveredCourses(await discoveredCoursesWithColors(getBlackboardJson)).catch(() => {});
 
     if (directStreamTasks.length === 0 && announcements.length === 0 && submissionUpdates.length === 0) {
-      if (interactive) {
+      if (run.interactive) {
         showSidekickToast('Blackboarder', 'Up to date. No new deadlines found since last scan.');
+        run.reported = true;
         await setScanStatus({ state: 'done', message: 'Up to date. No new deadlines since the last scan.', newCount: 0 });
       }
       return;
@@ -1297,7 +1305,7 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
     // Progress is written at most every 400 ms so storage is not flooded
     let lastProgressWrite = 0;
     const reportProgress = (done: number, total: number) => {
-      if (!interactive) return;
+      if (!run.interactive) return;
       const now = Date.now();
       if (done !== 0 && done !== total && now - lastProgressWrite < 400) return;
       lastProgressWrite = now;
@@ -1438,13 +1446,14 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
       }
     }
 
-    if (interactive || totalNewCount > 0) {
+    if (run.interactive || totalNewCount > 0) {
       const msg = totalNewCount > 0
         ? `Found <strong>${totalNewCount}</strong> new deadline${totalNewCount > 1 ? 's' : ''} (Quizzes & Assignments) from Blackboard!`
         : `All deadlines up to date. (${finalTasks.filter(t => t.status === 'pending').length} pending tasks in dashboard)`;
       showSidekickToast('Scan Complete', msg, totalNewCount);
     }
-    if (interactive) {
+    if (run.interactive) {
+      run.reported = true;
       await setScanStatus({
         state: 'done',
         message: (totalNewCount > 0
@@ -1459,14 +1468,15 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
     if (error?.message?.includes('Extension context invalidated')) {
       teardownOrphanedContentScript();
       console.info('[Blackboarder] Extension was reloaded; refresh this tab to reconnect.');
-      if (interactive) {
+      if (run.interactive) {
         showExtensionReloadToast();
       }
       return;
     }
     console.error('Error during Blackboard scan:', error);
-    if (interactive) {
+    if (run.interactive) {
       showSidekickToast('Scan Notice', 'Blackboard scan encountered an issue. If page layout changed, try refreshing the tab.', 0);
+      run.reported = true;
       await setScanStatus({ state: 'error', message: 'Scan hit a problem. Refresh the Blackboard tab and try again.' });
     }
   }
@@ -1571,7 +1581,7 @@ function init() {
           })();
           return true; // Keep message channel open for async response
         } else if (message.type === 'PING_SCANNER') {
-          sendResponse({ ok: true, scanning: scanRunning });
+          sendResponse({ ok: true, scanning: scanGate.running });
           return false;
         } else if (message.type === 'TRIGGER_SCAN') {
           runScan(true, Boolean(message.fullRescan))

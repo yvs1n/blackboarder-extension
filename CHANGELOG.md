@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.9] - 2026-10-27
+
+### Fixed
+
+- **The Scan button no longer spins forever.** Blackboard pages run a quiet scan on load and while the stream scrolls. Pressing Scan during one was dropped without a word, so the popup kept showing "Scanning" even though the scan had finished and saved the marks. Now the press joins the running scan, which reports its result to the popup; a full re-scan asked for meanwhile runs right after it. The popup also resets the button once the tab says no scan is running, in case a scan ends without reporting.
+
+---
+
 ## [1.2.8] - 2026-10-27
 
 ### Fixed

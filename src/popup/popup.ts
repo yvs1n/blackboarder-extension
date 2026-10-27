@@ -2731,6 +2731,10 @@ function renderScanStatus(status: ScanStatus | null) {
  * the scan keeps going if the popup closes; progress comes back through renderScanStatus().
  */
 async function scanActiveTab(fullRescan: boolean = false) {
+  if (scanButtonResetTimer) {
+    clearTimeout(scanButtonResetTimer);
+    scanButtonResetTimer = null;
+  }
   btnScanTab.disabled = true;
   btnScanTab.style.background = '';
   btnScanTab.innerHTML = `${getSvgIcon('refresh', 'mr-1 is-spinning')}<span>Scan...</span>`;
@@ -2787,7 +2791,35 @@ async function scanActiveTab(fullRescan: boolean = false) {
 
   if (!started) {
     fail('Please navigate to Blackboard Ultra Stream or Course page first.');
+    return;
   }
+  watchScanEnd(tab.id, Date.now());
+}
+
+/**
+ * Backstop for a scan that ends without saving a final status (the tab was reloaded or the
+ * extension updated mid-scan): once the tab says no scan is running, reset the button.
+ */
+function watchScanEnd(tabId: number, startedAt: number) {
+  const check = () => {
+    if (!btnScanTab.disabled || scanButtonResetTimer) return; // a final status is already shown
+    chrome.tabs.sendMessage(tabId, { type: 'PING_SCANNER' }, async res => {
+      const lost = Boolean(chrome.runtime.lastError) || !res?.ok;
+      if (!lost && res.scanning) {
+        setTimeout(check, 3000);
+        return;
+      }
+      const status = await getScanStatus().catch(() => null);
+      if (!btnScanTab.disabled || scanButtonResetTimer) return;
+      if (status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt) {
+        renderScanStatus(status);
+        return;
+      }
+      resetScanButton();
+      showScanBanner(lost ? 'The Blackboard tab stopped answering. Refresh it and scan again.' : 'Scan finished.', lost ? 'warning' : 'info', 4000);
+    });
+  };
+  setTimeout(check, 3000);
 }
 
 // ============================================================================
