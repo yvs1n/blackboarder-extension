@@ -100,6 +100,13 @@ async function runPackaging() {
   console.log('  -> Compressing blackboarder-extension.zip...');
   zipDirectory(RELEASE_EXT_DIR, EXT_ZIP);
 
+  // The same extension without the self-updater, the file to upload to the Chrome Web Store and Edge Add-ons
+  const STORE_SRC_DIR = path.join(ROOT_DIR, 'dist-store');
+  if (fs.existsSync(STORE_SRC_DIR)) {
+    console.log('  -> Compressing blackboarder-extension-store.zip...');
+    zipDirectory(STORE_SRC_DIR, path.join(RELEASE_DIR, 'blackboarder-extension-store.zip'));
+  }
+
   if (HAS_WEB) {
   console.log('  -> Compressing blackboarder-website.zip...');
   zipDirectory(RELEASE_WEB_DIR, WEB_ZIP);

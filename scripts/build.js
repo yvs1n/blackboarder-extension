@@ -275,8 +275,16 @@ export const BUILD_INFO: BuildInfo = ${JSON.stringify(info, null, 2)};
   writeIfChanged(r('src', 'buildInfo.ts'), ts);
 }
 
-async function buildExtension(info, viteDefines) {
-  const distDir = r('dist');
+/** The manifest for the store build: no native messaging and no GitHub access, since the stores do the updating. */
+function storeManifestText(text) {
+  const manifest = JSON.parse(text);
+  manifest.permissions = (manifest.permissions || []).filter(p => p !== 'nativeMessaging');
+  manifest.host_permissions = (manifest.host_permissions || []).filter(h => !/github/i.test(h));
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
+
+async function buildExtension(info, viteDefines, { outDir = 'dist', store = false } = {}) {
+  const distDir = r(outDir);
 
   console.log('Building popup...');
   await build({
@@ -284,7 +292,7 @@ async function buildExtension(info, viteDefines) {
     base: '',
     logLevel: 'warn',
     build: {
-      outDir: 'dist',
+      outDir,
       emptyOutDir: true,
       rollupOptions: {
         input: { popup: r('src/popup/index.html') }
@@ -299,7 +307,7 @@ async function buildExtension(info, viteDefines) {
     logLevel: 'warn',
     publicDir: false,
     build: {
-      outDir: 'dist',
+      outDir,
       emptyOutDir: false,
       lib: {
         entry: r('src/content/scraper.ts'),
@@ -317,7 +325,7 @@ async function buildExtension(info, viteDefines) {
     logLevel: 'warn',
     publicDir: false,
     build: {
-      outDir: 'dist',
+      outDir,
       emptyOutDir: false,
       lib: {
         entry: r('src/background/serviceWorker.ts'),
@@ -337,14 +345,15 @@ async function buildExtension(info, viteDefines) {
   fs.writeFileSync(path.join(distDir, 'content.css'), readText(r('src/content/content.css')), 'utf8');
 
   // manifest.json and icons (also copied by Vite from public/, done here so the lib builds cannot skip them)
-  fs.writeFileSync(path.join(distDir, 'manifest.json'), readText(r('public/manifest.json')), 'utf8');
+  const manifestText = readText(r('public/manifest.json'));
+  fs.writeFileSync(path.join(distDir, 'manifest.json'), store ? storeManifestText(manifestText) : manifestText, 'utf8');
   fs.mkdirSync(path.join(distDir, 'icons'), { recursive: true });
   for (const icon of listFiles(r('public/icons'))) {
     fs.copyFileSync(r('public/icons', icon), path.join(distDir, 'icons', icon));
   }
 
   // Updater: update.bat / update.sh at the top of the extension folder, the helper in updater/
-  for (const rel of listFiles(r('updater'))) {
+  for (const rel of store ? [] : listFiles(r('updater'))) {
     const target = rel === 'update.bat' || rel === 'update.sh' ? rel : `updater/${rel}`;
     const dest = path.join(distDir, target);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -355,7 +364,8 @@ async function buildExtension(info, viteDefines) {
     if (rel.endsWith('.sh')) fs.chmodSync(dest, 0o755);
   }
 
-  // version.json lists every file so the updater can remove files a newer build no longer has
+  // version.json lists every file so the updater can remove files a newer build no longer has (the store build has no updater)
+  if (store) return '';
   const files = listFiles(distDir).filter(f => f !== 'version.json');
   const versionJson = JSON.stringify({ ...info, files }, null, 2) + '\n';
   fs.writeFileSync(path.join(distDir, 'version.json'), versionJson, 'utf8');
@@ -371,7 +381,7 @@ function countTests() {
   let total = 0;
   for (const f of files) {
     const txt = fs.readFileSync(path.join(testsDir, f), 'utf8');
-    const matches = txt.match(/^\s*(?:it|test)(?:\.concurrent|\.only|\.skip)?\s*\(/gm);
+    const matches = txt.match(/^\s*(?:it|test)(?:\.concurrent|\.only|\.skip|\.skipIf\([^)]*\))?\s*\(/gm);
     if (matches) total += matches.length;
   }
   return total || 322;
@@ -473,7 +483,7 @@ async function main() {
   console.log(`Extension build ${extInfo.build} (${extInfo.shortCommit || 'no git'})`);
   writeBuildInfoTs(extInfo);
 
-  const viteDefines = { 'process.env.NODE_ENV': '"production"' };
+  const viteDefines = { 'process.env.NODE_ENV': '"production"', __STORE_BUILD__: 'false' };
 
   if (HAS_WEB) {
     await buildWebCore(viteDefines);
@@ -484,6 +494,8 @@ async function main() {
   }
 
   const versionJson = await buildExtension(extInfo, viteDefines);
+  // The same extension without the self-updater, for the Chrome Web Store and Edge Add-ons
+  await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-store', store: true });
   // The root copy is what extensions installed before the dist/version.json check still read
   writeIfChanged(r('version.json'), versionJson);
 
@@ -491,7 +503,7 @@ async function main() {
     execSync('node scripts/bundle-worker.js', { cwd: ROOT, stdio: 'inherit' });
   }
 
-  console.log(HAS_WEB ? 'Build complete: dist/ (extension) and the web app files.' : 'Build complete: dist/ (extension).');
+  console.log(HAS_WEB ? 'Build complete: dist/ (extension), dist-store/ (store build) and the web app files.' : 'Build complete: dist/ (extension) and dist-store/ (store build).');
 }
 
 main().catch(err => {

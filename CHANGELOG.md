@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.2] - 2026-10-27
+
+### Added
+
+- **Delete My Online Data.** Settings > Data has a button that erases everything stored online under your sync key (deadlines, courses, quick links, the encrypted AI key and your phone's reminder subscription) and gives you a new sync key. Two clicks, since it cannot be undone. Your deadlines stay on the device, and your phone needs to be paired again.
+- **A banner when your Blackboard session ends.** If a scan finds you signed out of Blackboard, the popup shows a hard-edged banner with a warning icon and an **Open Blackboard** button until a scan finds you signed in again. The scan message says so too, instead of only "gradebook not readable".
+- **Recovery file.** Settings > Sync has **Download Recovery File**, a small text file with your sync key, so you can get your online deadlines back after clearing the browser or changing computers.
+- **Store build.** Every build now also makes `dist-store/` and `blackboarder-extension-store.zip`: the same extension without the self-updater (no update helper, no native messaging permission, no GitHub access), for the Chrome Web Store and Edge Add-ons, which update extensions themselves. In that build the Updates page says updates come from the store.
+
+### Changed
+
+- **New sync keys are much longer**: `BBS-` plus 26 characters (130 bits) instead of 10 (50 bits), so they cannot be guessed. Keys you already have keep working; press New Key to switch to a long one, then pair your phone again.
+
+---
+
 ## [1.2.1] - 2026-10-25
 
 ### Changed

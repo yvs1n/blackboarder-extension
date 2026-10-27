@@ -128,9 +128,12 @@ export function getCachedQuickLinksSync(): QuickLink[] {
   return DEFAULT_QUICK_LINKS;
 }
 
+/** Random characters in a new sync key: 26 symbols of 5 bits each is 130 bits, far beyond guessing. Older, shorter keys still work. */
+export const SYNC_KEY_RANDOM_LENGTH = 26;
+
 export function generateUniqueSyncKey(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 symbols, so a random byte maps without bias
-  const bytes = new Uint8Array(10);
+  const bytes = new Uint8Array(SYNC_KEY_RANDOM_LENGTH);
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     crypto.getRandomValues(bytes);
   } else {

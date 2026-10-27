@@ -55,7 +55,7 @@ Look in the top-right (or left sidebar in Edge) for the **Developer mode** toggl
 
 1. Click the Blackboarder extension icon in your browser.
 2. Switch to the **Settings** tab.
-3. Notice your unique **Personal Sync Key** (`BBS-` plus 10 characters, such as `BBS-7K2QX9M4PA`).
+3. Notice your unique **Personal Sync Key** (`BBS-` plus 26 characters, such as `BBS-7K2QX9M4PAH8RT3WNCD5VEFJ6G`).
 4. Click **"Show Pairing QR Code"** and scan it with **Scan QR** in the phone app (or click **"Copy Phone Pairing Link"** and open that link on your smartphone) to access your deadlines on mobile or subscribe to the live `.ics` calendar feed.
 
 ---

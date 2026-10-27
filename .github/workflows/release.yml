@@ -87,6 +87,8 @@ jobs:
           5. Pin Blackboarder, open [Blackboard](https://elearning.sharjah.ac.ae/ultra/stream) and click **Scan Blackboard** at the bottom right.
 
           Already installed? The extension updates itself; nothing to download.
+
+          \`blackboarder-extension-store.zip\` is the same extension without the self-updater, made for the Chrome Web Store and Edge Add-ons.
           EOF
           sed -i 's/^          //' release-notes.md
 
@@ -95,7 +97,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          files="release/blackboarder-extension.zip docs/INSTALL_EXTENSION.md"
+          files="release/blackboarder-extension.zip release/blackboarder-extension-store.zip docs/INSTALL_EXTENSION.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $files --clobber
             gh release edit "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --draft=false --prerelease=false --latest

@@ -10,6 +10,7 @@ import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
+import { SESSION_STATUS_KEY, isSessionExpiredResponse } from '../utils/sessionStatus';
 
 /**
  * Known University of Sharjah Blackboard Course IDs mapped to courses.
@@ -888,19 +889,31 @@ async function fetchCourseAnnouncementsApi(
  * makes: /learn/api/v1/users/me for the user id, then columns (names, max points) and grades
  * per course. A course that refuses is skipped.
  */
+function saveSessionStatus(expired: boolean): void {
+  try {
+    chrome.storage.local.set({ [SESSION_STATUS_KEY]: { expired, checkedAt: new Date().toISOString() } });
+  } catch {
+    // The extension may have been reloaded; the next scan saves it again
+  }
+}
+
 /** What the last gradebook read found, for the scan message and the console line. */
-let lastGradebookRead = { signedIn: false, courses: 0, coursesRead: 0 };
+let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0 };
 
 async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
-  lastGradebookRead = { signedIn: false, courses: 0, coursesRead: 0 };
+  lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0 };
   const getJson = async (path: string) => {
     const res = await bbFetch(path, { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
     return res.ok ? res.json() : null;
   };
   let userId = '';
   try {
-    userId = (await getJson('/learn/api/v1/users/me'))?.id || '';
+    const meRes = await bbFetch('/learn/api/v1/users/me', { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
+    if (isSessionExpiredResponse(meRes.status, meRes.headers.get('content-type'))) lastGradebookRead.expired = true;
+    else if (meRes.ok) userId = (await meRes.json())?.id || '';
   } catch {}
+  // Tell the popup whether the session is alive, so it can show a banner when it is not
+  if (userId || lastGradebookRead.expired) saveSessionStatus(lastGradebookRead.expired);
   if (!userId) return [];
   lastGradebookRead.signedIn = true;
 
@@ -1350,7 +1363,9 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
       `[Blackboarder] Gradebook: ${lastGradebookRead.signedIn ? `${lastGradebookRead.coursesRead}/${lastGradebookRead.courses} courses read, ${gradebookMarks.length} marks` : 'not readable (signed out?)'}` +
       (unmatchedMarks.length ? `; no matching deadline for: ${unmatchedMarks.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '')
     );
-    const gradebookNote = !lastGradebookRead.signedIn
+    const gradebookNote = lastGradebookRead.expired
+      ? ' Your Blackboard session has ended: sign in again, then scan.'
+      : !lastGradebookRead.signedIn
       ? ' Marks: gradebook not readable.'
       : ` Marks: ${gradebookMarks.length - unmatchedMarks.length} of ${gradebookMarks.length} matched${
         unmatchedMarks.length ? ` (no deadline for ${unmatchedMarks.slice(0, 4).map(u => u.title).join(', ')}${unmatchedMarks.length > 4 ? ', ...' : ''})` : ''}.`;

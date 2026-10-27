@@ -283,12 +283,22 @@
     </nav>
   </header>
 
+  <!-- Blackboard session ended: shown until a scan finds the student signed in again -->
+  <aside id="session-banner" class="session-banner" style="display: none;" role="alert">
+    <svg class="ui-icon session-banner-icon" aria-hidden="true"><use href="#icon-urgent"></use></svg>
+    <div class="session-banner-body">
+      <strong id="session-banner-title">Blackboard session ended</strong>
+      <p id="session-banner-text">Sign in to Blackboard again, then scan.</p>
+    </div>
+    <button type="button" class="btn-primary session-banner-action" id="btn-session-open-bb">Open Blackboard</button>
+  </aside>
+
   <!-- Extension GitHub Update Prompt Banner -->
   <aside id="ext-update-banner" class="ext-update-banner" style="display: none;" role="status" aria-live="polite">
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.2.1</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.2.2</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -867,7 +877,7 @@
               </button>
             </div>
             <div style="display: flex; gap: 6px;">
-              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K" maxlength="24" autocomplete="off" spellcheck="false" style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1;">
+              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1;">
               <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;" title="Generate new random key">New Key</button>
             </div>
             <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 4px;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
@@ -888,6 +898,10 @@
             <button type="button" class="btn-outline-action" id="btn-copy-pairing-link">
               <svg class="ui-icon mr-1"><use href="#icon-share"></use></svg>
               <span>Copy Phone Pairing Link (?key=...)</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-download-recovery-key">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Download Recovery File (sync key)</span>
             </button>
             <button type="button" class="btn-outline-action" id="btn-show-pairing-qr" aria-expanded="false" aria-controls="pairing-qr-panel">
               <svg class="ui-icon mr-1"><use href="#icon-qr"></use></svg>
@@ -1017,6 +1031,28 @@
             <span>Export Pending Deadlines to Calendar (.ics)</span>
           </button>
         </div>
+
+        <!-- Card: delete the copy kept online -->
+        <div class="settings-card" id="card-delete-cloud-data">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-trash"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Delete My Online Data</h3>
+                <p class="settings-card-subtitle">Erase what is stored under your sync key</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue">Privacy</span>
+          </div>
+          <p class="settings-card-desc">
+            Blackboarder keeps a copy of your deadlines, courses, quick links, your encrypted AI key and your phone's reminder subscription online so your phone can see them. This deletes all of it from the server, and you get a new sync key. Your deadlines stay on this device, and your phone needs to be paired again.
+          </p>
+          <button type="button" class="btn-outline-action" id="btn-delete-cloud-data" style="justify-content: center;">
+            <svg class="ui-icon mr-1"><use href="#icon-trash"></use></svg>
+            <span>Delete My Online Data</span>
+          </button>
+          <p class="settings-card-desc" id="delete-cloud-status" role="status" aria-live="polite" style="margin-top: 8px; display: none;"></p>
+        </div>
       </div>
 
       <div class="settings-page" id="settings-page-updates" role="tabpanel" aria-labelledby="settings-tab-updates" hidden>
@@ -1026,7 +1062,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Extension Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.2.1</span></h3>
+                <h3 class="settings-card-title">Extension Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.2.2</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

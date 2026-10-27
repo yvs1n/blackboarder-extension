@@ -20,6 +20,22 @@ export function getFirebaseDataUrl(syncKey?: string): string {
   return cleanKey ? `${FIREBASE_DB_URL}/users/${cleanKey}/data.json` : `${FIREBASE_DB_URL}/data.json`;
 }
 
+/**
+ * Deletes everything stored online under a sync key: deadlines, courses, quick links, the encrypted AI
+ * key and the push subscription. Only that key's own folder is touched.
+ */
+export async function deleteSyncDataFromFirebase(syncKey: string): Promise<{ success: boolean; message: string }> {
+  const cleanKey = (syncKey || '').trim();
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(cleanKey)) return { success: false, message: 'There is no valid sync key to delete.' };
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/users/${cleanKey}.json`, { method: 'DELETE' });
+    if (!res.ok) return { success: false, message: `The server refused the request (${res.status}).` };
+    return { success: true, message: 'Cloud data deleted.' };
+  } catch (err) {
+    return { success: false, message: 'Could not reach the server. Check your connection and try again.' };
+  }
+}
+
 export interface FirebaseSyncPayload {
   tasks: DeadlineTask[];
   lastSync: string;

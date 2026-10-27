@@ -26,6 +26,8 @@ Run `npm run lint` and `npm test` before every commit. Generated files (`dist/`,
 - `src/popup/`: extension popup and side panel (plain TypeScript, no framework).
 - `updater/`: the native messaging helper that updates the extension (`update.bat`, `update.sh` register it).
 - `public/`: manifest template and icons.
+- Store build: `npm run build` also writes `dist-store/` (and `npm run package` makes `blackboarder-extension-store.zip`) with `__STORE_BUILD__` true (`src/utils/storeBuild.ts`): no updater, no `nativeMessaging` or GitHub permissions. That is the file for the Chrome Web Store and Edge Add-ons.
+- Privacy tools: Settings > Data > Delete My Online Data (`deleteSyncDataFromFirebase`), Settings > Sync > Download Recovery File, and a popup banner when the Blackboard session ends (`src/utils/sessionStatus.ts`).
 
 ## Rules
 
@@ -36,7 +38,7 @@ Run `npm run lint` and `npm test` before every commit. Generated files (`dist/`,
 5. **Bump `updatedAt` only when something really changed.** Every bump triggers a sync.
 6. **Real faults use `console.error`; expected situations use `console.info`.**
 7. **Two colours only** (near-black and near-white, plus greys), no gradients, `border-radius: 0 !important`, no em-dashes anywhere. Course colours and the red/amber stats numbers are the only exceptions.
-8. **Never break sync isolation**: every Firebase read and write is scoped to `users/{syncKey}`. Sync keys are `BBS-` plus 10 characters.
+8. **Never break sync isolation**: every Firebase read and write is scoped to `users/{syncKey}`. Sync keys are `BBS-` plus 26 characters (older keys of 8 or more characters still work).
 9. **No secrets in the repo.** Never commit backups, API keys or sync keys. Tests use made-up values.
 10. **Firebase object keys cannot contain `. $ # [ ] /`.** Maps keyed by task id go through `encodeCloudKeys` when written and `decodeCloudKeys` when read.
 

@@ -35,6 +35,7 @@ pnpm-debug.log*
 
 # Release folder and zips (built via npm run package)
 release/
+dist-store/
 
 # Personal schedule documents
 schedule.pdf

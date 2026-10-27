@@ -5,6 +5,7 @@ import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
 import { getUserCourses, getCoursesUpdatedAt, saveUserCourses } from '../utils/storage';
 import { initAutoUpdate } from './autoUpdate';
+import { IS_STORE_BUILD } from '../utils/storeBuild';
 
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
@@ -240,8 +241,8 @@ async function reinjectScraperIntoOpenBlackboardTabs() {
 // Run immediately when service worker wakes/reloads
 reinjectDarkModeIntoOpenBlackboardTabs();
 
-// Updates itself from GitHub (see autoUpdate.ts)
-initAutoUpdate();
+// Updates itself from GitHub (see autoUpdate.ts); the store build leaves updating to the store
+if (!IS_STORE_BUILD) initAutoUpdate();
 
 // IFM blocks requests with a browser Origin header; drop it from our own requests to api.ifm.ai
 chrome.declarativeNetRequest?.updateDynamicRules({

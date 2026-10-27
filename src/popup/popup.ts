@@ -16,13 +16,15 @@ import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
 import { resolveTaskWeight, getAllSyllabi } from '../core/syllabusWeights';
 import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, STUDENT_CLASS_SCHEDULE } from '../core/courseSchedule';
 import { pushTasksToSyncServer, getSyncServerStatus, normalizeSyncUrl } from '../utils/syncClient';
-import { pushTasksToFirebase, fetchTasksFromFirebase } from '../utils/firebaseSync';
+import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
 import { sanitizeCloudTasks } from '../utils/cloudSanitize';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
 import { parseBannerScheduleText, parseSyllabusWeightsText, parseCoursesFromJson, mergeImportedCourses } from '../core/courseImporter';
 import { getActiveCourseLegend } from '../core/userCourses';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../utils/updateChecker';
 import { POPUP_PORT_NAME, AUTO_UPDATE_STATUS_KEY, type AutoUpdateStatus } from '../background/autoUpdate';
+import { IS_STORE_BUILD } from '../utils/storeBuild';
+import { SESSION_STATUS_KEY, describeSessionBanner, type SessionStatus } from '../utils/sessionStatus';
 import { describeUpdateBanner, isUpdateStatusFresh, ENABLE_UPDATES_HINT } from '../utils/updateBanner';
 import { BUILD_INFO } from '../buildInfo';
 
@@ -3509,6 +3511,72 @@ function setupEvents() {
     }
   });
 
+  // Recovery file: the sync key is the only way back to the online copy if this browser's data is lost
+  document.getElementById('btn-download-recovery-key')?.addEventListener('click', async () => {
+    const settings = await getSettings();
+    const key = (settings.syncKey || '').trim();
+    if (!key) {
+      showToast('No sync key yet. Open the Sync page again in a moment.');
+      return;
+    }
+    const lines = [
+      'Blackboarder recovery file',
+      '',
+      'Sync key: ' + key,
+      '',
+      'This key is the only way back to your online deadlines if you lose the data in this browser.',
+      'Anyone who has it can see your deadlines, so keep the file private.',
+      '',
+      'To restore: install Blackboarder, open Settings > Sync, paste the key into Personal Sync Pairing Key and save.',
+      'To open it on a phone: ' + companionUrl(settings.hostedWebUrl) + '?key=' + encodeURIComponent(key)
+    ];
+    const url = URL.createObjectURL(new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'blackboarder-recovery-key.txt';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Recovery file saved. Keep it somewhere private.');
+  });
+
+  // Delete the copy kept online. Two clicks, since it cannot be undone; the old key is replaced so the
+  // next sync starts a fresh folder instead of refilling the deleted one.
+  const btnDeleteCloud = document.getElementById('btn-delete-cloud-data') as HTMLButtonElement | null;
+  const deleteCloudStatus = document.getElementById('delete-cloud-status');
+  let deleteArmedTimer: ReturnType<typeof setTimeout> | null = null;
+  const disarmDeleteCloud = () => {
+    if (deleteArmedTimer) clearTimeout(deleteArmedTimer);
+    deleteArmedTimer = null;
+    const label = btnDeleteCloud?.querySelector('span');
+    if (label) label.textContent = 'Delete My Online Data';
+  };
+  btnDeleteCloud?.addEventListener('click', async () => {
+    const label = btnDeleteCloud.querySelector('span');
+    if (!deleteArmedTimer) {
+      if (label) label.textContent = 'Click again to confirm';
+      deleteArmedTimer = setTimeout(disarmDeleteCloud, 6000);
+      return;
+    }
+    disarmDeleteCloud();
+    btnDeleteCloud.disabled = true;
+    const settings = await getSettings();
+    const result = await deleteSyncDataFromFirebase(settings.syncKey || '');
+    if (result.success) {
+      const newKey = generateUniqueSyncKey();
+      await saveSettings({ syncKey: newKey });
+      const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+      if (input) input.value = newKey;
+      showToast('Online data deleted. You have a new sync key.');
+    }
+    if (deleteCloudStatus) {
+      deleteCloudStatus.style.display = 'block';
+      deleteCloudStatus.textContent = result.success
+        ? 'Done. Everything stored online under your old key is gone. Pair your phone again from the Sync page.'
+        : result.message;
+    }
+    btnDeleteCloud.disabled = false;
+  });
+
   // The setting holds the site address; the phone app is at /companion/ and the feed at the site root.
   // Either form (with or without /companion) is accepted.
   function siteUrl(hosted?: string): string {
@@ -4689,6 +4757,36 @@ async function initWalkthroughModal() {
   }
 }
 
+/** Shows a banner while the last scan found Blackboard signed out, and hides it once a scan finds it signed in. */
+function initSessionBanner() {
+  const banner = document.getElementById('session-banner');
+  const title = document.getElementById('session-banner-title');
+  const text = document.getElementById('session-banner-text');
+  const open = document.getElementById('btn-session-open-bb');
+  if (!banner) return;
+  const render = (status: SessionStatus | null | undefined) => {
+    const info = describeSessionBanner(status);
+    banner.style.display = info ? 'flex' : 'none';
+    if (info) {
+      if (title) title.textContent = info.title;
+      if (text) text.textContent = info.text;
+    }
+  };
+  try {
+    chrome.storage.local.get(SESSION_STATUS_KEY, res => render(res?.[SESSION_STATUS_KEY] as SessionStatus | undefined));
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes[SESSION_STATUS_KEY]) render(changes[SESSION_STATUS_KEY].newValue as SessionStatus | undefined);
+    });
+  } catch {}
+  open?.addEventListener('click', () => {
+    try {
+      chrome.tabs.create({ url: 'https://elearning.sharjah.ac.ae/ultra/stream' });
+    } catch {
+      window.open('https://elearning.sharjah.ac.ae/ultra/stream', '_blank', 'noopener');
+    }
+  });
+}
+
 function initExtensionUpdateSystem() {
   const versionBadge = document.getElementById('ext-version-badge');
   const localCommitEl = document.getElementById('ext-local-commit');
@@ -4709,6 +4807,19 @@ function initExtensionUpdateSystem() {
   const statusDesc = document.getElementById('ext-update-status-desc');
 
   if (versionBadge) versionBadge.textContent = 'v' + BUILD_INFO.version;
+  if (IS_STORE_BUILD) {
+    // The store updates the extension, so there is nothing to check, download or reload here
+    const card = document.getElementById('card-extension-updates');
+    const subtitle = card?.querySelector('.settings-card-subtitle');
+    if (subtitle) subtitle.textContent = 'Your browser updates Blackboarder automatically through its extension store.';
+    if (statusPill) statusPill.textContent = 'Managed by the store';
+    if (statusDesc) statusDesc.textContent = 'Installed version: v' + BUILD_INFO.version + '. New versions arrive on their own, usually within a day of being published.';
+    [btnCheckManual, btnReloadSettings, btnDownloadSettings, btnOpenGithub].forEach(b => {
+      const holder = b?.closest('div[style*="display: flex; flex-direction: column"]');
+      if (holder) holder.remove();
+    });
+    return;
+  }
   if (localCommitEl) localCommitEl.textContent = BUILD_INFO.shortCommit;
   if (localDateEl) {
     const d = new Date(BUILD_INFO.timestamp);
@@ -4945,6 +5056,8 @@ function initApp() {
 
   // Initialize first-time setup walkthrough modal
   initWalkthroughModal();
+
+  initSessionBanner();
 
   // Initialize extension GitHub update system
   initExtensionUpdateSystem();
