@@ -30,7 +30,7 @@ Run `npm run lint` and `npm test` before every commit. Generated files (`dist/`,
 - University: presets in `src/core/universities.ts` (grading scale, Blackboard hosts, quick links), picked in the walkthrough or Settings > General, or set by the first scan from the Blackboard address. Saved as the profile (`src/core/studentProfile.ts`) and synced. Other Blackboard addresses are added there with `optional_host_permissions` (`src/utils/blackboardSites.ts`).
 - Popup tabs: Calendar, Deadlines, Courses. Settings sections: General, Sync, Calendar, Alerts, Data, Updates, Scanning, the same order and card names as the phone app (minus Scanning); keep them matching.
 - Course import (Courses > Import File): `src/core/documentText.ts` reads PDF (pdf.js in `dist/vendor/pdfjs/`, copied from `pdfjs-dist` by the build, loaded only when needed), Word .docx and text on the device; `src/core/courseDocument.ts` finds courses, class times and weights; an AI, when set up, goes first (`src/engine/aiCourseImport.ts`).
-- Class reminders: `src/core/classSchedule.ts` and the `bbs_class_reminder` alarm. Calendar link (`src/core/calendarLink.ts`): `show=deadlines|classes|both` and `tz`.
+- Class reminders: `src/core/classSchedule.ts` and the `bbs_class_reminder` alarm. Settings > Calendar > Show My Classes (`showClassesInCalendar`) hides classes in the popup calendar. Calendar link (`src/core/calendarLink.ts`): `show=deadlines|classes|both` and `tz`.
 - Privacy tools: Settings > Data > Delete My Online Data (`deleteSyncDataFromFirebase`), Settings > Sync > Download Recovery File, and a popup banner when the Blackboard session ends (`src/utils/sessionStatus.ts`).
 
 ## Rules

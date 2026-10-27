@@ -302,7 +302,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.3.0</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.3.1</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -865,6 +865,29 @@
       </div>
 
       <div class="settings-page" id="settings-page-calendar" role="tabpanel" aria-labelledby="settings-tab-calendar" hidden>
+        <!-- Blackboarder's own calendar (same card as the phone app's Calendar section) -->
+        <div class="settings-card" id="card-calendar-view">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-calendar"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Blackboarder Calendar</h3>
+                <p class="settings-card-subtitle">What the calendar in Blackboarder shows</p>
+              </div>
+            </div>
+          </div>
+          <div class="toggle-control-row">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label" id="show-classes-label">Show My Classes</span>
+              <span class="toggle-status-desc">Each day's classes above its deadlines, from your courses' class times</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-show-classes" aria-labelledby="show-classes-label" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+
         <!-- Calendar feed (same card and order as the phone app's Calendar section) -->
         <div class="settings-card" id="card-calendar-feed">
           <div class="settings-card-header">
@@ -878,7 +901,7 @@
           </div>
           <p class="settings-card-desc">Subscribe once with this link. Your calendar app refreshes it by itself, about every hour.</p>
             <div class="form-group" style="margin: 0 0 10px;">
-              <label class="form-label" for="setting-calendar-show">Calendar Shows</label>
+              <label class="form-label" for="setting-calendar-show">Calendar Link Shows</label>
               <select id="setting-calendar-show" class="form-select">
                 <option value="both">Deadlines and classes</option>
                 <option value="deadlines">Deadlines only</option>
@@ -1010,7 +1033,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.0</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.1</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

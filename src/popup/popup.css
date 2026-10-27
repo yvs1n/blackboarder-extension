@@ -4590,6 +4590,7 @@ h1, h2, h3 {
 
 /* Classes list (src/core/classSchedule.ts todaysClassesHtml), shared by both apps */
 .selected-day-classes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.selected-day-classes[hidden] { display: none; }
 .selected-day-classes-title { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .classes-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
 .class-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--surface-border, var(--border-color)); font-size: 12px; }

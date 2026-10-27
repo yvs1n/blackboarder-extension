@@ -154,6 +154,8 @@ export interface UserSettings {
   reminderHoursBefore: number;
   /** Minutes before each class to remind; 0 turns class reminders off */
   classReminderMinutes?: number;
+  /** Each day's classes in Blackboarder's calendar (Settings > Calendar); on unless turned off */
+  showClassesInCalendar?: boolean;
   customDomains: string[];
   customWeights?: Record<string, any>;
   autoSyncMidnight?: boolean;
@@ -176,6 +178,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   badgeNotification: true,
   reminderHoursBefore: 24,
   classReminderMinutes: 15,
+  showClassesInCalendar: true,
   customDomains: ['blackboard.sharjah.ac.ae', 'elearning.sharjah.ac.ae', 'blackboard.com'],
   autoSyncMidnight: true,
   autoSyncOnScan: true,

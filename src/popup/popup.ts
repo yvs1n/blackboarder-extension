@@ -870,7 +870,10 @@ function renderSelectedDay() {
 
   // That day's classes, from the courses' meeting times
   const classesBox = document.getElementById('selected-day-classes');
-  if (classesBox) {
+  const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
+  if (classesBox) classesBox.hidden = !showClasses;
+  if (classesBox && !showClasses) classesBox.innerHTML = '';
+  if (classesBox && showClasses) {
     const now = new Date();
     const classes = classesOnDay(currentUserCourses, dateObj)
       .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter));
@@ -2718,6 +2721,8 @@ async function loadSettingsForm() {
   (document.getElementById('setting-reminder-hours') as HTMLSelectElement).value = String(settings.reminderHoursBefore || 24);
   const classReminder = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;
   if (classReminder) classReminder.value = String(settings.classReminderMinutes ?? 15);
+  const showClasses = document.getElementById('setting-show-classes') as HTMLInputElement | null;
+  if (showClasses) showClasses.checked = settings.showClassesInCalendar !== false;
   const settingTheme = document.getElementById('setting-theme') as HTMLSelectElement | null;
   if (settingTheme) settingTheme.value = settings.theme || 'system';
 
@@ -3459,6 +3464,13 @@ function setupEvents() {
     show('Testing...');
     const result = await testAiEndpoint(endpoint);
     show(result.message, result.ok);
+  });
+  // Takes effect straight away, like the phone app's switch
+  const settingShowClasses = document.getElementById('setting-show-classes') as HTMLInputElement | null;
+  settingShowClasses?.addEventListener('change', async () => {
+    await saveSettings({ showClassesInCalendar: settingShowClasses.checked });
+    renderSelectedDay();
+    showToast(settingShowClasses.checked ? 'Classes shown in the calendar' : 'Classes hidden from the calendar');
   });
   const settingClassReminder = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;
   settingClassReminder?.addEventListener('change', async () => {

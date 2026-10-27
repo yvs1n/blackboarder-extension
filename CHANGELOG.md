@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.1] - 2026-10-27
+
+### Added
+
+- **Show My Classes switch.** Settings > Calendar > Blackboarder Calendar, in the extension and the phone app, turns the day's classes in Blackboarder's calendar on or off. It takes effect straight away and is kept on that device. Class reminders have their own setting in Alerts.
+
+### Changed
+
+- **Calendar Link Shows.** The calendar link's choice is now labelled Calendar Link Shows, since it only changes what the subscription link shows in Apple, Google or Outlook Calendar, not Blackboarder's own calendar.
+
+---
+
 ## [1.3.0] - 2026-10-27
 
 ### Added
