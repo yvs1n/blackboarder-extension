@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-CUCOuJkq.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-D8etszTQ.css">
+  <script type="module" crossorigin src="../../assets/popup-DWovtGZt.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-OqXzEdLA.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -247,7 +247,7 @@
           <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
           <span>Scan</span>
         </button>
-        <!-- Only everyday actions live here; sync, calendar export, quick links and theme are in Settings -->
+        <!-- Only everyday actions live here; courses and quick links are in the Courses tab, sync, calendar link and theme in Settings -->
         <button class="icon-btn" id="btn-add-modal" title="Add Deadline Manually" aria-label="Add Deadline Manually">
           <svg class="ui-icon"><use href="#icon-plus"></use></svg>
         </button>
@@ -270,16 +270,20 @@
       <div class="hsb-progress-bar"><div class="hsb-progress-fill" id="hsb-progress-fill"></div></div>
     </div>
 
-    <!-- Main Navigation: Monthly Calendar (Default) vs Details -->
+    <!-- Main tabs: Calendar, Deadlines, Courses (same names and order as the phone app); Settings is the gear -->
     <nav class="main-nav-tabs">
       <button class="nav-tab active" id="tab-nav-calendar" data-view="calendar">
         <span class="nav-tab-icon"><svg class="ui-icon"><use href="#icon-calendar"></use></svg></span>
-        <span>Monthly Calendar</span>
+        <span>Calendar</span>
       </button>
       <button class="nav-tab" id="tab-nav-details" data-view="details">
         <span class="nav-tab-icon"><svg class="ui-icon"><use href="#icon-clipboard"></use></svg></span>
-        <span>Deadline Details</span>
+        <span>Deadlines</span>
         <span class="nav-badge" id="nav-badge-count">0</span>
+      </button>
+      <button class="nav-tab" id="tab-nav-courses" data-view="courses">
+        <span class="nav-tab-icon"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
+        <span>Courses</span>
       </button>
     </nav>
   </header>
@@ -299,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.2.9</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.3.0</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -373,6 +377,8 @@
           <span>Add</span>
         </button>
       </div>
+      <!-- That day's classes, from each course's meeting times -->
+      <div class="selected-day-classes" id="selected-day-classes" aria-label="Classes"></div>
       <div class="selected-day-list" id="selected-day-list">
         <!-- Injected dynamically -->
       </div>
@@ -511,6 +517,56 @@
   </section>
 
   <!-- VIEW 3: Add Task Manually -->
+  <!-- VIEW: Courses (same tab as the phone app's Courses) -->
+  <section id="view-courses" class="view-panel">
+      <!-- My Courses: courses, class times and mark breakdown (the phone app's Courses tab has the same card) -->
+      <div class="settings-card" id="card-my-courses">
+        <div class="settings-card-header">
+          <div class="settings-icon-title">
+            <span class="card-icon"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
+            <div>
+              <h3 class="settings-card-title">My Courses</h3>
+              <p class="settings-card-subtitle">Manage class times, room locations, and syllabus mark allocations</p>
+            </div>
+          </div>
+          <span class="settings-pill pill-blue" id="pill-course-count">6 Active</span>
+        </div>
+
+        <p class="settings-card-desc">
+          Configure your enrolled courses, weekly lecture slots, and grade distributions. Deadlines auto-calculate marks and lecture rooms based on these settings.
+        </p>
+
+        <!-- Course Manager Action Toolbar -->
+        <div class="courses-toolbar" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center;">
+          <button type="button" class="btn-primary" id="btn-add-course" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
+            <svg class="ui-icon"><use href="#icon-plus"></use></svg>
+            <span>Add Course</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-import-courses" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;" title="Read a syllabus or class schedule file, pasted text or a JSON backup">
+            <svg class="ui-icon"><use href="#icon-upload"></use></svg>
+            <span>Import File</span>
+          </button>
+          <button type="button" class="btn-outline-action" id="btn-export-courses" style="font-size: 11px; padding: 5px 9px; width: auto; min-height: 28px; display: inline-flex; align-items: center; gap: 4px;" title="Download JSON course configuration backup">
+            <svg class="ui-icon"><use href="#icon-download"></use></svg>
+            <span>Export JSON</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-reset-courses" style="font-size: 11px; padding: 5px 9px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px;" title="Reset the course list">
+            <span>Reset Defaults</span>
+          </button>
+        </div>
+
+        <!-- Dynamic Courses List -->
+        <div id="user-courses-list" class="user-courses-container" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Populated dynamically by renderUserCoursesManager() -->
+        </div>
+      </div>
+      <!-- Quick links editor (the calendar's Quick Links bar opens it too) -->
+      <button type="button" class="btn-outline-action" id="btn-quick-links-toggle" title="Academic Quick Links (Attendance, Study Plan, Marks)" aria-label="Academic Quick Links" style="margin: 12px 0 0; justify-content: center; width: 100%;">
+        <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
+        <span>Manage Quick Links (Attendance, Study Plan, Marks)</span>
+      </button>
+  </section>
+
   <section id="view-add" class="view-panel">
     <h3 style="font-size: 15px; margin-bottom: 12px; font-weight: 700;">Add Custom Deadline</h3>
     <form id="form-add-task">
@@ -590,22 +646,19 @@
 
     <form id="form-settings">
       <!-- Settings pages: one tab per group, all inside the same form so Save keeps saving every field -->
+      <!-- Same sections in the same order as the phone app: General, Sync, Calendar, Alerts, Data, Updates; Scanning is extension only -->
       <div class="settings-nav" role="tablist" aria-label="Settings sections">
         <button type="button" class="settings-nav-tab active" role="tab" id="settings-tab-general" data-settings-page="general" aria-selected="true" aria-controls="settings-page-general" tabindex="0">
           <svg class="ui-icon"><use href="#icon-settings"></use></svg>
           <span>General</span>
         </button>
-        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-courses" data-settings-page="courses" aria-selected="false" aria-controls="settings-page-courses" tabindex="-1">
-          <svg class="ui-icon"><use href="#icon-book"></use></svg>
-          <span>Courses</span>
-        </button>
-        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-scanning" data-settings-page="scanning" aria-selected="false" aria-controls="settings-page-scanning" tabindex="-1">
-          <svg class="ui-icon"><use href="#icon-bolt"></use></svg>
-          <span>Scanning</span>
-        </button>
         <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-sync" data-settings-page="sync" aria-selected="false" aria-controls="settings-page-sync" tabindex="-1">
           <svg class="ui-icon"><use href="#icon-smartphone"></use></svg>
           <span>Sync</span>
+        </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-calendar" data-settings-page="calendar" aria-selected="false" aria-controls="settings-page-calendar" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-calendar"></use></svg>
+          <span>Calendar</span>
         </button>
         <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-alerts" data-settings-page="alerts" aria-selected="false" aria-controls="settings-page-alerts" tabindex="-1">
           <svg class="ui-icon"><use href="#icon-bell"></use></svg>
@@ -619,20 +672,51 @@
           <svg class="ui-icon"><use href="#icon-refresh"></use></svg>
           <span>Updates</span>
         </button>
+        <button type="button" class="settings-nav-tab" role="tab" id="settings-tab-scanning" data-settings-page="scanning" aria-selected="false" aria-controls="settings-page-scanning" tabindex="-1">
+          <svg class="ui-icon"><use href="#icon-bolt"></use></svg>
+          <span>Scanning</span>
+        </button>
       </div>
 
       <div class="settings-page" id="settings-page-general" role="tabpanel" aria-labelledby="settings-tab-general">
-        <!-- Setup Guide / Walkthrough Replay Button -->
-        <button type="button" class="btn-outline-action" id="btn-replay-walkthrough" style="margin-bottom: 12px; justify-content: center; width: 100%; border-style: dashed; padding: 8px 12px;">
-          <svg class="ui-icon mr-1" style="color: var(--primary);"><use href="#icon-sparkles"></use></svg>
-          <span>Replay Setup Walkthrough &amp; Guide</span>
-        </button>
+        <!-- Your university: grading scale, quick links and Blackboard address (universitySettings.ts) -->
+        <div class="settings-card" id="card-university">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Your University</h3>
+                <p class="settings-card-subtitle">Grading scale for the GPA, quick links and your Blackboard address</p>
+              </div>
+            </div>
+          </div>
 
-        <!-- Quick links editor (was a header button; the calendar's Quick Links bar opens it too) -->
-        <button type="button" class="btn-outline-action" id="btn-quick-links-toggle" title="Academic Quick Links (Attendance, Study Plan, Marks)" aria-label="Academic Quick Links" style="margin-bottom: 12px; justify-content: center; width: 100%;">
-          <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
-          <span>Manage Quick Links (Attendance, Study Plan, Marks)</span>
-        </button>
+          <div class="form-group">
+            <label class="form-label" for="setting-university">University</label>
+            <select id="setting-university" class="form-select"></select>
+            <span class="setting-desc" id="university-detect-note"></span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Grading scale</label>
+            <div id="grade-scale-editor" class="grade-scale-editor"></div>
+            <span class="setting-desc" id="grade-scale-note"></span>
+            <div class="grade-scale-actions">
+              <button type="button" class="btn-secondary" id="btn-grade-row-add">+ Add Letter</button>
+              <button type="button" class="btn-secondary" id="btn-grade-scale-reset">Use University Scale</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="setting-blackboard-url">Blackboard address <span style="font-weight: normal; color: var(--text-muted);">(only if Blackboarder does not open on it)</span></label>
+            <div class="blackboard-site-add">
+              <input type="url" id="setting-blackboard-url" class="form-input" placeholder="lms.youruniversity.edu" autocomplete="off">
+              <button type="button" class="btn-primary" id="btn-add-blackboard-site">Add</button>
+            </div>
+            <span class="setting-desc">Addresses ending in blackboard.com and UOS work already. Your browser asks you to allow just this one site.</span>
+            <div id="blackboard-sites-list" class="blackboard-sites-list"></div>
+          </div>
+        </div>
 
         <!-- Card 3: Appearance & Shortcuts -->
         <div class="settings-card">
@@ -640,7 +724,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-moon"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Appearance &amp; Blackboard Dark Mode</h3>
+                <h3 class="settings-card-title">Appearance &amp; Help</h3>
                 <p class="settings-card-subtitle">Interface styling and native Blackboard Ultra dark theme</p>
               </div>
             </div>
@@ -654,7 +738,7 @@
                 <span class="setting-title" style="font-weight: 600;">Blackboard Web Dark Mode</span>
                 <span class="settings-pill pill-green" style="font-size: 10px;">Native Theme</span>
               </div>
-              <span class="setting-desc">Injects native high-contrast dark theme directly into University of Sharjah Blackboard Ultra web pages.</span>
+              <span class="setting-desc">Puts a dark theme on your university's Blackboard Ultra pages.</span>
             </div>
             <label class="switch">
               <input type="checkbox" id="setting-blackboard-dark-mode" checked>
@@ -686,50 +770,281 @@
               Press anywhere in Chrome to open popup. (Mac: <kbd class="kbd-badge">Alt</kbd>+<kbd class="kbd-badge">Shift</kbd>+<kbd class="kbd-badge">B</kbd>)
             </span>
           </div>
+          <!-- Setup guide (the phone app has the same button in Appearance & Help) -->
+          <button type="button" class="btn-outline-action" id="btn-replay-walkthrough" style="margin: 12px 0 0; justify-content: center; width: 100%; border-style: dashed; padding: 8px 12px;">
+            <svg class="ui-icon mr-1" style="color: var(--primary);"><use href="#icon-sparkles"></use></svg>
+            <span>Replay Setup Guide</span>
+          </button>
         </div>
       </div>
 
-      <div class="settings-page" id="settings-page-courses" role="tabpanel" aria-labelledby="settings-tab-courses" hidden>
-        <!-- Card 5: My Courses, Schedule & Grading (Unified Interactive Manager) -->
-        <div class="settings-card" id="card-my-courses">
+      <div class="settings-page" id="settings-page-sync" role="tabpanel" aria-labelledby="settings-tab-sync" hidden>
+        <!-- Card 4: Mobile Phone & Cloud Sync -->
+        <div class="settings-card">
           <div class="settings-card-header">
             <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-smartphone"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">My Courses, Schedule &amp; Grading</h3>
-                <p class="settings-card-subtitle">Manage class times, room locations, and syllabus mark allocations</p>
+                <h3 class="settings-card-title">Sync Key &amp; Pairing</h3>
+                <p class="settings-card-subtitle">Real-time sync to phone PWA and live calendar feeds</p>
               </div>
             </div>
-            <span class="settings-pill pill-blue" id="pill-course-count">6 Active</span>
+            <span class="settings-pill pill-green">Live Sync</span>
           </div>
 
           <p class="settings-card-desc">
-            Configure your enrolled courses, weekly lecture slots, and grade distributions. Deadlines auto-calculate marks and lecture rooms based on these settings.
+            Access your deadlines on your phone via Mobile Web App (PWA) and subscribe natively in Apple Calendar (iOS) or Google Calendar.
           </p>
 
-          <!-- Course Manager Action Toolbar -->
-          <div class="courses-toolbar" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center;">
-            <button type="button" class="btn-primary" id="btn-add-course" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;">
-              <svg class="ui-icon"><use href="#icon-plus"></use></svg>
-              <span>Add Course</span>
-            </button>
-            <button type="button" class="btn-secondary" id="btn-import-courses" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;" title="Import from Banner SSB schedule text or JSON backup">
-              <svg class="ui-icon"><use href="#icon-upload"></use></svg>
-              <span>Import / Paste</span>
-            </button>
-            <button type="button" class="btn-outline-action" id="btn-export-courses" style="font-size: 11px; padding: 5px 9px; width: auto; min-height: 28px; display: inline-flex; align-items: center; gap: 4px;" title="Download JSON course configuration backup">
-              <svg class="ui-icon"><use href="#icon-download"></use></svg>
-              <span>Export JSON</span>
-            </button>
-            <button type="button" class="btn-secondary" id="btn-reset-courses" style="font-size: 11px; padding: 5px 9px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px;" title="Reset to standard 6 UOS courses">
-              <span>Reset Defaults</span>
-            </button>
+          <!-- Personal Sync Key Prominent Box -->
+          <div class="settings-panel-box" style="margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 0;">Personal Sync Key</label>
+              <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
+                <span>Copy Key</span>
+              </button>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1;">
+              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;" title="Generate new random key">New Key</button>
+            </div>
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 4px;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
           </div>
 
-          <!-- Dynamic Courses List -->
-          <div id="user-courses-list" class="user-courses-container" style="display: flex; flex-direction: column; gap: 10px;">
-            <!-- Populated dynamically by renderUserCoursesManager() -->
+          <!-- Action Buttons -->
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button type="button" class="btn-primary" id="btn-sync-to-server" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
+                <span>Sync Now to Mobile</span>
+              </button>
+              <button type="button" class="btn-secondary" id="btn-open-mobile-web" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-smartphone"></use></svg>
+                <span>Open Mobile App</span>
+              </button>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-copy-pairing-link">
+              <svg class="ui-icon mr-1"><use href="#icon-share"></use></svg>
+              <span>Copy Phone Pairing Link (?key=...)</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-download-recovery-key">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Download Recovery File (sync key)</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-show-pairing-qr" aria-expanded="false" aria-controls="pairing-qr-panel">
+              <svg class="ui-icon mr-1"><use href="#icon-qr"></use></svg>
+              <span>Show Pairing QR Code</span>
+            </button>
+            <div id="pairing-qr-panel" class="pairing-qr-panel" hidden>
+              <div id="pairing-qr-code" class="pairing-qr-code"></div>
+              <p class="pairing-qr-help">On your phone, open the Blackboarder app, go to <strong>Settings &gt; Sync</strong> and tap <strong>Scan QR</strong>. It pairs right away, AI included. The code carries your AI pass, so only show it to your own phone.</p>
+            </div>
+            <div id="firebase-status-badge" class="firebase-status-badge">
+              <div class="fb-status-main">
+                <svg class="ui-icon fb-status-icon"><use href="#icon-flame"></use></svg>
+                <span>Firebase Cloud DB: Connected</span>
+              </div>
+              <span class="fb-status-sub">24/7 Always Online</span>
+            </div>
+            <div id="sync-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;"></div>
           </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
+              <input type="checkbox" id="setting-sync-midnight" checked>
+              <span>Auto-sync every day at 12:00 AM midnight</span>
+            </label>
+          </div>
+          <div class="form-group" style="margin-top: 2px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
+              <input type="checkbox" id="setting-sync-onscan" checked>
+              <span>Auto-push to mobile after scanning Blackboard</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-calendar" role="tabpanel" aria-labelledby="settings-tab-calendar" hidden>
+        <!-- Calendar feed (same card and order as the phone app's Calendar section) -->
+        <div class="settings-card" id="card-calendar-feed">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-calendar"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Calendar Feed</h3>
+                <p class="settings-card-subtitle">Your deadlines and classes in Apple, Google or Outlook Calendar</p>
+              </div>
+            </div>
+          </div>
+          <p class="settings-card-desc">Subscribe once with this link. Your calendar app refreshes it by itself, about every hour.</p>
+            <div class="form-group" style="margin: 0 0 10px;">
+              <label class="form-label" for="setting-calendar-show">Calendar Shows</label>
+              <select id="setting-calendar-show" class="form-select">
+                <option value="both">Deadlines and classes</option>
+                <option value="deadlines">Deadlines only</option>
+                <option value="classes">Class schedule only</option>
+              </select>
+              <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Classes come from each course's meeting times, at this computer's time zone. Pick before copying; an old link keeps showing deadlines only.</span>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-copy-webcal-link">
+              <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
+              <span>Copy Calendar Link</span>
+            </button>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-alerts" role="tabpanel" aria-labelledby="settings-tab-alerts" hidden>
+        <!-- Card 2: Notifications & Alerts -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-bell"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Notifications &amp; Alerts</h3>
+                <p class="settings-card-subtitle">Extension icon badge and advance reminder windows</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-orange">Reminders</span>
+          </div>
+
+          <!-- Toggle: Badge notification -->
+          <div class="toggle-control-row">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label">Extension Icon Badge</span>
+              <span class="toggle-status-desc">Show pending deadline counter directly on toolbar icon</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-badge-notif">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="setting-reminder-hours">Notification Alert Window</label>
+            <select id="setting-reminder-hours" class="form-select">
+              <option value="12">12 hours before deadline</option>
+              <option value="24">24 hours before deadline (Default)</option>
+              <option value="48">48 hours before deadline</option>
+            </select>
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Controls when advance desktop push notifications are dispatched.</span>
+          </div>
+
+          <div class="form-group" style="margin: 12px 0 0;">
+            <label class="form-label" for="setting-class-reminder">Class Reminders</label>
+            <select id="setting-class-reminder" class="form-select">
+              <option value="0">Off</option>
+              <option value="5">5 minutes before class</option>
+              <option value="10">10 minutes before class</option>
+              <option value="15">15 minutes before class (Default)</option>
+              <option value="30">30 minutes before class</option>
+              <option value="60">1 hour before class</option>
+            </select>
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Uses each course's meeting times (Courses tab). Saved straight away.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-data" role="tabpanel" aria-labelledby="settings-tab-data" hidden>
+        <!-- Card 8: Backup & Data Management -->
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-download"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Backup &amp; Data</h3>
+                <p class="settings-card-subtitle">Export or restore your deadlines offline</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue">Local Storage</span>
+          </div>
+
+          <p class="settings-card-desc">
+            Your scanned deadlines are safely stored in browser storage. Export a JSON backup file anytime for 100% peace of mind.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button type="button" class="btn-outline-action" id="btn-backup-json" style="justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Export JSON</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-restore-json-trigger" style="justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-upload"></use></svg>
+              <span>Restore JSON</span>
+            </button>
+          </div>
+          <input type="file" id="input-restore-json" accept=".json" style="display: none;">
+          <!-- Calendar file export (was a header button) -->
+          <button type="button" class="btn-outline-action" id="btn-export-all-ics" title="Export All to .ICS Calendar" aria-label="Export All to .ICS Calendar" style="margin-top: 8px; justify-content: center; width: 100%;">
+            <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
+            <span>Download Calendar File (.ics)</span>
+          </button>
+        </div>
+
+        <!-- Card: delete the copy kept online -->
+        <div class="settings-card" id="card-delete-cloud-data">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-trash"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Delete My Online Data</h3>
+                <p class="settings-card-subtitle">Erase what is stored under your sync key</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue">Privacy</span>
+          </div>
+          <p class="settings-card-desc">
+            Blackboarder keeps a copy of your deadlines, courses, quick links, your encrypted AI key and your phone's reminder subscription online so your phone can see them. This deletes all of it from the server, and you get a new sync key. Your deadlines stay on this device, and your phone needs to be paired again.
+          </p>
+          <button type="button" class="btn-outline-action" id="btn-delete-cloud-data" style="justify-content: center;">
+            <svg class="ui-icon mr-1"><use href="#icon-trash"></use></svg>
+            <span>Delete My Online Data</span>
+          </button>
+          <p class="settings-card-desc" id="delete-cloud-status" role="status" aria-live="polite" style="margin-top: 8px; display: none;"></p>
+        </div>
+      </div>
+
+      <div class="settings-page" id="settings-page-updates" role="tabpanel" aria-labelledby="settings-tab-updates" hidden>
+        <!-- Card 9: Extension Updates & GitHub Version -->
+        <div class="settings-card" id="card-extension-updates">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.0</span></h3>
+                <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-green" id="ext-update-status-pill">Up to Date</span>
+          </div>
+
+          <p class="settings-card-desc" id="ext-update-status-desc">
+            Installed build: <code id="ext-local-commit">local</code> (<span id="ext-local-date">just now</span>). Checks GitHub every hour and installs new versions automatically.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button type="button" class="btn-primary" id="btn-check-ext-update" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
+                <span>Check for Updates</span>
+              </button>
+              <button type="button" class="btn-secondary" id="btn-reload-ext-settings" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+                <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+                <span>Reload Extension</span>
+              </button>
+            </div>
+            <button type="button" class="btn-outline-action" id="btn-download-ext-zip">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Download Latest Extension (.zip)</span>
+            </button>
+            <button type="button" class="btn-outline-action" id="btn-open-github-repo">
+              <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
+              <span>View GitHub Repository</span>
+            </button>
+          </div>
+          <p class="settings-card-desc" style="margin-top: 10px; font-size: 11px;">
+            Built by <a href="https://yassinr.me" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: underline;">Yassin Ragab</a>, a freshman at UOS.
+          </p>
         </div>
       </div>
 
@@ -847,238 +1162,6 @@
             </button>
           </div>
           <div id="rescan-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px;"></div>
-        </div>
-      </div>
-
-      <div class="settings-page" id="settings-page-sync" role="tabpanel" aria-labelledby="settings-tab-sync" hidden>
-        <!-- Card 4: Mobile Phone & Cloud Sync -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-smartphone"></use></svg></span>
-              <div>
-                <h3 class="settings-card-title">Mobile Phone &amp; Cloud Sync</h3>
-                <p class="settings-card-subtitle">Real-time sync to phone PWA and live calendar feeds</p>
-              </div>
-            </div>
-            <span class="settings-pill pill-green">Live Sync</span>
-          </div>
-
-          <p class="settings-card-desc">
-            Access your deadlines on your phone via Mobile Web App (PWA) and subscribe natively in Apple Calendar (iOS) or Google Calendar.
-          </p>
-
-          <!-- Personal Sync Key Prominent Box -->
-          <div class="settings-panel-box" style="margin-bottom: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 0;">Personal Sync Pairing Key</label>
-              <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
-                <span>Copy Key</span>
-              </button>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1;">
-              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;" title="Generate new random key">New Key</button>
-            </div>
-            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 4px;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
-          </div>
-
-          <!-- Action Buttons -->
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-              <button type="button" class="btn-primary" id="btn-sync-to-server" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
-                <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
-                <span>Sync Now to Mobile</span>
-              </button>
-              <button type="button" class="btn-secondary" id="btn-open-mobile-web" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
-                <svg class="ui-icon mr-1"><use href="#icon-smartphone"></use></svg>
-                <span>Open Mobile App</span>
-              </button>
-            </div>
-            <button type="button" class="btn-outline-action" id="btn-copy-pairing-link">
-              <svg class="ui-icon mr-1"><use href="#icon-share"></use></svg>
-              <span>Copy Phone Pairing Link (?key=...)</span>
-            </button>
-            <button type="button" class="btn-outline-action" id="btn-download-recovery-key">
-              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
-              <span>Download Recovery File (sync key)</span>
-            </button>
-            <button type="button" class="btn-outline-action" id="btn-show-pairing-qr" aria-expanded="false" aria-controls="pairing-qr-panel">
-              <svg class="ui-icon mr-1"><use href="#icon-qr"></use></svg>
-              <span>Show Pairing QR Code</span>
-            </button>
-            <div id="pairing-qr-panel" class="pairing-qr-panel" hidden>
-              <div id="pairing-qr-code" class="pairing-qr-code"></div>
-              <p class="pairing-qr-help">On your phone, open the Blackboarder app, go to <strong>Settings &gt; Sync</strong> and tap <strong>Scan QR</strong>. It pairs right away, AI included. The code carries your AI pass, so only show it to your own phone.</p>
-            </div>
-            <button type="button" class="btn-outline-action" id="btn-copy-webcal-link">
-              <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
-              <span>Copy WebCal Feed Link (Apple/Google Cal)</span>
-            </button>
-            <div id="firebase-status-badge" class="firebase-status-badge">
-              <div class="fb-status-main">
-                <svg class="ui-icon fb-status-icon"><use href="#icon-flame"></use></svg>
-                <span>Firebase Cloud DB: Connected</span>
-              </div>
-              <span class="fb-status-sub">24/7 Always Online</span>
-            </div>
-            <div id="sync-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;"></div>
-          </div>
-
-          <div class="form-group" style="margin-top: 10px;">
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
-              <input type="checkbox" id="setting-sync-midnight" checked>
-              <span>Auto-sync every day at 12:00 AM midnight</span>
-            </label>
-          </div>
-          <div class="form-group" style="margin-top: 2px;">
-            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
-              <input type="checkbox" id="setting-sync-onscan" checked>
-              <span>Auto-push to mobile after scanning Blackboard</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-page" id="settings-page-alerts" role="tabpanel" aria-labelledby="settings-tab-alerts" hidden>
-        <!-- Card 2: Notifications & Alerts -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-bell"></use></svg></span>
-              <div>
-                <h3 class="settings-card-title">Notifications &amp; Alerts</h3>
-                <p class="settings-card-subtitle">Extension icon badge and advance reminder windows</p>
-              </div>
-            </div>
-            <span class="settings-pill pill-orange">Reminders</span>
-          </div>
-
-          <!-- Toggle: Badge notification -->
-          <div class="toggle-control-row">
-            <div class="toggle-text-block">
-              <span class="toggle-main-label">Extension Icon Badge</span>
-              <span class="toggle-status-desc">Show pending deadline counter directly on toolbar icon</span>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="setting-badge-notif">
-              <span class="slider round"></span>
-            </label>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="setting-reminder-hours">Notification Alert Window</label>
-            <select id="setting-reminder-hours" class="form-select">
-              <option value="12">12 hours before deadline</option>
-              <option value="24">24 hours before deadline (Default)</option>
-              <option value="48">48 hours before deadline</option>
-            </select>
-            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">Controls when advance desktop push notifications are dispatched.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-page" id="settings-page-data" role="tabpanel" aria-labelledby="settings-tab-data" hidden>
-        <!-- Card 8: Backup & Data Management -->
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-download"></use></svg></span>
-              <div>
-                <h3 class="settings-card-title">Permanent Data Backup</h3>
-                <p class="settings-card-subtitle">Export or restore your deadlines offline</p>
-              </div>
-            </div>
-            <span class="settings-pill pill-blue">Local Storage</span>
-          </div>
-
-          <p class="settings-card-desc">
-            Your scanned deadlines are safely stored in browser storage. Export a JSON backup file anytime for 100% peace of mind.
-          </p>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-            <button type="button" class="btn-outline-action" id="btn-backup-json" style="justify-content: center;">
-              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
-              <span>Export JSON</span>
-            </button>
-            <button type="button" class="btn-outline-action" id="btn-restore-json-trigger" style="justify-content: center;">
-              <svg class="ui-icon mr-1"><use href="#icon-upload"></use></svg>
-              <span>Restore JSON</span>
-            </button>
-          </div>
-          <input type="file" id="input-restore-json" accept=".json" style="display: none;">
-          <!-- Calendar file export (was a header button) -->
-          <button type="button" class="btn-outline-action" id="btn-export-all-ics" title="Export All to .ICS Calendar" aria-label="Export All to .ICS Calendar" style="margin-top: 8px; justify-content: center; width: 100%;">
-            <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
-            <span>Export Pending Deadlines to Calendar (.ics)</span>
-          </button>
-        </div>
-
-        <!-- Card: delete the copy kept online -->
-        <div class="settings-card" id="card-delete-cloud-data">
-          <div class="settings-card-header">
-            <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-trash"></use></svg></span>
-              <div>
-                <h3 class="settings-card-title">Delete My Online Data</h3>
-                <p class="settings-card-subtitle">Erase what is stored under your sync key</p>
-              </div>
-            </div>
-            <span class="settings-pill pill-blue">Privacy</span>
-          </div>
-          <p class="settings-card-desc">
-            Blackboarder keeps a copy of your deadlines, courses, quick links, your encrypted AI key and your phone's reminder subscription online so your phone can see them. This deletes all of it from the server, and you get a new sync key. Your deadlines stay on this device, and your phone needs to be paired again.
-          </p>
-          <button type="button" class="btn-outline-action" id="btn-delete-cloud-data" style="justify-content: center;">
-            <svg class="ui-icon mr-1"><use href="#icon-trash"></use></svg>
-            <span>Delete My Online Data</span>
-          </button>
-          <p class="settings-card-desc" id="delete-cloud-status" role="status" aria-live="polite" style="margin-top: 8px; display: none;"></p>
-        </div>
-      </div>
-
-      <div class="settings-page" id="settings-page-updates" role="tabpanel" aria-labelledby="settings-tab-updates" hidden>
-        <!-- Card 9: Extension Updates & GitHub Version -->
-        <div class="settings-card" id="card-extension-updates">
-          <div class="settings-card-header">
-            <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
-              <div>
-                <h3 class="settings-card-title">Extension Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.2.9</span></h3>
-                <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
-              </div>
-            </div>
-            <span class="settings-pill pill-green" id="ext-update-status-pill">Up to Date</span>
-          </div>
-
-          <p class="settings-card-desc" id="ext-update-status-desc">
-            Installed build: <code id="ext-local-commit">local</code> (<span id="ext-local-date">just now</span>). Checks GitHub every hour and installs new versions automatically.
-          </p>
-
-          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-              <button type="button" class="btn-primary" id="btn-check-ext-update" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
-                <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>
-                <span>Check for Updates</span>
-              </button>
-              <button type="button" class="btn-secondary" id="btn-reload-ext-settings" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
-                <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
-                <span>Reload Extension</span>
-              </button>
-            </div>
-            <button type="button" class="btn-outline-action" id="btn-download-ext-zip">
-              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
-              <span>Download Latest Extension (.zip)</span>
-            </button>
-            <button type="button" class="btn-outline-action" id="btn-open-github-repo">
-              <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
-              <span>View GitHub Repository</span>
-            </button>
-          </div>
-          <p class="settings-card-desc" style="margin-top: 10px; font-size: 11px;">
-            Built by <a href="https://yassinr.me" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: underline;">Yassin Ragab</a>, a freshman at UOS.
-          </p>
         </div>
       </div>
 
@@ -1495,7 +1578,7 @@
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <svg class="ui-icon"><use href="#icon-upload"></use></svg>
-          <h3 id="course-import-title" class="modal-title">Import Courses &amp; Schedule</h3>
+          <h3 id="course-import-title" class="modal-title">Import Courses</h3>
         </div>
         <button type="button" class="modal-close-btn" id="btn-close-course-import" aria-label="Close Importer">✕</button>
       </div>
@@ -1503,35 +1586,46 @@
         <!-- Tab Navigation -->
         <div class="importer-tabs" style="display: flex; border-bottom: 1px solid var(--surface-border); margin-bottom: 12px;">
           <button type="button" class="importer-tab-btn active" id="tab-import-banner" style="flex: 1; padding: 7px; font-size: 11.5px; font-weight: 600; background: none; border: none; border-bottom: 2px solid var(--text-main); cursor: pointer; color: var(--text-main);">
-            Banner SSB Schedule
+            Syllabus or Schedule
           </button>
           <button type="button" class="importer-tab-btn" id="tab-import-json" style="flex: 1; padding: 7px; font-size: 11.5px; font-weight: 600; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: var(--text-muted);">
             JSON Backup
           </button>
         </div>
 
-        <!-- Tab Content 1: Banner SSB Paste -->
+        <!-- Tab Content 1: syllabus or schedule file, or pasted text -->
         <div id="tab-content-banner">
-          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
-            Paste schedule text from Banner Self-Service (SSB) or your student portal. Course titles, codes, CRNs, meeting days, class times, and lecture rooms are detected automatically.
+          <p class="import-intro">
+            Upload your syllabus or class schedule (PDF, Word or text) or paste its text. Blackboarder finds each course's code, name, credit hours, class times, rooms and mark breakdown. Nothing is saved until you check it below.
           </p>
-          <textarea id="import-banner-text" class="form-textarea" rows="5" placeholder="Paste Banner schedule table or text here...&#10;e.g.&#10;1502 101 - Introduction to Computer Engineering&#10;CRN: 12345&#10;Days: M W Time: 11:00 am - 12:15 pm Room: A8-103&#10;1440 133 - Calculus I for Engineering&#10;CRN: 14210&#10;Days: T R Time: 09:30 am - 10:45 am Room: A12-110" style="font-size: 11px;"></textarea>
+          <label class="import-file-drop">
+            <input type="file" id="input-import-document" accept=".pdf,.docx,.txt,.md,.csv,.html,.htm,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+            <svg class="ui-icon"><use href="#icon-upload"></use></svg>
+            <span id="import-file-label">Choose a PDF, Word or text file</span>
+          </label>
+          <textarea id="import-banner-text" class="form-textarea" rows="5" placeholder="Or paste the syllabus or schedule text here" style="font-size: 11px;"></textarea>
+          <label class="import-ai-row" id="import-ai-row" hidden>
+            <input type="checkbox" id="import-use-ai" checked>
+            <span>Also read it with my AI model (better with unusual layouts)</span>
+          </label>
+          <div id="import-status" class="import-status" aria-live="polite"></div>
 
           <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
             <button type="button" class="btn-primary" id="btn-preview-banner" style="font-size: 11.5px; padding: 5px 12px;">
-              Preview Detected Courses
+              Find Courses
             </button>
           </div>
 
           <div id="import-banner-preview-container" style="display: none; margin-top: 12px; border-top: 1px dashed var(--surface-border); padding-top: 8px;">
-            <h4 style="font-size: 11.5px; margin: 0 0 6px 0; font-weight: 700;">Detected Courses Preview:</h4>
-            <div id="import-banner-preview-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;">
-              <!-- Dynamic preview cards -->
+            <h4 style="font-size: 11.5px; margin: 0 0 4px 0; font-weight: 700;">Check before saving</h4>
+            <p class="import-intro">Untick anything that is wrong. Class times and weights can be changed later in the course editor.</p>
+            <div id="import-banner-preview-list" class="ci-list">
+              <!-- Review cards (courseImportReviewHtml) -->
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px;">
               <button type="button" class="btn-secondary" id="btn-cancel-banner-import" style="font-size: 11px; padding: 5px 10px;">Cancel</button>
               <button type="button" class="btn-primary" id="btn-confirm-banner-import" style="font-size: 11px; padding: 5px 14px;">
-                Import &amp; Merge Courses
+                Save Courses
               </button>
             </div>
           </div>
@@ -1607,6 +1701,12 @@
           </div>
 
           <div class="walkthrough-sync-card">
+            <label for="wt-university" style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your University</label>
+            <select id="wt-university" class="form-select" style="margin-top: 4px;"></select>
+            <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-muted);">Sets the grading scale for your GPA. Not sure? Scan any Blackboard page and it is filled in from the address.</span>
+          </div>
+
+          <div class="walkthrough-sync-card">
             <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your Sync Key</div>
             <div class="walkthrough-key-display">
               <span class="walkthrough-key-value" id="wt-key-display">BBS-XXXX</span>
@@ -1636,7 +1736,7 @@
             </div>
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Calendar feed:</strong> Subscribe in Apple or Google Calendar from Settings &gt; Sync.</span>
+              <span><strong>Calendar feed:</strong> Subscribe in Apple or Google Calendar from Settings &gt; Calendar.</span>
             </div>
           </div>
         </div>
@@ -1688,7 +1788,7 @@
           <div class="walkthrough-feature-list">
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Edit a course:</strong> In Settings &gt; Courses, edit any course to change its colour (palette or hex code).</span>
+              <span><strong>Edit a course:</strong> In the Courses tab, edit any course to change its colour (palette or hex code).</span>
             </div>
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
@@ -1724,7 +1824,7 @@
             </div>
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Marks, GPA and Syllabus Progress cards:</strong> See every mark by course, newest first, each course's grade so far on the UOS scale with your projected GPA (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours in Settings &gt; Courses.</span>
+              <span><strong>Marks, GPA and Syllabus Progress cards:</strong> See every mark by course, newest first, each course's grade so far on the UOS scale with your projected GPA (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours in the Courses tab.</span>
             </div>
           </div>
         </div>

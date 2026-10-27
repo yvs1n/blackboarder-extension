@@ -1,4 +1,5 @@
 import type { DeadlineTask, TaskType } from '../types';
+import { describeGradeScale, GradeRow } from '../core/universities';
 
 /**
  * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
@@ -18,8 +19,9 @@ export const UOS_GRADE_SCALE: ReadonlyArray<{ letter: string; min: number; point
 /** Credit hours used when a course does not say (most UOS courses are 3). */
 export const DEFAULT_CREDIT_HOURS = 3;
 
-export function gradeForPercent(percent: number): { letter: string; points: number } {
-  const row = UOS_GRADE_SCALE.find(g => percent >= g.min) || UOS_GRADE_SCALE[UOS_GRADE_SCALE.length - 1];
+export function gradeForPercent(percent: number, scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): { letter: string; points: number } {
+  const rows = scale.length ? scale : UOS_GRADE_SCALE;
+  const row = rows.find(g => percent >= g.min) || rows[rows.length - 1];
   return { letter: row.letter, points: row.points };
 }
 
@@ -115,7 +117,7 @@ function pickComponent(task: DeadlineTask, components: GpaComponent[]): GpaCompo
  * the rest are dropped. Items not graded yet do not count either way, so the grade is the score
  * on what has been marked so far.
  */
-export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[]): GpaSummary {
+export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): GpaSummary {
   const graded = (tasks || []).filter(t => t && isGraded(t));
   const courses: CourseGrade[] = [];
 
@@ -184,7 +186,7 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[]): 
     };
     if (gradedWeight > 0) {
       course.percent = round1((earnedWeight / gradedWeight) * 100);
-      Object.assign(course, gradeForPercent(course.percent));
+      Object.assign(course, gradeForPercent(course.percent, scale));
     }
     courses.push(course);
   }
@@ -208,7 +210,11 @@ function esc(s: unknown): string {
 }
 
 /** The GPA card body, shared by the extension popup and the phone app (same classes in both stylesheets). */
-export function gpaSummaryHtml(s: GpaSummary, colorFor: (courseName: string) => string): string {
+export function gpaSummaryHtml(
+  s: GpaSummary,
+  colorFor: (courseName: string) => string,
+  scaleInfo: { name: string; scale: ReadonlyArray<GradeRow>; fromSyllabus?: boolean } = { name: 'UOS', scale: UOS_GRADE_SCALE }
+): string {
   if (!s.courses.length) return '<div class="marks-empty">No courses configured yet.</div>';
   const head = s.gpa === undefined
     ? '<div class="gpa-head"><span class="gpa-value">-</span><span class="gpa-caption">No marks yet. Your GPA appears after the first graded item.</span></div>'
@@ -226,6 +232,7 @@ export function gpaSummaryHtml(s: GpaSummary, colorFor: (courseName: string) => 
       ${detail}${drops}
     </div>`;
   }).join('');
-  const scale = UOS_GRADE_SCALE.filter(g => g.letter !== 'F').map(g => `${g.letter} ${g.min}+`).join(' · ');
-  return `${head}${rows}<div class="gpa-note">UOS scale: ${scale} · F below 60. Grades are your score on what is graded so far; set credit hours in Settings &gt; Courses.</div>`;
+  const scale = describeGradeScale([...scaleInfo.scale]);
+  const cutoffs = scaleInfo.fromSyllabus ? ' Instructors set the percentages, so check your syllabus and edit the scale in Settings if it differs.' : '';
+  return `${head}${rows}<div class="gpa-note">${esc(scaleInfo.name)} scale: ${esc(scale)}.${cutoffs} Grades are your score on what is graded so far; set credit hours in the Courses tab.</div>`;
 }

@@ -4,6 +4,10 @@ import { attachCoursePicker, findPickedCourse } from './coursePicker';
 import { buildMarksSummary, marksSummaryHtml, marksBadgeText } from '../utils/marks';
 import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
 import { buildGpaSummary, gpaSummaryHtml, gpaBadgeText } from '../utils/gpa';
+import { initUniversitySettings, getCachedProfile } from './universitySettings';
+import { profileGradeScale, profileUniversity } from '../core/studentProfile';
+import { swapUniversityQuickLinks } from '../core/universities';
+import { classesOnDay, todaysClassesHtml } from '../core/classSchedule';
 import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, resetUserCoursesToDefault, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
@@ -18,7 +22,11 @@ import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, STUDE
 import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
 import { sanitizeCloudTasks } from '../utils/cloudSanitize';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
-import { parseBannerScheduleText, parseSyllabusWeightsText, parseCoursesFromJson, mergeImportedCourses } from '../core/courseImporter';
+import { parseSyllabusWeightsText, parseCoursesFromJson, mergeImportedCourses } from '../core/courseImporter';
+import { applyCourseImport, type CourseDraft } from '../core/courseDocument';
+import { courseImportReviewHtml, readCourseImportReview } from '../core/courseImportView';
+import { fileToText, type PdfJsLike } from '../core/documentText';
+import { findCoursesInDocument } from '../engine/aiCourseImport';
 import { getActiveCourseLegend } from '../core/userCourses';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../utils/updateChecker';
 import { POPUP_PORT_NAME, AUTO_UPDATE_STATUS_KEY, type AutoUpdateStatus } from '../background/autoUpdate';
@@ -26,6 +34,7 @@ import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { SESSION_STATUS_KEY, describeSessionBanner, type SessionStatus } from '../utils/sessionStatus';
 import { describeUpdateBanner, isUpdateStatusFresh, ENABLE_UPDATES_HINT } from '../utils/updateBanner';
 import { BUILD_INFO } from '../buildInfo';
+import { calendarFeedUrl, cleanCalendarFeedShow } from '../core/calendarLink';
 
 // State
 let currentTasks: DeadlineTask[] = [];
@@ -46,10 +55,12 @@ let selectedCourseFilter: string | null = null;
 // DOM Elements: Views & Nav
 const tabNavCalendar = document.getElementById('tab-nav-calendar') as HTMLButtonElement;
 const tabNavDetails = document.getElementById('tab-nav-details') as HTMLButtonElement;
+const tabNavCourses = document.getElementById('tab-nav-courses') as HTMLButtonElement;
 const navBadgeCount = document.getElementById('nav-badge-count') as HTMLElement;
 
 const viewCalendar = document.getElementById('view-calendar') as HTMLElement;
 const viewDetails = document.getElementById('view-details') as HTMLElement;
+const viewCourses = document.getElementById('view-courses') as HTMLElement;
 const viewAdd = document.getElementById('view-add') as HTMLElement;
 const viewSettings = document.getElementById('view-settings') as HTMLElement;
 
@@ -269,7 +280,7 @@ function parsePickedCourse(value: string): { name: string; code: string } {
 // ============================================================================
 // View Navigation
 // ============================================================================
-type AppView = 'calendar' | 'details' | 'add' | 'settings';
+type AppView = 'calendar' | 'details' | 'courses' | 'add' | 'settings';
 
 // Unfinished work survives closing the popup (src/popup/popupDraft.ts). Off until the saved draft
 // has been restored on open, so the start-up calendar view does not wipe it.
@@ -287,6 +298,8 @@ function rememberDraft() {
     saveDraft({ view: 'add', fields: collectFields(formAddTask) });
   } else if (viewSettings.classList.contains('active')) {
     saveDraft({ view: 'settings', settingsPage: currentSettingsPage() });
+  } else if (viewCourses.classList.contains('active')) {
+    saveDraft({ view: 'courses' });
   } else {
     clearDraft();
   }
@@ -312,6 +325,8 @@ async function restoreDraft() {
     } else if (d.view === 'settings') {
       switchView('settings');
       showSettingsPage(d.settingsPage || 'general');
+    } else if (d.view === 'courses') {
+      switchView('courses');
     }
   } finally {
     draftReady = true;
@@ -324,11 +339,13 @@ function switchView(view: AppView) {
 
   viewCalendar.classList.remove('active');
   viewDetails.classList.remove('active');
+  viewCourses.classList.remove('active');
   viewAdd.classList.remove('active');
   viewSettings.classList.remove('active');
 
   tabNavCalendar.classList.remove('active');
   tabNavDetails.classList.remove('active');
+  tabNavCourses.classList.remove('active');
 
   if (view === 'calendar') {
     viewCalendar.classList.add('active');
@@ -339,6 +356,10 @@ function switchView(view: AppView) {
     viewDetails.classList.add('active');
     tabNavDetails.classList.add('active');
     renderTasks();
+  } else if (view === 'courses') {
+    viewCourses.classList.add('active');
+    tabNavCourses.classList.add('active');
+    renderUserCoursesManager();
   } else if (view === 'add') {
     viewAdd.classList.add('active');
     updateAddRoomVisibility();
@@ -846,6 +867,19 @@ function renderSelectedDay() {
 
   const filterLabel = selectedCourseFilter ? ` <span style="font-weight: 500; font-size: 11px; color: var(--text-muted);">&bull; ${escapeHtml(selectedCourseFilter)}</span>` : '';
   selectedDayTitle.innerHTML = `${getSvgIcon('calendar', 'mr-1')} <span>Deadlines for ${escapeHtml(formattedHeader)}${filterLabel}</span>`;
+
+  // That day's classes, from the courses' meeting times
+  const classesBox = document.getElementById('selected-day-classes');
+  if (classesBox) {
+    const now = new Date();
+    const classes = classesOnDay(currentUserCourses, dateObj)
+      .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter));
+    const hasSchedule = currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
+    classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+      isToday: formatDateKey(now) === selectedDateStr,
+      hasSchedule
+    });
+  }
 
   const tasksOnDate = currentTasks.filter(task => {
     if (!matchesSelectedCourseFilter(task, selectedCourseFilter)) return false;
@@ -1420,9 +1454,21 @@ async function handleCoursesUpdated(courses: UserCourseConfig[]) {
 // ============================================================================
 // Smart Course & Schedule Importer Modal
 // ============================================================================
-let detectedImportCourses: Partial<UserCourseConfig>[] = [];
+let detectedImportCourses: CourseDraft[] = [];
 
-function openCourseImporter() {
+/** pdf.js ships inside the extension and is loaded only when a PDF is imported. */
+async function loadPdfJs(): Promise<PdfJsLike> {
+  const pdfjs = await import(/* @vite-ignore */ chrome.runtime.getURL('vendor/pdfjs/pdf.min.js'));
+  pdfjs.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('vendor/pdfjs/pdf.worker.min.js');
+  return pdfjs;
+}
+
+function setImportStatus(text: string) {
+  const el = document.getElementById('import-status');
+  if (el) el.textContent = text;
+}
+
+async function openCourseImporter() {
   const modal = document.getElementById('modal-course-import');
   if (!modal) return;
   detectedImportCourses = [];
@@ -1432,6 +1478,14 @@ function openCourseImporter() {
   if (bannerText) bannerText.value = '';
   const jsonText = document.getElementById('import-json-text') as HTMLTextAreaElement;
   if (jsonText) jsonText.value = '';
+  const fileInput = document.getElementById('input-import-document') as HTMLInputElement | null;
+  if (fileInput) fileInput.value = '';
+  const fileLabel = document.getElementById('import-file-label');
+  if (fileLabel) fileLabel.textContent = 'Choose a PDF, Word or text file';
+  setImportStatus('');
+  // The AI choice only shows when a model is set up
+  const aiRow = document.getElementById('import-ai-row');
+  if (aiRow) aiRow.hidden = !resolveAiEndpoint(await getSettings());
 
   switchImporterTab('banner');
   modal.style.display = 'flex';
@@ -1465,44 +1519,56 @@ function switchImporterTab(tab: 'banner' | 'json') {
   }
 }
 
-function handlePreviewBanner() {
-  const text = (document.getElementById('import-banner-text') as HTMLTextAreaElement)?.value || '';
-  if (!text.trim()) {
-    showToast('Please paste Banner schedule text first.');
-    return;
+async function handleImportDocumentFile(file: File) {
+  const label = document.getElementById('import-file-label');
+  if (label) label.textContent = file.name;
+  setImportStatus(`Reading ${file.name}...`);
+  try {
+    const text = await fileToText(file, loadPdfJs);
+    const area = document.getElementById('import-banner-text') as HTMLTextAreaElement | null;
+    if (area) area.value = text;
+    await handlePreviewBanner();
+  } catch (e: any) {
+    setImportStatus(String(e?.message || 'That file could not be read.'));
   }
-  detectedImportCourses = parseBannerScheduleText(text);
+}
+
+async function handlePreviewBanner() {
+  const text = (document.getElementById('import-banner-text') as HTMLTextAreaElement)?.value || '';
   const container = document.getElementById('import-banner-preview-container');
   const list = document.getElementById('import-banner-preview-list');
-  if (!container || !list) return;
-
-  if (detectedImportCourses.length === 0) {
-    showToast('No courses detected in text. Please check the Banner schedule format.');
-    container.style.display = 'none';
+  if (!text.trim()) {
+    setImportStatus('Choose a file or paste the text first.');
     return;
   }
-
-  list.innerHTML = detectedImportCourses.map(c => {
-    const slots = (c.scheduleSlots || []).map(s => escapeHtml(`${s.days.map(d => d.slice(0, 3).toUpperCase()).join('/')} ${s.startTime}–${s.endTime} (${s.room || 'TBD'})`)).join(', ');
-    return `
-      <div class="import-preview-card">
-        <div style="font-weight: 700;">${escapeHtml(c.courseName || '')} <span style="font-weight: normal; color: var(--text-muted); font-family: monospace;">(${escapeHtml(c.courseCode || '')})</span></div>
-        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
-          ${c.crn ? `CRN: ${escapeHtml(c.crn)} • ` : ''}${slots || 'No slots'}
-        </div>
-      </div>
-    `;
-  }).join('');
-
+  const useAi = !document.getElementById('import-ai-row')?.hidden && (document.getElementById('import-use-ai') as HTMLInputElement | null)?.checked;
+  const ai = useAi ? resolveAiEndpoint(await getSettings()) : null;
+  setImportStatus(ai ? 'Reading it with your AI model...' : 'Looking for courses...');
+  const result = await findCoursesInDocument(text, ai);
+  detectedImportCourses = result.courses;
+  if (!container || !list) return;
+  if (!detectedImportCourses.length) {
+    container.style.display = 'none';
+    setImportStatus(`No courses found${result.aiProblem ? ` (AI: ${result.aiProblem})` : ''}. Check the text above, or add the course yourself with Add Course.`);
+    return;
+  }
+  const n = detectedImportCourses.length;
+  setImportStatus(`Found ${n} course${n === 1 ? '' : 's'}${result.source === 'ai' ? ' with your AI model' : ''}.${result.aiProblem ? ` The AI could not help (${result.aiProblem}), so the built-in reader was used.` : ''}`);
+  list.innerHTML = courseImportReviewHtml(detectedImportCourses, currentUserCourses);
   container.style.display = 'block';
 }
 
 async function handleConfirmBannerImport() {
-  if (detectedImportCourses.length === 0) return;
-  const merged = mergeImportedCourses(currentUserCourses, detectedImportCourses);
-  await handleCoursesUpdated(merged);
+  const list = document.getElementById('import-banner-preview-list');
+  if (!list || !detectedImportCourses.length) return;
+  const picks = readCourseImportReview(list, detectedImportCourses);
+  if (!picks.length) {
+    showToast('Nothing ticked to save.');
+    return;
+  }
+  await handleCoursesUpdated(applyCourseImport(currentUserCourses, picks));
   closeCourseImporter();
-  showToast(`Imported and merged ${detectedImportCourses.length} courses!`);
+  showToast(`Saved ${picks.length} course${picks.length === 1 ? '' : 's'}. They sync to your phone.`);
 }
 
 async function handleConfirmJsonImport() {
@@ -1541,12 +1607,18 @@ function exportCoursesJson() {
 }
 
 async function handleResetCourses() {
-  if (!confirm('Reset all courses, class schedules, and grading weights to the 6 official UOS defaults?')) {
+  // The built-in course list is UOS's; anywhere else a reset starts empty and the next scan fills it in
+  const atUos = profileUniversity(getCachedProfile()).id === 'uos';
+  const question = atUos
+    ? 'Reset all courses, class schedules, and grading weights to the 6 official UOS defaults?'
+    : 'Remove all courses? Your next Blackboard scan adds the courses you are enrolled in.';
+  if (!confirm(question)) {
     return;
   }
-  const resetCourses = await resetUserCoursesToDefault();
+  const resetCourses = atUos ? await resetUserCoursesToDefault() : [];
+  if (!atUos) await saveUserCourses([]);
   await handleCoursesUpdated(resetCourses);
-  showToast('Reset courses to official UOS defaults!');
+  showToast(atUos ? 'Reset courses to official UOS defaults!' : 'Courses cleared. Scan Blackboard to add yours.');
 }
 
 // ============================================================================
@@ -1632,9 +1704,16 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
   const gpaBadge = document.getElementById('gpa-tracker-badge');
   const gpaBody = document.getElementById('gpa-tracker-breakdown');
   if (gpaBadge && gpaBody) {
-    const gpa = buildGpaSummary(tasks, getAllSyllabi());
+    const profile = getCachedProfile();
+    const scale = profileGradeScale(profile);
+    const uni = profileUniversity(profile);
+    const gpa = buildGpaSummary(tasks, getAllSyllabi(), scale);
     gpaBadge.textContent = gpaBadgeText(gpa);
-    gpaBody.innerHTML = gpaSummaryHtml(gpa, name => getCourseHex(name));
+    gpaBody.innerHTML = gpaSummaryHtml(gpa, name => getCourseHex(name), {
+      name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
+      scale,
+      fromSyllabus: !profile?.gradeScale && uni.cutoffsFromSyllabus
+    });
   }
 
   // Syllabus Progress card
@@ -2637,6 +2716,8 @@ async function loadSettingsForm() {
   (document.getElementById('setting-autoscan') as HTMLInputElement).checked = settings.autoScanOnPageLoad;
   (document.getElementById('setting-badge-notif') as HTMLInputElement).checked = settings.badgeNotification;
   (document.getElementById('setting-reminder-hours') as HTMLSelectElement).value = String(settings.reminderHoursBefore || 24);
+  const classReminder = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;
+  if (classReminder) classReminder.value = String(settings.classReminderMinutes ?? 15);
   const settingTheme = document.getElementById('setting-theme') as HTMLSelectElement | null;
   if (settingTheme) settingTheme.value = settings.theme || 'system';
 
@@ -2829,6 +2910,7 @@ function setupEvents() {
   // Top Navigation Tabs
   tabNavCalendar.addEventListener('click', () => switchView('calendar'));
   tabNavDetails.addEventListener('click', () => switchView('details'));
+  tabNavCourses.addEventListener('click', () => switchView('courses'));
 
   // Calendar Controls
   btnCalPrev.addEventListener('click', () => {
@@ -3378,6 +3460,12 @@ function setupEvents() {
     const result = await testAiEndpoint(endpoint);
     show(result.message, result.ok);
   });
+  const settingClassReminder = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;
+  settingClassReminder?.addEventListener('change', async () => {
+    const minutes = Math.max(0, parseInt(settingClassReminder.value, 10) || 0);
+    await saveSettings({ classReminderMinutes: minutes });
+    showToast(minutes ? `Class reminders ${minutes} minutes before` : 'Class reminders off');
+  });
   const settingModel = document.getElementById('setting-model') as HTMLSelectElement | null;
   settingModel?.addEventListener('change', async () => {
     await saveSettings({ openRouterModel: settingModel.value });
@@ -3524,7 +3612,7 @@ function setupEvents() {
       'This key is the only way back to your online deadlines if you lose the data in this browser.',
       'Anyone who has it can see your deadlines, so keep the file private.',
       '',
-      'To restore: install Blackboarder, open Settings > Sync, paste the key into Personal Sync Pairing Key and save.',
+      'To restore: install Blackboarder, open Settings > Sync, paste the key into Personal Sync Key and save.',
       'To open it on a phone: ' + COMPANION_URL + '?key=' + encodeURIComponent(key)
     ];
     const url = URL.createObjectURL(new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/plain' }));
@@ -3662,11 +3750,19 @@ function setupEvents() {
     }
   });
 
+  // What the calendar link shows; remembered on this computer
+  const calendarShowSelect = document.getElementById('setting-calendar-show') as HTMLSelectElement | null;
+  if (calendarShowSelect) {
+    try { calendarShowSelect.value = cleanCalendarFeedShow(localStorage.getItem('bbs_calendar_feed_show')); } catch { /* storage off */ }
+    calendarShowSelect.addEventListener('change', () => {
+      try { localStorage.setItem('bbs_calendar_feed_show', calendarShowSelect.value); } catch { /* storage off */ }
+    });
+  }
+
   btnCopyWebcalLink?.addEventListener('click', async () => {
     const settings = await getSettings();
-    const hostedBase = SITE_URL;
-    const syncKey = settings.syncKey || '';
-    const webcalUrl = hostedBase.replace(/^https?:/, 'webcal:') + `/feed.ics${syncKey ? `?key=${encodeURIComponent(syncKey)}` : ''}`;
+    const show = cleanCalendarFeedShow(calendarShowSelect?.value);
+    const webcalUrl = calendarFeedUrl(SITE_URL, settings.syncKey || '', show, { webcal: true });
     try {
       await navigator.clipboard.writeText(webcalUrl);
       alert(`Copied WebCal link to clipboard:\n${webcalUrl}\n\nPaste this link into Apple Calendar on your iPhone or Google Calendar on the web to subscribe!`);
@@ -3752,6 +3848,10 @@ function setupEvents() {
   document.getElementById('tab-import-banner')?.addEventListener('click', () => switchImporterTab('banner'));
   document.getElementById('tab-import-json')?.addEventListener('click', () => switchImporterTab('json'));
   document.getElementById('btn-preview-banner')?.addEventListener('click', handlePreviewBanner);
+  document.getElementById('input-import-document')?.addEventListener('change', e => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) void handleImportDocumentFile(file);
+  });
   document.getElementById('btn-confirm-banner-import')?.addEventListener('click', handleConfirmBannerImport);
   document.getElementById('btn-confirm-json-import')?.addEventListener('click', handleConfirmJsonImport);
   document.getElementById('input-import-json-file')?.addEventListener('change', e => {
@@ -5044,6 +5144,23 @@ function initApp() {
 
   // Initialize first-time setup walkthrough modal
   initWalkthroughModal();
+
+  // University: grading scale, quick links, Blackboard address
+  initUniversitySettings({
+    toast: message => showToast(message),
+    onProfileChanged: (profile, fromHere, previousUniversityId) => {
+      refreshAllViews();
+      if (!fromHere) return;
+      const nextId = profileUniversity(profile).id;
+      if (nextId !== previousUniversityId) {
+        const now = new Date().toISOString();
+        currentQuickLinks = swapUniversityQuickLinks(currentQuickLinks, previousUniversityId, nextId, p => ({ ...p, createdAt: now }));
+        saveQuickLinks(currentQuickLinks).catch(() => {});
+        renderQuickLinksBar();
+      }
+      syncTasksToCloud(currentTasks, 'University Update');
+    }
+  }).then(() => refreshAllViews()).catch(err => console.error('[University] Settings failed to load:', err));
 
   initSessionBanner();
 

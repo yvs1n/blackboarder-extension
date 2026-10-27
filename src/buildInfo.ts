@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.2.9",
-  "build": "482815733743",
-  "commit": "1a7746f4a90a63b14d3aa38800d2af718ef2c06b",
-  "shortCommit": "1a7746f",
-  "timestamp": "2026-10-27T12:30:38.095Z",
-  "message": "v1.2.8: use an early-graded column once the exam date has passed",
+  "version": "1.3.0",
+  "build": "2b1430014146",
+  "commit": "9b7f3c92bf1f80c5374d4134fb31af43f639a2c1",
+  "shortCommit": "9b7f3c9",
+  "timestamp": "2026-10-27T15:41:33.820Z",
+  "message": "Scan button no longer spins forever (1.2.9)",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

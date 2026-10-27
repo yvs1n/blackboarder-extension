@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-10-27
+
+### Added
+
+- **Any university.** Pick your university in the setup guide or Settings > General (UOS, UAEU, ADU, ZU, AUD, AUS or Other), or scan any Blackboard page and it is set from the address. It sets the GPA grading scale, which you can edit, and the quick links. A Blackboard address that is not built in can be added there; the browser asks for that one site.
+- **Import your syllabus or class schedule.** Courses > Import File reads a PDF, Word (.docx) or text file, or pasted text, on your device and fills in courses, class times, rooms, credit hours and assessment weights. You check and correct each course before saving, and can still add or edit courses by hand. With an AI set up, it reads the file first and the built-in reader is the fallback. Saved courses sync to your other devices.
+- **Class reminders and today's classes.** A reminder a set time before each class (Settings > Alerts, 15 minutes by default, or off), on the extension and the phone, and your classes for the day on the calendar.
+- **Classes in your calendar app.** Settings > Calendar now asks what the calendar link shows: deadlines and classes, deadlines only, or the class schedule only. Class times follow your time zone, including daylight saving. Links copied before keep showing deadlines only.
+
+### Changed
+
+- **Courses tab.** Courses, class times and the mark breakdown are one tab in both apps, called Courses (it was Schedule on the phone and Settings > Courses in the extension), with Add Course and Import File at the top and quick links below.
+- **Same layout in the extension and the phone app.** Main tabs Calendar, Deadlines, Courses. Settings sections General, Sync, Calendar, Alerts, Data, Updates in the same order (the extension adds Scanning last), with the same card names and button labels: the calendar link has its own Calendar section, Backup & Data and Updates have their own sections on the phone, and Replay Setup Guide sits in Appearance & Help on both.
+
+---
+
 ## [1.2.9] - 2026-10-27
 
 ### Fixed

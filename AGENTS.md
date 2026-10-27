@@ -1,6 +1,6 @@
 # Blackboarder
 
-Student companion for Blackboard at the University of Sharjah (`elearning.sharjah.ac.ae`). It reads announcements and the gradebook, turns them into deadlines and marks, and shows them in a Chrome extension. A phone web app (hosted separately at blackboarder.pages.dev) syncs with it through Firebase.
+Student companion for Blackboard Learn, built at the University of Sharjah (`elearning.sharjah.ac.ae`) and set up for any university. It reads announcements and the gradebook, turns them into deadlines and marks, and shows them in a Chrome extension. A phone web app (hosted separately at blackboarder.pages.dev) syncs with it through Firebase.
 
 This repository is the open-source extension only. It is published from a private source repository, so edits made directly here are overwritten by the next publish. This file holds what stays true. It has no change log and no bug history.
 
@@ -27,6 +27,10 @@ Run `npm run lint` and `npm test` before every commit. Generated files (`dist/`,
 - `updater/`: the native messaging helper that updates the extension (`update.bat`, `update.sh` register it).
 - `public/`: manifest template and icons.
 - Store build: `npm run build` also writes `dist-store/` (and `npm run package` makes `blackboarder-extension-store.zip`) with `__STORE_BUILD__` true (`src/utils/storeBuild.ts`): no updater, no `nativeMessaging` or GitHub permissions. That is the file for the Chrome Web Store and Edge Add-ons.
+- University: presets in `src/core/universities.ts` (grading scale, Blackboard hosts, quick links), picked in the walkthrough or Settings > General, or set by the first scan from the Blackboard address. Saved as the profile (`src/core/studentProfile.ts`) and synced. Other Blackboard addresses are added there with `optional_host_permissions` (`src/utils/blackboardSites.ts`).
+- Popup tabs: Calendar, Deadlines, Courses. Settings sections: General, Sync, Calendar, Alerts, Data, Updates, Scanning, the same order and card names as the phone app (minus Scanning); keep them matching.
+- Course import (Courses > Import File): `src/core/documentText.ts` reads PDF (pdf.js in `dist/vendor/pdfjs/`, copied from `pdfjs-dist` by the build, loaded only when needed), Word .docx and text on the device; `src/core/courseDocument.ts` finds courses, class times and weights; an AI, when set up, goes first (`src/engine/aiCourseImport.ts`).
+- Class reminders: `src/core/classSchedule.ts` and the `bbs_class_reminder` alarm. Calendar link (`src/core/calendarLink.ts`): `show=deadlines|classes|both` and `tz`.
 - Privacy tools: Settings > Data > Delete My Online Data (`deleteSyncDataFromFirebase`), Settings > Sync > Download Recovery File, and a popup banner when the Blackboard session ends (`src/utils/sessionStatus.ts`).
 
 ## Rules

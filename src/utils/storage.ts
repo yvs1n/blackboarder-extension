@@ -52,6 +52,8 @@ export function canUseSameOriginProxy(): boolean {
     if (typeof window === 'undefined' || !window.location) return false;
     const { protocol, hostname } = window.location;
     if (protocol !== 'http:' && protocol !== 'https:') return false;
+    // A content script runs on a university's Blackboard, whatever its address: never post there
+    if (typeof chrome !== 'undefined' && (chrome as any).runtime?.id) return false;
     return !/(^|\.)(sharjah\.ac\.ae|blackboard\.com)$/i.test(hostname);
   } catch {
     return false;

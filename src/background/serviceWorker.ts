@@ -5,9 +5,62 @@ import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRul
 import { getUserCourses, getCoursesUpdatedAt, saveUserCourses } from '../utils/storage';
 import { initAutoUpdate } from './autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
+import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
+import { dueClassReminders, nextClassReminderAt, classReminderText } from '../core/classSchedule';
 
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
+const CLASS_ALARM_NAME = 'bbs_class_reminder';
+const CLASS_NOTIFIED_KEY = 'bbs_class_notified';
+
+async function classReminderMinutes(): Promise<number> {
+  const data = await chrome.storage.local.get(['bbs_settings']) as { bbs_settings?: UserSettings };
+  const minutes = data.bbs_settings?.classReminderMinutes;
+  return typeof minutes === 'number' && minutes >= 0 ? minutes : DEFAULT_SETTINGS.classReminderMinutes ?? 15;
+}
+
+/** Sets one alarm for the next class reminder; it sets the following one when it rings. */
+async function scheduleClassReminder() {
+  try {
+    const minutes = await classReminderMinutes();
+    const courses = await getUserCourses();
+    const at = nextClassReminderAt(courses, new Date(), minutes);
+    await chrome.alarms.clear(CLASS_ALARM_NAME);
+    if (at) chrome.alarms.create(CLASS_ALARM_NAME, { when: at.getTime() + 1000 });
+  } catch (err) {
+    console.error('[Classes] Could not schedule the next class reminder:', err);
+  }
+}
+
+/** Shows each class reminder that is due and not shown yet. Also run by the 30-minute alarm, in case Chrome was asleep. */
+async function showDueClassReminders() {
+  try {
+    const minutes = await classReminderMinutes();
+    if (!minutes) return;
+    const courses = await getUserCourses();
+    const data = await chrome.storage.local.get([CLASS_NOTIFIED_KEY]) as { [CLASS_NOTIFIED_KEY]?: Record<string, number> };
+    const now = new Date();
+    const notified: Record<string, number> = {};
+    // Keep two days of history; older keys can never be due again
+    for (const [k, t] of Object.entries(data[CLASS_NOTIFIED_KEY] || {})) {
+      if (now.getTime() - t < 2 * 86400000) notified[k] = t;
+    }
+    for (const o of dueClassReminders(courses, now, minutes, notified)) {
+      notified[o.key] = now.getTime();
+      const text = classReminderText(o, now);
+      chrome.notifications.create(`class_${o.key}`, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: text.title,
+        message: text.body,
+        priority: 2
+      });
+    }
+    await chrome.storage.local.set({ [CLASS_NOTIFIED_KEY]: notified });
+  } catch (err) {
+    console.error('[Classes] Class reminders failed:', err);
+  }
+}
 
 // Schedule daily 12:00 AM midnight alarm for automated sync
 function scheduleMidnightAlarm() {
@@ -185,11 +238,13 @@ async function checkUpcomingDeadlines() {
 async function reinjectDarkModeIntoOpenBlackboardTabs() {
   try {
     if (!chrome.tabs?.query || !chrome.scripting) return;
+    const extra = (await getExtraSites()).map(originPattern);
     const tabs = await chrome.tabs.query({
       url: [
         '*://*.sharjah.ac.ae/*',
         '*://*.blackboard.com/*',
-        'file:///*'
+        'file:///*',
+        ...extra
       ]
     });
     for (const tab of tabs) {
@@ -219,7 +274,7 @@ async function reinjectScraperIntoOpenBlackboardTabs() {
     if (!chrome.tabs?.query || !chrome.scripting) return;
     const entry = chrome.runtime.getManifest().content_scripts?.find(cs => cs.js?.includes('content.js'));
     if (!entry?.matches || !entry.js) return;
-    const tabs = await chrome.tabs.query({ url: entry.matches });
+    const tabs = await chrome.tabs.query({ url: [...entry.matches, ...(await getExtraSites()).map(originPattern)] });
     for (const tab of tabs) {
       if (!tab.id || tab.discarded) continue;
       try {
@@ -232,6 +287,10 @@ async function reinjectScraperIntoOpenBlackboardTabs() {
 
 // Run immediately when service worker wakes/reloads
 reinjectDarkModeIntoOpenBlackboardTabs();
+registerExtraSiteScripts().catch(() => {});
+scheduleClassReminder();
+chrome.permissions?.onAdded?.addListener(() => { registerExtraSiteScripts().catch(() => {}); });
+chrome.permissions?.onRemoved?.addListener(() => { registerExtraSiteScripts().catch(() => {}); });
 
 // Updates itself from GitHub (see autoUpdate.ts); the store build leaves updating to the store
 if (!IS_STORE_BUILD) initAutoUpdate();
@@ -263,13 +322,24 @@ chrome.runtime.onStartup?.addListener(() => {
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && changes.bbs_user_courses) {
-    getUserCourses().catch(() => {});
+    getUserCourses().then(() => scheduleClassReminder()).catch(() => {});
+  }
+  if (areaName === 'local' && changes.bbs_settings) {
+    const before = (changes.bbs_settings.oldValue as Partial<UserSettings> | undefined)?.classReminderMinutes;
+    const after = (changes.bbs_settings.newValue as Partial<UserSettings> | undefined)?.classReminderMinutes;
+    if (before !== after) scheduleClassReminder();
+  }
+  if (areaName === 'local' && changes[EXTRA_SITES_KEY]) {
+    registerExtraSiteScripts().catch(() => {});
   }
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === ALARM_NAME) {
+  if (alarm.name === CLASS_ALARM_NAME) {
+    showDueClassReminders().then(() => scheduleClassReminder());
+  } else if (alarm.name === ALARM_NAME) {
     pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
+    showDueClassReminders().then(() => scheduleClassReminder());
   } else if (alarm.name === MIDNIGHT_ALARM_NAME) {
     syncDeadlinesToMobileServer(true);
     scheduleMidnightAlarm();

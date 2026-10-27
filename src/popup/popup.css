@@ -3539,8 +3539,9 @@ body.is-standalone .header {
    Columns wrap onto a second row when the side panel is narrow. */
 .settings-nav {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
-  gap: 4px;
+  /* All seven sections on one row, also in a narrow side panel */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
   background: var(--surface-hover);
   border: 1px solid var(--surface-border);
   padding: 4px;
@@ -4566,3 +4567,67 @@ h1, h2, h3 {
 .ql-item-icon-box { background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--surface-border); }
 .ql-item-icon-box .ql-icon { width: 16px; height: 16px; }
 .ql-category-badge { background: var(--surface-hover); color: var(--text-muted); }
+
+/* Your University card: grading scale editor and added Blackboard addresses */
+.grade-scale-editor { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.grade-scale-row { display: flex; align-items: center; gap: 4px; }
+.grade-scale-row .form-input { padding: 4px 6px; font-size: 12px; min-height: 0; }
+.grade-scale-letter { width: 48px; flex: 0 0 48px; font-weight: 700; }
+.grade-scale-min, .grade-scale-points { width: 64px; flex: 0 0 64px; }
+.grade-scale-unit { font-size: 11px; color: var(--text-muted); }
+.grade-scale-remove { margin-left: auto; background: none; border: 1px solid var(--surface-border); color: var(--text-muted); cursor: pointer; font-size: 11px; width: 24px; height: 24px; padding: 0; }
+.grade-scale-remove:disabled { visibility: hidden; }
+.grade-scale-remove:hover:not(:disabled) { color: var(--text-main); border-color: var(--text-main); }
+.grade-scale-actions { display: flex; gap: 6px; margin-top: 6px; }
+.grade-scale-actions .btn-secondary { font-size: 11px; padding: 4px 8px; }
+.blackboard-site-add { display: flex; gap: 6px; }
+.blackboard-site-add .form-input { flex: 1; min-width: 0; }
+.blackboard-sites-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.blackboard-site-row { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 6px; border: 1px solid var(--surface-border); }
+.blackboard-site-host { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blackboard-site-state { color: var(--text-muted); font-size: 11px; }
+.blackboard-site-row .btn-secondary { font-size: 11px; padding: 2px 8px; }
+
+/* Classes list (src/core/classSchedule.ts todaysClassesHtml), shared by both apps */
+.selected-day-classes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.selected-day-classes-title { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.classes-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
+.class-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--surface-border, var(--border-color)); font-size: 12px; }
+.class-row.is-done { opacity: 0.55; }
+.class-row.is-live, .class-row.is-next { border-color: var(--text-main); }
+.class-time { display: flex; flex-direction: column; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 40px; line-height: 1.2; }
+.class-time-end { font-weight: 400; font-size: 10.5px; color: var(--text-muted); }
+.class-main { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.class-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.class-room { font-size: 11px; color: var(--text-muted); }
+.class-state { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.class-row.is-live .class-state { background: var(--text-main); color: var(--bg-main, var(--surface)); padding: 1px 6px; }
+
+/* Course import (syllabus or schedule file): same classes in the popup and the phone app */
+.import-intro { font-size: 11.5px; color: var(--text-muted); margin: 0 0 8px; line-height: 1.45; }
+.import-file-drop { display: flex; align-items: center; gap: 8px; padding: 12px; margin-bottom: 8px; border: 1px dashed var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; }
+.import-file-drop:hover, .import-file-drop:focus-within { border-style: solid; border-color: var(--text-main); }
+.import-file-drop input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.import-file-drop span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-ai-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11.5px; cursor: pointer; }
+.import-ai-row[hidden] { display: none; }
+.import-status { font-size: 11.5px; margin-top: 6px; min-height: 1em; color: var(--text-main); }
+.import-status:empty { display: none; }
+.import-review-title { font-size: 12px; font-weight: 700; margin: 12px 0 4px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.courses-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ci-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.ci-card { border: 1px solid var(--surface-border, var(--border-color)); padding: 8px 10px; font-size: 11.5px; }
+.ci-keep-row { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer; }
+.ci-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.ci-field { display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; color: var(--text-muted); min-width: 0; }
+.ci-field input, .ci-field select { width: 100%; box-sizing: border-box; font-size: 12px; }
+.ci-field-wide { grid-column: 1 / -1; }
+.ci-found { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1.4; }
+.ci-found .is-missing, .ci-found .ci-note { color: var(--text-muted); }
+.ci-warn { font-weight: 700; }
+
+/* Small grey help text under a setting */
+.setting-desc { display: block; margin-top: 3px; font-size: 10.5px; line-height: 1.4; color: var(--text-muted); }
+.setting-desc:empty { display: none; }
+.ci-keep, .import-ai-row input { accent-color: var(--text-main); }

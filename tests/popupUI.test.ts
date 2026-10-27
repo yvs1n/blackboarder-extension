@@ -37,9 +37,9 @@ describe('Popup UI Logic & Accessibility Suite', () => {
       expect(document.getElementById('btn-export-all-ics')?.getAttribute('aria-label')).toBe('Export All to .ICS Calendar');
       expect(inPage('btn-export-all-ics')).toBe('settings-page-data');
 
-      // Quick links editor: General page (the calendar's Quick Links bar opens it too)
+      // Quick links editor: the Courses tab, as on the phone (the calendar's Quick Links bar opens it too)
       expect(document.getElementById('btn-quick-links-toggle')?.getAttribute('aria-label')).toBe('Academic Quick Links');
-      expect(inPage('btn-quick-links-toggle')).toBe('settings-page-general');
+      expect(document.getElementById('btn-quick-links-toggle')?.closest('section')?.id).toBe('view-courses');
       expect(document.getElementById('btn-bar-manage-links')).not.toBeNull();
 
       // Phone sync: Sync page

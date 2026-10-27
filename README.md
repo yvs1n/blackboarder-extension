@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.2.9-blue?logo=github&logoColor=white" alt="Version v1.2.9" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.0-blue?logo=github&logoColor=white" alt="Version v1.3.0" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-330_Passing-success?logo=vitest&logoColor=white" alt="Vitest 330 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-381_Passing-success?logo=vitest&logoColor=white" alt="Vitest 381 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 
@@ -23,7 +23,7 @@
 
 Course announcements on Blackboard bury quiz dates, homework deadlines, exams and room changes inside long English or Arabic messages. **Blackboarder** reads them for you and turns them into one calendar of deadlines.
 
-It is built for the **University of Sharjah** (`elearning.sharjah.ac.ae`, `blackboard.sharjah.ac.ae`) and works on standard Blackboard Learn and Ultra portals. It has three parts that stay in sync:
+It was built at the **University of Sharjah** and works for any university on Blackboard Learn or Ultra: pick yours when you set it up (UOS, UAEU, ADU, ZU, AUD, AUS or Other), or scan any Blackboard page and it is filled in. Your university sets the GPA grading scale and the quick links. It has three parts that stay in sync:
 
 | Part | What it does |
 | :--- | :--- |
@@ -39,12 +39,16 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 
 - **Finds deadlines automatically.** A local parser reads English and Arabic keywords (*quiz*, *assignment*, *midterm*, *كويز*, *واجب*, *امتحان*) and dates such as `Oct 15`, `18/10/2026` or `next Sunday`. Optional AI steps handle vague or long announcements (see Settings and AI Keys below).
 - **Monthly calendar and deadline list.** Monday-first grid, tasks sorted by time within each day, and a day view with the full announcement, room, grade weight and your notes.
+- **Courses tab.** One place for each course: name, code, colour, credit hours, class times and rooms, and the mark breakdown. The extension and the phone app have the same tab, and edits sync both ways.
+- **Import your syllabus or schedule.** Courses > Import File reads a PDF, Word or text file (or pasted text) on your device and fills in courses, class times, rooms and assessment weights. You check each course before it is saved. With an AI set up, it reads the file first.
+- **Class reminders.** A reminder a set time before each class (Settings > Alerts), and today's classes on the calendar.
 - **Course schedule matching.** When an announcement does not name a room or time, Blackboarder fills it in from your weekly class schedule.
+- **Same layout everywhere.** The extension and the phone app have the same tabs (Calendar, Deadlines, Courses) and the same Settings sections in the same order (General, Sync, Calendar, Alerts, Data, Updates), so a button is where you expect it on both.
 - **Grade weights.** Shows how much each deliverable counts (for example *Midterm 25%*) on cards and in the calendar.
 - **Marks from the Blackboard gradebook.** Every scan reads your gradebook and puts each mark on its deadline. A **Marks** card lists them by course, newest first.
-- **GPA.** Each course's grade so far on the University of Sharjah scale and a projected GPA weighted by credit hours. Credit hours are set per course in Settings > Courses.
+- **GPA.** Each course's grade so far on your university's grading scale (editable in Settings > General) and a projected GPA weighted by credit hours. Credit hours are set per course in the Courses tab.
 - **Syllabus progress.** For each course, how much of the syllabus weight is done, pending, or not announced yet.
-- **Add deadlines quickly.** The course field lists your courses and narrows as you type. Closing the popup while adding or editing a deadline, or in Settings, reopens right there.
+- **Add deadlines quickly.** The course field lists your courses and narrows as you type. Closing the popup while adding or editing a deadline, in the Courses tab or in Settings, reopens right there.
 - **Quick links.** One-tap links to marks, attendance, study plan, library and your own custom links, synced to the phone.
 - **Reminders before deadlines.** The phone app reminds you a set time before each deadline, again shortly before, and when it is due (timings in Settings > Alerts).
 - **Privacy tools.** Delete everything stored online under your sync key from Settings > Data, download a recovery file for your key, and see a banner when your Blackboard session has ended.
@@ -96,7 +100,7 @@ The phone app is at **`https://blackboarder.pages.dev/companion/`**. The site ro
 1. Open the phone app and add it to your home screen: **Share > Add to Home Screen** on iPhone, or **Install app** in Chrome on Android.
 2. In the extension, open **Settings > Sync** and click **Show Pairing QR Code**.
 3. In the phone app, tap **Scan QR** (in the Setup Guide or **Settings > Sync**) and point the camera at the code. It pairs with your sync key, AI included, and loads your deadlines. No camera? Click **Copy Phone Pairing Link** instead and open it on the phone, or paste it into the sync key box.
-4. To get deadlines in your calendar, click **Copy WebCal Feed Link** in Settings (or **Subscribe** in the phone app):
+4. To get deadlines and classes in your calendar, open **Settings > Calendar**, choose what it shows (**Deadlines and classes**, **Deadlines only** or **Class schedule only**) and click **Copy Calendar Link** (or **Subscribe in Apple Calendar** in the phone app):
    - **Apple Calendar:** opening the `webcal://` link asks to subscribe.
    - **Google Calendar:** on a computer, go to **Other calendars > + > From URL** and paste the `https://.../feed.ics?key=...` link.
 

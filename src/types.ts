@@ -45,6 +45,19 @@ export interface UserCourseConfig {
   syllabus: CustomSyllabusComponent[];
 }
 
+/**
+ * Who the student is, academically: the university (grading scale, quick links) and an optional
+ * edited scale. Synced inside the data payload; the newer updatedAt wins.
+ */
+export interface StudentProfile {
+  universityId: string;
+  /** The student's own scale; replaces the university's when set */
+  gradeScale?: { letter: string; min: number; points: number }[];
+  /** 'picked' in onboarding or Settings, 'detected' from the Blackboard address */
+  source?: 'picked' | 'detected';
+  updatedAt: string;
+}
+
 export interface FirebaseSyncPayload {
   tasks: DeadlineTask[];
   lastSync: string;
@@ -55,6 +68,7 @@ export interface FirebaseSyncPayload {
   courses?: UserCourseConfig[];
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
+  profile?: StudentProfile;
 }
 
 export interface Announcement {
@@ -138,6 +152,8 @@ export interface UserSettings {
   autoScanOnPageLoad: boolean;
   badgeNotification: boolean;
   reminderHoursBefore: number;
+  /** Minutes before each class to remind; 0 turns class reminders off */
+  classReminderMinutes?: number;
   customDomains: string[];
   customWeights?: Record<string, any>;
   autoSyncMidnight?: boolean;
@@ -159,6 +175,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   autoScanOnPageLoad: true,
   badgeNotification: true,
   reminderHoursBefore: 24,
+  classReminderMinutes: 15,
   customDomains: ['blackboard.sharjah.ac.ae', 'elearning.sharjah.ac.ae', 'blackboard.com'],
   autoSyncMidnight: true,
   autoSyncOnScan: true,

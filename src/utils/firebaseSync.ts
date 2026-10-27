@@ -1,5 +1,6 @@
-import { DeadlineTask, TaskStatus, QuickLink, UserCourseConfig } from '../types';
+import { DeadlineTask, TaskStatus, QuickLink, UserCourseConfig, StudentProfile } from '../types';
 import { sanitizeCloudTasks, encodeCloudKeys, decodeCloudKeys, sanitizeCloudQuickLinks, sanitizeCloudCourses } from './cloudSanitize';
+import { getProfile, mergeCloudProfile } from './profile';
 
 export const FIREBASE_CONFIG = {
   authDomain: 'blackboard-sidekick.firebaseapp.com',
@@ -46,6 +47,7 @@ export interface FirebaseSyncPayload {
   courses?: UserCourseConfig[];
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
+  profile?: StudentProfile;
 }
 
 export { sanitizeCloudTasks };
@@ -81,7 +83,9 @@ export async function pushTasksToFirebase(
       courses: Array.isArray(courses) ? courses : undefined,
       coursesUpdatedAt: coursesUpdatedAt || undefined,
       // Keys are task ids and may hold characters Firebase refuses, so they are encoded
-      tombstones: encodeCloudKeys(tombstones)
+      tombstones: encodeCloudKeys(tombstones),
+      // Every write replaces the whole payload, so the university always travels with it
+      profile: (await getProfile()) || undefined
     };
 
     const targetUrl = getFirebaseDataUrl(syncKey);
@@ -136,6 +140,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
     }
 
     const data: FirebaseSyncPayload = await res.json();
+    await mergeCloudProfile(data?.profile).catch(() => false);
     const quickLinks = sanitizeCloudQuickLinks(data?.quickLinks);
     const courses = sanitizeCloudCourses(data?.courses);
     if (!data || !Array.isArray(data.tasks)) {

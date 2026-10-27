@@ -1,9 +1,9 @@
 /**
- * Remembers unfinished work in the popup (a deadline being added or edited, the settings page
- * open) so closing the popup does not lose it. Anything else opens on the calendar as before.
+ * Remembers unfinished work in the popup (a deadline being added or edited, the Courses tab or the
+ * settings page open) so closing the popup does not lose it. Anything else opens on the calendar as before.
  */
 export interface PopupDraft {
-  view: 'add' | 'edit' | 'settings';
+  view: 'add' | 'edit' | 'settings' | 'courses';
   taskId?: string;
   settingsPage?: string;
   fields?: Record<string, string | boolean>;
@@ -23,7 +23,7 @@ const storage = (): chrome.storage.StorageArea | null => {
 };
 
 export function isDraftFresh(d: PopupDraft | null | undefined, now = Date.now()): d is PopupDraft {
-  return !!d && typeof d === 'object' && ['add', 'edit', 'settings'].includes(d.view) &&
+  return !!d && typeof d === 'object' && ['add', 'edit', 'settings', 'courses'].includes(d.view) &&
     typeof d.savedAt === 'number' && now - d.savedAt < DRAFT_MAX_AGE_MS;
 }
 

@@ -454,46 +454,53 @@ export function parseSyllabusWeightsText(rawText: string): CustomSyllabusCompone
       count = parseInt(countMatch[1], 10);
     }
 
-    // Determine TaskType
-    let type: TaskType = 'assignment';
-    const lower = namePart.toLowerCase();
-    if (/quiz|كويز|امتحان\s*قصير/i.test(lower)) {
-      type = 'quiz';
-    } else if (/exam|midterm|final|نصفي|نهائي|امتحان/i.test(lower)) {
-      type = 'exam';
-    } else if (/lab|مختبر|تقرير\s*مختبر/i.test(lower)) {
-      type = 'lab';
-    } else if (/project|term\s*project|مشروع/i.test(lower)) {
-      type = 'project';
-    } else if (/attendance|participation|conduct|مشاركة|حضور/i.test(lower)) {
-      type = 'other';
-    }
-
-    const unitWeight = count && count > 0 ? Number((totalWeight / count).toFixed(2)) : totalWeight;
-
-    // Generate keywords
-    const keywords: string[] = [namePart.toLowerCase()];
-    if (type === 'quiz') keywords.push('quiz', 'كويز');
-    if (type === 'exam') {
-      if (/midterm/i.test(namePart)) keywords.push('midterm', 'نصفي');
-      if (/final/i.test(namePart)) keywords.push('final', 'نهائي');
-    }
-    if (type === 'lab') keywords.push('lab', 'report', 'مختبر');
-    if (type === 'project') keywords.push('project', 'مشروع');
-
-    components.push({
-      id: `comp_${idx + 1}_${type}`,
-      name: namePart,
-      type,
-      totalWeight,
-      count,
-      unitWeight,
-      note: line,
-      keywords: Array.from(new Set(keywords))
-    });
+    components.push(makeSyllabusComponent(namePart, totalWeight, count, idx, line));
   }
 
   return components;
+}
+
+/** The task type a syllabus part's name suggests (English and Arabic). */
+export function guessComponentType(name: string): TaskType {
+  const lower = String(name || '').toLowerCase();
+  if (/quiz|كويز|امتحان\s*قصير/i.test(lower)) return 'quiz';
+  if (/exam|midterm|final|test\b|نصفي|نهائي|امتحان/i.test(lower)) return 'exam';
+  if (/lab|مختبر|تقرير\s*مختبر/i.test(lower)) return 'lab';
+  if (/project|term\s*project|مشروع/i.test(lower)) return 'project';
+  if (/attendance|participation|conduct|مشاركة|حضور/i.test(lower)) return 'other';
+  return 'assignment';
+}
+
+/** One syllabus part with its type, weight per item and matching keywords. */
+export function makeSyllabusComponent(
+  name: string,
+  totalWeight: number,
+  count: number | undefined,
+  idx: number,
+  note?: string,
+  outOf?: number
+): CustomSyllabusComponent {
+  const type = guessComponentType(name);
+  const unitWeight = count && count > 0 ? Number((totalWeight / count).toFixed(2)) : totalWeight;
+  const keywords: string[] = [name.toLowerCase()];
+  if (type === 'quiz') keywords.push('quiz', 'كويز');
+  if (type === 'exam') {
+    if (/midterm/i.test(name)) keywords.push('midterm', 'نصفي');
+    if (/final/i.test(name)) keywords.push('final', 'نهائي');
+  }
+  if (type === 'lab') keywords.push('lab', 'report', 'مختبر');
+  if (type === 'project') keywords.push('project', 'مشروع');
+  return {
+    id: `comp_${idx + 1}_${type}`,
+    name,
+    type,
+    totalWeight,
+    count,
+    ...(outOf && count && outOf > count ? { outOf } : {}),
+    unitWeight,
+    note: note || undefined,
+    keywords: Array.from(new Set(keywords))
+  };
 }
 
 /**

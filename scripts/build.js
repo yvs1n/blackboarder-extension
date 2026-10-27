@@ -200,6 +200,21 @@ async function buildQrScanner(viteDefines) {
   });
 }
 
+/**
+ * pdf.js (Mozilla, Apache-2.0) for reading syllabus PDFs, copied as-is from node_modules into
+ * <dir>/vendor/pdfjs. Both apps load it only when a student imports a PDF.
+ */
+function copyPdfJs(dir) {
+  const from = r('node_modules', 'pdfjs-dist');
+  if (!fs.existsSync(from)) throw new Error('pdfjs-dist is missing: run npm install');
+  const to = path.join(dir, 'vendor', 'pdfjs');
+  fs.mkdirSync(to, { recursive: true });
+  const strip = text => text.replace(/\n?\/\/# sourceMappingURL=\S+\s*$/, '\n');
+  writeIfChanged(path.join(to, 'pdf.min.js'), strip(readText(path.join(from, 'build', 'pdf.min.mjs'))));
+  writeIfChanged(path.join(to, 'pdf.worker.min.js'), strip(readText(path.join(from, 'build', 'pdf.worker.min.mjs'))));
+  writeIfChanged(path.join(to, 'LICENSE'), readText(path.join(from, 'LICENSE')));
+}
+
 function copyWidget() {
   // widgets/blackboarder-widget.js is the only copy to edit; the web app serves it for "Copy Widget Script"
   const source = readText(r('widgets', 'blackboarder-widget.js'));
@@ -347,6 +362,7 @@ async function buildExtension(info, viteDefines, { outDir = 'dist', store = fals
   // manifest.json and icons (also copied by Vite from public/, done here so the lib builds cannot skip them)
   const manifestText = readText(r('public/manifest.json'));
   fs.writeFileSync(path.join(distDir, 'manifest.json'), store ? storeManifestText(manifestText) : manifestText, 'utf8');
+  copyPdfJs(distDir);
   fs.mkdirSync(path.join(distDir, 'icons'), { recursive: true });
   for (const icon of listFiles(r('public/icons'))) {
     fs.copyFileSync(r('public/icons', icon), path.join(distDir, 'icons', icon));
@@ -489,6 +505,7 @@ async function main() {
     await buildWebCore(viteDefines);
     await buildQrScanner(viteDefines);
     copyWidget();
+    copyPdfJs(WEB_DIR);
     const webInfo = stampWebApp(git);
     console.log(`Web app build ${webInfo.build}`);
   }

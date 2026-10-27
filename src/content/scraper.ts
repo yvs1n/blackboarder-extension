@@ -12,6 +12,7 @@ import { startCourseColorPainter, discoveredCoursesWithColors } from './courseCo
 import { startActivityFilter } from './activityFilter';
 import { SESSION_STATUS_KEY, isSessionExpiredResponse } from '../utils/sessionStatus';
 import { ScanGate, ScanRun } from './scanGate';
+import { detectUniversityFromHost } from '../utils/profile';
 
 /**
  * Known University of Sharjah Blackboard Course IDs mapped to courses.
@@ -1490,6 +1491,10 @@ function isBlackboardSite(): boolean {
   if (host.includes('blackboard')) {
     return true;
   }
+  // Any university's Blackboard Learn: its pages live under /ultra/ or /webapps/
+  if (/^\/(?:ultra|webapps)(?:\/|$)/i.test(window.location.pathname)) {
+    return true;
+  }
   if (host.endsWith('sharjah.ac.ae')) {
     return host.includes('bb') || host.includes('learn') || host.includes('elearning') || Boolean(document.querySelector('#courseMenuPalette, .bb-course-title, #announcementList, bb-announcement-card, .stream-item-container, #activity-stream, [data-course-id]'));
   }
@@ -1504,6 +1509,8 @@ function init() {
 
   // Hydrate custom courses on startup
   getUserCourses().catch(() => {});
+  // First visit: take the university from this Blackboard address, unless the student chose one
+  detectUniversityFromHost(window.location.hostname).catch(() => null);
 
   // Listen for custom course updates from popup or background
   try {
