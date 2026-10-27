@@ -4204,7 +4204,6 @@ function initAiExtractModal() {
             status: 'pending',
             description: text.trim() || t.description || '',
             sourceSnippet: text.trim() || t.sourceSnippet || '',
-            notes: (t as any).notes || (t.description && t.description !== text.trim() ? t.description : ''),
             room: t.room,
             weight: t.weight,
             weightDisplay: t.weightDisplay,
@@ -4559,6 +4558,15 @@ async function refreshDataInBackground() {
         updatedAny = true;
       }
       await writeLocalFlag(LEGACY_NAMELESS_CLEANUP_KEY);
+    }
+    // Student notes are only ever written by the student. Older scans copied the AI's wording of
+    // the announcement into them; a task the student never edited has no notes of its own.
+    for (const task of currentTasks) {
+      if (task.extractedBy === 'ai' && !task.userEdited && task.notes) {
+        delete task.notes;
+        task.updatedAt = new Date().toISOString();
+        updatedAny = true;
+      }
     }
     const rawLocalTasks = await getTasks();
     if (rawLocalTasks.length !== currentTasks.length) {

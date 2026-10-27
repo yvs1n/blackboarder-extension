@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.2.3",
-  "build": "be5c373cdcc2",
-  "commit": "26597f9c7f3698012b7f22ea0a832cb51adb89b7",
-  "shortCommit": "26597f9",
-  "timestamp": "2026-10-27T05:43:10.737Z",
-  "message": "v1.2.2: delete online data, session-ended banner, recovery file, 130-bit sync keys, store build without the updater",
+  "version": "1.2.4",
+  "build": "f7426be8ff10",
+  "commit": "43d4771ebdc36533c96a8f232813eb72f1cf0e2e",
+  "shortCommit": "43d4771",
+  "timestamp": "2026-10-27T10:03:38.765Z",
+  "message": "v1.2.3: remove custom sync server and dashboard URL settings, move sync switches to the Sync page, narrow host permissions",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

@@ -28,6 +28,43 @@ export function hasAcademicKeywords(text: string): boolean {
   return ENGLISH_ACADEMIC.test(text) || ARABIC_ACADEMIC.test(text);
 }
 
+/** Presentation dates (and who presents when) are not deadlines the student works towards. */
+const PRESENTATION_WORDS = /\bpresentations?\b|عرض\s*تقديمي|عروض|مناقشة/i;
+
+export function isPresentationTask(task: Pick<DeadlineTask, 'title'>): boolean {
+  return PRESENTATION_WORDS.test(task.title || '');
+}
+
+/** 'mid', 'final' or a number for exams ("Midterm Exam", "Final", "Exam 2"); '' when the title says none. */
+function examKind(title: string): string {
+  if (/mid[\s-]*terms?|فصلي/i.test(title)) return 'mid';
+  if (/\bfinals?\b|نهائي/i.test(title)) return 'final';
+  const n = title.match(/\b(?:exam|test)\s*(\d+)\b/i);
+  return n ? n[1] : '';
+}
+
+function sameKnownCourse(a: DeadlineTask, b: DeadlineTask): boolean {
+  const codeA = (a.courseCode || '').trim().toUpperCase();
+  const codeB = (b.courseCode || '').trim().toUpperCase();
+  if (codeA && codeA !== 'UOS' && codeB && codeB !== 'UOS') return codeA === codeB;
+  const nameA = (a.courseName || '').trim().toLowerCase();
+  const nameB = (b.courseName || '').trim().toLowerCase();
+  return nameA !== '' && nameA !== 'general course' && nameA !== 'uos' && nameA === nameB;
+}
+
+/**
+ * An announcement that explains how an exam will go names the exam again, often in other words
+ * ("Midterm" for "Midterm Exam"). If this course already has that exam, it is the same exam.
+ */
+function findSameExam(task: DeadlineTask, existing: Iterable<DeadlineTask>): DeadlineTask | undefined {
+  if (task.type !== 'exam') return undefined;
+  const kind = examKind(task.title);
+  for (const e of existing) {
+    if (e.type === 'exam' && sameKnownCourse(e, task) && examKind(e.title) === kind) return e;
+  }
+  return undefined;
+}
+
 /** How many announcements are extracted at once (each may be an AI call). */
 const EXTRACTION_CONCURRENCY = 4;
 
@@ -129,7 +166,7 @@ export async function extractDeadlinesHybridDetailed(
     if (guessed) {
       for (const t of localTasks) if (t.type === 'other') t.type = guessed;
     }
-    return { tasks: localTasks, tier: localTier };
+    return { tasks: localTasks.filter(t => !isPresentationTask(t)), tier: localTier };
   }
 
   // If AI is off or the chosen provider has no key, the built-in parser's answer stands
@@ -154,8 +191,9 @@ export async function extractDeadlinesHybridDetailed(
     { provider: aiEndpoint.provider, chatUrl: aiEndpoint.chatUrl, syncKey: aiEndpoint.syncKey, aiPass: aiEndpoint.aiPass }
   );
 
-  if (aiTasks.length > 0) {
-    return { tasks: aiTasks, tier: 'AI model' };
+  const wanted = aiTasks.filter(t => !isPresentationTask(t));
+  if (wanted.length > 0) {
+    return { tasks: wanted, tier: 'AI model' };
   }
 
   return { tasks: localTasks, tier: 'Tier 1 Fallback (AI found nothing)' };
@@ -250,7 +288,9 @@ export async function processAnnouncementsBatch(
         || existingKeyMap.get(key);
       // Same title in the same (known) course on another day: the course moved the date
       const rescheduledFrom = !exactMatch && titleCourseKey ? existingTitleCourseMap.get(titleCourseKey) : undefined;
-      const existing = exactMatch || rescheduledFrom;
+      // The same exam described again (format, rules, reminders) is not a new exam, and keeps its date
+      const sameExam = !exactMatch && !rescheduledFrom ? findSameExam(task, existingIdMap.values()) : undefined;
+      const existing = exactMatch || rescheduledFrom || sameExam;
 
       if (existing) {
         let changed = false;
@@ -303,7 +343,7 @@ export async function processAnnouncementsBatch(
           }
 
           // 5. Specific class time: if existing did not have specific time, but new does
-          if (!existing.hasSpecificTime && task.hasSpecificTime) {
+          if (!existing.hasSpecificTime && task.hasSpecificTime && (!sameExam || dayOf(existing.dueDate) === dayOf(task.dueDate))) {
             existing.dueDate = task.dueDate;
             existing.hasSpecificTime = true;
             changed = true;

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.4] - 2026-10-27
+
+### Fixed
+
+- **Presentation dates are no longer added as deadlines**, by the built-in parser or the AI.
+- **An announcement explaining how an exam will go no longer adds the exam again.** If the course already has that exam (midterm, final or a numbered exam), the announcement updates it instead of making a second one, and does not move its date.
+- **Student notes stay yours.** The AI no longer copies its summary of an announcement into a task's notes. Notes it already filled in on tasks you never edited are cleared the next time the popup opens.
+
+---
+
 ## [1.2.3] - 2026-10-27
 
 ### Changed

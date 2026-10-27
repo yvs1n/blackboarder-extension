@@ -294,7 +294,6 @@ ${cleanBody}`;
           priority: resolvedPriority,
           status: 'pending',
           sourceSnippet: fullDoctorText,
-          notes: (item.description && item.description !== fullDoctorText) ? item.description : undefined,
           confidence: 0.95,
           extractedBy: 'ai',
           room: roomInfo.room || undefined,

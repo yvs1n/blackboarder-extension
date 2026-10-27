@@ -597,6 +597,11 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       }
     }
 
+    // Presentation dates are not deadlines, unless the same sentence also names real graded work
+    if (/\bpresentations?\b|عرض\s*تقديمي|عروض/i.test(sentence) && !/\b(?:quiz(?:zes)?|exams?|midterms?|finals?|tests?|assignments?|homework|hw|labs?|reports?|essays?)\b|كويز|امتحان|واجب/i.test(sentence)) {
+      continue;
+    }
+
     const sentenceType = matchedType;
 
     // If no explicit task keyword, check if announcement title had one
