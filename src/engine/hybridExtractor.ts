@@ -4,6 +4,7 @@ import { extractDeadlinesWithAi } from './aiExtractor';
 import { AiSettings, resolveAiEndpoint } from './aiProviders';
 import { resolveTaskWeight } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
+import { isPresentationTitle } from '../core/courseHelper';
 
 /**
  * Normalizes title for deduplication comparison.
@@ -29,10 +30,8 @@ export function hasAcademicKeywords(text: string): boolean {
 }
 
 /** Presentation dates (and who presents when) are not deadlines the student works towards. */
-const PRESENTATION_WORDS = /\bpresentations?\b|عرض\s*تقديمي|عروض|مناقشة/i;
-
 export function isPresentationTask(task: Pick<DeadlineTask, 'title'>): boolean {
-  return PRESENTATION_WORDS.test(task.title || '');
+  return isPresentationTitle(task.title || '');
 }
 
 /** 'mid', 'final' or a number for exams ("Midterm Exam", "Final", "Exam 2"); '' when the title says none. */

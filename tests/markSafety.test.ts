@@ -150,3 +150,19 @@ describe('columns that hold a grade but are not read say why', () => {
     expect(skipped).toEqual(['Midterm Exam (hidden in the gradebook)', 'Quiz 3 (grades not released yet)', 'Project (graded without a number)']);
   });
 });
+
+describe('gradebook report', () => {
+  it('lists every returned grade and why it was not read', async () => {
+    const { gradebookReport } = await import('../src/utils/gradebook');
+    const rows = gradebookReport(
+      [{ id: 'a', columnName: 'Midterm Exam', possible: 30, visible: false }, { id: 'b', columnName: 'Quiz 1', possible: 5 }],
+      [{ columnId: 'a', status: 'GRADED', effectiveScore: 26 }, { columnId: 'b', status: 'GRADED', effectiveScore: 4.5 }, { columnId: 'z', status: 'GRADED', effectiveScore: 9 }],
+      'English for Academic Purposes'
+    );
+    expect(rows).toEqual([
+      { course: 'English for Academic Purposes', column: 'Midterm Exam', status: 'GRADED', score: 26, possible: 30, gradedAt: undefined, note: 'hidden' },
+      { course: 'English for Academic Purposes', column: 'Quiz 1', status: 'GRADED', score: 4.5, possible: 5, gradedAt: undefined },
+      { course: 'English for Academic Purposes', column: '', status: 'GRADED', score: 9, possible: undefined, gradedAt: undefined, note: 'column z not listed' }
+    ]);
+  });
+});

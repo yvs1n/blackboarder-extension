@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.7] - 2026-10-27
+
+### Fixed
+
+- **Presentation tasks made by older scans are removed**, on the extension and the phone, unless you made or edited them yourself. New scans already skipped them.
+- **Student notes a scan wrote no longer come back.** Older scans put the AI's summary of the announcement into a task's notes; syncing kept restoring it from the other device's copy. Notes are now kept only on tasks you made or edited, everywhere they are read or merged.
+- **Long gradebooks are read in full.** Every page of a course's gradebook columns and grades is read, not only the first.
+
+### Added
+
+- **Gradebook report.** Each scan keeps a short list, on this device only, of every grade the course gradebooks returned and why any was not read, to explain a mark that does not arrive.
+
+---
+
 ## [1.2.6] - 2026-10-27
 
 ### Changed

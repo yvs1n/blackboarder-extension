@@ -4562,7 +4562,7 @@ async function refreshDataInBackground() {
     // Student notes are only ever written by the student. Older scans copied the AI's wording of
     // the announcement into them; a task the student never edited has no notes of its own.
     for (const task of currentTasks) {
-      if (task.extractedBy === 'ai' && !task.userEdited && task.notes) {
+      if (task.notes && !task.userEdited && task.extractedBy !== 'manual') {
         delete task.notes;
         task.updatedAt = new Date().toISOString();
         updatedAny = true;

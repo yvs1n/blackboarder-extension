@@ -460,6 +460,21 @@ export function resolveCourseInfo(task: {
  * Filters out empty or ghost tasks that lack a valid title or are meaningless artifacts
  * from stream submission receipts, grade notifications, score postings, or generic reminder text.
  */
+/** True for presentation schedules ("Academic Article Presentations - Groups 9 & 10", "عرض تقديمي"). */
+export function isPresentationTitle(title: string): boolean {
+  return /\bpresentations?\b|عرض\s*تقديمي|عروض|مناقشة/i.test(title || '');
+}
+
+/**
+ * Student notes are written only by the student. A task they never made or edited carries none
+ * (older scans copied the AI's summary of the announcement into them), so any such notes are dropped.
+ */
+export function stripAutoNotes<T extends { notes?: string; userEdited?: boolean; extractedBy?: string }>(task: T): T {
+  if (!task || !task.notes || task.userEdited || task.extractedBy === 'manual') return task;
+  const { notes: _autoNotes, ...rest } = task;
+  return rest as T;
+}
+
 export function isValidTask(task: {
   title?: string;
   courseName?: string;
@@ -473,6 +488,9 @@ export function isValidTask(task: {
   if (!task || !task.title || !task.title.trim()) return false;
   // User-created or user-edited tasks are ALWAYS valid and must never be pruned
   if (task.userEdited || task.extractedBy === 'manual') return true;
+
+  // Presentation schedules (who presents when) are not deadlines, however they were read
+  if (isPresentationTitle(task.title)) return false;
 
   const titleLower = task.title.trim().toLowerCase();
   const desc = (task.description || '').trim();

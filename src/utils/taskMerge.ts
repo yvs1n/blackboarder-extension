@@ -1,5 +1,5 @@
 import { DeadlineTask } from '../types';
-import { resolveCourseInfo, isValidTask } from '../core/courseHelper';
+import { resolveCourseInfo, isValidTask, stripAutoNotes } from '../core/courseHelper';
 
 export type TombstoneMap = Record<string, string>;
 
@@ -126,7 +126,12 @@ export function mergeCloudTasks(
     changed = true;
   }
 
-  const tasks = deduped.sort(
+  // Notes a scan wrote (not the student) must not come back from another device's copy
+  const tasks = deduped.map(t => {
+    const clean = stripAutoNotes(t);
+    if (clean !== t) changed = true;
+    return clean;
+  }).sort(
     (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
   );
   return { tasks, changed };
@@ -289,8 +294,8 @@ export function mergeDuplicatePair(existing: DeadlineTask, incoming: DeadlineTas
     ? existing.sourceSnippet
     : incoming.sourceSnippet;
 
-  // Notes: combine or keep non-empty
-  const notes = existing.notes || incoming.notes || '';
+  // Notes: only the student's own (see stripAutoNotes)
+  const notes = stripAutoNotes(existing).notes || stripAutoNotes(incoming).notes || '';
 
   // Room & weight: keep whichever has value
   const room = existing.room || incoming.room;

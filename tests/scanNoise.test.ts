@@ -70,3 +70,30 @@ describe('scan noise', () => {
     for (const t of tasks) expect(t.notes).toBeUndefined();
   });
 });
+
+describe('tasks made before the fix are cleaned everywhere', () => {
+  const presentation = task({
+    id: 'task_ai_old', title: 'Academic Article Presentations - Groups 9 & 10', type: 'project',
+    courseName: 'Islamic Culture', extractedBy: 'ai', notes: 'Presentations begin next week.'
+  });
+
+  it('a scanned presentation task is dropped, one the student made or edited stays', async () => {
+    const { isValidTask } = await import('../src/core/courseHelper');
+    expect(isValidTask(presentation)).toBe(false);
+    expect(isValidTask({ ...presentation, userEdited: true })).toBe(true);
+    expect(isValidTask({ ...presentation, extractedBy: 'manual' })).toBe(true);
+  });
+
+  it('notes a scan wrote do not come back from the cloud or a merge', async () => {
+    const { mergeCloudTasks } = await import('../src/utils/taskMerge');
+    const { sanitizeCloudTasks } = await import('../src/utils/cloudSanitize');
+    const scanned = task({ id: 'q1', title: 'Quiz 1', type: 'quiz', extractedBy: 'ai', notes: 'AI summary' });
+    const local = { ...scanned, notes: undefined, updatedAt: '2026-10-27T12:00:00.000Z' };
+    const merged = mergeCloudTasks([local], [scanned]).tasks;
+    expect(merged[0].notes).toBeUndefined();
+    expect(sanitizeCloudTasks([scanned])[0].notes).toBeUndefined();
+    const mine = task({ id: 'q2', title: 'Quiz 2', type: 'quiz', extractedBy: 'ai', userEdited: true, notes: 'Bring a calculator' });
+    expect(sanitizeCloudTasks([mine])[0].notes).toBe('Bring a calculator');
+    expect(mergeCloudTasks([mine], []).tasks[0].notes).toBe('Bring a calculator');
+  });
+});

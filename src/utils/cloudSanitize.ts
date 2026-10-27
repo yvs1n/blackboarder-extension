@@ -88,6 +88,8 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       if (n === undefined) delete clean[key];
       else clean[key] = n;
     }
+    // Student notes are only the student's; a task they never made or edited has none
+    if (clean.notes && !clean.userEdited && clean.extractedBy !== 'manual') delete clean.notes;
     out.push(clean as DeadlineTask);
   }
   return out;

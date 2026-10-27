@@ -5,7 +5,7 @@ import { setActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode, isValidTask } from '../core/courseHelper';
 import { parseDirectStreamCard, parseSubmissionOrGradeCard } from '../utils/streamParser';
 import { deduplicateTaskList } from '../utils/taskMerge';
-import { gradebookToUpdates, applySubmissionUpdates } from '../utils/gradebook';
+import { gradebookToUpdates, applySubmissionUpdates, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
@@ -906,6 +906,21 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
     const res = await bbFetch(path, { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
     return res.ok ? res.json() : null;
   };
+  // Every page of a list (Blackboard pages long gradebooks), or null when the first page is refused
+  const getAll = async (path: string): Promise<{ results: any[] } | null> => {
+    const first = await getJson(path);
+    if (!Array.isArray(first?.results)) return null;
+    const results = [...first.results];
+    let next: string | undefined = first?.paging?.nextPage;
+    for (let page = 0; next && page < 10; page++) {
+      const more = await getJson(next);
+      if (!Array.isArray(more?.results)) break;
+      results.push(...more.results);
+      next = more?.paging?.nextPage;
+    }
+    return { results };
+  };
+  const report: GradebookReportRow[] = [];
   let userId = '';
   try {
     const meRes = await bbFetch('/learn/api/v1/users/me', { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
@@ -922,10 +937,13 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
   const perCourse = await Promise.all(courseIds.map(async cid => {
     try {
       const [cols, grades] = await Promise.all([
-        getJson(`/learn/api/v1/courses/${encodeURIComponent(cid)}/gradebook/columns?includeInvisible=false`),
-        getJson(`/learn/api/v1/courses/${encodeURIComponent(cid)}/gradebook/grades?limit=200&userId=${encodeURIComponent(userId)}`)
+        getAll(`/learn/api/v1/courses/${encodeURIComponent(cid)}/gradebook/columns?includeInvisible=false&limit=200`),
+        getAll(`/learn/api/v1/courses/${encodeURIComponent(cid)}/gradebook/grades?limit=200&userId=${encodeURIComponent(userId)}`)
       ]);
-      if (!Array.isArray(cols?.results) || !Array.isArray(grades?.results)) return [];
+      if (!cols || !grades) {
+        report.push({ course: courseNamesById.get(cid) || cid, column: '', note: 'gradebook not readable' });
+        return [];
+      }
       lastGradebookRead.coursesRead++;
       // Blackboard's own course name first; the built-in list only when it is unknown
       const known = KNOWN_UOS_COURSE_IDS.find(k => k.courseId === cid);
@@ -934,6 +952,7 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
       const course = parsed && parsed.name !== 'General Course'
         ? { name: parsed.name, code: parsed.code || known?.code || '' }
         : known ? { name: known.name, code: known.code } : { name: '', code: '' };
+      report.push(...gradebookReport(cols.results, grades.results, apiName || known?.name || cid));
       return gradebookToUpdates(cols.results, grades.results, {
         courseName: course.name !== 'General Course' ? course.name : undefined,
         courseCode: course.code
@@ -943,6 +962,10 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
     }
   }));
   const updates = perCourse.flat();
+  // What each gradebook held on the last scan, kept on this device only, to explain a missing mark
+  try {
+    chrome.storage.local.set({ [GRADEBOOK_REPORT_KEY]: { readAt: new Date().toISOString(), rows: report } });
+  } catch {}
   console.info(`[Blackboarder] Gradebook: ${updates.filter(u => u.submissionStatus === 'graded').length} marks from ${courseIds.length} courses`);
   return updates;
 }

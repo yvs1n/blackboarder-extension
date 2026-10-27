@@ -31,8 +31,8 @@ function makeTask(overrides: Partial<DeadlineTask> = {}): DeadlineTask {
 
 describe('mergeCloudTasks', () => {
   it('keeps a locally-newer edit instead of reverting it to stale cloud values', () => {
-    const local = makeTask({ room: 'A8-200', notes: 'bring calculator', updatedAt: '2026-10-05T10:00:00.000Z' });
-    const cloud = makeTask({ room: 'A8-103', notes: 'old note', updatedAt: '2026-10-02T10:00:00.000Z' });
+    const local = makeTask({ room: 'A8-200', notes: 'bring calculator', userEdited: true, updatedAt: '2026-10-05T10:00:00.000Z' });
+    const cloud = makeTask({ room: 'A8-103', notes: 'old note', userEdited: true, updatedAt: '2026-10-02T10:00:00.000Z' });
     const { tasks, changed } = mergeCloudTasks([local], [cloud]);
     expect(changed).toBe(false);
     expect(tasks[0].room).toBe('A8-200');

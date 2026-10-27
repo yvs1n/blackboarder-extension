@@ -29,6 +29,44 @@ export interface GradebookGrade {
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
+/** Where the last scan's gradebook summary is kept (this device only), to explain a mark that did not arrive. */
+export const GRADEBOOK_REPORT_KEY = 'bbs_gradebook_report';
+
+export interface GradebookReportRow {
+  course: string;
+  column: string;
+  status?: string;
+  score?: number;
+  possible?: number;
+  gradedAt?: string;
+  note?: string;
+}
+
+/** One row per grade Blackboard returned, with whatever kept it from being read. */
+export function gradebookReport(columns: GradebookColumn[], grades: GradebookGrade[], course: string): GradebookReportRow[] {
+  const byId = new Map(columns.map(c => [c.id, c]));
+  return grades.map(g => {
+    const col = byId.get(g.columnId);
+    const score = typeof g.displayGrade?.score === 'number' ? g.displayGrade.score : g.effectiveScore;
+    const notes = [
+      !col ? `column ${g.columnId} not listed` : '',
+      col?.visible === false ? 'hidden' : '',
+      col?.gradesReleased === false ? 'not released' : '',
+      col?.calculationType && col.calculationType !== 'NON_CALCULATED' ? col.calculationType.toLowerCase() : '',
+      g.isExempt ? 'exempt' : ''
+    ].filter(Boolean);
+    return {
+      course,
+      column: decodeEntities(col?.effectiveColumnName || col?.columnName || ''),
+      status: g.status,
+      score: typeof score === 'number' ? round(score) : undefined,
+      possible: g.pointsPossible || col?.possible,
+      gradedAt: g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified,
+      ...(notes.length ? { note: notes.join(', ') } : {})
+    };
+  });
+}
+
 /** Gradebook names come HTML-escaped ("3 &amp; 4"); task titles do not. */
 function decodeEntities(s: string): string {
   return s
@@ -57,7 +95,7 @@ export function gradebookToUpdates(
     const hasGrade = g.status === 'GRADED' || typeof g.displayGrade?.score === 'number' || typeof g.effectiveScore === 'number';
     const title = decodeEntities(col?.effectiveColumnName || col?.columnName || '').trim();
     const skip = (reason: string) => { if (hasGrade && title && skipped) skipped.push(`${title} (${reason})`); };
-    if (!col) continue;
+    if (!col) { if (hasGrade && skipped) skipped.push(`a grade whose column Blackboard did not list (${g.columnId})`); continue; }
     if (col.visible === false) { skip('hidden in the gradebook'); continue; }
     if (col.gradesReleased === false) { skip('grades not released yet'); continue; }
     if (col.calculationType && col.calculationType !== 'NON_CALCULATED') { skip('a calculated column'); continue; }
