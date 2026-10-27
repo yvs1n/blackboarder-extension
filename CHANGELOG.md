@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.3] - 2026-10-27
+
+### Changed
+
+- **Simpler Sync settings.** The "Advanced Server & Endpoints" box is gone. The two switches that were inside it, **Auto-sync every day at 12:00 AM midnight** and **Auto-push to mobile after scanning Blackboard**, now sit on the Sync page. Everyone already syncs through the standard online service, so the optional own-sync-server field and the web dashboard address field are removed; the extension always pairs with blackboarder.pages.dev.
+- **Fewer permissions.** The extension no longer asks for access to every `pages.dev` and `workers.dev` site, only to `blackboarder.pages.dev`.
+
+---
+
 ## [1.2.2] - 2026-10-27
 
 ### Added

@@ -138,12 +138,9 @@ export interface UserSettings {
   reminderHoursBefore: number;
   customDomains: string[];
   customWeights?: Record<string, any>;
-  syncServerUrl?: string;
-  syncSecretKey?: string;
   autoSyncMidnight?: boolean;
   autoSyncOnScan?: boolean;
   syncKey?: string;
-  hostedWebUrl?: string;
   theme?: 'light' | 'dark' | 'system';
   blackboardDarkMode?: boolean;
 }
@@ -161,13 +158,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
   badgeNotification: true,
   reminderHoursBefore: 24,
   customDomains: ['blackboard.sharjah.ac.ae', 'elearning.sharjah.ac.ae', 'blackboard.com'],
-  // Optional self-hosted server. Empty by default: sync goes through Firebase
-  syncServerUrl: '',
-  syncSecretKey: '',
   autoSyncMidnight: true,
   autoSyncOnScan: true,
   syncKey: '',
-  hostedWebUrl: 'https://blackboarder.pages.dev',
   theme: 'system',
   blackboardDarkMode: true
 };

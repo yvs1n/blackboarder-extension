@@ -1,5 +1,4 @@
 import { DeadlineTask, UserSettings, DEFAULT_SETTINGS } from '../types';
-import { pushTasksToSyncServer } from '../utils/syncClient';
 import { pushTasksToFirebase, fetchTasksFromFirebase } from '../utils/firebaseSync';
 import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
@@ -95,16 +94,9 @@ async function syncDeadlinesToMobileServer(isMidnight: boolean = false) {
     const userCourses = await getUserCourses();
     const coursesUpdatedAt = await getCoursesUpdatedAt();
 
-    const [fbResult, serverResult] = await Promise.all([
-      pushTasksToFirebase(tasks, isMidnight ? 'Midnight Extension Sync' : 'Extension Auto-Sync', settings.syncKey, data.bbs_quick_links, tombstones, userCourses, coursesUpdatedAt || undefined),
-      pushTasksToSyncServer(tasks, settings, data.bbs_quick_links, {
-        courses: userCourses,
-        coursesUpdatedAt: coursesUpdatedAt || undefined,
-        tombstones
-      })
-    ]);
-    console.log('[Auto-Sync] Firebase Result:', fbResult, 'Server Result:', serverResult);
-    return { ok: fbResult.success || serverResult.success, fbResult, serverResult };
+    const fbResult = await pushTasksToFirebase(tasks, isMidnight ? 'Midnight Extension Sync' : 'Extension Auto-Sync', settings.syncKey, data.bbs_quick_links, tombstones, userCourses, coursesUpdatedAt || undefined);
+    console.log('[Auto-Sync] Firebase Result:', fbResult);
+    return { ok: fbResult.success, fbResult };
   } catch (err) {
     console.error('[Auto-Sync] Failed syncing to mobile server:', err);
     return { ok: false, error: err };

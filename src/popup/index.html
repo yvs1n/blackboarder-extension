@@ -298,7 +298,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.2.2</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.2.3</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -925,36 +925,18 @@
             <div id="sync-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;"></div>
           </div>
 
-          <!-- Advanced server options collapsible -->
-          <details class="settings-advanced-details" style="margin-top: 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--surface);">
-            <summary style="font-size: 11px; font-weight: 600; color: var(--text-muted); cursor: pointer; user-select: none;">
-              Advanced Server &amp; Endpoints
-            </summary>
-            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
-              <div class="form-group">
-                <label class="form-label" for="setting-sync-url">Own Sync Server (optional)</label>
-                <input type="text" id="setting-sync-url" class="form-input" placeholder="Leave empty to sync through Firebase only" value="">
-                <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">Only needed for a custom sync server. Firebase handles sync without it.</span>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="setting-hosted-url">Hosted Web Dashboard URL</label>
-                <input type="text" id="setting-hosted-url" class="form-input" placeholder="https://blackboarder.pages.dev" value="https://blackboarder.pages.dev">
-                <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;">The phone app and website this extension pairs with.</span>
-              </div>
-              <div class="form-group" style="margin-top: 2px;">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
-                  <input type="checkbox" id="setting-sync-midnight" checked>
-                  <span>Auto-sync every day at 12:00 AM midnight</span>
-                </label>
-              </div>
-              <div class="form-group" style="margin-top: 2px;">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
-                  <input type="checkbox" id="setting-sync-onscan" checked>
-                  <span>Auto-push to mobile after scanning Blackboard</span>
-                </label>
-              </div>
-            </div>
-          </details>
+          <div class="form-group" style="margin-top: 10px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
+              <input type="checkbox" id="setting-sync-midnight" checked>
+              <span>Auto-sync every day at 12:00 AM midnight</span>
+            </label>
+          </div>
+          <div class="form-group" style="margin-top: 2px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
+              <input type="checkbox" id="setting-sync-onscan" checked>
+              <span>Auto-push to mobile after scanning Blackboard</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1062,7 +1044,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Extension Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.2.2</span></h3>
+                <h3 class="settings-card-title">Extension Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.2.3</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

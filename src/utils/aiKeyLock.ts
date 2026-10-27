@@ -21,7 +21,7 @@ export interface AiLockState {
 type LockSettings = Pick<
   UserSettings,
   'useAiExtraction' | 'aiProvider' | 'openRouterApiKey' | 'openRouterModel' | 'ifmApiKey' |
-  'customAiApiKey' | 'customAiBaseUrl' | 'customAiModel' | 'syncKey' | 'hostedWebUrl' | 'aiPass'
+  'customAiApiKey' | 'customAiBaseUrl' | 'customAiModel' | 'syncKey' | 'aiPass'
 >;
 
 /**
@@ -69,9 +69,8 @@ export function aiLockRequest(settings: Partial<LockSettings>) {
   };
 }
 
-export function aiLockServerUrl(settings: Partial<LockSettings>): string {
-  const base = (settings.hostedWebUrl || 'https://blackboarder.pages.dev').trim().replace(/\/+$/, '');
-  return `${base}/api/ai/key`;
+export function aiLockServerUrl(): string {
+  return 'https://blackboarder.pages.dev/api/ai/key';
 }
 
 async function fingerprintOf(text: string): Promise<string> {
@@ -106,7 +105,7 @@ export async function getAiLockState(): Promise<AiLockState | null> {
 /** Sends the key to the server when the settings differ from the last successful send. */
 export async function syncAiKeyLock(settings: Partial<LockSettings>, force = false): Promise<AiLockStatus> {
   const request = aiLockRequest(settings);
-  const url = aiLockServerUrl(settings);
+  const url = aiLockServerUrl();
   if (!request.syncKey) return 'no-sync';
 
   // The fingerprint is a one-way hash; the key itself is never kept anywhere new

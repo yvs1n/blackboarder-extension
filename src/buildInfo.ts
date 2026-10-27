@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.2.2",
-  "build": "07c9b860514a",
-  "commit": "cbeed90c41d1d8bc54fcefff80fc21c8f145aadf",
-  "shortCommit": "cbeed90",
-  "timestamp": "2026-10-27T05:31:13.700Z",
-  "message": "Landing hero fills the first screen; motion skipped on weak devices and Data Saver",
+  "version": "1.2.3",
+  "build": "be5c373cdcc2",
+  "commit": "26597f9c7f3698012b7f22ea0a832cb51adb89b7",
+  "shortCommit": "26597f9",
+  "timestamp": "2026-10-27T05:43:10.737Z",
+  "message": "v1.2.2: delete online data, session-ended banner, recovery file, 130-bit sync keys, store build without the updater",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

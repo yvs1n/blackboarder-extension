@@ -16,7 +16,6 @@ describe('Batch Rescan & In-Place Task Updating Engine', () => {
     autoScanOnPageLoad: false,
     badgeNotification: true,
     reminderHoursBefore: 24,
-    syncServerUrl: 'http://localhost:3456',
     autoSyncMidnight: true,
     autoSyncOnScan: true
   };

@@ -15,7 +15,6 @@ import { parseCourseDetails, sanitizeDoctorAnnouncementText, resolveCourseInfo, 
 import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
 import { resolveTaskWeight, getAllSyllabi } from '../core/syllabusWeights';
 import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, STUDENT_CLASS_SCHEDULE } from '../core/courseSchedule';
-import { pushTasksToSyncServer, getSyncServerStatus, normalizeSyncUrl } from '../utils/syncClient';
 import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
 import { sanitizeCloudTasks } from '../utils/cloudSanitize';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
@@ -1411,14 +1410,11 @@ async function handleCoursesUpdated(courses: UserCourseConfig[]) {
   updateCourseFilterOptions(currentTasks);
   refreshAllViews();
 
-  // Cloud sync to Firebase & Sync Server
+  // Cloud sync to Firebase
   const settings = await getSettings();
   const tombstones = await getLocalTombstones();
   const coursesUpdatedAt = await getCoursesUpdatedAt();
   pushTasksToFirebase(currentTasks, 'Course Configuration Update', settings.syncKey, currentQuickLinks, tombstones, courses, coursesUpdatedAt || undefined).catch(() => {});
-  if (settings.autoSyncOnScan !== false) {
-    pushTasksToSyncServer(currentTasks, settings, currentQuickLinks).catch(() => {});
-  }
 }
 
 // ============================================================================
@@ -2350,12 +2346,6 @@ function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Ex
       console.warn('[Firebase Cloud Sync error]:', err);
     });
 
-    if (settings.autoSyncOnScan !== false) {
-      pushTasksToSyncServer(toPush, settings, currentQuickLinks).catch(err => {
-        console.warn('[Sync Server error]:', err);
-      });
-    }
-
     try {
       const channel = new BroadcastChannel('bbs_sync_channel');
       channel.postMessage({ type: 'TASKS_UPDATED', timestamp: Date.now() });
@@ -2653,8 +2643,6 @@ async function loadSettingsForm() {
   const settingBbDark = document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement | null;
   if (settingBbDark) settingBbDark.checked = settings.blackboardDarkMode !== false;
 
-  const settingSyncUrl = document.getElementById('setting-sync-url') as HTMLInputElement | null;
-  if (settingSyncUrl) settingSyncUrl.value = normalizeSyncUrl(settings.syncServerUrl);
   const settingSyncMidnight = document.getElementById('setting-sync-midnight') as HTMLInputElement | null;
   if (settingSyncMidnight) settingSyncMidnight.checked = settings.autoSyncMidnight !== false;
   const settingSyncOnScan = document.getElementById('setting-sync-onscan') as HTMLInputElement | null;
@@ -2662,8 +2650,6 @@ async function loadSettingsForm() {
 
   const settingSyncKey = document.getElementById('setting-sync-key') as HTMLInputElement | null;
   if (settingSyncKey) settingSyncKey.value = (settings.syncKey || '').toUpperCase();
-  const settingHostedUrl = document.getElementById('setting-hosted-url') as HTMLInputElement | null;
-  if (settingHostedUrl) settingHostedUrl.value = settings.hostedWebUrl || 'https://blackboarder.pages.dev';
 
 
   // Check Firebase cloud status
@@ -2691,20 +2677,6 @@ async function loadSettingsForm() {
     }).catch(() => {});
   }
 
-  // Check the optional self-hosted server; with none set, Firebase is the only sync and there is nothing to show
-  const statusEl = document.getElementById('sync-status-msg');
-  if (statusEl) {
-    statusEl.textContent = normalizeSyncUrl(settings.syncServerUrl) ? 'Checking sync server status...' : '';
-    getSyncServerStatus(settings).then(res => {
-      if (res.skipped) {
-        statusEl.textContent = '';
-      } else if (res.success) {
-        statusEl.innerHTML = `<span style="color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;">${getSvgIcon('check')} <span>Server Online (${res.count || 0} tasks synced)</span></span>`;
-      } else {
-        statusEl.innerHTML = `<span style="color: #d97706; display: inline-flex; align-items: center; gap: 4px;">${getSvgIcon('urgent')} <span>Your sync server is not responding (Firebase sync still works)</span></span>`;
-      }
-    });
-  }
 }
 
 // ============================================================================
@@ -3390,16 +3362,11 @@ function setupEvents() {
     const badgeNotif = (document.getElementById('setting-badge-notif') as HTMLInputElement).checked;
     const reminderHours = parseInt((document.getElementById('setting-reminder-hours') as HTMLSelectElement).value, 10);
 
-    const rawSyncUrl = (document.getElementById('setting-sync-url') as HTMLInputElement)?.value || '';
-    const syncUrl = normalizeSyncUrl(rawSyncUrl);
-    const settingSyncUrl = document.getElementById('setting-sync-url') as HTMLInputElement | null;
-    if (settingSyncUrl) settingSyncUrl.value = syncUrl;
     const syncMidnight = (document.getElementById('setting-sync-midnight') as HTMLInputElement)?.checked ?? true;
     const syncOnScan = (document.getElementById('setting-sync-onscan') as HTMLInputElement)?.checked ?? true;
 
 
     const syncKey = (document.getElementById('setting-sync-key') as HTMLInputElement)?.value?.trim().toUpperCase() || '';
-    const hostedUrl = (document.getElementById('setting-hosted-url') as HTMLInputElement)?.value?.trim() || 'https://blackboarder.pages.dev';
     const selectedTheme = ((document.getElementById('setting-theme') as HTMLSelectElement)?.value || 'system') as 'light' | 'dark' | 'system';
     const bbDark = (document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement)?.checked ?? true;
 
@@ -3420,11 +3387,9 @@ function setupEvents() {
       autoScanOnPageLoad: autoScan,
       badgeNotification: badgeNotif,
       reminderHoursBefore: reminderHours,
-      syncServerUrl: syncUrl,
       autoSyncMidnight: syncMidnight,
       autoSyncOnScan: syncOnScan,
       syncKey,
-      hostedWebUrl: hostedUrl,
       theme: selectedTheme,
       blackboardDarkMode: bbDark
     });
@@ -3528,7 +3493,7 @@ function setupEvents() {
       'Anyone who has it can see your deadlines, so keep the file private.',
       '',
       'To restore: install Blackboarder, open Settings > Sync, paste the key into Personal Sync Pairing Key and save.',
-      'To open it on a phone: ' + companionUrl(settings.hostedWebUrl) + '?key=' + encodeURIComponent(key)
+      'To open it on a phone: ' + COMPANION_URL + '?key=' + encodeURIComponent(key)
     ];
     const url = URL.createObjectURL(new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/plain' }));
     const a = document.createElement('a');
@@ -3577,20 +3542,15 @@ function setupEvents() {
     btnDeleteCloud.disabled = false;
   });
 
-  // The setting holds the site address; the phone app is at /companion/ and the feed at the site root.
-  // Either form (with or without /companion) is accepted.
-  function siteUrl(hosted?: string): string {
-    return (hosted || 'https://blackboarder.pages.dev').trim().replace(/\/+$/, '').replace(/\/companion$/, '');
-  }
-  function companionUrl(hosted?: string): string {
-    return `${siteUrl(hosted)}/companion/`;
-  }
+  // The phone app is at /companion/ and the calendar feed at the site root.
+  const SITE_URL = 'https://blackboarder.pages.dev';
+  const COMPANION_URL = `${SITE_URL}/companion/`;
 
   // Copy Phone Pairing Link
   btnCopyPairingLink?.addEventListener('click', async () => {
     const aiPass = await ensureAiPass();
     const settings = await getSettings();
-    const appBase = companionUrl(settings.hostedWebUrl);
+    const appBase = COMPANION_URL;
     const pairUrl = pairingLink(appBase, settings.syncKey || '', aiPass);
     try {
       await navigator.clipboard.writeText(pairUrl);
@@ -3618,7 +3578,7 @@ function setupEvents() {
       showToast('No sync key yet. Open the Sync page again in a moment.');
       return;
     }
-    const pairUrl = pairingLink(companionUrl(settings.hostedWebUrl), settings.syncKey, aiPass);
+    const pairUrl = pairingLink(COMPANION_URL, settings.syncKey, aiPass);
     const holder = document.getElementById('pairing-qr-code');
     if (holder) holder.innerHTML = qrSvg(pairUrl, { label: 'Phone pairing QR code' });
     pairingQrPanel.hidden = false;
@@ -3637,25 +3597,22 @@ function setupEvents() {
     // 1. Proactively pull freshest updates from phone / cloud first so mobile edits are preserved
     await pullTasksFromFirebaseIfNewer();
 
-    // 2. Push current tasks & tombstones to Firebase Cloud & sync server
+    // 2. Push current tasks & tombstones to Firebase Cloud
     const [tombstones, coursesUpdatedAt] = await Promise.all([getLocalTombstones(), getCoursesUpdatedAt()]);
-    const [fbRes, serverRes] = await Promise.all([
-      pushTasksToFirebase(currentTasks, 'Extension Manual Sync', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined),
-      pushTasksToSyncServer(currentTasks, settings, currentQuickLinks)
-    ]);
+    const fbRes = await pushTasksToFirebase(currentTasks, 'Extension Manual Sync', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined);
 
     refreshAllViews();
 
-    if (fbRes.success || serverRes.success) {
+    if (fbRes.success) {
       if (statusEl) {
         statusEl.innerHTML = `<span style="color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;">${getSvgIcon('check')} <span>Synced ${currentTasks.length} deadlines with Firebase Cloud!</span></span>`;
       }
       alert(`Successfully synchronized ${currentTasks.length} deadlines with Firebase Realtime Database!\n\nBoth laptop and mobile devices are now up to date.`);
     } else {
       if (statusEl) {
-        statusEl.innerHTML = `<span style="color: var(--text-main); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">${getSvgIcon('urgent')} <span>${escapeHtml(fbRes.message || serverRes.message || 'Sync error')}</span></span>`;
+        statusEl.innerHTML = `<span style="color: var(--text-main); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">${getSvgIcon('urgent')} <span>${escapeHtml(fbRes.message || 'Sync error')}</span></span>`;
       }
-      alert(`Mobile sync failed: ${fbRes.message || serverRes.message}`);
+      alert(`Mobile sync failed: ${fbRes.message}`);
     }
   }
 
@@ -3664,7 +3621,7 @@ function setupEvents() {
   btnOpenMobileWeb?.addEventListener('click', async () => {
     const aiPass = await ensureAiPass();
     const settings = await getSettings();
-    const appBase = companionUrl(settings.hostedWebUrl);
+    const appBase = COMPANION_URL;
     const targetUrl = pairingLink(appBase, settings.syncKey || '', aiPass);
     if (typeof chrome !== 'undefined' && chrome.tabs) {
       chrome.tabs.create({ url: targetUrl });
@@ -3675,7 +3632,7 @@ function setupEvents() {
 
   btnCopyWebcalLink?.addEventListener('click', async () => {
     const settings = await getSettings();
-    const hostedBase = siteUrl(settings.hostedWebUrl);
+    const hostedBase = SITE_URL;
     const syncKey = settings.syncKey || '';
     const webcalUrl = hostedBase.replace(/^https?:/, 'webcal:') + `/feed.ics${syncKey ? `?key=${encodeURIComponent(syncKey)}` : ''}`;
     try {
@@ -4090,7 +4047,6 @@ async function syncQuickLinksToCloud() {
   try {
     const [settings, tombstones, coursesUpdatedAt] = await Promise.all([getSettings(), getLocalTombstones(), getCoursesUpdatedAt()]);
     await pushTasksToFirebase(currentTasks, 'Chrome Extension', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined);
-    await pushTasksToSyncServer(currentTasks, settings, currentQuickLinks);
   } catch {}
 }
 
@@ -4402,15 +4358,7 @@ async function refreshDataInBackground() {
       refreshAllViews();
     }
 
-    // 2. Auto-upgrade legacy HTTP remote sync server URL to HTTPS to prevent CORS preflight redirect errors
     const currentSettings = await getSettings();
-    if (currentSettings.syncServerUrl) {
-      // Older builds filled in a local server nobody runs; drop it so nothing pings localhost
-      const normalized = currentSettings.syncServerUrl.replace(/\/+$/, '') === 'http://localhost:3456' ? '' : normalizeSyncUrl(currentSettings.syncServerUrl);
-      if (normalized !== currentSettings.syncServerUrl) {
-        await saveSettings({ syncServerUrl: normalized });
-      }
-    }
     // Ensure every user has a unique, isolated Sync Key on first run. The key is never copied into
     // (or read back from) the Blackboard page's localStorage: that origin's scripts could read it,
     // or plant a key of their own for the extension to adopt. chrome.storage.sync already backs it up.
