@@ -195,14 +195,20 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
   dropImpossibleMarks(tasks, nowMs);
   for (const update of updates) {
     const src = update.sourceId;
+    const seenEarly = (t: DeadlineTask) => Boolean(src && (t.gradeSourcesBefore || []).includes(src));
     const match = findTaskForUpdate(tasks, update, t =>
-      // A task that already has its mark from one column is not taken by another one,
-      // and a column seen graded before this task's date (a practice run) never applies to it
-      !(src && t.gradeSourceId && t.gradeSourceId !== src && !gradedLater(t, update)) &&
-      !(src && (t.gradeSourcesBefore || []).includes(src) && (!update.gradedAt || gradedBeforeItem(t, update, nowMs)))
+      // A task that already has its mark from one column is not taken by another one, unless that
+      // mark was only provisional (see below) or this column was graded later
+      !(src && t.gradeSourceId && t.gradeSourceId !== src && !gradedLater(t, update) && !(t.markProvisional && !seenEarly(t))) &&
+      // A column seen graded before this task's date may be a practice run. It is tried again once
+      // the date has passed: dated by Blackboard, or (undated) while the task has no mark at all
+      !(seenEarly(t) && (gradedBeforeItem(t, update, nowMs) || (!update.gradedAt && !!t.gradeSourceId)))
     );
     if (!match) continue;
-    if (src && (match.gradeSourcesBefore || []).includes(src)) {
+    const fromEarlyColumn = seenEarly(match);
+    // Undated and first seen before the item: shown, but a mark from any other column replaces it
+    const provisional = !update.gradedAt && (fromEarlyColumn || (!!match.markProvisional && match.gradeSourceId === src));
+    if (fromEarlyColumn) {
       match.gradeSourcesBefore = match.gradeSourcesBefore!.filter(s => s !== src);
     }
     if (update.submissionStatus === 'graded') {
@@ -217,6 +223,7 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
         continue;
       }
       const changed = match.submissionStatus !== 'graded' ||
+        !!match.markProvisional !== provisional ||
         (!!src && match.gradeSourceId !== src) ||
         (update.score !== undefined && match.score !== update.score) ||
         (update.maxScore !== undefined && match.maxScore !== update.maxScore) ||
@@ -225,6 +232,8 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       match.submissionStatus = 'graded';
       if (src) match.gradeSourceId = src;
       if (update.gradedAt) match.gradedAt = update.gradedAt;
+      if (provisional) match.markProvisional = true;
+      else delete match.markProvisional;
       if (update.score !== undefined) match.score = update.score;
       if (update.maxScore !== undefined) match.maxScore = update.maxScore;
       if (update.scoreDisplay) match.scoreDisplay = update.scoreDisplay;

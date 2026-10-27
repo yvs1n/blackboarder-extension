@@ -29,21 +29,28 @@ describe('a practice midterm mark never lands on the real midterm', () => {
     expect(mid.gradeSourcesBefore).toEqual(['gb:_1928045_1']);
   });
 
-  it('a column graded before the task date is skipped now and after the exam', () => {
+  it('a column graded before the task date is skipped until the exam, then shown until another column replaces it', () => {
     const mid = task({ title: 'Midterm', ...english, dueDate: '2026-10-25T06:00:00.000Z' });
     const practice = graded({ title: 'EAP Midterm Exam', ...english, sourceId: 'gb:_1928045_1' });
     expect(applySubmissionUpdates([mid], [practice], NOW)).toBe(0);
     expect(mid.score).toBeUndefined();
     expect(mid.gradeSourcesBefore).toEqual(['gb:_1928045_1']);
 
-    // Oct 30: the exam has passed, the same practice column is still there, the real one is new
+    // Oct 30: the exam has passed and that column is still the only one, so it is the course's
+    // midterm after all (Blackboard gives no grade dates): shown, but only provisionally
     const later = new Date('2026-10-30T12:00:00Z').getTime();
+    expect(applySubmissionUpdates([mid], [practice], later)).toBe(1);
+    expect(mid.score).toBe(20);
+    expect(mid.markProvisional).toBe(true);
     expect(applySubmissionUpdates([mid], [practice], later)).toBe(0);
-    expect(mid.score).toBeUndefined();
+    // A second column turns up: it replaces the provisional mark, and the early one stays out
     const real = graded({ title: 'Midterm Exam', ...english, score: 17, sourceId: 'gb:_1999999_1' });
     expect(applySubmissionUpdates([mid], [practice, real], later)).toBe(1);
     expect(mid.score).toBe(17);
     expect(mid.gradeSourceId).toBe('gb:_1999999_1');
+    expect(mid.markProvisional).toBeUndefined();
+    expect(applySubmissionUpdates([mid], [practice, real], later)).toBe(0);
+    expect(mid.score).toBe(17);
   });
 
   it('uses the grade date when Blackboard gives one', () => {
@@ -164,5 +171,17 @@ describe('gradebook report', () => {
       { course: 'English for Academic Purposes', column: 'Quiz 1', status: 'GRADED', score: 4.5, possible: 5, gradedAt: undefined },
       { course: 'English for Academic Purposes', column: '', status: 'GRADED', score: 9, possible: undefined, gradedAt: undefined, note: 'column z not listed' }
     ]);
+  });
+});
+
+describe('the owner\'s English midterm (gradebook has only "EAP Midterm Exam", no grade dates)', () => {
+  it('lands on the Midterm task after the exam date, even though it was seen before it', () => {
+    const english = { courseName: 'English for Academic Purposes', courseCode: '' };
+    const mid = task({ title: 'Midterm', ...english, dueDate: '2026-10-25T06:00:00.000Z', gradeSourcesBefore: ['gb:_1928045_1'] });
+    const col = graded({ title: 'EAP Midterm Exam', courseName: 'English for Academic Purposes', score: 20, maxScore: 20, sourceId: 'gb:_1928045_1' });
+    expect(applySubmissionUpdates([mid], [col], new Date('2026-10-27T12:00:00Z').getTime())).toBe(1);
+    expect(mid.scoreDisplay).toBeUndefined();
+    expect(mid.score).toBe(20);
+    expect(mid.gradeSourceId).toBe('gb:_1928045_1');
   });
 });

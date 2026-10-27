@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.8] - 2026-10-27
+
+### Fixed
+
+- **A mark posted before the exam date no longer stays hidden forever.** Blackboard gives no grade dates, so a gradebook column already graded before an exam's date was set aside as a practice run, permanently. That is how the English midterm (EAP Midterm Exam, 20 / 20) never reached the Midterm deadline. Once the exam's date has passed, such a column is used when the deadline has no other mark; if another column turns up later, it takes over.
+
+---
+
 ## [1.2.7] - 2026-10-27
 
 ### Fixed

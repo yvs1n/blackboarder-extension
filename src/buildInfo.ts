@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.2.7",
-  "build": "24d6dd700d8d",
-  "commit": "293c17aab0f90ad88058f5b7825894c137302a58",
-  "shortCommit": "293c17a",
-  "timestamp": "2026-10-27T11:54:29.436Z",
-  "message": "v1.2.6: scan message names gradebook grades it could not read",
+  "version": "1.2.8",
+  "build": "9b4b0dae42c6",
+  "commit": "a1c0c883cab98cf52807d348d94bc0a0e43f56b4",
+  "shortCommit": "a1c0c88",
+  "timestamp": "2026-10-27T12:21:43.056Z",
+  "message": "v1.2.7: remove old presentation tasks and scan-written notes everywhere, read full gradebooks, keep a gradebook report",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
