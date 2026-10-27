@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { createGoogleCalendarUrl, generateIcsContent, formatTaskTime, compareTasksByTime, formatCountdown } from '../src/utils/calendar';
 import { DeadlineTask } from '../src/types';
 import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
@@ -247,6 +247,18 @@ describe('Calendar Utilities', () => {
       const totalCells = leading + daysInMonth;
       const remainingCells = (7 - (totalCells % 7)) % 7;
       expect((totalCells + remainingCells) % 7).toBe(0);
+    });
+  });
+
+  describe('formatCountdown days ahead', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('counts calendar days, not 24-hour blocks, and says "1 day"', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(2026, 9, 27, 20, 0)); // Tuesday 8 PM
+      expect(formatCountdown(new Date(2026, 9, 29, 9, 0).toISOString(), false).label).toMatch(/\(in 2 days\)$/);
+      expect(formatCountdown(new Date(2026, 9, 30, 9, 0).toISOString(), false).label).toMatch(/\(in 3 days\)$/);
+      expect(formatCountdown(new Date(2026, 9, 28, 9, 0).toISOString(), false).label).toBe('Due Tomorrow');
     });
   });
 

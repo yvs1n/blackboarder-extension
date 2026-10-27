@@ -204,11 +204,13 @@ export function formatCountdown(
     };
   }
 
-  // Within 3-7 days
-  if (absDiffDays < 7) {
+  // Within the week: count calendar days, so Thursday seen on a Tuesday evening is "in 2 days"
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const calendarDays = Math.round((startOf(due) - startOf(now)) / 86400000);
+  if (calendarDays < 7) {
     const weekday = due.toLocaleDateString([], { weekday: 'short' });
     return {
-      label: `${weekday} (in ${absDiffDays} days${hasSpecificTime ? ` at ${timeStr}` : ''})`,
+      label: `${weekday} (in ${calendarDays} day${calendarDays === 1 ? '' : 's'}${hasSpecificTime ? ` at ${timeStr}` : ''})`,
       urgency: 'soon'
     };
   }

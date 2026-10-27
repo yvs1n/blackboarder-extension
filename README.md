@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.1-blue?logo=github&logoColor=white" alt="Version v1.3.1" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.2-blue?logo=github&logoColor=white" alt="Version v1.3.2" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-381_Passing-success?logo=vitest&logoColor=white" alt="Vitest 381 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-382_Passing-success?logo=vitest&logoColor=white" alt="Vitest 382 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 
@@ -119,6 +119,10 @@ No API key? The built-in parser reads announcements automatically, so everything
 | **AI model** | Model used through OpenRouter | `google/gemini-3.8-flash` |
 | **Auto-scan** | Scans announcements when a Blackboard page loads | On |
 | **Theme** | Light, dark, or match the system | Match the system |
+| **University** | Grading scale for the GPA and the default quick links (Settings > General) | Set by the first scan, else UOS |
+| **Show My Classes** | Each day's classes on Blackboarder's calendar (Settings > Calendar) | On |
+| **Calendar Link Shows** | What the subscription link shows: deadlines and classes, deadlines only, or classes only (Settings > Calendar) | Deadlines and classes |
+| **Class Reminders** | A reminder before each class (Settings > Alerts) | 15 minutes before |
 
 ---
 

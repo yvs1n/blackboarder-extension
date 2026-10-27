@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-CP59Y0LL.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-BUk2OyIQ.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-C2M4sadw.css">
 </head>
 <body>
@@ -303,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.3.1</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.3.2</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -326,7 +326,7 @@
     </div>
   </aside>
 
-  <!-- VIEW 1: Monthly Calendar (Default Main Page) -->
+  <!-- VIEW 1: Calendar (default) -->
   <main id="view-calendar" class="view-panel active">
     <!-- Course Colors Legend & Quick Filter Bar -->
     <div class="course-legend-bar" id="course-legend-panel">
@@ -396,7 +396,7 @@
     </div>
   </main>
 
-  <!-- VIEW 2: Deadline Details (Cards Dashboard) -->
+  <!-- VIEW 2: Deadlines -->
   <section id="view-details" class="view-panel">
     <!-- Stat bar -->
     <div class="stats-bar">
@@ -440,7 +440,7 @@
       </div>
     </div>
 
-    <!-- GPA: each course's grade so far on the UOS scale, and the projected GPA -->
+    <!-- GPA: each course's grade so far on the university's scale, and the projected GPA -->
     <div class="grade-tracker-widget" id="gpa-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
       <div class="grade-tracker-header" id="gpa-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
         <div style="display: flex; align-items: center; gap: 7px;">
@@ -786,7 +786,7 @@
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-smartphone"></use></svg></span>
               <div>
                 <h3 class="settings-card-title">Sync Key &amp; Pairing</h3>
-                <p class="settings-card-subtitle">Real-time sync to phone PWA and live calendar feeds</p>
+                <p class="settings-card-subtitle">Pair your phone and keep your deadlines in sync</p>
               </div>
             </div>
             <span class="settings-pill pill-green">Live Sync</span>
@@ -969,7 +969,7 @@
       </div>
 
       <div class="settings-page" id="settings-page-data" role="tabpanel" aria-labelledby="settings-tab-data" hidden>
-        <!-- Card 8: Backup & Data Management -->
+        <!-- Backup & Data (same card as the phone app's Data section) -->
         <div class="settings-card">
           <div class="settings-card-header">
             <div class="settings-icon-title">
@@ -1034,7 +1034,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.1</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.2</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1819,7 +1819,11 @@
             </div>
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Syllabus weights:</strong> Add the mark split (e.g. 10% quizzes, 30% midterm) or paste the syllabus text and it is read for you.</span>
+              <span><strong>Syllabus weights:</strong> Add the mark split (e.g. 10% quizzes, 30% midterm), or let <strong>Import File</strong> read your syllabus or class schedule (PDF, Word or text) and fill it in.</span>
+            </div>
+            <div class="walkthrough-feature-item">
+              <span class="walkthrough-feature-bullet">✓</span>
+              <span><strong>Your classes:</strong> Each day's classes show on the calendar (Settings &gt; Calendar to hide them), with a reminder before each one (Settings &gt; Alerts).</span>
             </div>
           </div>
         </div>
@@ -1847,7 +1851,7 @@
             </div>
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Marks, GPA and Syllabus Progress cards:</strong> See every mark by course, newest first, each course's grade so far on the UOS scale with your projected GPA (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours in the Courses tab.</span>
+              <span><strong>Marks, GPA and Syllabus Progress cards:</strong> See every mark by course, newest first, each course's grade so far on your university's scale with your projected GPA (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours in the Courses tab.</span>
             </div>
           </div>
         </div>

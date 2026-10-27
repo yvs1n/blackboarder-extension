@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-10-27
+
+### Fixed
+
+- **Deadlines no longer disappear on the phone after visiting Settings.** The Settings section tabs share the look of the Pending / All / Completed filters, and tapping one (General, Sync and so on) also set the deadline filter to nothing, so Deadlines showed "No Matching Deadlines" until the app was reopened.
+- **"In 2 days" counts calendar days.** A deadline on Thursday seen on Tuesday evening said "in 1 days"; it now says "in 2 days", and one day away is "in 1 day".
+
+### Changed
+
+- **Up-to-date guides.** The landing page, setup guides, README and docs describe the university choice, the Courses tab and Import File, classes on the calendar and in the calendar link, and the new Settings layout. The landing page's search data now carries the current version.
+
+---
+
 ## [1.3.1] - 2026-10-27
 
 ### Added
