@@ -5,11 +5,12 @@ import { buildMarksSummary } from '../utils/marks';
 import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
 import { buildGpaSummary } from '../utils/gpa';
 import { gradesHtml, gradesBadgeText } from '../utils/grades';
+import { pickNewerList } from '../utils/syncMerge';
 import { initUniversitySettings, getCachedProfile } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
-import { swapUniversityQuickLinks } from '../core/universities';
+import { quickLinkPreset } from '../core/universities';
 import { classesOnDay, todaysClassesHtml } from '../core/classSchedule';
-import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, resetUserCoursesToDefault, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest } from '../utils/storage';
+import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, resetUserCoursesToDefault, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
 import { resolveAiEndpoint, normalizeAiBaseUrl, testAiEndpoint, IFM_MODEL } from '../engine/aiProviders';
@@ -1459,7 +1460,7 @@ async function handleCoursesUpdated(courses: UserCourseConfig[]) {
   const settings = await getSettings();
   const tombstones = await getLocalTombstones();
   const coursesUpdatedAt = await getCoursesUpdatedAt();
-  pushTasksToFirebase(currentTasks, 'Course Configuration Update', settings.syncKey, currentQuickLinks, tombstones, courses, coursesUpdatedAt || undefined).catch(() => {});
+  pushTasksToFirebase(currentTasks, 'Course Configuration Update', settings.syncKey, currentQuickLinks, tombstones, courses, coursesUpdatedAt || undefined, (await getQuickLinksUpdatedAt()) || undefined).catch(() => {});
 }
 
 // ============================================================================
@@ -2427,7 +2428,7 @@ function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Ex
     const toPush = pulled ?? tasks;
     const [settings, tombstones, coursesUpdatedAt] = await Promise.all([getSettings(), getLocalTombstones(), getCoursesUpdatedAt()]);
 
-    pushTasksToFirebase(toPush, actionDescription, settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined).then(res => {
+    pushTasksToFirebase(toPush, actionDescription, settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined, (await getQuickLinksUpdatedAt()) || undefined).then(res => {
       console.log(`[Firebase Cloud Sync] ${actionDescription}:`, res);
     }).catch(err => {
       console.warn('[Firebase Cloud Sync error]:', err);
@@ -2466,9 +2467,15 @@ async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
         console.log('[Firebase Sync] Merged notes & deadline updates from mobile phone/cloud');
       }
 
-      if (res.quickLinks && Array.isArray(res.quickLinks) && res.quickLinks.length > 0) {
-        currentQuickLinks = res.quickLinks;
-        await saveQuickLinks(currentQuickLinks);
+      // Quick links: the newer list wins (an empty list is a real choice once it has a stamp)
+      const linksPick = pickNewerList(
+        { items: currentQuickLinks, updatedAt: await getQuickLinksUpdatedAt() },
+        { items: res.quickLinks, updatedAt: res.quickLinksUpdatedAt },
+        true
+      );
+      if (linksPick.fromCloud && linksPick.items && JSON.stringify(linksPick.items) !== JSON.stringify(currentQuickLinks)) {
+        currentQuickLinks = linksPick.items;
+        await saveQuickLinks(currentQuickLinks, linksPick.updatedAt);
         renderQuickLinksBar();
         renderQuickLinksManager();
       }
@@ -2502,7 +2509,8 @@ async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
           currentQuickLinks,
           tombstones,
           currentUserCourses,
-          coursesUpdatedAt || undefined
+          coursesUpdatedAt || undefined,
+          (await getQuickLinksUpdatedAt()) || undefined
         ).catch(() => {});
       }
     }
@@ -3736,7 +3744,7 @@ function setupEvents() {
 
     // 2. Push current tasks & tombstones to Firebase Cloud
     const [tombstones, coursesUpdatedAt] = await Promise.all([getLocalTombstones(), getCoursesUpdatedAt()]);
-    const fbRes = await pushTasksToFirebase(currentTasks, 'Extension Manual Sync', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined);
+    const fbRes = await pushTasksToFirebase(currentTasks, 'Extension Manual Sync', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined, (await getQuickLinksUpdatedAt()) || undefined);
 
     refreshAllViews();
 
@@ -3954,7 +3962,7 @@ function renderQuickLinksManager() {
   if (!currentQuickLinks || currentQuickLinks.length === 0) {
     listContainer.innerHTML = `
       <div style="text-align: center; padding: 20px 10px; color: var(--text-muted); font-size: 12px;">
-        No quick links configured. Click <strong>Add Link</strong> or <strong>Reset Defaults</strong> to get started.
+        No quick links yet. Click <strong>Add Link</strong> to add your attendance, marks or study plan pages.
       </div>
     `;
     return;
@@ -4125,30 +4133,25 @@ function initQuickLinksModal() {
 
       if (form) form.style.display = 'block';
 
-      if (preset === 'attendance') {
-        if (titleInput) titleInput.value = 'Attendance (Banner)';
-        if (urlInput) urlInput.value = 'https://banner.sharjah.ac.ae';
-        if (catSelect) catSelect.value = 'attendance';
-      } else if (preset === 'study_plan') {
-        if (titleInput) titleInput.value = 'Study Plan & Degree Audit';
-        if (urlInput) urlInput.value = 'https://banner.sharjah.ac.ae/StudentRegistrationSsb/';
-        if (catSelect) catSelect.value = 'study_plan';
-      } else if (preset === 'marks') {
-        if (titleInput) titleInput.value = 'Final Marks & Transcript';
-        if (urlInput) urlInput.value = 'https://banner.sharjah.ac.ae';
-        if (catSelect) catSelect.value = 'marks';
-      } else if (preset === 'portal') {
-        if (titleInput) titleInput.value = 'Blackboard Ultra Portal';
-        if (urlInput) urlInput.value = 'https://elearning.sharjah.ac.ae/ultra/course';
-        if (catSelect) catSelect.value = 'portal';
+      // The university's own link of that kind when one is built in, else just the title
+      const filled = quickLinkPreset(profileUniversity(getCachedProfile()).id, (preset || 'other') as any);
+      if (titleInput) titleInput.value = filled.title;
+      if (urlInput) {
+        urlInput.value = filled.url;
+        if (!filled.url) urlInput.focus();
       }
+      if (catSelect) catSelect.value = filled.category;
     });
   });
 
   // Reset defaults
   btnReset?.addEventListener('click', async () => {
-    if (confirm('Reset quick links to standard university presets?')) {
-      currentQuickLinks = await resetQuickLinksToDefault();
+    const uni = profileUniversity(getCachedProfile());
+    const question = (uni.quickLinks || []).length
+      ? `Replace your quick links with ${uni.shortName}'s built-in links?`
+      : 'Remove all your quick links? Your university has no built-in links, so you add your own.';
+    if (confirm(question)) {
+      currentQuickLinks = await resetQuickLinksToDefault(profileUniversity(getCachedProfile()).id);
       renderQuickLinksBar();
       renderQuickLinksManager();
       syncQuickLinksToCloud();
@@ -4195,7 +4198,7 @@ function initQuickLinksModal() {
 async function syncQuickLinksToCloud() {
   try {
     const [settings, tombstones, coursesUpdatedAt] = await Promise.all([getSettings(), getLocalTombstones(), getCoursesUpdatedAt()]);
-    await pushTasksToFirebase(currentTasks, 'Chrome Extension', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined);
+    await pushTasksToFirebase(currentTasks, 'Chrome Extension', settings.syncKey, currentQuickLinks, tombstones, currentUserCourses, coursesUpdatedAt || undefined, (await getQuickLinksUpdatedAt()) || undefined);
   } catch {}
 }
 
@@ -5168,14 +5171,15 @@ function initApp() {
     onProfileChanged: (profile, fromHere, previousUniversityId) => {
       refreshAllViews();
       if (!fromHere) return;
-      const nextId = profileUniversity(profile).id;
-      if (nextId !== previousUniversityId) {
-        const now = new Date().toISOString();
-        currentQuickLinks = swapUniversityQuickLinks(currentQuickLinks, previousUniversityId, nextId, p => ({ ...p, createdAt: now }));
-        saveQuickLinks(currentQuickLinks).catch(() => {});
-        renderQuickLinksBar();
-      }
-      syncTasksToCloud(currentTasks, 'University Update');
+      (async () => {
+        // saveProfile already swapped in the university's built-in links; show them and sync
+        if (profileUniversity(profile).id !== previousUniversityId) {
+          currentQuickLinks = await getQuickLinks();
+          renderQuickLinksBar();
+          renderQuickLinksManager();
+        }
+        syncTasksToCloud(currentTasks, 'University Update');
+      })();
     }
   }).then(() => refreshAllViews()).catch(err => console.error('[University] Settings failed to load:', err));
 

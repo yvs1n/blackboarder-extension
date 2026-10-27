@@ -1,4 +1,5 @@
-import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, DEFAULT_QUICK_LINKS, UserCourseConfig } from '../types';
+import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, UserCourseConfig } from '../types';
+import { universityQuickLinks } from '../core/universities';
 import { isValidTask, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
 import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks } from './taskMerge';
 import { DEFAULT_USER_COURSES, setActiveUserCourses } from '../core/userCourses';
@@ -13,7 +14,8 @@ const STORAGE_KEYS = {
   LAST_SCANNED: 'bbs_last_scanned',
   QUICK_LINKS: 'bbs_quick_links',
   COURSES: 'bbs_user_courses',
-  COURSES_UPDATED_AT: 'bbs_courses_updated_at'
+  COURSES_UPDATED_AT: 'bbs_courses_updated_at',
+  QUICK_LINKS_UPDATED_AT: 'bbs_quick_links_updated_at'
 };
 
 /**
@@ -120,14 +122,7 @@ export function getCachedTasksSync(): DeadlineTask[] {
 }
 
 export function getCachedQuickLinksSync(): QuickLink[] {
-  const raw = safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS);
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch {}
-  }
-  return DEFAULT_QUICK_LINKS;
+  return parseLinks(safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS));
 }
 
 /** Random characters in a new sync key: 26 symbols of 5 bits each is 130 bits, far beyond guessing. Older, shorter keys still work. */
@@ -631,57 +626,56 @@ export async function saveAnnouncements(newAnnouncements: Announcement[]): Promi
   safeSetLocalStorage(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(merged));
 }
 
+function parseLinks(raw: string | null): QuickLink[] {
+  try {
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The student's quick links; empty until they add some or set a university that has built-in ones. */
 export async function getQuickLinks(): Promise<QuickLink[]> {
   if (isExtensionContextValid()) {
     try {
       return await new Promise<QuickLink[]>(resolve => {
         try {
           chrome.storage.local.get([STORAGE_KEYS.QUICK_LINKS], (result: { [key: string]: any }) => {
-            try {
-              if (chrome.runtime?.lastError) {
-                const raw = safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS);
-                resolve(raw ? JSON.parse(raw) : DEFAULT_QUICK_LINKS);
-                return;
-              }
-              const links = result?.[STORAGE_KEYS.QUICK_LINKS];
-              const resolved = Array.isArray(links) && links.length > 0 ? links : DEFAULT_QUICK_LINKS;
-              safeSetLocalStorage(STORAGE_KEYS.QUICK_LINKS, JSON.stringify(resolved));
-              resolve(resolved);
-            } catch {
-              const raw = safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS);
-              resolve(raw ? JSON.parse(raw) : DEFAULT_QUICK_LINKS);
+            if (chrome.runtime?.lastError) {
+              resolve(parseLinks(safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS)));
+              return;
             }
+            const links = result?.[STORAGE_KEYS.QUICK_LINKS];
+            const resolved: QuickLink[] = Array.isArray(links) ? links : [];
+            safeSetLocalStorage(STORAGE_KEYS.QUICK_LINKS, JSON.stringify(resolved));
+            resolve(resolved);
           });
         } catch {
-          const raw = safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS);
-          resolve(raw ? JSON.parse(raw) : DEFAULT_QUICK_LINKS);
+          resolve(parseLinks(safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS)));
         }
       });
     } catch {
       // Fall through to localStorage
     }
   }
-
-  const raw = safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS);
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch {
-      return DEFAULT_QUICK_LINKS;
-    }
-  }
-  return DEFAULT_QUICK_LINKS;
+  return parseLinks(safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS));
 }
 
-export async function saveQuickLinks(links: QuickLink[]): Promise<void> {
+/**
+ * Saves the quick links. An edit here stamps them now; links taken from the cloud keep the cloud's
+ * stamp, so the newer list wins on every device (see src/utils/syncMerge.ts).
+ */
+export async function saveQuickLinks(links: QuickLink[], updatedAt?: string): Promise<void> {
+  const stamp = updatedAt || new Date().toISOString();
   safeSetLocalStorage(STORAGE_KEYS.QUICK_LINKS, JSON.stringify(links));
+  safeSetLocalStorage(STORAGE_KEYS.QUICK_LINKS_UPDATED_AT, stamp);
 
   if (isExtensionContextValid()) {
     try {
       await new Promise<void>(resolve => {
         try {
-          chrome.storage.local.set({ [STORAGE_KEYS.QUICK_LINKS]: links }, () => resolve());
+          chrome.storage.local.set({ [STORAGE_KEYS.QUICK_LINKS]: links, [STORAGE_KEYS.QUICK_LINKS_UPDATED_AT]: stamp }, () => resolve());
         } catch {
           resolve();
         }
@@ -736,9 +730,11 @@ export async function deleteQuickLink(id: string): Promise<QuickLink[]> {
   return updated;
 }
 
-export async function resetQuickLinksToDefault(): Promise<QuickLink[]> {
-  await saveQuickLinks(DEFAULT_QUICK_LINKS);
-  return DEFAULT_QUICK_LINKS;
+/** Replaces the quick links with the university's built-in ones (none for most universities). */
+export async function resetQuickLinksToDefault(universityId: string): Promise<QuickLink[]> {
+  const links: QuickLink[] = universityQuickLinks(universityId, new Date().toISOString());
+  await saveQuickLinks(links);
+  return links;
 }
 
 // Lives in core so the phone app runs the same filter
@@ -765,7 +761,7 @@ export async function getUserCourses(): Promise<UserCourseConfig[]> {
     const clean = filterCleanUserCourses(rawList);
     // If corrupted system tabs were found, automatically prune them from storage
     if (clean.length !== rawList.length) {
-      saveUserCourses(clean).catch(() => {});
+      getCoursesUpdatedAt().then(stamp => saveUserCourses(clean, stamp || undefined)).catch(() => {});
     } else {
       setActiveUserCourses(clean);
     }
@@ -840,6 +836,27 @@ export async function getCoursesUpdatedAt(): Promise<string | null> {
     }
   }
   return safeGetLocalStorage(STORAGE_KEYS.COURSES_UPDATED_AT);
+}
+
+/** When the quick links were last changed on any device; null before the first change. */
+export async function getQuickLinksUpdatedAt(): Promise<string | null> {
+  if (isExtensionContextValid()) {
+    try {
+      return await new Promise<string | null>(resolve => {
+        try {
+          chrome.storage.local.get([STORAGE_KEYS.QUICK_LINKS_UPDATED_AT], (result: { [key: string]: any }) => {
+            const stamp = (!chrome.runtime?.lastError && result?.[STORAGE_KEYS.QUICK_LINKS_UPDATED_AT]) || safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS_UPDATED_AT);
+            resolve(stamp || null);
+          });
+        } catch {
+          resolve(safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS_UPDATED_AT));
+        }
+      });
+    } catch {
+      // Fall through
+    }
+  }
+  return safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS_UPDATED_AT);
 }
 
 export async function saveCoursesUpdatedAt(timestamp: string): Promise<void> {

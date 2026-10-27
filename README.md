@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.3-blue?logo=github&logoColor=white" alt="Version v1.3.3" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.4-blue?logo=github&logoColor=white" alt="Version v1.3.4" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-385_Passing-success?logo=vitest&logoColor=white" alt="Vitest 385 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-401_Passing-success?logo=vitest&logoColor=white" alt="Vitest 401 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 
@@ -23,7 +23,7 @@
 
 Course announcements on Blackboard bury quiz dates, homework deadlines, exams and room changes inside long English or Arabic messages. **Blackboarder** reads them for you and turns them into one calendar of deadlines.
 
-It was built at the **University of Sharjah** and works for any university on Blackboard Learn or Ultra: pick yours when you set it up (UOS, UAEU, ADU, ZU, AUD, AUS or Other), or scan any Blackboard page and it is filled in. Your university sets the GPA grading scale and the quick links. It has three parts that stay in sync:
+It was built at the **University of Sharjah** and works for any university on Blackboard Learn or Ultra: pick yours when you set it up (UOS, UAEU, ADU, ZU, AUD, AUS or Other), or scan any Blackboard page and it is filled in. Your university sets the GPA grading scale (and, for UOS, fills in its quick links). It has three parts that stay in sync:
 
 | Part | What it does |
 | :--- | :--- |
@@ -49,7 +49,7 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Grades and GPA.** The **Grades** card at the top of the Courses tab shows your projected GPA, then each course's grade so far on your university's grading scale (editable in Settings > General) with every mark under it, newest first. The GPA is weighted by credit hours, set per course.
 - **Syllabus progress.** Next to Grades: for each course, how much of the syllabus weight is done, pending, or not announced yet.
 - **Add deadlines quickly.** The course field lists your courses and narrows as you type. Closing the popup while adding or editing a deadline, in the Courses tab or in Settings, reopens right there.
-- **Quick links.** One-tap links to marks, attendance, study plan, library and your own custom links, synced to the phone.
+- **Quick links.** Your own one-tap links to marks, attendance, your study plan or anything else, synced to the phone. A new install starts with none, since every student's links are different; UOS students get the UOS links filled in when the university is set.
 - **Reminders before deadlines.** The phone app reminds you a set time before each deadline, again shortly before, and when it is due (timings in Settings > Alerts).
 - **Privacy tools.** Delete everything stored online under your sync key from Settings > Data, download a recovery file for your key, and see a banner when your Blackboard session has ended.
 - **Private sync.** Every install gets its own sync key (`BBS-` plus 26 random characters). Changes on the laptop show up on the phone and the other way round.
@@ -119,7 +119,7 @@ No API key? The built-in parser reads announcements automatically, so everything
 | **AI model** | Model used through OpenRouter | `google/gemini-3.8-flash` |
 | **Auto-scan** | Scans announcements when a Blackboard page loads | On |
 | **Theme** | Light, dark, or match the system | Match the system |
-| **University** | Grading scale for the GPA and the default quick links (Settings > General) | Set by the first scan, else UOS |
+| **University** | Grading scale for the GPA, and the built-in quick links (UOS only) (Settings > General) | Set by the first scan, else UOS |
 | **Show My Classes** | Each day's classes on Blackboarder's calendar (Settings > Calendar) | On |
 | **Calendar Link Shows** | What the subscription link shows: deadlines and classes, deadlines only, or classes only (Settings > Calendar) | Deadlines and classes |
 | **Class Reminders** | A reminder before each class (Settings > Alerts) | 15 minutes before |

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.4] - 2026-10-27
+
+### Changed
+
+- **One place for courses on the phone.** The phone's Courses tab no longer has the separate Class Schedule and Syllabus Grade Distribution cards. Like the extension, each course in **My Courses** shows its code, CRN, credit hours, class times and mark breakdown, and you edit all of it there.
+- **Quick links start empty.** Every student's links are different, so a new install has none and you add your own. UOS students get the UOS links filled in when the university is set (picked or found by a scan), since those are the only ones checked to be right. The "+ Attendance" style buttons no longer fill in a UOS address for other universities.
+
+### Fixed
+
+- **Nothing is lost when two devices save.** Every save to the cloud now reads the cloud copy first and merges it: the newer copy of each deadline wins, deleted deadlines stay deleted, and the newer course list, quick links and university choice win. Before, a course edit in the extension or a save from the phone could overwrite a change the other device had just made. If the cloud cannot be read, nothing is overwritten (the phone tries again later).
+- **Quick links sync by date.** Quick links now carry a last-changed date, so the newer list wins instead of whichever device saved last.
+- **A cleared note stays cleared.** Emptying a deadline's note, room or weight no longer brings the old value back on the next sync.
+- **Changing the sync key on the phone** no longer keeps the old key's courses or quick links date, which could block the new key's courses.
+
+---
+
 ## [1.3.3] - 2026-10-27
 
 ### Changed

@@ -58,12 +58,18 @@ function adoptCloud(local: DeadlineTask, cloud: DeadlineTask): DeadlineTask {
   return merged as DeadlineTask;
 }
 
+// Fields the student edits by hand: on a task they edited, an empty one was cleared on purpose
+const STUDENT_FIELDS = new Set<string>(['notes', 'room', 'weight', 'weightDisplay']);
+
 function fillGaps(local: DeadlineTask, cloud: DeadlineTask, sameTime: boolean): DeadlineTask {
   const merged: any = { ...local };
   if (local.userEdited || cloud.userEdited) {
     merged.userEdited = true;
   }
+  // Only a strictly newer local edit keeps its cleared fields; an older cloud copy must not refill them
+  const clearedOnPurpose = Boolean(local.userEdited) && !sameTime;
   for (const field of GAP_FILL_FIELDS) {
+    if (clearedOnPurpose && STUDENT_FIELDS.has(field)) continue;
     const localVal = (local as any)[field];
     const cloudVal = (cloud as any)[field];
     const localEmpty = localVal === undefined || localVal === null || localVal === '';

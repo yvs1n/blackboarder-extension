@@ -183,6 +183,31 @@ export function normalizeGradeScale(rows: unknown): GradeRow[] | null {
 }
 
 /**
+ * A university's built-in quick links, ready to save. Only links checked to be right are built in
+ * (UOS today); every other university starts with none and the student adds their own.
+ */
+export function universityQuickLinks(universityId: string, createdAt: string): Array<QuickLinkPreset & { createdAt: string }> {
+  return (getUniversity(universityId).quickLinks || []).map(p => ({ ...p, createdAt }));
+}
+
+const PRESET_TITLES: Record<QuickLinkPreset['category'], string> = {
+  attendance: 'Attendance',
+  study_plan: 'Study Plan',
+  marks: 'Marks & Transcript',
+  portal: 'Blackboard',
+  other: 'Link'
+};
+
+/**
+ * What the "+ Attendance", "+ Marks" and similar buttons fill in: the university's own built-in link
+ * of that kind, else only a title, so no other university's address is ever filled in.
+ */
+export function quickLinkPreset(universityId: string, category: QuickLinkPreset['category']): { title: string; url: string; category: QuickLinkPreset['category'] } {
+  const own = (getUniversity(universityId).quickLinks || []).find(p => p.category === category);
+  return own ? { title: own.title, url: own.url, category } : { title: PRESET_TITLES[category] || 'Link', url: '', category };
+}
+
+/**
  * Quick links after switching university: the old university's built-in links that the student
  * did not edit are removed, and the new university's built-in links are added. Links the
  * student made or edited stay.

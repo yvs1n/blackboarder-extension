@@ -205,34 +205,9 @@ export interface QuickLink {
   updatedAt?: string;
 }
 
-export const DEFAULT_QUICK_LINKS: QuickLink[] = [
-  {
-    id: 'ql-attendance',
-    title: 'Attendance (Banner)',
-    url: 'https://banner.sharjah.ac.ae',
-    category: 'attendance',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  },
-  {
-    id: 'ql-studyplan',
-    title: 'Study Plan & Degree Audit',
-    url: 'https://banner.sharjah.ac.ae/StudentRegistrationSsb/',
-    category: 'study_plan',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  },
-  {
-    id: 'ql-marks',
-    title: 'Final Marks & Transcript',
-    url: 'https://banner.sharjah.ac.ae',
-    category: 'marks',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  },
-  {
-    id: 'ql-blackboard',
-    title: 'Blackboard Ultra Portal',
-    url: 'https://elearning.sharjah.ac.ae/ultra/course',
-    category: 'portal',
-    createdAt: '2026-09-01T00:00:00.000Z'
-  }
-];
+/**
+ * Quick links a new install starts with: none. Each student's links are their own; the university's
+ * built-in links (src/core/universities.ts) are added when the university is set.
+ */
+export const DEFAULT_QUICK_LINKS: QuickLink[] = [];
 

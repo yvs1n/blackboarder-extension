@@ -322,8 +322,8 @@ describe('Extension Context Validation & Graceful Fallback Suite', () => {
       expect(cached[0].title).toBe('Cached Lab');
     });
 
-    it('getCachedQuickLinksSync returns default quick links or saved links synchronously', () => {
-      expect(getCachedQuickLinksSync().length).toBeGreaterThan(0);
+    it('getCachedQuickLinksSync returns the saved links, or none for a new install', () => {
+      expect(Array.isArray(getCachedQuickLinksSync())).toBe(true);
     });
 
     it('getCachedSettingsSync returns settings synchronously', async () => {

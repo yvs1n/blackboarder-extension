@@ -1,6 +1,7 @@
 import { DeadlineTask, TaskStatus, QuickLink, UserCourseConfig, StudentProfile } from '../types';
 import { sanitizeCloudTasks, encodeCloudKeys, decodeCloudKeys, sanitizeCloudQuickLinks, sanitizeCloudCourses } from './cloudSanitize';
 import { getProfile, mergeCloudProfile } from './profile';
+import { mergeForCloudWrite, readCloudSide } from './syncMerge';
 
 export const FIREBASE_CONFIG = {
   authDomain: 'blackboard-sidekick.firebaseapp.com',
@@ -46,6 +47,7 @@ export interface FirebaseSyncPayload {
   quickLinks?: QuickLink[];
   courses?: UserCourseConfig[];
   coursesUpdatedAt?: string;
+  quickLinksUpdatedAt?: string;
   tombstones?: Record<string, string>;
   profile?: StudentProfile;
 }
@@ -59,8 +61,10 @@ export interface DeletionTombstone {
 }
 
 /**
- * Pushes deadlines to Firebase Realtime Database.
- * Supports user-isolated namespaces via syncKey.
+ * Writes this device's deadlines, courses, quick links and profile to Firebase under the sync key.
+ * The write replaces the whole cloud document, so the cloud copy is read first and merged in
+ * (`mergeForCloudWrite`): nothing another device saved in the meantime is lost. If the cloud copy
+ * cannot be read, nothing is written; the next sync tries again.
  */
 export async function pushTasksToFirebase(
   tasks: DeadlineTask[],
@@ -69,26 +73,43 @@ export async function pushTasksToFirebase(
   quickLinks?: QuickLink[],
   tombstones?: Record<string, string>,
   courses?: UserCourseConfig[],
-  coursesUpdatedAt?: string
+  coursesUpdatedAt?: string,
+  quickLinksUpdatedAt?: string
 ): Promise<{ success: boolean; message: string; lastSync?: string; count?: number }> {
   try {
+    const targetUrl = getFirebaseDataUrl(syncKey);
+    const cloudRes = await fetch(targetUrl, { cache: 'no-store' });
+    if (!cloudRes || !cloudRes.ok) {
+      return { success: false, message: `Could not read the cloud copy before saving (${cloudRes ? cloudRes.status : 'no response'})` };
+    }
+    const cloud = readCloudSide(await cloudRes.json().catch(() => null));
+    const merged = mergeForCloudWrite({
+      tasks,
+      tombstones,
+      courses: Array.isArray(courses) ? courses : undefined,
+      coursesUpdatedAt,
+      quickLinks,
+      quickLinksUpdatedAt,
+      profile: await getProfile()
+    }, cloud);
+
     const lastSync = new Date().toISOString();
     const payload: FirebaseSyncPayload = {
-      tasks,
+      tasks: merged.tasks,
       lastSync,
       device,
-      count: tasks.length,
+      count: merged.tasks.length,
       syncKey: syncKey || undefined,
-      quickLinks: quickLinks || undefined,
-      courses: Array.isArray(courses) ? courses : undefined,
-      coursesUpdatedAt: coursesUpdatedAt || undefined,
+      quickLinks: merged.quickLinks,
+      quickLinksUpdatedAt: merged.quickLinksUpdatedAt,
+      courses: merged.courses,
+      coursesUpdatedAt: merged.coursesUpdatedAt,
       // Keys are task ids and may hold characters Firebase refuses, so they are encoded
-      tombstones: encodeCloudKeys(tombstones),
+      tombstones: encodeCloudKeys(merged.tombstones),
       // Every write replaces the whole payload, so the university always travels with it
-      profile: (await getProfile()) || undefined
+      profile: merged.profile
     };
 
-    const targetUrl = getFirebaseDataUrl(syncKey);
     const res = await fetch(targetUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -102,9 +123,9 @@ export async function pushTasksToFirebase(
 
     return {
       success: true,
-      message: `Synchronized ${tasks.length} deadlines with Firebase Cloud`,
+      message: `Synchronized ${merged.tasks.length} deadlines with Firebase Cloud`,
       lastSync,
-      count: tasks.length
+      count: merged.tasks.length
     };
   } catch (err: any) {
     return {
@@ -125,6 +146,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   device?: string;
   error?: string;
   quickLinks?: QuickLink[];
+  quickLinksUpdatedAt?: string;
   courses?: UserCourseConfig[];
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
@@ -150,6 +172,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
         tasks: [],
         lastSync: data?.lastSync,
         quickLinks,
+        quickLinksUpdatedAt: data?.quickLinksUpdatedAt,
         courses,
         coursesUpdatedAt: data?.coursesUpdatedAt,
         tombstones: decodeCloudKeys(data?.tombstones)
@@ -162,6 +185,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       lastSync: data.lastSync,
       device: data.device,
       quickLinks,
+      quickLinksUpdatedAt: data.quickLinksUpdatedAt,
       courses,
       coursesUpdatedAt: data.coursesUpdatedAt,
       tombstones: decodeCloudKeys(data.tombstones)
@@ -193,7 +217,8 @@ function pushPreservingCloudFields(
     fetched.quickLinks,
     tombstones,
     fetched.courses,
-    fetched.coursesUpdatedAt
+    fetched.coursesUpdatedAt,
+    fetched.quickLinksUpdatedAt
   );
 }
 

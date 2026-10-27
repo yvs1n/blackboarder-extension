@@ -1,8 +1,9 @@
-import { DeadlineTask, UserSettings, DEFAULT_SETTINGS } from '../types';
+import { DeadlineTask, UserSettings, DEFAULT_SETTINGS, QuickLink } from '../types';
 import { pushTasksToFirebase, fetchTasksFromFirebase } from '../utils/firebaseSync';
 import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
+import { pickNewerList } from '../utils/syncMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
-import { getUserCourses, getCoursesUpdatedAt, saveUserCourses } from '../utils/storage';
+import { getUserCourses, getCoursesUpdatedAt, saveUserCourses, getQuickLinksUpdatedAt, saveQuickLinks } from '../utils/storage';
 import { initAutoUpdate } from './autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
@@ -101,6 +102,14 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
       }
     }
 
+    // Quick links: the newer list wins, so a change on the phone reaches the extension
+    const stored = await chrome.storage.local.get(['bbs_quick_links']) as { bbs_quick_links?: QuickLink[] };
+    const localLinks = Array.isArray(stored.bbs_quick_links) ? stored.bbs_quick_links : undefined;
+    const linksPick = pickNewerList({ items: localLinks, updatedAt: await getQuickLinksUpdatedAt() }, { items: res.quickLinks, updatedAt: res.quickLinksUpdatedAt }, true);
+    if (linksPick.fromCloud && linksPick.items && JSON.stringify(linksPick.items) !== JSON.stringify(localLinks)) {
+      await saveQuickLinks(linksPick.items, linksPick.updatedAt);
+    }
+
     const data = await chrome.storage.local.get(['bbs_tasks']) as { bbs_tasks?: DeadlineTask[] };
     const localTasks: DeadlineTask[] = data.bbs_tasks || [];
     const localTombs = settingsData.bbs_tombstones || {};
@@ -147,7 +156,7 @@ async function syncDeadlinesToMobileServer(isMidnight: boolean = false) {
     const userCourses = await getUserCourses();
     const coursesUpdatedAt = await getCoursesUpdatedAt();
 
-    const fbResult = await pushTasksToFirebase(tasks, isMidnight ? 'Midnight Extension Sync' : 'Extension Auto-Sync', settings.syncKey, data.bbs_quick_links, tombstones, userCourses, coursesUpdatedAt || undefined);
+    const fbResult = await pushTasksToFirebase(tasks, isMidnight ? 'Midnight Extension Sync' : 'Extension Auto-Sync', settings.syncKey, data.bbs_quick_links, tombstones, userCourses, coursesUpdatedAt || undefined, (await getQuickLinksUpdatedAt()) || undefined);
     console.log('[Auto-Sync] Firebase Result:', fbResult);
     return { ok: fbResult.success, fbResult };
   } catch (err) {

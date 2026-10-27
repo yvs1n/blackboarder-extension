@@ -12,6 +12,7 @@ import {
   resetQuickLinksToDefault
 } from '../src/utils/storage';
 import { pushTasksToFirebase, fetchTasksFromFirebase, FIREBASE_DB_URL } from '../src/utils/firebaseSync';
+import { universityQuickLinks, quickLinkPreset } from '../src/core/universities';
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -45,22 +46,24 @@ describe('Academic Quick Links Management & Sync', () => {
     (globalThis as any).localStorage = originalLocalStorage;
   });
 
-  it('provides sensible default academic quick links out of the box', () => {
-    expect(DEFAULT_QUICK_LINKS).toHaveLength(4);
-    const categories = DEFAULT_QUICK_LINKS.map(l => l.category);
-    expect(categories).toContain('attendance');
-    expect(categories).toContain('study_plan');
-    expect(categories).toContain('marks');
-    expect(categories).toContain('portal');
-
-    const attendanceLink = DEFAULT_QUICK_LINKS.find(l => l.category === 'attendance');
-    expect(attendanceLink?.url).toContain('banner.sharjah.ac.ae');
+  it('a new install has no quick links: each student adds their own', async () => {
+    expect(DEFAULT_QUICK_LINKS).toEqual([]);
+    expect(await getQuickLinks()).toEqual([]);
   });
 
-  it('getQuickLinks falls back to DEFAULT_QUICK_LINKS when storage is empty', async () => {
-    const links = await getQuickLinks();
-    expect(links).toHaveLength(4);
-    expect(links[0].title).toBe(DEFAULT_QUICK_LINKS[0].title);
+  it('only UOS has built-in links (checked to be right); the rest start empty', () => {
+    const uos = universityQuickLinks('uos', '2026-10-27T00:00:00.000Z');
+    expect(uos.map(l => l.category).sort()).toEqual(['attendance', 'marks', 'portal', 'study_plan']);
+    expect(uos.find(l => l.category === 'attendance')?.url).toContain('banner.sharjah.ac.ae');
+    for (const id of ['uaeu', 'adu', 'zu', 'aud', 'aus', 'other']) {
+      expect(universityQuickLinks(id, 'x')).toEqual([]);
+    }
+  });
+
+  it('the + Attendance style buttons never fill in another university\'s address', () => {
+    expect(quickLinkPreset('uos', 'attendance').url).toContain('banner.sharjah.ac.ae');
+    expect(quickLinkPreset('zu', 'attendance')).toEqual({ title: 'Attendance', url: '', category: 'attendance' });
+    expect(quickLinkPreset('other', 'portal').url).toBe('');
   });
 
   it('addQuickLink adds a new item and auto-prefixes protocol if omitted', async () => {
@@ -80,6 +83,7 @@ describe('Academic Quick Links Management & Sync', () => {
   });
 
   it('updateQuickLink modifies existing properties while retaining id and createdAt', async () => {
+    await saveQuickLinks(universityQuickLinks('uos', '2026-09-01T00:00:00.000Z'));
     const links = await getQuickLinks();
     const first = links[0];
     const originalCreatedAt = first.createdAt;
@@ -97,6 +101,7 @@ describe('Academic Quick Links Management & Sync', () => {
   });
 
   it('deleteQuickLink removes the item by ID', async () => {
+    await saveQuickLinks(universityQuickLinks('uos', '2026-09-01T00:00:00.000Z'));
     const initial = await getQuickLinks();
     const targetId = initial[0].id;
 
@@ -118,15 +123,17 @@ describe('Academic Quick Links Management & Sync', () => {
     expect(customLinks).toHaveLength(1);
     expect(customLinks[0].title).toBe('Custom Portal');
 
-    const resetLinks = await resetQuickLinksToDefault();
+    const resetLinks = await resetQuickLinksToDefault('uos');
     expect(resetLinks).toHaveLength(4);
-    expect(resetLinks.map(l => l.id)).toEqual(DEFAULT_QUICK_LINKS.map(l => l.id));
+    expect(resetLinks.map(l => l.id)).toEqual(universityQuickLinks('uos', 'x').map(l => l.id));
+    // Elsewhere a reset leaves none
+    expect(await resetQuickLinksToDefault('zu')).toEqual([]);
   });
 
   it('pushTasksToFirebase includes quickLinks in the cloud payload', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
-    );
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('null', { status: 200 })) // the cloud copy, read first
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
 
     const customLinks: QuickLink[] = [
       {
@@ -148,7 +155,7 @@ describe('Academic Quick Links Management & Sync', () => {
       })
     );
 
-    const callArgs = fetchSpy.mock.calls[0];
+    const callArgs = fetchSpy.mock.calls[1];
     const bodyObj = JSON.parse(callArgs[1]?.body as string);
     expect(bodyObj.quickLinks).toBeDefined();
     expect(bodyObj.quickLinks[0].title).toBe('Sharjah Portal');
