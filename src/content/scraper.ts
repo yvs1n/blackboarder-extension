@@ -13,6 +13,7 @@ import { startActivityFilter } from './activityFilter';
 import { SESSION_STATUS_KEY, isSessionExpiredResponse } from '../utils/sessionStatus';
 import { ScanGate, ScanRun } from './scanGate';
 import { detectUniversityFromHost } from '../utils/profile';
+import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks } from '../core/examSchedule';
 
 /**
  * Known University of Sharjah Blackboard Course IDs mapped to courses.
@@ -1242,6 +1243,86 @@ function runScan(interactive: boolean = false, fullRescan: boolean = false): Pro
   return scanGate.run(interactive, fullRescan);
 }
 
+async function waitForExamScheduleTasks(maxWaitMs = 5000): Promise<DeadlineTask[]> {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const tasks = scrapeExamScheduleFromDoc(document);
+    if (tasks.length > 0) return tasks;
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return scrapeExamScheduleFromDoc(document);
+}
+
+async function runExamScheduleScan(run: ScanRun) {
+  if (run.interactive) {
+    await setScanStatus({ state: 'running', message: 'Reading exam schedule...' });
+  }
+
+  const tombstones: Record<string, string> = await new Promise(resolve => {
+    try {
+      chrome.storage.local.get(['bbs_tombstones'], res => resolve((res?.bbs_tombstones as Record<string, string>) || {}));
+    } catch {
+      resolve({});
+    }
+  });
+
+  const examTasks = (await waitForExamScheduleTasks(run.interactive ? 5000 : 3500)).filter(t => !tombstones[t.id]);
+  if (examTasks.length === 0) {
+    if (run.interactive) {
+      showSidekickToast('Blackboarder', 'No exam rows found on this page yet. Wait for the table to load and try again.');
+      run.reported = true;
+      await setScanStatus({ state: 'done', message: 'No exam schedule rows found on this page.', newCount: 0 });
+    }
+    return;
+  }
+
+  const existingTasks = await getTasks();
+  const { tasks: mergedTasks, addedCount, updatedCount } = mergeExamScheduleTasks(existingTasks, examTasks, tombstones);
+  const finalTasks = deduplicateTaskList(mergedTasks).filter(isValidTask);
+
+  await autoRegisterDiscoveredCourses(examTasks).catch(() => {});
+  repairTaskWeightsAndRooms(finalTasks);
+  await saveTasksMergingLatest(finalTasks);
+
+  try {
+    const currentSettings = await getSettings();
+    if (currentSettings.autoSyncOnScan !== false && isExtensionContextValid()) {
+      chrome.runtime.sendMessage({ type: 'SYNC_TO_SERVER' }).catch(() => {});
+    }
+  } catch {}
+
+  const badge = document.getElementById('bbs-floating-badge');
+  if (badge) {
+    const pendingCount = finalTasks.filter(t => t.status === 'pending').length;
+    if (pendingCount > 0) {
+      badge.textContent = String(pendingCount);
+      badge.style.display = 'inline-block';
+    }
+  }
+
+  const changedTotal = addedCount + updatedCount;
+  if (run.interactive || changedTotal > 0) {
+    const msg = addedCount > 0
+      ? `Added <strong>${addedCount}</strong> exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from your Exam Schedule!`
+      : updatedCount > 0
+        ? `Updated <strong>${updatedCount}</strong> exam${updatedCount > 1 ? 's' : ''} from your Exam Schedule!`
+        : `All ${examTasks.length} exams on this schedule are already in your calendar.`;
+    showSidekickToast('Exam Schedule Scanned', msg, changedTotal);
+  }
+  if (run.interactive) {
+    run.reported = true;
+    await setScanStatus({
+      state: 'done',
+      message: addedCount > 0
+        ? `Added ${addedCount} exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from the exam schedule!`
+        : updatedCount > 0
+          ? `Updated ${updatedCount} exam${updatedCount > 1 ? 's' : ''} from the exam schedule.`
+          : `Up to date. All ${examTasks.length} exams on this page are in your calendar.`,
+      newCount: addedCount
+    });
+  }
+}
+
 async function runScanInner(run: ScanRun) {
   const { fullRescan } = run;
   if (!isExtensionContextValid()) {
@@ -1256,6 +1337,11 @@ async function runScanInner(run: ScanRun) {
 
   // Hydrate user-configured courses & schedules before scanning
   await getUserCourses().catch(() => {});
+
+  if (isExamSchedulePage(window.location, document)) {
+    await runExamScheduleScan(run);
+    return;
+  }
 
   if (run.interactive) {
     await setScanStatus({ state: 'running', message: fullRescan ? 'Full re-scan: reading Blackboard...' : 'Reading Blackboard...' });
@@ -1484,6 +1570,9 @@ async function runScanInner(run: ScanRun) {
 }
 
 function isBlackboardSite(): boolean {
+  if (isExamSchedulePage(window.location, document)) {
+    return true;
+  }
   const host = window.location.hostname.toLowerCase();
   if (host.includes('blackboard.com') || host.includes('blackboard.sharjah.ac.ae') || host.includes('elearning.sharjah.ac.ae')) {
     return true;
@@ -1506,6 +1595,7 @@ function init() {
   if (!isBlackboardSite()) {
     return;
   }
+  const onExamPage = isExamSchedulePage(window.location, document);
 
   // Hydrate custom courses on startup
   getUserCourses().catch(() => {});
@@ -1533,11 +1623,13 @@ function init() {
   // Inject floating button (cards are only expanded when extract is explicitly triggered)
   injectFloatingButton(() => runScan(true));
 
-  // Blackboard's course colours follow the student's course colours
-  startCourseColorPainter(getBlackboardJson);
+  if (!onExamPage) {
+    // Blackboard's course colours follow the student's course colours
+    startCourseColorPainter(getBlackboardJson);
 
-  // Course and type filter bar on the Activity page
-  startActivityFilter(getBlackboardJson);
+    // Course and type filter bar on the Activity page
+    startActivityFilter(getBlackboardJson);
+  }
 
   // Keyboard shortcut listener: Alt+B (or Option+Shift+B on Mac) to open popup
   window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -1560,6 +1652,19 @@ function init() {
           (async () => {
             try {
               await getUserCourses().catch(() => {});
+              if (isExamSchedulePage(window.location, document)) {
+                const directTasks = await waitForExamScheduleTasks(3500);
+                await autoRegisterDiscoveredCourses(directTasks).catch(() => {});
+                sendResponse({
+                  announcements: [],
+                  directTasks,
+                  submissionUpdates: [],
+                  discoveredCourses: [],
+                  isIncremental: false,
+                  lastScannedAt: new Date().toISOString()
+                });
+                return;
+              }
               const fullRescan = Boolean(message.fullRescan);
               const checkpoint = fullRescan
                 ? { lastScannedAt: '', processedAnnouncementIds: [], processedDirectTaskIds: [] }
@@ -1617,8 +1722,10 @@ function init() {
     })
     .catch(() => {});
 
-  // Zero-click Ultra Stream Infinite Scroll Observer
-  initUltraStreamObserver();
+  if (!onExamPage) {
+    // Zero-click Ultra Stream Infinite Scroll Observer
+    initUltraStreamObserver();
+  }
 }
 
 /**

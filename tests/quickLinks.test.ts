@@ -53,8 +53,9 @@ describe('Academic Quick Links Management & Sync', () => {
 
   it('only UOS has built-in links (checked to be right); the rest start empty', () => {
     const uos = universityQuickLinks('uos', '2026-10-27T00:00:00.000Z');
-    expect(uos.map(l => l.category).sort()).toEqual(['attendance', 'marks', 'portal', 'study_plan']);
+    expect(uos.map(l => l.category).sort()).toEqual(['attendance', 'marks', 'other', 'portal', 'study_plan']);
     expect(uos.find(l => l.category === 'attendance')?.url).toContain('banner.sharjah.ac.ae');
+    expect(uos.find(l => l.id === 'ql-exams')?.url).toContain('StudentExamPage');
     for (const id of ['uaeu', 'adu', 'zu', 'aud', 'aus', 'other']) {
       expect(universityQuickLinks(id, 'x')).toEqual([]);
     }
@@ -124,7 +125,7 @@ describe('Academic Quick Links Management & Sync', () => {
     expect(customLinks[0].title).toBe('Custom Portal');
 
     const resetLinks = await resetQuickLinksToDefault('uos');
-    expect(resetLinks).toHaveLength(4);
+    expect(resetLinks).toHaveLength(5);
     expect(resetLinks.map(l => l.id)).toEqual(universityQuickLinks('uos', 'x').map(l => l.id));
     // Elsewhere a reset leaves none
     expect(await resetQuickLinksToDefault('zu')).toEqual([]);

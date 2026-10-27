@@ -20,7 +20,7 @@ Run `npm run lint` and `npm test` before every commit. Generated files (`dist/`,
 - `src/core/`: courses, schedule, room and weight rules, syllabus data. Single source of truth for course logic.
 - `src/engine/`: deadline extraction. Local regex first, then a keyword check, then an optional AI model (no key means the built-in parser's answer stands). The provider (OpenRouter, IFM, or a custom OpenAI-compatible URL) is chosen in `src/engine/aiProviders.ts`; content scripts reach it through the service worker.
 - `src/utils/`: storage, Firebase sync, task merge, gradebook marks, GPA and syllabus-progress lists, announcement merge, stream parsing.
-- `src/content/scraper.ts`: runs on Blackboard pages. Scans announcements, the stream and the gradebook, then saves tasks.
+- `src/content/scraper.ts`: runs on Blackboard pages and the Banner Student Exam Page (`StudentExamPage`, parsed by `src/core/examSchedule.ts`). Scans announcements, the stream, the exam schedule table and the gradebook, then saves tasks.
 - `src/content/activityFilter.ts`: the course and type filter bar on the Activity page.
 - `src/background/`: service worker (alarms, badge, sync, update checks).
 - `src/popup/`: extension popup and side panel (plain TypeScript, no framework).

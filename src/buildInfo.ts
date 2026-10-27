@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.3.4",
-  "build": "1389c42d116d",
-  "commit": "8aa1423a51f811fbb00c5ecb546337316a9bb29d",
-  "shortCommit": "8aa1423",
-  "timestamp": "2026-10-27T17:34:29.240Z",
-  "message": "v1.3.3: Grades card (GPA with marks) and Syllabus Progress move to the Courses tab",
+  "build": "52903a411bf6",
+  "commit": "07756fb940d2fb5b8a6590dfb4704a750b65fb1a",
+  "shortCommit": "07756fb",
+  "timestamp": "2026-10-27T18:58:33.194Z",
+  "message": "1.3.4: one Courses place on the phone, merge before every cloud write, quick links start empty",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

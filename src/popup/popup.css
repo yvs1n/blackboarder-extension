@@ -983,6 +983,7 @@ body.is-standalone .header {
 
 .cal-day {
   background: var(--surface);
+  height: 58px;
   min-height: 58px;
   padding: 5px 4px;
   border-radius: 6px;
@@ -992,6 +993,37 @@ body.is-standalone .header {
   cursor: pointer;
   position: relative;
   overflow: hidden;
+}
+
+/* 6-row months (42 cells) scale cell height so the calendar box keeps the same height as 5-row months (35 cells) */
+.calendar-grid.is-six-rows {
+  gap: 3px;
+  padding: 3px;
+}
+
+.calendar-grid.is-six-rows .cal-day {
+  height: 48px;
+  min-height: 48px;
+  padding: 3px 4px;
+}
+
+.calendar-grid.is-six-rows .cal-day-header {
+  margin-bottom: 1px;
+}
+
+.calendar-grid.is-six-rows .cal-day-num {
+  font-size: 10px;
+}
+
+.calendar-grid.is-six-rows .cal-event-chips-container {
+  gap: 1.5px;
+  margin-top: 0;
+}
+
+.calendar-grid.is-six-rows .cal-event-chip {
+  font-size: 8.5px;
+  line-height: 1.15;
+  padding: 1px 3px;
 }
 
 .cal-day:hover {

@@ -128,7 +128,7 @@ describe('quick links when switching university', () => {
 
   it('adds the UOS links back when switching to UOS', () => {
     const out = swapUniversityQuickLinks([], 'zu', 'uos', make);
-    expect(out).toHaveLength(4);
+    expect(out).toHaveLength(5);
   });
 });
 

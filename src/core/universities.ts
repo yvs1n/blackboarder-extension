@@ -85,6 +85,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
       { id: 'ql-attendance', title: 'Attendance (Banner)', url: 'https://banner.sharjah.ac.ae', category: 'attendance' },
       { id: 'ql-studyplan', title: 'Study Plan & Degree Audit', url: 'https://banner.sharjah.ac.ae/StudentRegistrationSsb/', category: 'study_plan' },
       { id: 'ql-marks', title: 'Final Marks & Transcript', url: 'https://banner.sharjah.ac.ae', category: 'marks' },
+      { id: 'ql-exams', title: 'Exam Schedule (Banner)', url: 'https://generalssb-prod.ec.sharjah.ac.ae/BannerExtensibility/customPage/page/StudentExamPage', category: 'other' },
       { id: 'ql-blackboard', title: 'Blackboard Ultra Portal', url: 'https://elearning.sharjah.ac.ae/ultra/course', category: 'portal' }
     ],
     timeZone: 'Asia/Dubai'

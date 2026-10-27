@@ -503,6 +503,10 @@ function renderCalendar() {
     const dayEl = createDayCell(n, dateKey, true, tasksByDate.get(dateKey) || []);
     calendarGrid.appendChild(dayEl);
   }
+
+  // 6-row months (e.g. when the 1st lands on Sunday in a Monday-first calendar) use a slightly more compact
+  // row height so the calendar grid keeps the same total height as 5-row months and never clips at the bottom.
+  calendarGrid.classList.toggle('is-six-rows', calendarGrid.children.length > 35);
 }
 
 function openAddModalOnDate(dateStr: string) {
@@ -583,14 +587,14 @@ function createDayCell(
   });
 
   if (tasks.length > maxVisibleChips) {
-    const more = document.createElement('div');
+    const more = document.createElement('span');
     more.className = 'cal-event-more';
-    more.textContent = `+${tasks.length - maxVisibleChips} more`;
+    more.textContent = `+${tasks.length - maxVisibleChips}`;
     more.addEventListener('click', e => {
       e.stopPropagation();
       selectDay(dateKey, true);
     });
-    chipsContainer.appendChild(more);
+    header.appendChild(more);
   }
 
   cell.appendChild(chipsContainer);

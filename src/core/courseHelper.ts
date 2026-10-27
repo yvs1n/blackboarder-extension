@@ -145,7 +145,7 @@ export function hasValidAcademicCourseCode(code?: string): boolean {
   const clean = code.trim();
   if (!clean || clean.toUpperCase() === 'UOS') return false;
   if (isBlackboardSystemNoise(clean)) return false;
-  return /^(?:\d{4}\s*\d{3}(?:\s+\d{1,3}[A-Z]?)?|\d{7}|[A-Z]{2,5}\s*[-]?\s*\d{3,4}[A-Z]?)$/i.test(clean);
+  return /^(?:\d{4}\s*\d{3}(?:\s+\d{1,3}[A-Z]?)?|\d{6,9}|[A-Z]{2,6}\s*[-_]?\s*\d{3,5}[A-Z]?)$/i.test(clean);
 }
 
 export function parseCourseDetails(rawText: string): CourseInfo {
