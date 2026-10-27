@@ -45,18 +45,24 @@ function decodeEntities(s: string): string {
 export function gradebookToUpdates(
   columns: GradebookColumn[],
   grades: GradebookGrade[],
-  course: { courseName?: string; courseCode?: string }
+  course: { courseName?: string; courseCode?: string },
+  /** Receives "Title (reason)" for each column that holds a grade but was not read, so a scan can say why. */
+  skipped?: string[]
 ): TaskSubmissionUpdate[] {
   const byId = new Map(columns.map(c => [c.id, c]));
   const updates: TaskSubmissionUpdate[] = [];
 
   for (const g of grades) {
     const col = byId.get(g.columnId);
-    if (!col || col.visible === false || col.gradesReleased === false) continue;
-    if (col.calculationType && col.calculationType !== 'NON_CALCULATED') continue;
+    const hasGrade = g.status === 'GRADED' || typeof g.displayGrade?.score === 'number' || typeof g.effectiveScore === 'number';
+    const title = decodeEntities(col?.effectiveColumnName || col?.columnName || '').trim();
+    const skip = (reason: string) => { if (hasGrade && title && skipped) skipped.push(`${title} (${reason})`); };
+    if (!col) continue;
+    if (col.visible === false) { skip('hidden in the gradebook'); continue; }
+    if (col.gradesReleased === false) { skip('grades not released yet'); continue; }
+    if (col.calculationType && col.calculationType !== 'NON_CALCULATED') { skip('a calculated column'); continue; }
     if ((col.scoreProviderHandle || '').includes('attendance')) continue;
-    if (g.isExempt) continue;
-    const title = decodeEntities(col.effectiveColumnName || col.columnName || '').trim();
+    if (g.isExempt) { skip('exempt'); continue; }
     if (!title) continue;
 
     const gradedAt = g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified;
@@ -82,6 +88,8 @@ export function gradebookToUpdates(
       });
     } else if (g.status === 'NEEDS_GRADING') {
       updates.push({ ...base, submissionStatus: 'submitted' });
+    } else if (g.status === 'GRADED') {
+      skip('graded without a number');
     }
   }
   return updates;

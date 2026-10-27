@@ -129,3 +129,24 @@ describe('the column graded last wins when two columns fit one task', () => {
     expect(mid.score).toBe(17);
   });
 });
+
+describe('columns that hold a grade but are not read say why', () => {
+  it('lists hidden, unreleased and number-less grades', () => {
+    const skipped: string[] = [];
+    const cols = [
+      { id: 'a', columnName: 'Midterm Exam', visible: false },
+      { id: 'b', columnName: 'Quiz 3', gradesReleased: false },
+      { id: 'c', columnName: 'Project', calculationType: 'NON_CALCULATED' },
+      { id: 'd', columnName: 'Lab' }
+    ];
+    const grades = [
+      { columnId: 'a', status: 'GRADED', effectiveScore: 26 },
+      { columnId: 'b', status: 'GRADED', effectiveScore: 3 },
+      { columnId: 'c', status: 'GRADED', displayGrade: { text: 'A' } },
+      { columnId: 'd', status: 'NOT_ATTEMPTED' }
+    ];
+    const updates = gradebookToUpdates(cols, grades, { courseName: 'English for Academic Purposes' }, skipped);
+    expect(updates).toHaveLength(0);
+    expect(skipped).toEqual(['Midterm Exam (hidden in the gradebook)', 'Quiz 3 (grades not released yet)', 'Project (graded without a number)']);
+  });
+});

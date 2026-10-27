@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.6] - 2026-10-27
+
+### Changed
+
+- **The scan message says when a gradebook grade could not be read.** A grade that sits in a course's gradebook but is hidden, not released, calculated, exempt, or has no number is now named with the reason (for example "Midterm Exam (hidden in the gradebook)"), instead of being skipped silently.
+
+---
+
 ## [1.2.5] - 2026-10-27
 
 ### Added

@@ -898,10 +898,10 @@ function saveSessionStatus(expired: boolean): void {
 }
 
 /** What the last gradebook read found, for the scan message and the console line. */
-let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0 };
+let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] as string[] };
 
 async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
-  lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0 };
+  lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] };
   const getJson = async (path: string) => {
     const res = await bbFetch(path, { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
     return res.ok ? res.json() : null;
@@ -937,7 +937,7 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
       return gradebookToUpdates(cols.results, grades.results, {
         courseName: course.name !== 'General Course' ? course.name : undefined,
         courseCode: course.code
-      });
+      }, lastGradebookRead.skipped);
     } catch {
       return [];
     }
@@ -1361,14 +1361,16 @@ async function runScanInner(interactive: boolean, fullRescan: boolean) {
     );
     console.info(
       `[Blackboarder] Gradebook: ${lastGradebookRead.signedIn ? `${lastGradebookRead.coursesRead}/${lastGradebookRead.courses} courses read, ${gradebookMarks.length} marks` : 'not readable (signed out?)'}` +
-      (unmatchedMarks.length ? `; no matching deadline for: ${unmatchedMarks.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '')
+      (unmatchedMarks.length ? `; no matching deadline for: ${unmatchedMarks.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '') +
+      (lastGradebookRead.skipped.length ? `; not read: ${lastGradebookRead.skipped.join(' | ')}` : '')
     );
     const gradebookNote = lastGradebookRead.expired
       ? ' Your Blackboard session has ended: sign in again, then scan.'
       : !lastGradebookRead.signedIn
       ? ' Marks: gradebook not readable.'
       : ` Marks: ${gradebookMarks.length - unmatchedMarks.length} of ${gradebookMarks.length} matched${
-        unmatchedMarks.length ? ` (no deadline for ${unmatchedMarks.slice(0, 4).map(u => u.title).join(', ')}${unmatchedMarks.length > 4 ? ', ...' : ''})` : ''}.`;
+        unmatchedMarks.length ? ` (no deadline for ${unmatchedMarks.slice(0, 4).map(u => u.title).join(', ')}${unmatchedMarks.length > 4 ? ', ...' : ''})` : ''}.${
+        lastGradebookRead.skipped.length ? ` Not read: ${lastGradebookRead.skipped.slice(0, 3).join(', ')}.` : ''}`;
 
     // Correct weights and rooms saved by older rules (tasks the student edited are left alone)
     repairTaskWeightsAndRooms(finalTasks);
