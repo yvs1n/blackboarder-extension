@@ -504,9 +504,13 @@ function renderCalendar() {
     calendarGrid.appendChild(dayEl);
   }
 
-  // 6-row months (e.g. when the 1st lands on Sunday in a Monday-first calendar) use a slightly more compact
-  // row height so the calendar grid keeps the same total height as 5-row months and never clips at the bottom.
-  calendarGrid.classList.toggle('is-six-rows', calendarGrid.children.length > 35);
+  // Lock the row count (4 rows like Feb 2027, 5 rows like Oct 2026, or 6 rows like Nov 2026) so the
+  // calendar grid divides its fixed height evenly and stays the exact same height and width in every month.
+  const rowCount = Math.max(4, Math.ceil(calendarGrid.children.length / 7));
+  calendarGrid.style.setProperty('--cal-rows', String(rowCount));
+  calendarGrid.dataset.rows = String(rowCount);
+  calendarGrid.classList.toggle('is-six-rows', rowCount >= 6);
+  calendarGrid.classList.toggle('is-four-rows', rowCount <= 4);
 }
 
 function openAddModalOnDate(dateStr: string) {
