@@ -1,9 +1,10 @@
 import { DeadlineTask, TaskType, TaskPriority, TaskStatus, QuickLink, QuickLinkCategory, UserCourseConfig, CustomScheduleSlot, CustomSyllabusComponent, Weekday, AiProvider, UserSettings } from '../types';
 import { loadDraft, saveDraft, clearDraft, collectFields, applyFields } from './popupDraft';
 import { attachCoursePicker, findPickedCourse } from './coursePicker';
-import { buildMarksSummary, marksSummaryHtml, marksBadgeText } from '../utils/marks';
+import { buildMarksSummary } from '../utils/marks';
 import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
-import { buildGpaSummary, gpaSummaryHtml, gpaBadgeText } from '../utils/gpa';
+import { buildGpaSummary } from '../utils/gpa';
+import { gradesHtml, gradesBadgeText } from '../utils/grades';
 import { initUniversitySettings, getCachedProfile } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { swapUniversityQuickLinks } from '../core/universities';
@@ -1053,15 +1054,22 @@ function renderUserCoursesManager() {
       weightStatusBadge = `<span class="settings-pill pill-red" style="font-size: 10px; color: var(--danger);">Total Weight: ${totalWeight}% (Exceeds 100%)</span>`;
     }
 
-    const crnBadge = course.crn ? `<span class="ucc-code" style="margin-left: 4px;" title="CRN">CRN: ${escapeHtml(course.crn)}</span>` : '';
+    // Code, CRN and credit hours sit under the name so the name is never cut short
+    const credits = Number(course.creditHours) > 0 ? Number(course.creditHours) : null;
+    const metaParts = [
+      course.courseCode ? `<span class="ucc-code">${escapeHtml(course.courseCode)}</span>` : '',
+      course.crn ? `<span title="CRN">CRN ${escapeHtml(course.crn)}</span>` : '',
+      credits !== null ? `<span>${credits} credit hour${credits === 1 ? '' : 's'}</span>` : ''
+    ].filter(Boolean).join('<span aria-hidden="true">·</span>');
 
     card.innerHTML = `
       <div class="ucc-header">
         <div class="ucc-title-group">
           <span class="ucc-color-dot" style="background-color: ${course.colorHex};"></span>
-          <span class="ucc-name" title="${escapeHtml(course.courseName)}">${escapeHtml(course.courseName)}</span>
-          <span class="ucc-code">${escapeHtml(course.courseCode)}</span>
-          ${crnBadge}
+          <div class="ucc-title-text">
+            <span class="ucc-name">${escapeHtml(course.courseName)}</span>
+            ${metaParts ? `<span class="ucc-meta">${metaParts}</span>` : ''}
+          </div>
         </div>
         <div class="ucc-actions">
           <button type="button" class="ucc-action-btn edit" title="Edit course" aria-label="Edit course">
@@ -1080,7 +1088,7 @@ function renderUserCoursesManager() {
           ${syllabusHtml}
         </div>
         <div class="ucc-weight-status">
-          <span>Grade Allocation</span>
+          <span>Mark breakdown</span>
           ${weightStatusBadge}
         </div>
       </div>
@@ -1692,27 +1700,21 @@ async function shareTask(task: DeadlineTask) {
 }
 
 // ============================================================================
-// Syllabus Grade Progress Tracker
+// Courses tab: Grades (GPA with every mark) and Syllabus Progress
 // ============================================================================
 function renderGradeTracker(tasks: DeadlineTask[]) {
-  const badge = document.getElementById('grade-tracker-overall-badge');
-  const breakdown = document.getElementById('grade-tracker-breakdown');
-  if (!badge || !breakdown) return;
-  // Every mark in one place, grouped by course
-  const summary = buildMarksSummary(tasks, getAllSyllabi());
-  badge.textContent = marksBadgeText(summary);
-  breakdown.innerHTML = marksSummaryHtml(summary, name => getCourseHex(name));
-
-  // GPA card
-  const gpaBadge = document.getElementById('gpa-tracker-badge');
-  const gpaBody = document.getElementById('gpa-tracker-breakdown');
-  if (gpaBadge && gpaBody) {
+  // Grades card: the projected GPA, then each course's grade with its marks under it
+  const gradesBadge = document.getElementById('grades-tracker-badge');
+  const gradesBody = document.getElementById('grades-tracker-breakdown');
+  if (gradesBadge && gradesBody) {
     const profile = getCachedProfile();
     const scale = profileGradeScale(profile);
     const uni = profileUniversity(profile);
-    const gpa = buildGpaSummary(tasks, getAllSyllabi(), scale);
-    gpaBadge.textContent = gpaBadgeText(gpa);
-    gpaBody.innerHTML = gpaSummaryHtml(gpa, name => getCourseHex(name), {
+    const syllabi = getAllSyllabi();
+    const gpa = buildGpaSummary(tasks, syllabi, scale);
+    const marks = buildMarksSummary(tasks, syllabi);
+    gradesBadge.textContent = gradesBadgeText(gpa, marks);
+    gradesBody.innerHTML = gradesHtml(gpa, marks, name => getCourseHex(name), {
       name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
       scale,
       fromSyllabus: !profile?.gradeScale && uni.cutoffsFromSyllabus
@@ -1730,22 +1732,25 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
 }
 
 function initGradeTrackerToggle() {
-  wireCollapsible('syllabus-tracker-toggle-btn', 'syllabus-tracker-breakdown', 'syllabus-tracker-arrow');
-  wireCollapsible('gpa-tracker-toggle-btn', 'gpa-tracker-breakdown', 'gpa-tracker-arrow');
-  wireCollapsible('grade-tracker-toggle-btn', 'grade-tracker-breakdown', 'grade-tracker-arrow');
+  wireCollapsible('grades-tracker-toggle-btn', 'grades-tracker-breakdown');
+  wireCollapsible('syllabus-tracker-toggle-btn', 'syllabus-tracker-breakdown');
 }
 
-function wireCollapsible(btnId: string, bodyId: string, arrowId: string) {
+/** Opens and closes a Courses tab card; the open state is remembered per card. */
+function wireCollapsible(btnId: string, bodyId: string) {
   const toggleBtn = document.getElementById(btnId);
-  const breakdown = document.getElementById(bodyId);
-  const arrow = document.getElementById(arrowId);
-  toggleBtn?.addEventListener('click', () => {
-    if (!breakdown) return;
-    const isHidden = breakdown.style.display === 'none' || !breakdown.style.display;
-    breakdown.style.display = isHidden ? 'flex' : 'none';
-    if (arrow) {
-      arrow.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
-    }
+  const body = document.getElementById(bodyId);
+  if (!toggleBtn || !body) return;
+  const key = `bbs_open_${bodyId}`;
+  const setOpen = (open: boolean) => {
+    body.hidden = !open;
+    toggleBtn.setAttribute('aria-expanded', String(open));
+  };
+  try { setOpen(localStorage.getItem(key) === '1'); } catch { setOpen(false); }
+  toggleBtn.addEventListener('click', () => {
+    const open = Boolean(body.hidden);
+    setOpen(open);
+    try { localStorage.setItem(key, open ? '1' : '0'); } catch { /* not saved in this browser */ }
   });
 }
 

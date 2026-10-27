@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-BUk2OyIQ.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-C2M4sadw.css">
+  <script type="module" crossorigin src="../../assets/popup-BuP_FSmm.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-CbT8n5mJ.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -303,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.3.2</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.3.3</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -423,53 +423,6 @@
       </div>
     </div>
 
-    <!-- Marks: every graded and submitted item, grouped by course -->
-    <div class="grade-tracker-widget" id="popup-grade-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
-      <div class="grade-tracker-header" id="grade-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-        <div style="display: flex; align-items: center; gap: 7px;">
-          <svg class="ui-icon"><use href="#icon-scale"></use></svg>
-          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Marks</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span class="info-badge blue" id="grade-tracker-overall-badge" style="font-size: 11px;">No marks yet</span>
-          <svg class="ui-icon" id="grade-tracker-arrow" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
-        </div>
-      </div>
-      <div class="grade-tracker-breakdown" id="grade-tracker-breakdown" style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;">
-        <!-- Dynamically populated per course -->
-      </div>
-    </div>
-
-    <!-- GPA: each course's grade so far on the university's scale, and the projected GPA -->
-    <div class="grade-tracker-widget" id="gpa-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
-      <div class="grade-tracker-header" id="gpa-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-        <div style="display: flex; align-items: center; gap: 7px;">
-          <svg class="ui-icon"><use href="#icon-scale"></use></svg>
-          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">GPA</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span class="info-badge blue" id="gpa-tracker-badge" style="font-size: 11px;">No marks yet</span>
-          <svg class="ui-icon" id="gpa-tracker-arrow" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
-        </div>
-      </div>
-      <div class="grade-tracker-breakdown" id="gpa-tracker-breakdown" style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;"></div>
-    </div>
-
-    <!-- Syllabus Progress: how much of each course's weight is done, pending, or not announced yet -->
-    <div class="grade-tracker-widget" id="syllabus-tracker" style="margin: 0 14px 10px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; box-shadow: var(--shadow-sm);">
-      <div class="grade-tracker-header" id="syllabus-tracker-toggle-btn" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-        <div style="display: flex; align-items: center; gap: 7px;">
-          <svg class="ui-icon"><use href="#icon-scale"></use></svg>
-          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Syllabus Progress</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span class="info-badge blue" id="syllabus-tracker-badge" style="font-size: 11px;">0% done</span>
-          <svg class="ui-icon" id="syllabus-tracker-arrow" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
-        </div>
-      </div>
-      <div class="grade-tracker-breakdown" id="syllabus-tracker-breakdown" style="display: none; margin-top: 10px; flex-direction: column; gap: 8px;"></div>
-    </div>
-
     <!-- Controls & Filters -->
     <div class="controls-bar">
       <div class="search-input-wrapper">
@@ -519,6 +472,30 @@
   <!-- VIEW 3: Add Task Manually -->
   <!-- VIEW: Courses (same tab as the phone app's Courses) -->
   <section id="view-courses" class="view-panel">
+      <!-- Grades: projected GPA, each course's grade so far and every mark under it (same card as the phone app) -->
+      <div class="grade-tracker-widget course-summary-card" id="grades-tracker">
+        <button type="button" class="grade-tracker-header" id="grades-tracker-toggle-btn" aria-expanded="false" aria-controls="grades-tracker-breakdown">
+          <span class="course-summary-title"><svg class="ui-icon"><use href="#icon-star"></use></svg><span>Grades</span></span>
+          <span class="course-summary-right">
+            <span class="info-badge blue" id="grades-tracker-badge">No marks yet</span>
+            <svg class="ui-icon course-summary-arrow" id="grades-tracker-arrow"><use href="#icon-chevron-right"></use></svg>
+          </span>
+        </button>
+        <div class="grade-tracker-breakdown" id="grades-tracker-breakdown" hidden></div>
+      </div>
+
+      <!-- Syllabus Progress: how much of each course's weight is done, pending, or not announced yet -->
+      <div class="grade-tracker-widget course-summary-card" id="syllabus-tracker">
+        <button type="button" class="grade-tracker-header" id="syllabus-tracker-toggle-btn" aria-expanded="false" aria-controls="syllabus-tracker-breakdown">
+          <span class="course-summary-title"><svg class="ui-icon"><use href="#icon-list-check"></use></svg><span>Syllabus Progress</span></span>
+          <span class="course-summary-right">
+            <span class="info-badge blue" id="syllabus-tracker-badge">0% done</span>
+            <svg class="ui-icon course-summary-arrow" id="syllabus-tracker-arrow"><use href="#icon-chevron-right"></use></svg>
+          </span>
+        </button>
+        <div class="grade-tracker-breakdown" id="syllabus-tracker-breakdown" hidden></div>
+      </div>
+
       <!-- My Courses: courses, class times and mark breakdown (the phone app's Courses tab has the same card) -->
       <div class="settings-card" id="card-my-courses">
         <div class="settings-card-header">
@@ -526,14 +503,14 @@
             <span class="card-icon"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
             <div>
               <h3 class="settings-card-title">My Courses</h3>
-              <p class="settings-card-subtitle">Manage class times, room locations, and syllabus mark allocations</p>
+              <p class="settings-card-subtitle">Class times, rooms, credit hours and mark breakdown</p>
             </div>
           </div>
           <span class="settings-pill pill-blue" id="pill-course-count">6 Active</span>
         </div>
 
         <p class="settings-card-desc">
-          Configure your enrolled courses, weekly lecture slots, and grade distributions. Deadlines auto-calculate marks and lecture rooms based on these settings.
+          Deadlines take their weight and room from here. Import File reads your syllabus or class schedule.
         </p>
 
         <!-- Course Manager Action Toolbar -->
@@ -1034,7 +1011,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.2</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.3.3</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1851,7 +1828,7 @@
             </div>
             <div class="walkthrough-feature-item">
               <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Marks, GPA and Syllabus Progress cards:</strong> See every mark by course, newest first, each course's grade so far on your university's scale with your projected GPA (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours in the Courses tab.</span>
+              <span><strong>Grades and Syllabus Progress (Courses tab):</strong> Your projected GPA and each course's grade so far on your university's scale, with every mark under it, newest first (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours by editing a course.</span>
             </div>
           </div>
         </div>

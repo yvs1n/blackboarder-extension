@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.3.2",
-  "build": "ef38723f1941",
-  "commit": "b57ce6ea386c63daf255132066f8097e287751e3",
-  "shortCommit": "b57ce6e",
-  "timestamp": "2026-10-27T16:38:31.296Z",
-  "message": "v1.3.1: Show My Classes switch in Settings > Calendar",
+  "version": "1.3.3",
+  "build": "16cf54dc5beb",
+  "commit": "05bcb59a05fad199bee6ed2571c153ba2fb3fe31",
+  "shortCommit": "05bcb59",
+  "timestamp": "2026-10-27T17:07:09.630Z",
+  "message": "v1.3.2: deadlines no longer vanish on the phone; docs and landing page brought up to date",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

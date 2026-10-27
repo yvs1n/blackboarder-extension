@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.2-blue?logo=github&logoColor=white" alt="Version v1.3.2" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.3.3-blue?logo=github&logoColor=white" alt="Version v1.3.3" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-382_Passing-success?logo=vitest&logoColor=white" alt="Vitest 382 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-385_Passing-success?logo=vitest&logoColor=white" alt="Vitest 385 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 
@@ -45,9 +45,9 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Course schedule matching.** When an announcement does not name a room or time, Blackboarder fills it in from your weekly class schedule.
 - **Same layout everywhere.** The extension and the phone app have the same tabs (Calendar, Deadlines, Courses) and the same Settings sections in the same order (General, Sync, Calendar, Alerts, Data, Updates), so a button is where you expect it on both.
 - **Grade weights.** Shows how much each deliverable counts (for example *Midterm 25%*) on cards and in the calendar.
-- **Marks from the Blackboard gradebook.** Every scan reads your gradebook and puts each mark on its deadline. A **Marks** card lists them by course, newest first.
-- **GPA.** Each course's grade so far on your university's grading scale (editable in Settings > General) and a projected GPA weighted by credit hours. Credit hours are set per course in the Courses tab.
-- **Syllabus progress.** For each course, how much of the syllabus weight is done, pending, or not announced yet.
+- **Marks from the Blackboard gradebook.** Every scan reads your gradebook and puts each mark on its deadline.
+- **Grades and GPA.** The **Grades** card at the top of the Courses tab shows your projected GPA, then each course's grade so far on your university's grading scale (editable in Settings > General) with every mark under it, newest first. The GPA is weighted by credit hours, set per course.
+- **Syllabus progress.** Next to Grades: for each course, how much of the syllabus weight is done, pending, or not announced yet.
 - **Add deadlines quickly.** The course field lists your courses and narrows as you type. Closing the popup while adding or editing a deadline, in the Courses tab or in Settings, reopens right there.
 - **Quick links.** One-tap links to marks, attendance, study plan, library and your own custom links, synced to the phone.
 - **Reminders before deadlines.** The phone app reminds you a set time before each deadline, again shortly before, and when it is due (timings in Settings > Alerts).

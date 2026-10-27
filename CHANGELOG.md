@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2026-10-27
+
+### Changed
+
+- **Grades live in the Courses tab.** The Marks and GPA cards are now one **Grades** card: your projected GPA, then each course's grade so far with every mark under it. It sits at the top of the Courses tab with **Syllabus Progress**, in the extension and the phone app, so the Deadlines tab is just deadlines. Each card stays open or closed as you left it.
+- **Clearer GPA points.** Under each course, "3.0 points" now reads like "B = 3.0 of 4.0 GPA points", and "38% of 46.7% graded" reads "38 of 46.7 marks so far".
+- **Courses tab fits the extension.** The tab has margins like the other tabs, course names are no longer cut short (the code, CRN and credit hours sit on a line below), and the card text is shorter.
+
+---
+
 ## [1.3.2] - 2026-10-27
 
 ### Fixed

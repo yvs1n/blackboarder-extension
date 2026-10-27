@@ -1,5 +1,5 @@
 import type { DeadlineTask, TaskType } from '../types';
-import { describeGradeScale, GradeRow } from '../core/universities';
+import { GradeRow } from '../core/universities';
 
 /**
  * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
@@ -199,40 +199,4 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     summary.gpa = round2(counted.reduce((s, c) => s + c.points! * c.creditHours, 0) / gradedCredits);
   }
   return summary;
-}
-
-export function gpaBadgeText(s: GpaSummary): string {
-  return s.gpa === undefined ? 'No marks yet' : `GPA ${s.gpa.toFixed(2)}`;
-}
-
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-}
-
-/** The GPA card body, shared by the extension popup and the phone app (same classes in both stylesheets). */
-export function gpaSummaryHtml(
-  s: GpaSummary,
-  colorFor: (courseName: string) => string,
-  scaleInfo: { name: string; scale: ReadonlyArray<GradeRow>; fromSyllabus?: boolean } = { name: 'UOS', scale: UOS_GRADE_SCALE }
-): string {
-  if (!s.courses.length) return '<div class="marks-empty">No courses configured yet.</div>';
-  const head = s.gpa === undefined
-    ? '<div class="gpa-head"><span class="gpa-value">-</span><span class="gpa-caption">No marks yet. Your GPA appears after the first graded item.</span></div>'
-    : `<div class="gpa-head"><span class="gpa-value">${s.gpa.toFixed(2)}</span><span class="gpa-caption">Projected GPA from marks so far, ${s.gradedCredits} of ${s.totalCredits} credit hours</span></div>`;
-  const rows = s.courses.map(c => {
-    const right = c.percent === undefined
-      ? '<span class="marks-awaiting">No marks yet</span>'
-      : `<span class="marks-pct">${c.percent}%</span><span class="gpa-letter">${esc(c.letter)}</span>`;
-    const detail = c.percent === undefined ? '' : `<div class="gpa-detail">${c.earnedWeight}% of ${c.gradedWeight}% graded · ${c.points!.toFixed(1)} points</div>`;
-    const drops = c.components.filter(k => k.dropped.length).map(k =>
-      `<div class="gpa-detail">${esc(k.name)}${k.rule ? ` (${esc(k.rule)})` : ''}: not counted ${k.dropped.map(d => `${esc(d.title)} ${d.percent}%`).join(', ')}</div>`
-    ).join('');
-    return `<div class="marks-course">
-      <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span><span class="marks-course-total">${c.creditHours} cr</span><span class="marks-right">${right}</span></div>
-      ${detail}${drops}
-    </div>`;
-  }).join('');
-  const scale = describeGradeScale([...scaleInfo.scale]);
-  const cutoffs = scaleInfo.fromSyllabus ? ' Instructors set the percentages, so check your syllabus and edit the scale in Settings if it differs.' : '';
-  return `${head}${rows}<div class="gpa-note">${esc(scaleInfo.name)} scale: ${esc(scale)}.${cutoffs} Grades are your score on what is graded so far; set credit hours in the Courses tab.</div>`;
 }

@@ -4,7 +4,9 @@ import {
 } from '../src/core/universities';
 import { sanitizeProfile, newerProfile, profileUniversity, profileGradeScale } from '../src/core/studentProfile';
 import { normalizeBlackboardOrigin, isBuiltInBlackboardHost } from '../src/utils/blackboardSites';
-import { buildGpaSummary, gradeForPercent, gpaSummaryHtml, UOS_GRADE_SCALE } from '../src/utils/gpa';
+import { buildGpaSummary, gradeForPercent, UOS_GRADE_SCALE } from '../src/utils/gpa';
+import { buildMarksSummary } from '../src/utils/marks';
+import { gradesHtml } from '../src/utils/grades';
 
 describe('university presets', () => {
   it('every scale runs from the top letter down to a 0% row, highest first', () => {
@@ -78,9 +80,11 @@ describe('grading scale editing', () => {
     const s = buildGpaSummary([task], syllabi, zu);
     expect(s.courses[0].letter).toBe('A-');
     expect(s.gpa).toBe(3.7);
-    const html = gpaSummaryHtml(s, () => '#000', { name: 'ZU', scale: zu, fromSyllabus: false });
+    const marks = buildMarksSummary([task], syllabi);
+    const html = gradesHtml(s, marks, () => '#000', { name: 'ZU', scale: zu, fromSyllabus: false });
     expect(html).toContain('ZU scale: A 90+ · A- 87+');
-    expect(gpaSummaryHtml(s, () => '#000', { name: 'AUD', scale: zu, fromSyllabus: true })).toContain('Instructors set the percentages');
+    expect(html).toContain('A- = 3.7 of 4.0 GPA points');
+    expect(gradesHtml(s, marks, () => '#000', { name: 'AUD', scale: zu, fromSyllabus: true })).toContain('Instructors set the percentages');
   });
 });
 

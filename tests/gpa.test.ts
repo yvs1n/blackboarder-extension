@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { buildGpaSummary, gradeForPercent, bestOfFromNote, gpaSummaryHtml, UOS_GRADE_SCALE } from '../src/utils/gpa';
+import { buildGpaSummary, gradeForPercent, bestOfFromNote, UOS_GRADE_SCALE } from '../src/utils/gpa';
+import { buildMarksSummary } from '../src/utils/marks';
+import { gradesHtml } from '../src/utils/grades';
 import { DEFAULT_USER_COURSES, userCoursesToSyllabi } from '../src/core/userCourses';
 import { sanitizeCloudCourses } from '../src/utils/cloudSanitize';
 import type { DeadlineTask } from '../src/types';
@@ -96,7 +98,7 @@ describe('projected GPA', () => {
     t.submissionStatus = 'submitted';
     const s = buildGpaSummary([t], syllabi);
     expect(s.gpa).toBeUndefined();
-    expect(gpaSummaryHtml(s, () => '#000')).toContain('No marks yet');
+    expect(gradesHtml(s, buildMarksSummary([t], syllabi), () => '#000')).toContain('No marks yet');
   });
 
   it('credit hours survive sync', () => {
@@ -112,11 +114,12 @@ describe('projected GPA', () => {
   });
 
   it('the card escapes titles and shows the dropped item', () => {
-    const html = gpaSummaryHtml(buildGpaSummary([
+    const tasks = [
       mark('Calculus I for Engineering', 'Quiz <1>', 'quiz', 2),
       mark('Calculus I for Engineering', 'Quiz 2', 'quiz', 9),
       mark('Calculus I for Engineering', 'Quiz 3', 'quiz', 9)
-    ], syllabi), () => '#000');
+    ];
+    const html = gradesHtml(buildGpaSummary(tasks, syllabi), buildMarksSummary(tasks, syllabi), () => '#000');
     expect(html).toContain('Quiz &lt;1&gt; 20%');
     expect(html).toContain('best 2 of 3');
     expect(html).not.toMatch(/—/);
