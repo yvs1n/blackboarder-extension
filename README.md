@@ -13,7 +13,7 @@
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-418_Passing-success?logo=vitest&logoColor=white" alt="Vitest 418 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-435_Passing-success?logo=vitest&logoColor=white" alt="Vitest 435 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 

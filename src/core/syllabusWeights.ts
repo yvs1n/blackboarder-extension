@@ -394,28 +394,36 @@ export function findCourseSyllabus(courseName: string = '', courseCode: string =
  * Supports passing a task object OR (course, title, type, notes) parameters.
  */
 /**
- * Extracts assessment sequence number from title or context (e.g. "Quiz 2" -> 2, "HW 1" -> 1).
+ * Extracts assessment sequence number from title or context (e.g. "Quiz 2" -> 2, "2nd Quiz" -> 2, "HW 1" -> 1).
+ * Normalizes English, Arabic, Roman numerals, and word ordinals while ignoring secondary topic numbers.
  */
 export function extractAssessmentNumber(title: string, context?: string): number | null {
-  const combined = `${title || ''} ${context || ''}`;
+  if (!title && !context) return null;
 
-  // 1. Explicit numbering like "Quiz 2", "Quiz #2", "Quiz (2)", "Quiz [2]", "Quiz - 2", "HW2", "Assignment 2", "Lab 2"
-  const m = combined.match(/(?:quiz|test|exam|assignment|hw|homework|lab|report|activity|task)[^0-9a-z\n]*#?\s*\(?\s*(\d+)\s*\)?/i);
+  const combined = `${title || ''} ${context || ''}`.trim();
+
+  // 1. Explicit numbering attached to keyword: "Quiz 2", "Quiz #2", "Quiz (1)", "Quiz [2]", "Quiz - 2", "HW2", "Assignment 2", "Lab 2", "كويز 2"
+  const m = combined.match(/(?:quiz|test|exam|midterm|assignment|hw|homework|lab|report|activity|task|كويز|اختبار|امتحان|واجب|تقرير|مشروع)[^0-9a-z\u0600-\u06ff\n]*#?\s*\(?\s*(\d+|[١-٩]|١٠)(?:[^0-9a-z\u0600-\u06ff]|$)\s*\)?/i);
   if (m) {
-    const num = parseInt(m[1], 10);
+    const raw = m[1];
+    const arDigits: Record<string, number> = { '١': 1, '٢': 2, '٣': 3, '٤': 4, '٥': 5, '٦': 6, '٧': 7, '٨': 8, '٩': 9, '١٠': 10 };
+    const num = arDigits[raw] || parseInt(raw, 10);
     if (!isNaN(num) && num > 0) return num;
   }
 
-  // 2. Roman numerals: "Quiz I", "Quiz II", "Quiz (II)", "Quiz III", "Quiz IV", "Quiz V"
-  const romanMatch = combined.match(/(?:quiz|test|exam|assignment|hw|homework|lab|report|activity|task)[^0-9a-z\n]*\(?\s*(I|II|III|IV|V)\b\s*\)?/i);
+  // 2. Roman numerals attached to keyword: "Quiz I", "Quiz II", "Quiz (II)", "Quiz III", "Quiz IV", "Quiz V", "Quiz VI", etc.
+  const romanMatch = combined.match(/(?:quiz|test|exam|midterm|assignment|hw|homework|lab|report|activity|task)[^0-9a-z\u0600-\u06ff\n]*\(?\s*(I|II|III|IV|V|VI|VII|VIII|IX|X)\b\s*\)?/i);
   if (romanMatch) {
-    const map: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5 };
+    const map: Record<string, number> = {
+      I: 1, II: 2, III: 3, IV: 4, V: 5,
+      VI: 6, VII: 7, VIII: 8, IX: 9, X: 10
+    };
     const roman = romanMatch[1].toUpperCase();
     if (map[roman]) return map[roman];
   }
 
-  // 3. Ordinal words: "First Quiz", "Second Quiz", "1st Quiz", "2nd Quiz"
-  const ordMatch = combined.match(/\b(1st|2nd|3rd|4th|5th|first|second|third|fourth|fifth)\s+(?:quiz|test|exam|assignment|hw|homework|lab|report|activity|task)/i);
+  // 3. Ordinal words before assessment: "First Quiz", "Second Quiz", "1st Quiz", "2nd Quiz", "3rd quiz", "2nd Quiz (Vector & Free Fall)"
+  const ordMatch = combined.match(/\b(1st|2nd|3rd|4th|5th|6th|7th|8th|9th|10th|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+(?:online\s+|pop\s+|announced\s+|makeup\s+|take[- ]home\s+)?(?:quiz|test|exam|midterm|assignment|hw|homework|lab|report|activity|task)/i);
   if (ordMatch) {
     const ord = ordMatch[1].toLowerCase();
     const map: Record<string, number> = {
@@ -423,9 +431,38 @@ export function extractAssessmentNumber(title: string, context?: string): number
       '2nd': 2, 'second': 2,
       '3rd': 3, 'third': 3,
       '4th': 4, 'fourth': 4,
-      '5th': 5, 'fifth': 5
+      '5th': 5, 'fifth': 5,
+      '6th': 6, 'sixth': 6,
+      '7th': 7, 'seventh': 7,
+      '8th': 8, 'eighth': 8,
+      '9th': 9, 'ninth': 9,
+      '10th': 10, 'tenth': 10
     };
     if (map[ord]) return map[ord];
+  }
+
+  // 4. Arabic ordinals before or after: "الكويز الثاني", "الاختبار الأول", "الواجب الثالث", "ثاني كويز"
+  const arOrdMap: Record<string, number> = {
+    'الاول': 1, 'الأول': 1, 'أول': 1, 'اول': 1,
+    'الثاني': 2, 'الثانى': 2, 'ثاني': 2, 'ثانى': 2,
+    'الثالث': 3, 'ثالث': 3,
+    'الرابع': 4, 'رابع': 4,
+    'الخامس': 5, 'خامس': 5,
+    'السادس': 6, 'سادس': 6,
+    'السابع': 7, 'سابع': 7,
+    'الثامن': 8, 'ثامن': 8,
+    'التاسع': 9, 'تاسع': 9,
+    'العاشر': 10, 'عاشر': 10
+  };
+
+  const arMatchAfter = combined.match(/(?:الكويز|الاختبار|الامتحان|الواجب|التقرير|المشروع|كويز|اختبار|امتحان|واجب|تقرير|مشروع)\s+(الاول|الأول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|اول|أول|ثاني|ثانى|ثالث|رابع|خامس)/i);
+  if (arMatchAfter && arOrdMap[arMatchAfter[1]]) {
+    return arOrdMap[arMatchAfter[1]];
+  }
+
+  const arMatchBefore = combined.match(/(الاول|الأول|الثاني|الثانى|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|اول|أول|ثاني|ثانى|ثالث|رابع|خامس)\s+(?:كويز|اختبار|امتحان|واجب|تقرير|مشروع)/i);
+  if (arMatchBefore && arOrdMap[arMatchBefore[1]]) {
+    return arOrdMap[arMatchBefore[1]];
   }
 
   return null;

@@ -232,10 +232,36 @@ const cleanName = (s?: string) => (s || '').toLowerCase().replace(/[^a-z0-9\u060
  * "Free Fall Exp. - Lab Report" both become "freefall"; "2nd Quiz (Vector & Free Fall)" becomes "quiz2".
  */
 export function coreTitle(s?: string): string {
-  return (s || '').toLowerCase()
+  if (!s) return '';
+  let str = s.toLowerCase();
+
+  // Normalize ordinals + assessment type into "<type><number>"
+  // e.g. "2nd Quiz" -> "quiz 2", "second quiz" -> "quiz 2", "الكويز الثاني" -> "quiz 2"
+  str = str.replace(/\b(?:the\s+)?(\d+)(?:st|nd|rd|th)\s+(quiz|exam|test|midterm|assignment|homework|hw|lab)\b/gi, '$2 $1');
+  str = str.replace(/\b(?:the\s+)?(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\s+(quiz|exam|test|midterm|assignment|homework|hw|lab)\b/gi, (_, ord, typ) => {
+    const ordMap: Record<string, number> = {
+      first: 1, second: 2, third: 3, fourth: 4, fifth: 5,
+      sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10
+    };
+    return `${typ} ${ordMap[ord.toLowerCase()] || ord}`;
+  });
+  str = str.replace(/\b(quiz|exam|test|midterm|assignment|homework|hw|lab)\s+(?:#|no\.?)?\s*(i{1,3}|iv|v|vi{0,3}|ix|x)\b/gi, (_, typ, rom) => {
+    const romMap: Record<string, number> = {
+      i: 1, ii: 2, iii: 3, iv: 4, v: 5,
+      vi: 6, vii: 7, viii: 8, ix: 9, x: 10
+    };
+    return `${typ} ${romMap[rom.toLowerCase()] || rom}`;
+  });
+  str = str.replace(/(?:الكويز|كويز|الاختبار|اختبار)\s+(?:ال)?(اول|أول|ثاني|ثانى|ثالث|رابع|خامس)/gi, (_, ord) => {
+    const arMap: Record<string, number> = {
+      'اول': 1, 'أول': 1, 'ثاني': 2, 'ثانى': 2, 'ثالث': 3, 'رابع': 4, 'خامس': 5
+    };
+    return `quiz ${arMap[ord] || 1}`;
+  });
+
+  return str
     .replace(/\([^)]*\)/g, ' ')
     .replace(/\b(?:graded|grades?|marks?|score|submission|submit)\b/g, ' ')
-    .replace(/\b(\d+)(?:st|nd|rd|th)\s+(quiz|exam|test|assignment|homework|hw|lab)\b/g, '$2 $1')
     .replace(/\b(?:students?'?s?|student's|exp|experiment|lab|labs|report|the|of)\b\.?/g, ' ')
     .replace(/[^a-z0-9\u0600-\u06ff]/g, '');
 }

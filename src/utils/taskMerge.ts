@@ -1,5 +1,9 @@
 import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes } from '../core/courseHelper';
+import { coreTitle, isPracticeTitle } from './streamParser';
+import { extractAssessmentNumber } from '../core/syllabusWeights';
+
+export { extractAssessmentNumber };
 
 export type TombstoneMap = Record<string, string>;
 
@@ -217,6 +221,13 @@ export function getTaskSeriesInfo(
 export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   if (!a || !b) return false;
   if (a.id === b.id) return true;
+
+  // Exact same grade source ID from gradebook column (e.g. col__1924969_1)
+  if (a.gradeSourceId && b.gradeSourceId && a.gradeSourceId === b.gradeSourceId) return true;
+
+  // A practice run, mock exam, or sample paper never matches a real assessment
+  if (isPracticeTitle(a.title) !== isPracticeTitle(b.title)) return false;
+
   const cleanA = (a.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
   const cleanB = (b.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
 
@@ -228,13 +239,41 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   const courseB = resolveCourseInfo(b).courseName.toLowerCase();
   if (courseA !== courseB) return false;
 
-  const timeA = new Date(a.dueDate).getTime();
-  const timeB = new Date(b.dueDate).getTime();
-  if (isNaN(timeA) || isNaN(timeB)) return false;
-
-  const diffMs = Math.abs(timeA - timeB);
   const typeA = normalizeAssessmentType(a.type);
   const typeB = normalizeAssessmentType(b.type);
+
+  // Check assessment sequence numbers (e.g. Quiz 1 vs Quiz 2)
+  const numA = extractAssessmentNumber(a.title);
+  const numB = extractAssessmentNumber(b.title);
+
+  // If both have explicit sequence numbers and they differ, they are NEVER duplicates
+  if (numA !== null && numB !== null && numA !== numB) {
+    return false;
+  }
+
+  const timeA = new Date(a.dueDate).getTime();
+  const timeB = new Date(b.dueDate).getTime();
+  const hasTimeA = !isNaN(timeA);
+  const hasTimeB = !isNaN(timeB);
+  const diffMs = (hasTimeA && hasTimeB) ? Math.abs(timeA - timeB) : Infinity;
+
+  // Case 0: Same course, same assessment type, and same assessment number (e.g. "Quiz 2" and "2nd Quiz (Vector & Free Fall)")
+  // Within 7 days (academic week slack between announcement estimate and gradebook cutoff), or missing date.
+  if (numA !== null && numB !== null && numA === numB && typeA === typeB) {
+    if (!hasTimeA || !hasTimeB || diffMs <= 7 * 24 * 60 * 60 * 1000) {
+      return true;
+    }
+  }
+
+  // Case 0b: Normalized coreTitle match within the same course and type
+  // (e.g. "Free Fall Exp. - Lab Report" vs "Free Fall Exp. Student's Lab Report")
+  const coreA = coreTitle(a.title);
+  const coreB = coreTitle(b.title);
+  if (coreA && coreB && coreA.length >= 4 && coreA === coreB && typeA === typeB) {
+    if (!hasTimeA || !hasTimeB || diffMs <= 7 * 24 * 60 * 60 * 1000) {
+      return true;
+    }
+  }
 
   const isGenericA = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(a.title.trim());
   const isGenericB = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(b.title.trim());
@@ -269,28 +308,53 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
 export function mergeDuplicatePair(existing: DeadlineTask, incoming: DeadlineTask): DeadlineTask {
   const isUserEdited = Boolean(existing.userEdited || incoming.userEdited);
 
-  // Prefer specific title over generic ('Assignment', 'Untitled', etc.)
-  const isExistingGeneric = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(existing.title.trim());
-  const isIncomingGeneric = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(incoming.title.trim());
+  // Title: student edits win (Rule 3); otherwise prefer longer, more informative title
   let title = existing.title;
-  if (isExistingGeneric && !isIncomingGeneric) {
+  if (existing.userEdited && !incoming.userEdited) {
+    title = existing.title;
+  } else if (incoming.userEdited && !existing.userEdited) {
     title = incoming.title;
-  } else if (!isExistingGeneric && !isIncomingGeneric) {
-    title = existing.title.length >= incoming.title.length ? existing.title : incoming.title;
+  } else {
+    const isExistingGeneric = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(existing.title.trim());
+    const isIncomingGeneric = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(incoming.title.trim());
+    if (isExistingGeneric && !isIncomingGeneric) {
+      title = incoming.title;
+    } else if (!isExistingGeneric && isIncomingGeneric) {
+      title = existing.title;
+    } else {
+      title = existing.title.length >= incoming.title.length ? existing.title : incoming.title;
+    }
   }
 
-  // Prefer specific time over class time
+  // Due date: student edits win (Rule 3); otherwise prefer specific time or official gbcol date
   let dueDate = existing.dueDate;
   let hasSpecificTime = existing.hasSpecificTime;
-  if (!existing.hasSpecificTime && incoming.hasSpecificTime) {
+  if (existing.userEdited && !incoming.userEdited) {
+    dueDate = existing.dueDate;
+    hasSpecificTime = existing.hasSpecificTime;
+  } else if (incoming.userEdited && !existing.userEdited) {
+    dueDate = incoming.dueDate;
+    hasSpecificTime = incoming.hasSpecificTime;
+  } else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_') && incoming.hasSpecificTime) {
+    dueDate = incoming.dueDate;
+    hasSpecificTime = true;
+  } else if (!existing.hasSpecificTime && incoming.hasSpecificTime) {
     dueDate = incoming.dueDate;
     hasSpecificTime = true;
   }
 
-  // Status: if either is completed, it stays completed!
-  const status = (existing.status === 'completed' || incoming.status === 'completed')
+  // Status: if either is completed or has marks, it stays completed
+  const submissionStatus = (existing.submissionStatus === 'graded' || incoming.submissionStatus === 'graded')
+    ? 'graded'
+    : (existing.submissionStatus || incoming.submissionStatus);
+
+  const status = (existing.status === 'completed' || incoming.status === 'completed' ||
+                  submissionStatus === 'graded' || submissionStatus === 'submitted')
     ? 'completed'
     : (existing.status === 'dismissed' ? 'dismissed' : incoming.status);
+
+  // Type: prefer specific type over generic assignment
+  const type = (existing.type && existing.type !== 'assignment' ? existing.type : incoming.type) || existing.type;
 
   // Description / sourceSnippet: pick longer
   const desc = (existing.description || '').length >= (incoming.description || '').length
@@ -309,9 +373,25 @@ export function mergeDuplicatePair(existing: DeadlineTask, incoming: DeadlineTas
   const weightDisplay = existing.weightDisplay || incoming.weightDisplay;
   const syllabusNote = existing.syllabusNote || incoming.syllabusNote;
 
-  // Stable ID: prefer non-generic stream ID or existing ID
+  // Marks & grade sources: preserve whichever has graded marks
+  const score = existing.score !== undefined ? existing.score : incoming.score;
+  const maxScore = existing.maxScore !== undefined ? existing.maxScore : incoming.maxScore;
+  const scoreDisplay = existing.scoreDisplay || incoming.scoreDisplay;
+  const gradedAt = existing.gradedAt || incoming.gradedAt;
+  const gradeSourceId = existing.gradeSourceId || incoming.gradeSourceId;
+  const markProvisional = existing.gradeSourceId ? existing.markProvisional : incoming.markProvisional;
+  const gradeSourcesBefore = Array.from(new Set([
+    ...(existing.gradeSourcesBefore || []),
+    ...(incoming.gradeSourcesBefore || [])
+  ]));
+  const submissionReceipt = existing.submissionReceipt || incoming.submissionReceipt;
+  const submittedAt = existing.submittedAt || incoming.submittedAt;
+
+  // Stable ID: prefer gbcol ID or existing ID over generic stream ID
   let id = existing.id;
-  if (existing.id.startsWith('stream_UOS_Assignment_') && !incoming.id.startsWith('stream_UOS_Assignment_')) {
+  if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_')) {
+    id = incoming.id;
+  } else if (existing.id.startsWith('stream_UOS_Assignment_') && !incoming.id.startsWith('stream_UOS_Assignment_')) {
     id = incoming.id;
   }
 
@@ -322,6 +402,7 @@ export function mergeDuplicatePair(existing: DeadlineTask, incoming: DeadlineTas
     title,
     dueDate,
     hasSpecificTime,
+    type,
     status,
     description: desc,
     sourceSnippet: snippet,
@@ -330,6 +411,16 @@ export function mergeDuplicatePair(existing: DeadlineTask, incoming: DeadlineTas
     weight,
     weightDisplay,
     syllabusNote,
+    ...(submissionStatus ? { submissionStatus } : {}),
+    ...(score !== undefined ? { score } : {}),
+    ...(maxScore !== undefined ? { maxScore } : {}),
+    ...(scoreDisplay ? { scoreDisplay } : {}),
+    ...(gradedAt ? { gradedAt } : {}),
+    ...(gradeSourceId ? { gradeSourceId } : {}),
+    ...(markProvisional !== undefined ? { markProvisional } : {}),
+    ...(gradeSourcesBefore.length ? { gradeSourcesBefore } : {}),
+    ...(submissionReceipt ? { submissionReceipt } : {}),
+    ...(submittedAt ? { submittedAt } : {}),
     userEdited: isUserEdited,
     updatedAt: new Date(Math.max(
       new Date(existing.updatedAt || existing.createdAt || 0).getTime(),
