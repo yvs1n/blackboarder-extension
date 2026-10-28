@@ -490,6 +490,20 @@ function syncAllComponents(version) {
       console.log(`  ✓ Synced src/popup/index.html to v${version}`);
     }
   }
+
+  // 5. Sync export/extension/README.md template
+  const exportReadmePath = r('export', 'extension', 'README.md');
+  if (fs.existsSync(exportReadmePath)) {
+    let exportReadme = readText(exportReadmePath);
+    const versionBadgeRegex = /badge\/Version-v[0-9.]+-blue/g;
+    const altRegex = /alt="Version v[0-9.]+"/g;
+    exportReadme = exportReadme
+      .replace(versionBadgeRegex, `badge/Version-v${version}-blue`)
+      .replace(altRegex, `alt="Version v${version}"`);
+    if (writeIfChanged(exportReadmePath, exportReadme)) {
+      console.log(`  ✓ Synced export/extension/README.md to v${version}`);
+    }
+  }
 }
 
 async function main() {

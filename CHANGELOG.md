@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.3] - 2026-10-28
+
+### Changed
+
+- **Documentation & feature sync.** Synchronized all project documentation files (`README.md`, `export/extension/README.md`, `AGENTS.md`, and `export/extension/AGENTS.md`) to document submitted assessment mark safety rules, and updated `scripts/build.js` to automatically synchronize public extension templates on every build.
+
+---
+
 ## [1.4.2] - 2026-10-28
 
 ### Fixed
