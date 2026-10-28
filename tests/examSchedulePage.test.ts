@@ -7,6 +7,8 @@ import {
   resolveExamRoom,
   extractExamScheduleRowsFromDoc,
   scrapeExamScheduleFromDoc,
+  extractExamScheduleRowsFromHtml,
+  scrapeExamScheduleFromHtml,
   isExamSchedulePage,
   mergeExamScheduleTasks
 } from '../src/core/examSchedule';
@@ -268,9 +270,11 @@ describe('Banner Student Exam Schedule Page Parser', () => {
 
     const rows = extractExamScheduleRowsFromDoc(doc);
     expect(rows).toHaveLength(11);
+    expect(extractExamScheduleRowsFromHtml(BANNER_STUDENT_EXAM_HTML)).toEqual(rows);
 
     const tasks = scrapeExamScheduleFromDoc(doc, '2026-10-27T18:00:00.000Z');
     expect(tasks).toHaveLength(11);
+    expect(scrapeExamScheduleFromHtml(BANNER_STUDENT_EXAM_HTML, '2026-10-27T18:00:00.000Z')).toEqual(tasks);
 
     // 1. Islamic Culture Midterm (Comment override C12 TH005)
     const islamicMid = tasks.find(t => t.courseCode === '0104100' && t.title === 'Midterm Exam')!;

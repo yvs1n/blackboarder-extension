@@ -1,6 +1,7 @@
-import { DeadlineTask, TaskType } from '../types';
-import { parseCourseDetails } from '../core/courseHelper';
+import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
+import { parseCourseDetails, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
 import { resolveTaskWeight } from '../core/syllabusWeights';
+import { resolveTaskRoom } from '../core/courseSchedule';
 
 /**
  * Parses direct deadline cards from Blackboard Ultra activity stream timeline.
@@ -328,4 +329,191 @@ export function findTaskForUpdate(
   // With no course to go on, only a single candidate is safe
   if (scored[0].rank < 2 && scored.filter(s => s.rank === scored[0].rank).length > 1) return undefined;
   return scored[0].task;
+}
+
+function stripHtmlTags(html: string): string {
+  return String(html || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim();
+}
+
+/**
+ * Parses Blackboard Ultra's `POST /learn/api/v1/streams/ultra` response (`sv_streamEntries`)
+ * into direct due-date tasks, announcements, and grade/submission updates without needing a DOM.
+ */
+export function parseUltraStreamEntries(
+  payload: any,
+  coursesById: Map<string, { name: string; code: string }>,
+  baseUrl: string = '',
+  nowIso: string = new Date().toISOString()
+): {
+  directTasks: DeadlineTask[];
+  announcements: Announcement[];
+  submissionUpdates: TaskSubmissionUpdate[];
+} {
+  const directTasks: DeadlineTask[] = [];
+  const announcements: Announcement[] = [];
+  const submissionUpdates: TaskSubmissionUpdate[] = [];
+  const entries: any[] = Array.isArray(payload?.sv_streamEntries)
+    ? payload.sv_streamEntries
+    : Array.isArray(payload?.results)
+      ? payload.results
+      : [];
+
+  const seenDirectIds = new Set<string>();
+  const seenAnnIds = new Set<string>();
+
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue;
+    const courseId = String(entry.se_courseId || '');
+    const courseMeta = coursesById.get(courseId);
+    const parsedCourse = courseMeta
+      ? parseCourseDetails(`${courseMeta.code || ''} ${courseMeta.name || ''}`.trim())
+      : { name: 'General Course', code: '' };
+    const courseName = (courseMeta?.name && courseMeta.name !== 'General Course')
+      ? courseMeta.name
+      : parsedCourse.name;
+    const courseCode = (courseMeta?.code && courseMeta.code !== 'UOS')
+      ? courseMeta.code
+      : (parsedCourse.code !== 'UOS' ? parsedCourse.code : '');
+
+    // Skip orientation / mock sandbox courses
+    if (/student hands-on orientation|blackboard orientation/i.test(courseName)) continue;
+
+    const providerId = String(entry.providerId || '');
+    const itemData = entry.itemSpecificData || {};
+    const notif = itemData.notificationDetails || {};
+    const rawTitle = stripHtmlTags(itemData.title || notif.announcementTitle || '').trim();
+
+    if (providerId === 'bb-announcement' || notif.announcementTitle || notif.announcementBody) {
+      const annIdRaw = notif.sourceId || entry.se_id || '';
+      const annTitle = rawTitle || stripHtmlTags(notif.announcementTitle || '');
+      const bodyHtml = String(notif.announcementBody || itemData.body || entry.se_context || '');
+      const bodyText = sanitizeDoctorAnnouncementText(stripHtmlTags(bodyHtml) || annTitle, courseName, courseCode, annTitle);
+      if (annTitle && bodyText.length > 5) {
+        const id = annIdRaw ? `ann_ultra_${annIdRaw}` : `ann_stream_${courseId}_${annTitle.slice(0, 15).replace(/\s+/g, '')}`;
+        if (!seenAnnIds.has(id)) {
+          seenAnnIds.add(id);
+          announcements.push({
+            id,
+            courseCode,
+            courseName,
+            title: annTitle,
+            postedAt: notif.startDate || entry.se_timestamp || nowIso,
+            contentText: bodyText,
+            contentHtml: bodyHtml,
+            sourceUrl: baseUrl ? `${baseUrl.replace(/\/+$/, '')}/ultra/stream` : '',
+            scannedAt: nowIso
+          });
+        }
+      }
+      continue;
+    }
+
+    if (providerId === 'bb_mygrades' || itemData.gradeDetails) {
+      const gd = itemData.gradeDetails || {};
+      if (gd.isExempt || (gd.calculationType && gd.calculationType !== 'NON_CALCULATED')) continue;
+      if (!rawTitle || /attendance/i.test(rawTitle)) continue;
+
+      const rhs = String(entry.se_rhs || '');
+      const colMatch = rhs.match(/gradable_item_id=(_\d+_\d+)/);
+      const sourceId = colMatch ? `gb:${colMatch[1]}` : undefined;
+      const scoreNum = typeof gd.displayGradeScore === 'number'
+        ? gd.displayGradeScore
+        : (typeof gd.displayGradeScore === 'string' && gd.displayGradeScore.trim() !== '' ? Number(gd.displayGradeScore) : NaN);
+      const maxNum = typeof gd.pointsPossible === 'number'
+        ? gd.pointsPossible
+        : (typeof gd.pointsPossible === 'string' ? Number(gd.pointsPossible) : NaN);
+      const gradedAt = gd.lastGradedDate || gd.gradedDate || entry.se_timestamp;
+
+      if (!isNaN(scoreNum)) {
+        const score = Math.round(scoreNum * 100) / 100;
+        const maxScore = !isNaN(maxNum) && maxNum > 0 ? Math.round(maxNum * 100) / 100 : undefined;
+        submissionUpdates.push({
+          courseName: courseName !== 'General Course' ? courseName : undefined,
+          courseCode: courseCode || undefined,
+          title: rawTitle,
+          sourceId,
+          gradedAt: gradedAt && !isNaN(new Date(gradedAt).getTime()) ? gradedAt : undefined,
+          submissionStatus: 'graded',
+          score,
+          maxScore,
+          scoreDisplay: maxScore ? `${score} / ${maxScore} (${Math.round((score / maxScore) * 100)}%)` : `${score} pts`
+        });
+      }
+      continue;
+    }
+
+    if (providerId === 'bb-nautilus' && notif.dueDate && rawTitle) {
+      const eventType = String(notif.eventType || '');
+      // Skip non-deadline notifications or file-upload noise
+      if (/^(?:added|updated|edited|new\s+content)\s*:/i.test(rawTitle)) continue;
+      if (/blackboard\s*orientation/i.test(rawTitle)) continue;
+      if (eventType && /GRADED|SUBMITTED/i.test(eventType)) continue;
+
+      const due = new Date(notif.dueDate);
+      if (isNaN(due.getTime())) continue;
+      if (courseName === 'General Course' && !courseCode) continue;
+
+      const cleanTaskTitle = rawTitle.replace(/^(?:due\s*(?:in|date)?|reminder|announcement)[:\s-]*/i, '').trim();
+      if (!cleanTaskTitle) continue;
+
+      let type: TaskType = 'assignment';
+      if (/quiz|كويز|اختبار\s*قصير/i.test(cleanTaskTitle)) type = 'quiz';
+      else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان/i.test(cleanTaskTitle)) type = 'exam';
+      else if (/project|مشروع|بحث/i.test(cleanTaskTitle)) type = 'project';
+
+      const taskId = `stream_${courseCode || 'task'}_${cleanTaskTitle.slice(0, 15).replace(/\s+/g, '')}_${due.getTime()}`;
+      if (seenDirectIds.has(taskId)) continue;
+      seenDirectIds.add(taskId);
+
+      const weightInfo = resolveTaskWeight({
+        title: cleanTaskTitle,
+        courseName,
+        courseCode,
+        type,
+        sourceSnippet: cleanTaskTitle
+      });
+      const roomInfo = resolveTaskRoom({
+        courseNameOrCode: courseName || courseCode,
+        title: cleanTaskTitle,
+        type
+      });
+
+      directTasks.push({
+        id: taskId,
+        courseCode,
+        courseName,
+        title: cleanTaskTitle,
+        description: '',
+        dueDate: due.toISOString(),
+        hasSpecificTime: true,
+        type,
+        priority: 'high',
+        status: 'pending',
+        sourceSnippet: `Due Date: ${due.toISOString()}`,
+        confidence: 1.0,
+        extractedBy: 'local',
+        weight: weightInfo.weight,
+        weightDisplay: weightInfo.weightDisplay,
+        syllabusNote: weightInfo.syllabusNote,
+        room: roomInfo.room || undefined,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+  }
+
+  return { directTasks, announcements, submissionUpdates };
 }

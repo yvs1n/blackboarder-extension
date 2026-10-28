@@ -9,6 +9,7 @@ import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
 import { dueClassReminders, nextClassReminderAt, classReminderText } from '../core/classSchedule';
 import { refreshExamSchedule } from './examRefresh';
+import { runHttpBlackboardScan, isHttpScanRunning } from './httpScanner';
 
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
@@ -421,6 +422,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .then(res => sendResponse(res))
       .catch(() => sendResponse({ state: 'error' }));
     return true;
+  }
+  if (message.type === 'RUN_HTTP_SCAN') {
+    runHttpBlackboardScan(Boolean(message.fullRescan), async () => {
+      await updateExtensionBadge();
+      await syncDeadlinesToMobileServer();
+    })
+      .then(res => sendResponse(res))
+      .catch(err => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  if (message.type === 'PING_HTTP_SCANNER') {
+    sendResponse({ ok: true, scanning: isHttpScanRunning() });
+    return false;
   }
   if (message.type === 'OPEN_POPUP') {
     chrome.action.openPopup?.().catch(() => {});

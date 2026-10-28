@@ -42,8 +42,8 @@ export interface UniversityPreset {
   blackboardUrl?: string;
   quickLinks?: QuickLinkPreset[];
   /**
-   * The student's exam schedule page (midterms and finals), when known. A Scan the student starts
-   * on Blackboard reads it in a background tab (src/background/examRefresh.ts); they must be signed in.
+   * The student's exam schedule page (midterms and finals), when known. A Scan reads it directly
+   * over HTTP with credentials (src/background/examRefresh.ts); they must be signed in.
    */
   examSchedulePage?: string;
   timeZone: string;

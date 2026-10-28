@@ -3,9 +3,9 @@ import { processAnnouncementsBatch, titleCourseKeyFor } from '../engine/hybridEx
 import { getSettings, getTasks, saveTasksMergingLatest, saveAnnouncements, getLastScanCheckpoint, saveLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
 import { setActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode, isValidTask } from '../core/courseHelper';
-import { parseDirectStreamCard, parseSubmissionOrGradeCard } from '../utils/streamParser';
+import { parseDirectStreamCard, parseSubmissionOrGradeCard, parseUltraStreamEntries, findTaskForUpdate } from '../utils/streamParser';
 import { deduplicateTaskList } from '../utils/taskMerge';
-import { gradebookToUpdates, applySubmissionUpdates, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
+import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
@@ -588,6 +588,21 @@ function getBlackboardFetchHeaders(): Record<string, string> {
 
 /** Course id -> course name, filled while collecting course ids. */
 const courseNamesById = new Map<string, string>();
+const courseCodesById = new Map<string, string>();
+const skippedCourseIds = new Set<string>();
+
+function isOrientationOrSandboxCourse(name?: string, externalId?: string): boolean {
+  const n = String(name || '');
+  const ext = String(externalId || '');
+  return /^mock_exam/i.test(ext) || /student\s*hands-on\s*orientation|blackboard\s*orientation/i.test(n);
+}
+
+function extractCodeFromExternalId(externalId?: string): string {
+  const s = String(externalId || '').trim();
+  const m = s.match(/^(\d{4})\s*(\d{3})(?:[_\s-]|$)/) || s.match(/^([A-Za-z]{2,4}[-\s]?\d{3})(?:[_\s-]|$)/);
+  if (!m) return '';
+  return m[2] ? `${m[1]} ${m[2]}` : m[1].toUpperCase();
+}
 
 /**
  * Extracts all Blackboard course IDs from the URL, DOM elements, and student course API.
@@ -613,8 +628,13 @@ async function extractAllCourseIdsFromPage(): Promise<string[]> {
     const href = (a as HTMLAnchorElement).getAttribute('href') || '';
     const m = href.match(/(?:courses\/|course_id=|[?&]id=)(_\d+_\d+)/);
     if (m) {
-      ids.add(m[1]);
       const name = a.textContent?.trim() || '';
+      if (isOrientationOrSandboxCourse(name)) {
+        skippedCourseIds.add(m[1]);
+        ids.delete(m[1]);
+        return;
+      }
+      ids.add(m[1]);
       if (name && !courseNamesById.has(m[1])) courseNamesById.set(m[1], name);
     }
   });
@@ -630,10 +650,22 @@ async function extractAllCourseIdsFromPage(): Promise<string[]> {
       if (data && Array.isArray(data.results)) {
         for (const item of data.results) {
           if (item.courseId && typeof item.courseId === 'string' && item.courseId.startsWith('_')) {
+            const name = typeof item.course?.name === 'string' ? item.course.name.trim() : '';
+            const extId = String(item.course?.courseId || item.course?.externalId || '');
+            if (isOrientationOrSandboxCourse(name, extId)) {
+              skippedCourseIds.add(item.courseId);
+              ids.delete(item.courseId);
+              courseNamesById.delete(item.courseId);
+              continue;
+            }
             ids.add(item.courseId);
-            const name = item.course?.name;
-            if (typeof name === 'string' && name.trim() && !courseNamesById.has(item.courseId)) {
-              courseNamesById.set(item.courseId, name.trim());
+            const extCode = extractCodeFromExternalId(extId);
+            if (extCode) courseCodesById.set(item.courseId, extCode);
+            if (name) {
+              const combined = extCode && !name.includes(extCode.replace(/\s+/g, ''))
+                ? `${extCode} - ${name}`
+                : name;
+              courseNamesById.set(item.courseId, combined);
             }
           }
         }
@@ -641,6 +673,10 @@ async function extractAllCourseIdsFromPage(): Promise<string[]> {
     }
   } catch {
     // Ignore API discovery failure if offline or permissions restricted
+  }
+
+  for (const skipId of skippedCourseIds) {
+    ids.delete(skipId);
   }
 
   return Array.from(ids);
@@ -903,9 +939,44 @@ function saveSessionStatus(expired: boolean): void {
 
 /** What the last gradebook read found, for the scan message and the console line. */
 let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] as string[] };
+let lastGradebookColumnTasks: DeadlineTask[] = [];
+
+async function fetchUltraStreamApi(): Promise<{
+  directTasks: DeadlineTask[];
+  announcements: Announcement[];
+  submissionUpdates: TaskSubmissionUpdate[];
+}> {
+  try {
+    const res = await bbFetch('/learn/api/v1/streams/ultra', {
+      method: 'POST',
+      headers: {
+        ...getBlackboardFetchHeaders(),
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ providers: {}, forOverview: false, retrieveOnly: true, flushCache: false })
+    });
+    if (!res.ok) return { directTasks: [], announcements: [], submissionUpdates: [] };
+    const data = await res.json();
+    const coursesMap = new Map<string, { name: string; code: string }>();
+    for (const k of KNOWN_UOS_COURSE_IDS) {
+      coursesMap.set(k.courseId, { name: k.name, code: k.code });
+    }
+    for (const [cid, rawName] of courseNamesById.entries()) {
+      const parsed = parseCourseDetails(rawName);
+      const code = courseCodesById.get(cid) || (parsed.code !== 'UOS' ? parsed.code : '');
+      const name = parsed.name !== 'General Course' ? parsed.name : rawName;
+      coursesMap.set(cid, { name, code });
+    }
+    return parseUltraStreamEntries(data, coursesMap, window.location.origin);
+  } catch {
+    return { directTasks: [], announcements: [], submissionUpdates: [] };
+  }
+}
 
 async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
   lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] };
+  lastGradebookColumnTasks = [];
   const getJson = async (path: string) => {
     const res = await bbFetch(path, { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
     return res.ok ? res.json() : null;
@@ -938,6 +1009,7 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
 
   const courseIds = await extractAllCourseIdsFromPage();
   lastGradebookRead.courses = courseIds.length;
+  const colTaskLists: DeadlineTask[][] = [];
   const perCourse = await Promise.all(courseIds.map(async cid => {
     try {
       const [cols, grades] = await Promise.all([
@@ -953,9 +1025,20 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
       const known = KNOWN_UOS_COURSE_IDS.find(k => k.courseId === cid);
       const apiName = courseNamesById.get(cid);
       const parsed = apiName ? parseCourseDetails(apiName) : null;
+      const extCode = courseCodesById.get(cid);
       const course = parsed && parsed.name !== 'General Course'
-        ? { name: parsed.name, code: parsed.code || known?.code || '' }
-        : known ? { name: known.name, code: known.code } : { name: '', code: '' };
+        ? { name: parsed.name, code: (parsed.code !== 'UOS' ? parsed.code : '') || extCode || known?.code || '' }
+        : known ? { name: known.name, code: extCode || known.code } : { name: '', code: extCode || '' };
+      if (isOrientationOrSandboxCourse(course.name || apiName)) {
+        return [];
+      }
+      colTaskLists.push(
+        gradebookColumnsToTasks(cols.results, {
+          courseName: course.name !== 'General Course' ? course.name : undefined,
+          courseCode: course.code,
+          courseId: cid
+        })
+      );
       report.push(...gradebookReport(cols.results, grades.results, apiName || known?.name || cid));
       return gradebookToUpdates(cols.results, grades.results, {
         courseName: course.name !== 'General Course' ? course.name : undefined,
@@ -965,6 +1048,7 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
       return [];
     }
   }));
+  lastGradebookColumnTasks = colTaskLists.flat();
   const updates = perCourse.flat();
   // What each gradebook held on the last scan, kept on this device only, to explain a missing mark
   try {
@@ -1432,14 +1516,32 @@ async function runBlackboardScan(run: ScanRun) {
         resolve({});
       }
     });
-    const directStreamTasks = scrapeUltraStreamDueItems(fullRescan ? undefined : knownDirectIds).filter(t => !tombstones[t.id]);
+    const domDirectTasks = scrapeUltraStreamDueItems(fullRescan ? undefined : knownDirectIds);
 
-    // 2. Scrape announcement cards (incremental)
-    const announcements = await scrapeAnnouncementsFull({ fullRescan });
+    // 2. Scrape announcement cards (incremental) & Ultra Stream REST API
+    const [scrapedAnnouncements, gradebookUpdates, ultraStreamApi] = await Promise.all([
+      scrapeAnnouncementsFull({ fullRescan }),
+      fetchGradebookUpdates().catch(() => [] as TaskSubmissionUpdate[]),
+      fetchUltraStreamApi()
+    ]);
 
-    // 3. Submission receipts and posted marks: stream cards, then the gradebook (it has every mark, so it goes last and wins)
-    const submissionUpdates = scrapeStreamSubmissionsAndGrades();
-    submissionUpdates.push(...await fetchGradebookUpdates().catch(() => [] as TaskSubmissionUpdate[]));
+    const directStreamTasks = [
+      ...domDirectTasks,
+      ...ultraStreamApi.directTasks.filter(t => fullRescan || !knownDirectIds.has(t.id))
+    ].filter(t => !tombstones[t.id]);
+
+    const announcements = mergeStreamAndCourseAnnouncements(
+      ultraStreamApi.announcements.filter(a => fullRescan || !knownAnnIds.has(a.id)),
+      scrapedAnnouncements,
+      null
+    );
+
+    // 3. Submission receipts and posted marks: stream cards + stream API, then the gradebook (it has every mark, so it goes last and wins)
+    const submissionUpdates = [
+      ...scrapeStreamSubmissionsAndGrades(),
+      ...ultraStreamApi.submissionUpdates,
+      ...gradebookUpdates
+    ];
 
     // 4. Auto-discover enrolled courses from page
     const discoveredCourses = scrapeEnrolledCourses();
@@ -1447,7 +1549,7 @@ async function runBlackboardScan(run: ScanRun) {
     // New courses take the colour Blackboard gives them (courses already set up keep theirs)
     await autoRegisterDiscoveredCourses(await discoveredCoursesWithColors(getBlackboardJson)).catch(() => {});
 
-    if (directStreamTasks.length === 0 && announcements.length === 0 && submissionUpdates.length === 0) {
+    if (directStreamTasks.length === 0 && announcements.length === 0 && submissionUpdates.length === 0 && lastGradebookColumnTasks.length === 0) {
       if (run.interactive) {
         showSidekickToast('Blackboarder', 'Up to date. No new deadlines found since last scan.');
         run.reported = true;
@@ -1531,6 +1633,24 @@ async function runBlackboardScan(run: ScanRun) {
         existingIdMap.set(dt.id, dt);
         if (titleCourseKey) existingTitleCourseMap.set(titleCourseKey, dt);
         if (dateKey) existingDateKeySet.add(dateKey);
+      }
+    }
+
+    // Add unannounced gradebook assessment columns (e.g. Lab Reports, online assignments)
+    // only when no existing or announced task matches, so announcement due dates are never overwritten.
+    const combinedBeforeGbCols = [...newlyAddedDirect, ...mergedAnnTasks];
+    for (const gbTask of lastGradebookColumnTasks) {
+      if (tombstones[gbTask.id] || existingIdMap.has(gbTask.id)) continue;
+      const existingMatch = findTaskForUpdate(combinedBeforeGbCols, {
+        courseName: gbTask.courseName,
+        courseCode: gbTask.courseCode,
+        title: gbTask.title,
+        submissionStatus: 'graded'
+      });
+      if (!existingMatch) {
+        newlyAddedDirect.push(gbTask);
+        combinedBeforeGbCols.push(gbTask);
+        existingIdMap.set(gbTask.id, gbTask);
       }
     }
 

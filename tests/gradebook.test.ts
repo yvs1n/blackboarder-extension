@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { gradebookToUpdates, applySubmissionUpdates, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
+import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
+import { parseUltraStreamEntries } from '../src/utils/streamParser';
 import type { DeadlineTask } from '../src/types';
 
 // Trimmed from Ultra's /learn/api/v1/courses/_87240_1/gradebook/columns and .../grades (English, Oct 2026)
@@ -98,5 +99,117 @@ describe('gradebook names that differ from task titles', () => {
     expect(tasks.find(t => t.id === 'md')?.score).toBe(0);
     expect(tasks.find(t => t.id === 'q2')?.score).toBe(6.5);
     expect(tasks.find(t => t.id === 'calc-q2')?.score).toBeUndefined();
+  });
+
+  it('keeps an already-graded displayGrade score even when a later attempt puts status in NEEDS_GRADING', () => {
+    const cols: GradebookColumn[] = [
+      { id: '_100_1', columnName: "Projectile Motion student's Lab. Report", possible: 10, calculationType: 'NON_CALCULATED', visible: true, gradesReleased: true }
+    ];
+    const gs: GradebookGrade[] = [
+      { columnId: '_100_1', status: 'NEEDS_GRADING', pointsPossible: 10, displayGrade: { score: 9 }, effectiveScore: 9 }
+    ];
+    const ups = gradebookToUpdates(cols, gs, lab);
+    expect(ups).toHaveLength(1);
+    expect(ups[0].submissionStatus).toBe('graded');
+    expect(ups[0].score).toBe(9);
+  });
+
+  it('extracts direct deadlines from linked gradebook columns and ignores manual instructor columns', () => {
+    const cols: GradebookColumn[] = [
+      {
+        id: '_201_1',
+        columnName: 'Work-Kinetic Energy Theorem Lab. Report',
+        possible: 10,
+        calculationType: 'NON_CALCULATED',
+        visible: true,
+        userCreatedColumn: false,
+        contentId: '_9001_1',
+        dueDate: '2026-10-31T19:59:00.000Z'
+      },
+      {
+        id: '_202_1',
+        columnName: 'Manual Instructor Quiz Column',
+        possible: 10,
+        calculationType: 'NON_CALCULATED',
+        visible: true,
+        userCreatedColumn: true,
+        dueDate: '2026-10-15T08:12:34.327Z'
+      }
+    ];
+    const tasks = gradebookColumnsToTasks(cols, { courseName: 'Physics 1 Lab', courseCode: '1430 116', courseId: '_85276_1' });
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].title).toBe('Work-Kinetic Energy Theorem Lab. Report');
+    expect(tasks[0].dueDate).toBe('2026-10-31T19:59:00.000Z');
+    expect(tasks[0].courseCode).toBe('1430 116');
+  });
+
+  it('parses Ultra stream HTTP JSON entries into direct tasks, announcements, and grade updates', () => {
+    const courses = new Map([
+      ['_85276_1', { name: 'Physics 1 Lab', code: '1430 116' }],
+      ['_87186_1', { name: 'Islamic Culture', code: '0104 100' }],
+      ['_84448_1', { name: 'Student Hands-On Orientation', code: '' }]
+    ]);
+    const payload = {
+      sv_streamEntries: [
+        {
+          providerId: 'bb-nautilus',
+          se_courseId: '_85276_1',
+          itemSpecificData: {
+            title: 'Work-Kinetic Energy Theorem Lab. Report',
+            notificationDetails: {
+              dueDate: '2026-10-31T19:59:00.000Z',
+              eventType: 'AS:DUE'
+            }
+          }
+        },
+        {
+          providerId: 'bb-announcement',
+          se_courseId: '_87186_1',
+          se_id: '_555_1',
+          itemSpecificData: {
+            title: 'Quiz 2 Date',
+            notificationDetails: {
+              announcementTitle: 'Quiz 2 Date',
+              announcementBody: '<p>Quiz 2 will be held on November 5.</p>',
+              startDate: '2026-10-25T10:00:00.000Z'
+            }
+          }
+        },
+        {
+          providerId: 'bb_mygrades',
+          se_courseId: '_85276_1',
+          se_rhs: 'gradable_item_id=_1903728_1',
+          itemSpecificData: {
+            title: 'Vectors Exp. Lab Report',
+            gradeDetails: {
+              displayGradeScore: 8.5,
+              pointsPossible: 10,
+              calculationType: 'NON_CALCULATED',
+              lastGradedDate: '2026-10-20T12:00:00.000Z'
+            }
+          }
+        },
+        {
+          providerId: 'bb_mygrades',
+          se_courseId: '_84448_1',
+          itemSpecificData: {
+            title: 'Blackboard Orientation Knowledge Check',
+            gradeDetails: {
+              displayGradeScore: 100,
+              pointsPossible: 100,
+              calculationType: 'NON_CALCULATED'
+            }
+          }
+        }
+      ]
+    };
+    const res = parseUltraStreamEntries(payload, courses, 'https://elearning.sharjah.ac.ae');
+    expect(res.directTasks).toHaveLength(1);
+    expect(res.directTasks[0].title).toBe('Work-Kinetic Energy Theorem Lab. Report');
+    expect(res.announcements).toHaveLength(1);
+    expect(res.announcements[0].title).toBe('Quiz 2 Date');
+    expect(res.submissionUpdates).toHaveLength(1);
+    expect(res.submissionUpdates[0].title).toBe('Vectors Exp. Lab Report');
+    expect(res.submissionUpdates[0].score).toBe(8.5);
   });
 });

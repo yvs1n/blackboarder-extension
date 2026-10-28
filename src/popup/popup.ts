@@ -2957,6 +2957,24 @@ async function scanActiveTab(fullRescan: boolean = false) {
   }
 
   if (!started) {
+    if (chrome.runtime?.sendMessage) {
+      const startedAt = Date.now();
+      chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
+        void chrome.runtime.lastError;
+        if (res && !res.ok && res.message) {
+          fail(res.message);
+          return;
+        }
+        const status = await getScanStatus().catch(() => null);
+        if (status && new Date(status.updatedAt).getTime() >= startedAt) {
+          renderScanStatus(status);
+        } else {
+          resetScanButton();
+          hideScanBanner();
+        }
+      });
+      return;
+    }
     fail('Please navigate to Blackboard Ultra Stream or Course page first.');
     return;
   }

@@ -1,5 +1,8 @@
-import { DeadlineTask, TaskSubmissionUpdate } from '../types';
+import { DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
 import { findTaskForUpdate } from './streamParser';
+import { parseCourseDetails } from '../core/courseHelper';
+import { resolveTaskWeight } from '../core/syllabusWeights';
+import { resolveTaskRoom } from '../core/courseSchedule';
 
 /** One gradebook column as Ultra's /learn/api/v1/courses/{id}/gradebook/columns returns it. */
 export interface GradebookColumn {
@@ -11,6 +14,11 @@ export interface GradebookColumn {
   scoreProviderHandle?: string;
   visible?: boolean;
   gradesReleased?: boolean;
+  dueDate?: string;
+  userCreatedColumn?: boolean;
+  contentId?: string;
+  deleted?: boolean;
+  gradebookCategory?: { title?: string } | null;
 }
 
 /** One of the student's grades from /learn/api/v1/courses/{id}/gradebook/grades?userId=... */
@@ -113,7 +121,7 @@ export function gradebookToUpdates(
     };
 
     const raw = typeof g.displayGrade?.score === 'number' ? g.displayGrade.score : g.effectiveScore;
-    if (g.status === 'GRADED' && typeof raw === 'number' && !isNaN(raw)) {
+    if ((g.status === 'GRADED' || typeof g.displayGrade?.score === 'number') && typeof raw === 'number' && !isNaN(raw)) {
       const score = round(raw);
       const max = g.pointsPossible || col.possible;
       const maxScore = typeof max === 'number' && max > 0 ? round(max) : undefined;
@@ -131,6 +139,93 @@ export function gradebookToUpdates(
     }
   }
   return updates;
+}
+
+/**
+ * Extracts direct deadline tasks from Blackboard gradebook columns that represent real
+ * linked course assessments/assignments (`userCreatedColumn === false && contentId && dueDate`).
+ * Manually created instructor grade columns (`userCreatedColumn: true`) are skipped because
+ * Blackboard sets their `dueDate` to the column creation timestamp.
+ */
+export function gradebookColumnsToTasks(
+  columns: GradebookColumn[],
+  course: { courseName?: string; courseCode?: string; courseId?: string },
+  nowIso: string = new Date().toISOString()
+): DeadlineTask[] {
+  const tasks: DeadlineTask[] = [];
+  if (!Array.isArray(columns) || columns.length === 0) return tasks;
+
+  const parsedCourse = parseCourseDetails(`${course.courseCode || ''} ${course.courseName || ''}`.trim());
+  const cleanCourseCode = (course.courseCode && course.courseCode !== 'UOS')
+    ? course.courseCode
+    : (parsedCourse.code && parsedCourse.code !== 'UOS' ? parsedCourse.code : '');
+  const cleanCourseName = (course.courseName && course.courseName !== 'General Course' && course.courseName.toLowerCase() !== 'uos')
+    ? course.courseName
+    : (parsedCourse.name && parsedCourse.name !== 'General Course' ? parsedCourse.name : '');
+  if (!cleanCourseName && !cleanCourseCode) return tasks;
+
+  for (const col of columns) {
+    if (!col || col.visible === false || col.deleted) continue;
+    if (col.calculationType && col.calculationType !== 'NON_CALCULATED') continue;
+    if ((col.scoreProviderHandle || '').includes('attendance')) continue;
+    if (col.userCreatedColumn !== false || !col.contentId || !col.dueDate) continue;
+
+    const due = new Date(col.dueDate);
+    if (isNaN(due.getTime())) continue;
+
+    const title = decodeEntities(col.effectiveColumnName || col.columnName || '').trim();
+    if (!title || /blackboard\s*orientation/i.test(title)) continue;
+
+    const catTitle = col.gradebookCategory?.title || '';
+    let type: TaskType = 'assignment';
+    if (/quiz|كويز|اختبار\s*قصير/i.test(title) || /quiz/i.test(catTitle)) {
+      type = 'quiz';
+    } else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(title)) {
+      type = 'exam';
+    } else if (/project|مشروع|بحث/i.test(title)) {
+      type = 'project';
+    }
+
+    const weightInfo = resolveTaskWeight({
+      title,
+      courseName: cleanCourseName,
+      courseCode: cleanCourseCode,
+      type,
+      sourceSnippet: title
+    });
+    const roomInfo = resolveTaskRoom({
+      courseNameOrCode: cleanCourseName || cleanCourseCode,
+      title,
+      type
+    });
+
+    const courseKey = (course.courseId || cleanCourseCode || cleanCourseName).replace(/[^A-Za-z0-9_]/g, '');
+    const id = `gbcol_${courseKey}_${col.id}`;
+
+    tasks.push({
+      id,
+      courseCode: cleanCourseCode,
+      courseName: cleanCourseName || cleanCourseCode,
+      title,
+      description: '',
+      dueDate: due.toISOString(),
+      hasSpecificTime: true,
+      type,
+      priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
+      status: 'pending',
+      sourceSnippet: title,
+      confidence: 1.0,
+      extractedBy: 'local',
+      weight: weightInfo.weight,
+      weightDisplay: weightInfo.weightDisplay,
+      syllabusNote: weightInfo.syllabusNote,
+      room: roomInfo.room || undefined,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+  }
+
+  return tasks;
 }
 
 /**

@@ -318,80 +318,161 @@ const HEADER_ALIASES: Record<keyof ExamScheduleRow, RegExp> = {
   comment: /\bcomments?\b|ملاحظات/i
 };
 
-/**
- * Extracts ExamScheduleRow items from a Document or root Element containing a Banner Student Exam table.
- */
-export function extractExamScheduleRowsFromDoc(root: Document | Element): ExamScheduleRow[] {
+function rowsFromTableMatrix(tableRows: string[][]): ExamScheduleRow[] {
   const rows: ExamScheduleRow[] = [];
-  const tables = Array.from(root.querySelectorAll('table'));
+  if (tableRows.length < 2) return rows;
 
-  for (const table of tables) {
-    const trs = Array.from(table.querySelectorAll('tr'));
-    if (trs.length < 2) continue;
+  let headerRowIndex = -1;
+  const colMap: Partial<Record<keyof ExamScheduleRow, number>> = {};
 
-    let headerRowIndex = -1;
-    const colMap: Partial<Record<keyof ExamScheduleRow, number>> = {};
+  for (let r = 0; r < Math.min(tableRows.length, 5); r++) {
+    const cells = tableRows[r];
+    if (cells.length < 4) continue;
 
-    for (let r = 0; r < Math.min(trs.length, 5); r++) {
-      const cells = Array.from(trs[r].querySelectorAll('th, td')).map(c => (c.textContent || '').replace(/\s+/g, ' ').trim());
-      if (cells.length < 4) continue;
-
-      const candidateMap: Partial<Record<keyof ExamScheduleRow, number>> = {};
-      cells.forEach((text, idx) => {
-        for (const [field, re] of Object.entries(HEADER_ALIASES) as Array<[keyof ExamScheduleRow, RegExp]>) {
-          if (candidateMap[field] === undefined && re.test(text)) {
-            candidateMap[field] = idx;
-          }
+    const candidateMap: Partial<Record<keyof ExamScheduleRow, number>> = {};
+    cells.forEach((text, idx) => {
+      for (const [field, re] of Object.entries(HEADER_ALIASES) as Array<[keyof ExamScheduleRow, RegExp]>) {
+        if (candidateMap[field] === undefined && re.test(text)) {
+          candidateMap[field] = idx;
         }
-      });
+      }
+    });
 
-      if (candidateMap.examDate !== undefined && (candidateMap.courseTitle !== undefined || candidateMap.courseNumber !== undefined)) {
-        headerRowIndex = r;
-        Object.assign(colMap, candidateMap);
-        break;
+    if (candidateMap.examDate !== undefined && (candidateMap.courseTitle !== undefined || candidateMap.courseNumber !== undefined)) {
+      headerRowIndex = r;
+      Object.assign(colMap, candidateMap);
+      break;
+    }
+  }
+
+  if (headerRowIndex === -1) return rows;
+
+  for (let r = headerRowIndex + 1; r < tableRows.length; r++) {
+    const cells = tableRows[r];
+    if (cells.length < 4) continue;
+
+    const getCell = (field: keyof ExamScheduleRow): string => {
+      const idx = colMap[field];
+      return idx !== undefined && idx < cells.length ? cells[idx] : '';
+    };
+
+    const examDate = getCell('examDate');
+    const courseNumber = getCell('courseNumber');
+    const courseTitle = getCell('courseTitle');
+    if (!examDate || (!courseNumber && !courseTitle)) continue;
+
+    rows.push({
+      crn: getCell('crn'),
+      courseNumber,
+      courseTitle,
+      examDate,
+      fromTime: getCell('fromTime'),
+      toTime: getCell('toTime'),
+      building: getCell('building'),
+      room: getCell('room'),
+      examType: getCell('examType'),
+      examMethod: getCell('examMethod'),
+      comment: getCell('comment')
+    });
+  }
+
+  return rows;
+}
+
+function decodeHtmlCell(raw: string): string {
+  return String(raw || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Extracts ExamScheduleRow items from a raw HTML string (usable in service workers without DOMParser).
+ */
+export function extractExamScheduleRowsFromHtml(html: string): ExamScheduleRow[] {
+  if (!html || typeof html !== 'string') return [];
+  const rows: ExamScheduleRow[] = [];
+  const tableMatches = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
+
+  for (const tableHtml of tableMatches) {
+    const trMatches = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+    if (trMatches.length < 2) continue;
+
+    const matrix: string[][] = [];
+    for (const tr of trMatches) {
+      const cellMatches = tr.match(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi) || [];
+      if (cellMatches.length > 0) {
+        matrix.push(cellMatches.map(c => decodeHtmlCell(c)));
       }
     }
-
-    if (headerRowIndex === -1) continue;
-
-    for (let r = headerRowIndex + 1; r < trs.length; r++) {
-      const cells = Array.from(trs[r].querySelectorAll('td')).map(c => (c.textContent || '').replace(/\s+/g, ' ').trim());
-      if (cells.length < 4) continue;
-
-      const getCell = (field: keyof ExamScheduleRow): string => {
-        const idx = colMap[field];
-        return idx !== undefined && idx < cells.length ? cells[idx] : '';
-      };
-
-      const examDate = getCell('examDate');
-      const courseNumber = getCell('courseNumber');
-      const courseTitle = getCell('courseTitle');
-      if (!examDate || (!courseNumber && !courseTitle)) continue;
-
-      rows.push({
-        crn: getCell('crn'),
-        courseNumber,
-        courseTitle,
-        examDate,
-        fromTime: getCell('fromTime'),
-        toTime: getCell('toTime'),
-        building: getCell('building'),
-        room: getCell('room'),
-        examType: getCell('examType'),
-        examMethod: getCell('examMethod'),
-        comment: getCell('comment')
-      });
-    }
+    rows.push(...rowsFromTableMatrix(matrix));
   }
 
   return rows;
 }
 
 /**
- * Scrapes all exam tasks from a Banner Student Exam Page (`StudentExamPage`) DOM.
+ * Extracts ExamScheduleRow items from a Banner JSON payload (e.g. BannerExtensibility virtualDomains API).
  */
-export function scrapeExamScheduleFromDoc(root: Document | Element, nowIso: string = new Date().toISOString()): DeadlineTask[] {
-  const rows = extractExamScheduleRowsFromDoc(root);
+export function extractExamScheduleRowsFromJson(payload: unknown): ExamScheduleRow[] {
+  const list: any[] = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as any)?.results)
+      ? (payload as any).results
+      : Array.isArray((payload as any)?.data)
+        ? (payload as any).data
+        : Array.isArray((payload as any)?.rows)
+          ? (payload as any).rows
+          : [];
+  if (list.length === 0) return [];
+
+  const rows: ExamScheduleRow[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+    const mapped: Partial<ExamScheduleRow> = {};
+    for (const [k, v] of Object.entries(item)) {
+      if (v === null || v === undefined) continue;
+      const label = k
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+      const val = String(v).trim();
+      for (const [field, re] of Object.entries(HEADER_ALIASES) as Array<[keyof ExamScheduleRow, RegExp]>) {
+        if (!mapped[field] && (field.toLowerCase() === k.toLowerCase() || re.test(label))) {
+          mapped[field] = val;
+        }
+      }
+    }
+    const examDate = mapped.examDate || '';
+    const courseNumber = mapped.courseNumber || '';
+    const courseTitle = mapped.courseTitle || '';
+    if (!examDate || (!courseNumber && !courseTitle)) continue;
+
+    rows.push({
+      crn: mapped.crn || '',
+      courseNumber,
+      courseTitle,
+      examDate,
+      fromTime: mapped.fromTime || '',
+      toTime: mapped.toTime || '',
+      building: mapped.building || '',
+      room: mapped.room || '',
+      examType: mapped.examType || '',
+      examMethod: mapped.examMethod || '',
+      comment: mapped.comment || ''
+    });
+  }
+  return rows;
+}
+
+export function rowsToExamTasks(rows: ExamScheduleRow[], nowIso: string = new Date().toISOString()): DeadlineTask[] {
   const tasks: DeadlineTask[] = [];
   const seenIds = new Set<string>();
 
@@ -404,6 +485,49 @@ export function scrapeExamScheduleFromDoc(root: Document | Element, nowIso: stri
   }
 
   return tasks;
+}
+
+/**
+ * Extracts ExamScheduleRow items from a Document or root Element containing a Banner Student Exam table.
+ */
+export function extractExamScheduleRowsFromDoc(root: Document | Element): ExamScheduleRow[] {
+  const rows: ExamScheduleRow[] = [];
+  const tables = Array.from(root.querySelectorAll('table'));
+
+  for (const table of tables) {
+    const trs = Array.from(table.querySelectorAll('tr'));
+    if (trs.length < 2) continue;
+    const matrix: string[][] = [];
+    for (let r = 0; r < trs.length; r++) {
+      const selector = r < 5 ? 'th, td' : 'td';
+      const cells = Array.from(trs[r].querySelectorAll(selector)).map(c => (c.textContent || '').replace(/\s+/g, ' ').trim());
+      matrix.push(cells);
+    }
+    rows.push(...rowsFromTableMatrix(matrix));
+  }
+
+  return rows;
+}
+
+/**
+ * Scrapes all exam tasks from a Banner Student Exam Page (`StudentExamPage`) DOM.
+ */
+export function scrapeExamScheduleFromDoc(root: Document | Element, nowIso: string = new Date().toISOString()): DeadlineTask[] {
+  return rowsToExamTasks(extractExamScheduleRowsFromDoc(root), nowIso);
+}
+
+/**
+ * Scrapes all exam tasks from a raw HTML string or JSON string (usable in service workers without a tab).
+ */
+export function scrapeExamScheduleFromHtml(html: string, nowIso: string = new Date().toISOString()): DeadlineTask[] {
+  const trimmed = String(html || '').trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const jsonRows = extractExamScheduleRowsFromJson(JSON.parse(trimmed));
+      if (jsonRows.length > 0) return rowsToExamTasks(jsonRows, nowIso);
+    } catch {}
+  }
+  return rowsToExamTasks(extractExamScheduleRowsFromHtml(html), nowIso);
 }
 
 /**
