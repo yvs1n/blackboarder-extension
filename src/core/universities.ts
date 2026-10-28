@@ -10,6 +10,7 @@
  * - ZU: policy ACA-PRO-203 v5.1 (February 2024).
  * - AUD: undergraduate grading system policy (points only; instructors set the percentages).
  * - AUS: academic information page (points only; instructors set the percentages).
+ * - AURAK: catalog 2023-2024, Grading System (page 63).
  */
 
 export interface GradeRow {
@@ -40,6 +41,11 @@ export interface UniversityPreset {
   /** Blackboard address, when known; used for the default Blackboard quick link */
   blackboardUrl?: string;
   quickLinks?: QuickLinkPreset[];
+  /**
+   * The student's exam schedule page (midterms and finals), when known. A Scan the student starts
+   * on Blackboard reads it in a background tab (src/background/examRefresh.ts); they must be signed in.
+   */
+  examSchedulePage?: string;
   timeZone: string;
 }
 
@@ -70,6 +76,21 @@ const HALF_STEP_SCALE: GradeRow[] = [
   { letter: 'F', min: 0, points: 0 }
 ];
 
+/** AURAK's published table (catalog 2023-2024): bands of 3 to 6 points, A from 95. */
+const AURAK_SCALE: GradeRow[] = [
+  { letter: 'A', min: 95, points: 4.0 },
+  { letter: 'A-', min: 90, points: 3.7 },
+  { letter: 'B+', min: 86, points: 3.3 },
+  { letter: 'B', min: 83, points: 3.0 },
+  { letter: 'B-', min: 80, points: 2.7 },
+  { letter: 'C+', min: 76, points: 2.3 },
+  { letter: 'C', min: 73, points: 2.0 },
+  { letter: 'C-', min: 70, points: 1.7 },
+  { letter: 'D+', min: 66, points: 1.3 },
+  { letter: 'D', min: 60, points: 1.0 },
+  { letter: 'F', min: 0, points: 0 }
+];
+
 export const GENERIC_UNIVERSITY_ID = 'other';
 
 export const UNIVERSITY_PRESETS: UniversityPreset[] = [
@@ -88,6 +109,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
       { id: 'ql-exams', title: 'Exam Schedule (Banner)', url: 'https://generalssb-prod.ec.sharjah.ac.ae/BannerExtensibility/customPage/page/StudentExamPage', category: 'other' },
       { id: 'ql-blackboard', title: 'Blackboard Ultra Portal', url: 'https://elearning.sharjah.ac.ae/ultra/course', category: 'portal' }
     ],
+    examSchedulePage: 'https://generalssb-prod.ec.sharjah.ac.ae/BannerExtensibility/customPage/page/StudentExamPage',
     timeZone: 'Asia/Dubai'
   },
   {
@@ -136,6 +158,15 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     gradeScale: PLUS_MINUS_SCALE.filter(g => g.letter !== 'D+'),
     cutoffsFromSyllabus: true,
     lowestPass: 'C-',
+    timeZone: 'Asia/Dubai'
+  },
+  {
+    id: 'aurak',
+    name: 'American University of Ras Al Khaimah',
+    shortName: 'AURAK',
+    domains: ['aurak.ac.ae'],
+    gradeScale: AURAK_SCALE,
+    lowestPass: 'D',
     timeZone: 'Asia/Dubai'
   },
   {

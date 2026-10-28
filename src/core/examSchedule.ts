@@ -460,24 +460,33 @@ export function mergeExamScheduleTasks(
   const out = existingTasks.map(t => ({ ...t }));
   let addedCount = 0;
   let updatedCount = 0;
+  // Each existing task takes at most one exam row, so Midterm 1 and Midterm 2 never land on the same deadline
+  const claimed = new Set<number>();
+  const sorted = examTasks.filter(Boolean).slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
-  for (const incoming of examTasks) {
-    if (!incoming || tombstones[incoming.id]) continue;
+  for (const incoming of sorted) {
+    if (tombstones[incoming.id]) continue;
 
     const kind = examKindOf(incoming.title);
-    const matchIdx = out.findIndex(existing => {
-      if (existing.id === incoming.id) return true;
-      if (existing.type === 'exam' && kind && examKindOf(existing.title) === kind && sameCourseForExam(existing, incoming)) {
-        return true;
-      }
-      return false;
-    });
+    let matchIdx = out.findIndex((existing, i) => !claimed.has(i) && existing.id === incoming.id);
+    if (matchIdx === -1 && kind) {
+      const due = Date.parse(incoming.dueDate);
+      let bestGap = Infinity;
+      out.forEach((existing, i) => {
+        if (claimed.has(i) || existing.type !== 'exam' || examKindOf(existing.title) !== kind || !sameCourseForExam(existing, incoming)) return;
+        const gap = Math.abs(Date.parse(existing.dueDate) - due);
+        const g = isNaN(gap) ? Number.MAX_SAFE_INTEGER : gap;
+        if (g < bestGap) { bestGap = g; matchIdx = i; }
+      });
+    }
 
     if (matchIdx === -1) {
       out.push({ ...incoming });
+      claimed.add(out.length - 1);
       addedCount++;
       continue;
     }
+    claimed.add(matchIdx);
 
     const existing = out[matchIdx];
     if (existing.userEdited || existing.extractedBy === 'manual') {

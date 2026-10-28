@@ -8,6 +8,7 @@ import { initAutoUpdate } from './autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
 import { dueClassReminders, nextClassReminderAt, classReminderText } from '../core/classSchedule';
+import { refreshExamSchedule } from './examRefresh';
 
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
@@ -413,6 +414,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     syncDeadlinesToMobileServer()
       .then(res => sendResponse(res))
       .catch(err => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  if (message.type === 'REFRESH_EXAM_SCHEDULE') {
+    refreshExamSchedule(Boolean(message.force))
+      .then(res => sendResponse(res))
+      .catch(() => sendResponse({ state: 'error' }));
     return true;
   }
   if (message.type === 'OPEN_POPUP') {

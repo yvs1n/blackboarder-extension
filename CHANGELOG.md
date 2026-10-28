@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-10-28
+
+### Added
+
+- **Exam schedule.** Midterms and finals come from your university's exam schedule page (UOS: the Banner Student Exam Page) with their date, time, room, exam method and any room override, and take their syllabus weight. Press Scan on that page, or just press Scan on Blackboard: it now also reads the exam page in a background tab and closes it again (at most once an hour; a full re-scan always reads it). If you are signed out of Banner, the scan message says so.
+- **AURAK.** The American University of Ras Al Khaimah is in the university list, with its grading scale from the 2023-2024 catalog (A from 95%).
+
+### Fixed
+
+- **Two midterms in one course** each keep their own deadline; before, both exam rows could land on the same one.
+- **Calendar grid** keeps the same height and width in 4, 5 and 6 week months.
+
+### Changed
+
+- **Finding the phone app.** The landing page and the pairing help now give the address, blackboarder.pages.dev/companion, and say it is a web app, so there is nothing to look for in the App Store.
+
+---
+
 ## [1.3.4] - 2026-10-27
 
 ### Changed

@@ -29,6 +29,12 @@ describe('university presets', () => {
     expect(getUniversity('uaeu').gradeScale.find(g => g.letter === 'B+')).toEqual({ letter: 'B+', min: 85, points: 3.5 });
     expect(getUniversity('aus').gradeScale.some(g => g.letter === 'D+')).toBe(false);
     expect(getUniversity('aus').lowestPass).toBe('C-');
+    // AURAK catalog 2023-2024: A from 95, B+ from 86, D from 60
+    const aurak = getUniversity('aurak').gradeScale;
+    expect(aurak.find(g => g.letter === 'A')?.min).toBe(95);
+    expect(aurak.find(g => g.letter === 'B+')).toEqual({ letter: 'B+', min: 86, points: 3.3 });
+    expect(aurak.find(g => g.letter === 'D')?.min).toBe(60);
+    expect(findUniversityByHost('lms.aurak.ac.ae')?.id).toBe('aurak');
   });
 
   it('finds the university from its Blackboard address', () => {

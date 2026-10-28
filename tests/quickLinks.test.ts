@@ -56,7 +56,7 @@ describe('Academic Quick Links Management & Sync', () => {
     expect(uos.map(l => l.category).sort()).toEqual(['attendance', 'marks', 'other', 'portal', 'study_plan']);
     expect(uos.find(l => l.category === 'attendance')?.url).toContain('banner.sharjah.ac.ae');
     expect(uos.find(l => l.id === 'ql-exams')?.url).toContain('StudentExamPage');
-    for (const id of ['uaeu', 'adu', 'zu', 'aud', 'aus', 'other']) {
+    for (const id of ['uaeu', 'adu', 'zu', 'aud', 'aus', 'aurak', 'other']) {
       expect(universityQuickLinks(id, 'x')).toEqual([]);
     }
   });

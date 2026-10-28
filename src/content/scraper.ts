@@ -1,6 +1,6 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate } from '../types';
 import { processAnnouncementsBatch, titleCourseKeyFor } from '../engine/hybridExtractor';
-import { getSettings, getTasks, saveTasksMergingLatest, saveAnnouncements, getLastScanCheckpoint, saveLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus } from '../utils/storage';
+import { getSettings, getTasks, saveTasksMergingLatest, saveAnnouncements, getLastScanCheckpoint, saveLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
 import { setActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode, isValidTask } from '../core/courseHelper';
 import { parseDirectStreamCard, parseSubmissionOrGradeCard } from '../utils/streamParser';
@@ -14,6 +14,7 @@ import { SESSION_STATUS_KEY, isSessionExpiredResponse } from '../utils/sessionSt
 import { ScanGate, ScanRun } from './scanGate';
 import { detectUniversityFromHost } from '../utils/profile';
 import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks } from '../core/examSchedule';
+import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
 
 /**
  * Known University of Sharjah Blackboard Course IDs mapped to courses.
@@ -1243,6 +1244,12 @@ function runScan(interactive: boolean = false, fullRescan: boolean = false): Pro
   return scanGate.run(interactive, fullRescan);
 }
 
+async function runScanInner(run: ScanRun) {
+  const onExamPage = isExamSchedulePage(window.location, document);
+  await runBlackboardScan(run);
+  if (!onExamPage) await refreshExamScheduleAfterScan(run);
+}
+
 async function waitForExamScheduleTasks(maxWaitMs = 5000): Promise<DeadlineTask[]> {
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
@@ -1253,7 +1260,7 @@ async function waitForExamScheduleTasks(maxWaitMs = 5000): Promise<DeadlineTask[
   return scrapeExamScheduleFromDoc(document);
 }
 
-async function runExamScheduleScan(run: ScanRun) {
+async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ found: number; added: number; updated: number }> {
   if (run.interactive) {
     await setScanStatus({ state: 'running', message: 'Reading exam schedule...' });
   }
@@ -1266,14 +1273,14 @@ async function runExamScheduleScan(run: ScanRun) {
     }
   });
 
-  const examTasks = (await waitForExamScheduleTasks(run.interactive ? 5000 : 3500)).filter(t => !tombstones[t.id]);
+  const examTasks = (await waitForExamScheduleTasks(waitMs ?? (run.interactive ? 5000 : 3500))).filter(t => !tombstones[t.id]);
   if (examTasks.length === 0) {
     if (run.interactive) {
       showSidekickToast('Blackboarder', 'No exam rows found on this page yet. Wait for the table to load and try again.');
       run.reported = true;
       await setScanStatus({ state: 'done', message: 'No exam schedule rows found on this page.', newCount: 0 });
     }
-    return;
+    return { found: 0, added: 0, updated: 0 };
   }
 
   const existingTasks = await getTasks();
@@ -1321,9 +1328,41 @@ async function runExamScheduleScan(run: ScanRun) {
       newCount: addedCount
     });
   }
+  return { found: examTasks.length, added: addedCount, updated: updatedCount };
 }
 
-async function runScanInner(run: ScanRun) {
+/**
+ * After a Scan the student started on Blackboard: the service worker reads the university's exam
+ * schedule page in a background tab (at most hourly), and the result joins the scan message.
+ */
+async function refreshExamScheduleAfterScan(run: ScanRun): Promise<void> {
+  if (!run.interactive || !isExtensionContextValid()) return;
+  const before = await getScanStatus();
+  if (!before || before.state !== 'done') return;
+  await setScanStatus({ state: 'running', message: `${before.message} Reading your exam schedule...` });
+  const res: ExamRefreshResult | null = await new Promise(resolve => {
+    try {
+      chrome.runtime.sendMessage({ type: 'REFRESH_EXAM_SCHEDULE', force: run.fullRescan }, r => {
+        void chrome.runtime.lastError;
+        resolve(r || null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+  const added = res?.state === 'read' ? res.added || 0 : 0;
+  const updated = res?.state === 'read' ? res.updated || 0 : 0;
+  await setScanStatus({
+    state: 'done',
+    message: before.message + examRefreshNote(res),
+    newCount: (before.newCount || 0) + added
+  });
+  if (added + updated > 0) {
+    showSidekickToast('Exam Schedule', `${added ? `Added <strong>${added}</strong> exam${added > 1 ? 's' : ''}` : ''}${added && updated ? ' and ' : ''}${updated ? `updated ${updated}` : ''} from your exam schedule.`, added);
+  }
+}
+
+async function runBlackboardScan(run: ScanRun) {
   const { fullRescan } = run;
   if (!isExtensionContextValid()) {
     teardownOrphanedContentScript();
@@ -1692,6 +1731,17 @@ function init() {
             }
           })();
           return true; // Keep message channel open for async response
+        } else if (message.type === 'READ_EXAM_SCHEDULE') {
+          // Sent by the service worker after it opened this page in a background tab
+          if (!isExamSchedulePage(window.location, document)) {
+            sendResponse({ found: 0 });
+            return false;
+          }
+          getUserCourses().catch(() => {})
+            .then(() => runExamScheduleScan({ interactive: false, fullRescan: false, reported: false }, 15000))
+            .then(res => sendResponse(res))
+            .catch(() => sendResponse({ found: 0 }));
+          return true;
         } else if (message.type === 'PING_SCANNER') {
           sendResponse({ ok: true, scanning: scanGate.running });
           return false;
