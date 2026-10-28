@@ -49,6 +49,13 @@ function renderScaleEditor(profile: StudentProfile | null) {
       <button type="button" class="grade-scale-remove" aria-label="Remove ${esc(g.letter)}" ${g.min === 0 ? 'disabled' : ''}>✕</button>
     </div>`).join('');
   const uni = profileUniversity(profile);
+  const summaryText = document.getElementById('grade-scale-summary-text');
+  if (summaryText) {
+    const top = scale[0];
+    summaryText.textContent = profile?.gradeScale
+      ? `Custom scale (${scale.length} grades, ${top?.letter || 'A'} from ${top?.min ?? 90}%)`
+      : `${uni.name} scale (${top?.letter || 'A'} from ${top?.min ?? 90}%)`;
+  }
   const note = document.getElementById('grade-scale-note');
   if (note) {
     note.textContent = profile?.gradeScale
@@ -134,6 +141,15 @@ export async function initUniversitySettings(hooks: UniversitySettingsHooks): Pr
   cached = await getProfile();
   refresh();
   renderSites().catch(() => {});
+
+  const toggleBtn = document.getElementById('btn-toggle-grade-scale');
+  const collapsible = document.getElementById('grade-scale-collapsible');
+  toggleBtn?.addEventListener('click', () => {
+    if (!collapsible) return;
+    const isHidden = collapsible.style.display === 'none';
+    collapsible.style.display = isHidden ? 'block' : 'none';
+    toggleBtn.textContent = isHidden ? 'Hide Scale' : 'Edit Scale';
+  });
 
   for (const id of ['setting-university', 'wt-university']) {
     document.getElementById(id)?.addEventListener('change', e => {

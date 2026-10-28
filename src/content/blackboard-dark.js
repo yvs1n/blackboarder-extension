@@ -15,7 +15,15 @@
   const STATIC_STYLE_ID = 'bbs-static-dark-rules';
   const STATIC_DARK_CSS = `__BBS_STATIC_DARK_CSS__`;
 
-  let isEnabled = true;
+  const prefersDark = () => {
+    try {
+      return Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (_) {
+      return false;
+    }
+  };
+
+  let isEnabled = prefersDark();
   let scanEpoch = 1;
   let sheetState = new WeakMap();
   let rootObserver = null;
@@ -522,7 +530,13 @@
   try {
     if (isContextValid()) {
       chrome.storage.local.get(['bbs_settings', 'blackboardDarkMode', 'darkModeEnabled'], (data) => {
-        let enabled = true;
+        let enabled = prefersDark();
+        const theme = data?.bbs_settings?.theme;
+        if (theme === 'light') {
+          enabled = false;
+        } else if (theme === 'dark') {
+          enabled = true;
+        }
         if (typeof data?.bbs_settings?.blackboardDarkMode === 'boolean') {
           enabled = data.bbs_settings.blackboardDarkMode;
         } else if (typeof data?.blackboardDarkMode === 'boolean') {

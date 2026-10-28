@@ -878,6 +878,33 @@ function renderSelectedDay() {
   const filterLabel = selectedCourseFilter ? ` <span style="font-weight: 500; font-size: 11px; color: var(--text-muted);">&bull; ${escapeHtml(selectedCourseFilter)}</span>` : '';
   selectedDayTitle.innerHTML = `${getSvgIcon('calendar', 'mr-1')} <span>Deadlines for ${escapeHtml(formattedHeader)}${filterLabel}</span>`;
 
+  const emptyGuide = document.getElementById('calendar-empty-guide');
+  const dayContainer = document.getElementById('selected-day-container');
+  if (emptyGuide && dayContainer) {
+    if (currentTasks.length === 0) {
+      emptyGuide.style.display = 'block';
+      dayContainer.style.display = 'none';
+      const openBbBtn = document.getElementById('btn-empty-guide-open-bb');
+      if (openBbBtn && !openBbBtn.getAttribute('data-wired')) {
+        openBbBtn.setAttribute('data-wired', 'true');
+        openBbBtn.addEventListener('click', () => {
+          const cached = getCachedProfile();
+          const uni = profileUniversity(cached);
+          const bbUrl = uni.blackboardUrl || 'https://elearning.sharjah.ac.ae/ultra/stream';
+          try {
+            chrome.tabs.create({ url: bbUrl });
+          } catch {
+            window.open(bbUrl, '_blank', 'noopener');
+          }
+        });
+      }
+      return;
+    } else {
+      emptyGuide.style.display = 'none';
+      dayContainer.style.display = 'block';
+    }
+  }
+
   // That day's classes, from the courses' meeting times
   const classesBox = document.getElementById('selected-day-classes');
   const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
@@ -888,10 +915,16 @@ function renderSelectedDay() {
     const classes = classesOnDay(currentUserCourses, dateObj)
       .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter));
     const hasSchedule = currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
-    classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
-      isToday: formatDateKey(now) === selectedDateStr,
-      hasSchedule
-    });
+    if (classes.length === 0 && !hasSchedule) {
+      classesBox.style.display = 'none';
+      classesBox.innerHTML = '';
+    } else {
+      classesBox.style.display = '';
+      classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+        isToday: formatDateKey(now) === selectedDateStr,
+        hasSchedule
+      });
+    }
   }
 
   const tasksOnDate = currentTasks.filter(task => {
@@ -1712,6 +1745,13 @@ async function shareTask(task: DeadlineTask) {
 // Courses tab: Grades (GPA with every mark) and Syllabus Progress
 // ============================================================================
 function renderGradeTracker(tasks: DeadlineTask[]) {
+  const gradesCard = document.getElementById('grades-tracker');
+  const syllabusCard = document.getElementById('syllabus-tracker');
+  const hasCoursesOrTasks = currentUserCourses.length > 0 || tasks.length > 0;
+  if (gradesCard) gradesCard.style.display = hasCoursesOrTasks ? '' : 'none';
+  if (syllabusCard) syllabusCard.style.display = hasCoursesOrTasks ? '' : 'none';
+  if (!hasCoursesOrTasks) return;
+
   // Grades card: the projected GPA, then each course's grade with its marks under it
   const gradesBadge = document.getElementById('grades-tracker-badge');
   const gradesBody = document.getElementById('grades-tracker-breakdown');
@@ -3936,12 +3976,15 @@ function openQuickLinkUrl(rawUrl: string) {
 
 function renderQuickLinksBar() {
   const container = document.getElementById('calendar-quick-links-chips');
+  const bar = document.getElementById('calendar-quick-links-bar');
   if (!container) return;
 
   if (!currentQuickLinks || currentQuickLinks.length === 0) {
-    container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); font-style: italic;">No quick links added yet. Click + Manage to add.</span>`;
+    if (bar) bar.style.display = 'none';
+    container.innerHTML = '';
     return;
   }
+  if (bar) bar.style.display = '';
 
   container.innerHTML = currentQuickLinks.map(link => {
     const meta = quickLinkMeta(link.category);
@@ -4758,7 +4801,19 @@ async function initWalkthroughModal() {
   const panes = modal.querySelectorAll<HTMLDivElement>('.walkthrough-pane');
 
   let currentStep = 1;
-  const totalSteps = 4;
+  const totalSteps = 2;
+
+  document.getElementById('btn-wt-open-bb')?.addEventListener('click', () => {
+    closeModal(true);
+    const cached = getCachedProfile();
+    const uni = profileUniversity(cached);
+    const bbUrl = uni.blackboardUrl || 'https://elearning.sharjah.ac.ae/ultra/stream';
+    try {
+      chrome.tabs.create({ url: bbUrl });
+    } catch {
+      window.open(bbUrl, '_blank', 'noopener');
+    }
+  });
 
   const settings = await getSettings();
   if (keyDisplay && settings.syncKey) {

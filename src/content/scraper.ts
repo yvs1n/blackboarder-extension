@@ -1216,6 +1216,34 @@ function injectFloatingButton(onScanClick: () => void) {
     }
     onScanClick();
   });
+
+  try {
+    const tipSeen = localStorage.getItem('bbs_first_visit_note_seen') === 'true';
+    if (!tipSeen) {
+      const callout = document.createElement('div');
+      callout.className = 'bbs-first-visit-callout';
+      callout.innerHTML = `
+        <div class="bbs-callout-header">
+          <span style="font-weight: 700; font-size: 11.5px;">Blackboarder Ready</span>
+          <button type="button" class="bbs-callout-close" aria-label="Dismiss">✕</button>
+        </div>
+        <div style="font-size: 11px; margin: 4px 0 8px; line-height: 1.4; color: inherit; opacity: 0.85;">
+          Click <strong>Scan Blackboard</strong> to find deadlines and marks. Configure or turn off features anytime (Alt+B).
+        </div>
+      `;
+      const dismiss = () => {
+        try { localStorage.setItem('bbs_first_visit_note_seen', 'true'); } catch {}
+        callout.remove();
+      };
+      callout.querySelector('.bbs-callout-close')?.addEventListener('click', e => {
+        e.stopPropagation();
+        dismiss();
+      });
+      btn.addEventListener('click', dismiss, { once: true });
+      root.appendChild(callout);
+    }
+  } catch {}
+
   root.appendChild(btn);
   document.body.appendChild(root);
 }

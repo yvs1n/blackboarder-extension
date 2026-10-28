@@ -261,3 +261,41 @@ html.bbs-dark-active #bbs-activity-filter .bbs-af-chip[aria-pressed="true"] {
   font-size: 12px;
   opacity: 0.7;
 }
+
+/* First-visit onboarding callout above floating scan button */
+.bbs-first-visit-callout {
+  position: absolute;
+  bottom: 54px;
+  right: 0;
+  width: 240px;
+  padding: 10px 12px;
+  background: #ffffff !important;
+  color: #18181b !important;
+  border: 1px solid #18181b !important;
+  border-radius: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  z-index: 10000;
+  text-align: left;
+}
+
+html.bbs-dark-active .bbs-first-visit-callout {
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+  border-color: #f4f4f5 !important;
+}
+
+.bbs-first-visit-callout .bbs-callout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bbs-first-visit-callout .bbs-callout-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+}

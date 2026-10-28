@@ -364,6 +364,19 @@
       <!-- Generated dynamically -->
     </div>
 
+    <!-- Empty State Guide: shown when 0 deadlines exist -->
+    <div class="calendar-empty-guide" id="calendar-empty-guide" style="display: none; padding: 20px 16px; margin: 12px 10px; border: 1px dashed var(--surface-border); background: var(--surface-hover); text-align: center;">
+      <div style="width: 32px; height: 32px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--surface-border);">
+        <svg class="ui-icon" style="width: 18px; height: 18px; color: var(--text-main);"><use href="#icon-bolt"></use></svg>
+      </div>
+      <div style="font-size: 13px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">No deadlines yet</div>
+      <p style="font-size: 11.5px; line-height: 1.45; color: var(--text-muted); margin: 0 0 14px;">Open Blackboard and click <strong>Scan</strong> to find your quizzes, assignments, and exam dates automatically.</p>
+      <button type="button" class="btn-primary" id="btn-empty-guide-open-bb" style="display: inline-flex; justify-content: center; align-items: center; padding: 7px 16px; font-size: 11.5px; margin: 0 auto;">
+        <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+        <span>Open Blackboard</span>
+      </button>
+    </div>
+
     <!-- Selected Day Deadlines Drawer -->
     <section class="selected-day-container" id="selected-day-container">
       <div class="selected-day-header">
@@ -377,7 +390,7 @@
         </button>
       </div>
       <!-- That day's classes, from each course's meeting times -->
-      <div class="selected-day-classes" id="selected-day-classes" aria-label="Classes"></div>
+      <div class="selected-day-classes" id="selected-day-classes" aria-label="Classes" style="display: none;"></div>
       <div class="selected-day-list" id="selected-day-list">
         <!-- Injected dynamically -->
       </div>
@@ -674,23 +687,38 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Grading scale</label>
-            <div id="grade-scale-editor" class="grade-scale-editor"></div>
-            <span class="setting-desc" id="grade-scale-note"></span>
-            <div class="grade-scale-actions">
-              <button type="button" class="btn-secondary" id="btn-grade-row-add">+ Add Letter</button>
-              <button type="button" class="btn-secondary" id="btn-grade-scale-reset">Use University Scale</button>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <label class="form-label" style="margin-bottom: 0;">Grading scale</label>
+              <button type="button" class="btn-secondary" id="btn-toggle-grade-scale" style="font-size: 10px; padding: 2px 8px;">Edit Scale</button>
+            </div>
+            <div id="grade-scale-summary-row" class="setting-summary-banner" style="font-size: 11px; color: var(--text-muted); padding: 6px 10px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
+              <span id="grade-scale-summary-text">University grading scale (A from 90%)</span>
+            </div>
+            <div id="grade-scale-collapsible" style="display: none; margin-top: 8px;">
+              <div id="grade-scale-editor" class="grade-scale-editor"></div>
+              <span class="setting-desc" id="grade-scale-note"></span>
+              <div class="grade-scale-actions">
+                <button type="button" class="btn-secondary" id="btn-grade-row-add">+ Add Letter</button>
+                <button type="button" class="btn-secondary" id="btn-grade-scale-reset">Use University Scale</button>
+              </div>
             </div>
           </div>
 
           <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="setting-blackboard-url">Blackboard address <span style="font-weight: normal; color: var(--text-muted);">(only if Blackboarder does not open on it)</span></label>
-            <div class="blackboard-site-add">
-              <input type="url" id="setting-blackboard-url" class="form-input" placeholder="lms.youruniversity.edu" autocomplete="off">
-              <button type="button" class="btn-primary" id="btn-add-blackboard-site">Add</button>
-            </div>
-            <span class="setting-desc">Addresses ending in blackboard.com and UOS work already. Your browser asks you to allow just this one site.</span>
-            <div id="blackboard-sites-list" class="blackboard-sites-list"></div>
+            <details class="setting-details" id="details-custom-blackboard" style="font-size: 11.5px;">
+              <summary style="cursor: pointer; color: var(--text-muted); font-size: 11px; padding: 4px 0; user-select: none;">
+                Blackboarder not opening on your Blackboard?
+              </summary>
+              <div style="margin-top: 8px;">
+                <label class="form-label" for="setting-blackboard-url">Custom Blackboard address</label>
+                <div class="blackboard-site-add">
+                  <input type="url" id="setting-blackboard-url" class="form-input" placeholder="lms.youruniversity.edu" autocomplete="off">
+                  <button type="button" class="btn-primary" id="btn-add-blackboard-site">Add</button>
+                </div>
+                <span class="setting-desc">Addresses ending in blackboard.com and UOS work already. Your browser asks you to allow just this one site.</span>
+                <div id="blackboard-sites-list" class="blackboard-sites-list"></div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -1667,80 +1695,36 @@
       <div class="walkthrough-stepper">
         <button type="button" class="walkthrough-step-btn active" data-step="1">
           <span class="wt-step-num">1</span>
-          <span>Phone</span>
+          <span>University</span>
         </button>
         <div class="wt-step-line"></div>
         <button type="button" class="walkthrough-step-btn" data-step="2">
           <span class="wt-step-num">2</span>
           <span>Scan</span>
         </button>
-        <div class="wt-step-line"></div>
-        <button type="button" class="walkthrough-step-btn" data-step="3">
-          <span class="wt-step-num">3</span>
-          <span>Courses</span>
-        </button>
-        <div class="wt-step-line"></div>
-        <button type="button" class="walkthrough-step-btn" data-step="4">
-          <span class="wt-step-num">4</span>
-          <span>Marks</span>
-        </button>
       </div>
 
       <div class="walkthrough-body">
-        <!-- Step 1: Sync key and phone -->
+        <!-- Step 1: Pick University -->
         <div class="walkthrough-pane active" id="walkthrough-pane-1">
           <div class="walkthrough-hero">
             <div class="walkthrough-hero-icon">
-              <svg class="ui-icon"><use href="#icon-smartphone"></use></svg>
+              <svg class="ui-icon"><use href="#icon-book"></use></svg>
             </div>
             <div>
-              <h4 class="walkthrough-hero-title">1. Your Sync Key and Phone</h4>
-              <p class="walkthrough-hero-desc">Blackboarder made a private sync key for you. Your deadlines, courses and marks sync only to devices that have it.</p>
+              <h4 class="walkthrough-hero-title">1. Choose Your University</h4>
+              <p class="walkthrough-hero-desc">Sets the grading scale for your GPA and your university quick links. You can edit this anytime in Settings.</p>
             </div>
           </div>
 
           <div class="walkthrough-sync-card">
             <label for="wt-university" style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your University</label>
             <select id="wt-university" class="form-select" style="margin-top: 4px;"></select>
-            <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-muted);">Sets the grading scale for your GPA. Not sure? Scan any Blackboard page and it is filled in from the address.</span>
-          </div>
-
-          <div class="walkthrough-sync-card">
-            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your Sync Key</div>
-            <div class="walkthrough-key-display">
-              <span class="walkthrough-key-value" id="wt-key-display">BBS-XXXX</span>
-              <button type="button" class="btn-secondary" id="btn-wt-copy-key" style="font-size: 10.5px; padding: 3px 8px;">
-                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
-                <span>Copy</span>
-              </button>
-            </div>
-            <button type="button" class="btn-outline-action" id="btn-wt-copy-pairing-link" style="margin-top: 8px; width: 100%; justify-content: center; font-size: 11px; padding: 6px 10px;">
-              <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
-              <span>Copy Phone Pairing Link</span>
-            </button>
-          </div>
-
-          <div class="walkthrough-feature-list">
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Scan to pair:</strong> Open <strong>blackboarder.pages.dev/companion</strong> on your phone (a web app, not in the App Store). In Settings &gt; Sync, click <strong>Show Pairing QR Code</strong>, then tap <strong>Scan QR</strong> in the phone app. Nothing to copy or type.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Phone app:</strong> Open the pairing link on your phone (also in Settings &gt; Sync), then add it to your Home Screen. It works offline.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Keep the link to yourself:</strong> It also lets that phone use your AI model. The sync key alone only syncs deadlines.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Calendar feed:</strong> Subscribe in Apple or Google Calendar from Settings &gt; Calendar.</span>
-            </div>
+            <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-muted);">Not listed? Choose Other for standard 4.0, or scanning any Blackboard page will detect it from the address.</span>
           </div>
         </div>
 
-        <!-- Step 2: Scan Blackboard -->
+        <!-- Step 2: Ready to Scan -->
         <div class="walkthrough-pane" id="walkthrough-pane-2">
           <div class="walkthrough-hero">
             <div class="walkthrough-hero-icon">
@@ -1748,91 +1732,31 @@
             </div>
             <div>
               <h4 class="walkthrough-hero-title">2. Scan Blackboard</h4>
-              <p class="walkthrough-hero-desc">Each scan reads your announcements and gradebook.</p>
+              <p class="walkthrough-hero-desc">Click Scan Blackboard at the bottom right of the page, or press Alt+B to find your quizzes, assignments and exams automatically.</p>
             </div>
           </div>
 
-          <div class="walkthrough-feature-list">
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">1</span>
-              <span>Open <strong>elearning.sharjah.ac.ae</strong> and sign in.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">2</span>
-              <span>Click <strong>Scan Blackboard</strong> at the bottom right of the page, or <strong>Scan</strong> in this popup (<strong>Alt+B</strong>).</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">3</span>
-              <span><strong>Courses found for you:</strong> each gets its own colour, and reposted or edited announcements are merged, not duplicated.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">4</span>
-              <span><strong>AI is optional:</strong> the built-in parser reads most announcements. For vague ones, add a key in Settings &gt; Scanning (OpenRouter, IFM or a custom provider).</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 3: Courses, colours and syllabus -->
-        <div class="walkthrough-pane" id="walkthrough-pane-3">
-          <div class="walkthrough-hero">
-            <div class="walkthrough-hero-icon">
-              <svg class="ui-icon"><use href="#icon-settings"></use></svg>
-            </div>
-            <div>
-              <h4 class="walkthrough-hero-title">3. Courses and Syllabus</h4>
-              <p class="walkthrough-hero-desc">Weights and rooms come from your courses, so check them once.</p>
-            </div>
+          <div class="walkthrough-sync-card" style="text-align: center; padding: 14px 12px;">
+            <button type="button" class="btn-primary" id="btn-wt-open-bb" style="width: 100%; justify-content: center; padding: 8px 14px; font-size: 12px; font-weight: 600;">
+              <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+              <span>Open Blackboard &amp; Scan</span>
+            </button>
+            <span style="display: block; margin-top: 8px; font-size: 11px; color: var(--text-muted);">Open your courses page, then click Scan to pull in all deadlines and marks.</span>
           </div>
 
-          <div class="walkthrough-feature-list">
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Edit a course:</strong> In the Courses tab, edit any course to change its colour (palette or hex code).</span>
+          <div class="walkthrough-sync-card" style="margin-top: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 11px; font-weight: 600;">Phone App &amp; AI Model</span>
+              <button type="button" class="btn-secondary" id="btn-wt-copy-pairing-link" style="font-size: 10px; padding: 3px 8px;">
+                <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
+                <span>Pair Phone</span>
+              </button>
             </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Class times and rooms:</strong> Add them (e.g. A8-103) and exams without a room use your class room.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Syllabus weights:</strong> Add the mark split (e.g. 10% quizzes, 30% midterm), or let <strong>Import File</strong> read your syllabus or class schedule (PDF, Word or text) and fill it in.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Your classes:</strong> Each day's classes show on the calendar (Settings &gt; Calendar to hide them), with a reminder before each one (Settings &gt; Alerts).</span>
-            </div>
+            <span style="display: block; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); line-height: 1.35;">Sync to your phone in Settings &gt; Sync. Optional AI model setup is in Settings &gt; Scanning.</span>
           </div>
         </div>
-
-        <!-- Step 4: Submissions and marks -->
-        <div class="walkthrough-pane" id="walkthrough-pane-4">
-          <div class="walkthrough-hero">
-            <div class="walkthrough-hero-icon">
-              <svg class="ui-icon"><use href="#icon-check"></use></svg>
-            </div>
-            <div>
-              <h4 class="walkthrough-hero-title">4. Submissions and Marks</h4>
-              <p class="walkthrough-hero-desc">Every scan also reads your gradebook.</p>
-            </div>
-          </div>
-
-          <div class="walkthrough-feature-list">
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Submitted:</strong> Work you turned in shows a <span class="task-submitted-pill" style="font-size: 10px; padding: 1px 5px;">✓ Submitted</span> badge.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Marks:</strong> Posted marks appear on their deadline, like <span class="task-grade-pill" style="font-size: 10px; padding: 1px 5px;">★ 9.5 / 10</span>.</span>
-            </div>
-            <div class="walkthrough-feature-item">
-              <span class="walkthrough-feature-bullet">✓</span>
-              <span><strong>Grades and Syllabus Progress (Courses tab):</strong> Your projected GPA and each course's grade so far on your university's scale, with every mark under it, newest first (only the best quizzes count where the syllabus says so), and how much of each course's weight is done, pending or not announced yet. Set credit hours by editing a course.</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      </div>
+
       <div class="walkthrough-footer">
         <button type="button" class="btn-secondary" id="btn-walkthrough-back" style="font-size: 11px; padding: 5px 12px; visibility: hidden;">Back</button>
         <button type="button" class="btn-secondary" id="btn-walkthrough-skip" style="font-size: 11px; padding: 5px 10px; color: var(--text-muted);">Skip Tour</button>
