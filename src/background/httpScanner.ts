@@ -18,7 +18,7 @@ import {
   gradebookToUpdates,
   gradebookColumnsToTasks,
   applySubmissionUpdates,
-  createTasksForUnmatchedMarks,
+  purgeSyntheticGradebookTasks,
   gradebookReport,
   GradebookReportRow,
   GRADEBOOK_REPORT_KEY
@@ -314,7 +314,19 @@ export async function runHttpBlackboardScan(
     const submissionUpdates = [...ultraStream.submissionUpdates, ...gradebookUpdates];
 
     const settings = await getSettings();
-    const existingTasks = await getTasks();
+    let existingTasks = await getTasks();
+    const { cleaned: cleanedExisting, purgedIds: purgedSyntheticIds } = purgeSyntheticGradebookTasks(existingTasks);
+    if (purgedSyntheticIds.length > 0) {
+      existingTasks = cleanedExisting;
+      purgedSyntheticIds.forEach(id => {
+        tombstones[id] = new Date().toISOString();
+      });
+      await new Promise<void>(resolve => {
+        try {
+          chrome.storage.local.set({ bbs_tombstones: tombstones }, () => resolve());
+        } catch { resolve(); }
+      });
+    }
 
     if (announcements.length > 0) {
       await saveAnnouncements(announcements);
@@ -405,20 +417,10 @@ export async function runHttpBlackboardScan(
     const unmatchedMarks = gradebookMarks.filter(u =>
       !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
     );
-
-    // Close any gap in saving marks: synthesize tasks for real gradebook marks that had no matching announcement
-    const newlyCreatedMarkTasks = createTasksForUnmatchedMarks(unmatchedMarks, finalTasks, tombstones);
-    if (newlyCreatedMarkTasks.length > 0) {
-      finalTasks.push(...newlyCreatedMarkTasks);
-    }
-
-    const stillUnmatched = gradebookMarks.filter(u =>
-      !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
-    );
     const gradebookNote = coursesRead === 0
       ? ' Marks: gradebook not readable.'
-      : ` Marks: ${gradebookMarks.length - stillUnmatched.length} of ${gradebookMarks.length} matched${
-        stillUnmatched.length ? ` (no deadline for ${stillUnmatched.slice(0, 4).map(u => u.title).join(', ')}${stillUnmatched.length > 4 ? ', ...' : ''})` : ''}.${
+      : ` Marks: ${gradebookMarks.length - unmatchedMarks.length} of ${gradebookMarks.length} matched${
+        unmatchedMarks.length ? ` (no deadline for ${unmatchedMarks.slice(0, 4).map(u => u.title).join(', ')}${unmatchedMarks.length > 4 ? ', ...' : ''})` : ''}.${
         skippedGrades.length ? ` Not read: ${skippedGrades.slice(0, 3).join(', ')}.` : ''}`;
 
     repairTaskWeightsAndRooms(finalTasks);

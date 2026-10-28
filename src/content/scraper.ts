@@ -5,7 +5,7 @@ import { setActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode, isValidTask } from '../core/courseHelper';
 import { parseDirectStreamCard, parseSubmissionOrGradeCard, parseUltraStreamEntries, findTaskForUpdate } from '../utils/streamParser';
 import { deduplicateTaskList } from '../utils/taskMerge';
-import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, createTasksForUnmatchedMarks, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
+import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
@@ -1575,7 +1575,19 @@ async function runBlackboardScan(run: ScanRun) {
     const directTasks = directStreamTasks;
 
     const settings = await getSettings();
-    const existingTasks = await getTasks();
+    let existingTasks = await getTasks();
+    const { cleaned: cleanedExisting, purgedIds: purgedSyntheticIds } = purgeSyntheticGradebookTasks(existingTasks);
+    if (purgedSyntheticIds.length > 0) {
+      existingTasks = cleanedExisting;
+      purgedSyntheticIds.forEach(id => {
+        tombstones[id] = new Date().toISOString();
+      });
+      await new Promise<void>(resolve => {
+        try {
+          chrome.storage.local.set({ bbs_tombstones: tombstones }, () => resolve());
+        } catch { resolve(); }
+      });
+    }
 
     // Save announcements to storage (merges with existing)
     if (announcements.length > 0) {
@@ -1664,27 +1676,17 @@ async function runBlackboardScan(run: ScanRun) {
     const unmatchedMarks = gradebookMarks.filter(u =>
       !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
     );
-
-    // Close any gap in saving marks: synthesize tasks for real gradebook marks that had no matching announcement
-    const newlyCreatedMarkTasks = createTasksForUnmatchedMarks(unmatchedMarks, finalTasks, tombstones);
-    if (newlyCreatedMarkTasks.length > 0) {
-      finalTasks.push(...newlyCreatedMarkTasks);
-    }
-
-    const stillUnmatched = gradebookMarks.filter(u =>
-      !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
-    );
     console.info(
       `[Blackboarder] Gradebook: ${lastGradebookRead.signedIn ? `${lastGradebookRead.coursesRead}/${lastGradebookRead.courses} courses read, ${gradebookMarks.length} marks` : 'not readable (signed out?)'}` +
-      (stillUnmatched.length ? `; no matching deadline for: ${stillUnmatched.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '') +
+      (unmatchedMarks.length ? `; no matching deadline for: ${unmatchedMarks.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '') +
       (lastGradebookRead.skipped.length ? `; not read: ${lastGradebookRead.skipped.join(' | ')}` : '')
     );
     const gradebookNote = lastGradebookRead.expired
       ? ' Your Blackboard session has ended: sign in again, then scan.'
       : !lastGradebookRead.signedIn
       ? ' Marks: gradebook not readable.'
-      : ` Marks: ${gradebookMarks.length - stillUnmatched.length} of ${gradebookMarks.length} matched${
-        stillUnmatched.length ? ` (no deadline for ${stillUnmatched.slice(0, 4).map(u => u.title).join(', ')}${stillUnmatched.length > 4 ? ', ...' : ''})` : ''}.${
+      : ` Marks: ${gradebookMarks.length - unmatchedMarks.length} of ${gradebookMarks.length} matched${
+        unmatchedMarks.length ? ` (no deadline for ${unmatchedMarks.slice(0, 4).map(u => u.title).join(', ')}${unmatchedMarks.length > 4 ? ', ...' : ''})` : ''}.${
         lastGradebookRead.skipped.length ? ` Not read: ${lastGradebookRead.skipped.slice(0, 3).join(', ')}.` : ''}`;
 
     // Correct weights and rooms saved by older rules (tasks the student edited are left alone)

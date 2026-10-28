@@ -1,5 +1,5 @@
 import { DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
-import { findTaskForUpdate, findAllTasksForUpdate } from './streamParser';
+import { findTaskForUpdate, findAllTasksForUpdate, coreTitle } from './streamParser';
 import { parseCourseDetails } from '../core/courseHelper';
 import { resolveTaskWeight, extractExplicitPoints } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
@@ -507,103 +507,64 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
 }
 
 /**
- * Synthesizes completed DeadlineTasks for gradebook marks that did not match any
- * existing announcement task. This ensures all real marks recorded in Blackboard's
- * gradebook are saved to storage and visible in the student's Grades card.
+ * Removes synthetic deadline tasks created by createTasksForUnmatchedMarks in v1.4.4.
+ * Real assessment column tasks created by gradebookColumnsToTasks have hasSpecificTime === true,
+ * whereas synthetic tasks created from unmatched gradebook columns had hasSpecificTime === false,
+ * status === 'completed', and id starting with 'gbcol_' or 'gbmark_'.
+ *
+ * If any synthetic task carried a real score for a matching task in the course (e.g. EAP Midterm Exam -> Midterm),
+ * the mark is transferred to the real task so no legitimate grade is lost.
  */
-export function createTasksForUnmatchedMarks(
-  updates: TaskSubmissionUpdate[],
-  existingTasks: DeadlineTask[],
-  tombstones: Record<string, string> = {},
-  nowMs: number = Date.now()
-): DeadlineTask[] {
-  const newTasks: DeadlineTask[] = [];
-  const nowIso = new Date(nowMs).toISOString();
+export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: DeadlineTask[]; purgedIds: string[] } {
+  if (!Array.isArray(tasks) || tasks.length === 0) return { cleaned: [], purgedIds: [] };
 
-  // Map existing tasks by ID and gradeSourceId to prevent duplicates
-  const existingIds = new Set(existingTasks.map(t => t.id));
-  const existingSources = new Set(existingTasks.map(t => t.gradeSourceId).filter(Boolean));
+  const synthetic = tasks.filter(t =>
+    t &&
+    (
+      (t.id || '').startsWith('gbmark_') ||
+      ((t.id || '').startsWith('gbcol_') && t.hasSpecificTime === false && t.extractedBy === 'local')
+    )
+  );
 
-  for (const update of updates) {
-    if (!update || update.submissionStatus !== 'graded') continue;
-    if (typeof update.score !== 'number' || isNaN(update.score)) continue;
-    if (!update.maxScore || update.maxScore <= 0) continue;
+  if (synthetic.length === 0) return { cleaned: tasks, purgedIds: [] };
 
-    const src = update.sourceId;
-    if (src && existingSources.has(src)) continue;
+  const purgedIds = synthetic.map(t => t.id);
+  const syntheticSet = new Set(purgedIds);
 
-    const uCourse = parseCourseDetails(`${update.courseCode || ''} ${update.courseName || ''}`.trim());
-    const cleanCourseCode = (update.courseCode && update.courseCode !== 'UOS')
-      ? update.courseCode
-      : (uCourse.code && uCourse.code !== 'UOS' ? uCourse.code : '');
-    const cleanCourseName = (update.courseName && update.courseName !== 'General Course' && update.courseName.toLowerCase() !== 'uos')
-      ? update.courseName
-      : (uCourse.name && uCourse.name !== 'General Course' ? uCourse.name : '');
+  // Transfer marks from purged synthetic tasks to matching real tasks in the same course
+  for (const s of synthetic) {
+    if (s.submissionStatus !== 'graded' || typeof s.score !== 'number') continue;
+    const sCourse = parseCourseDetails(`${s.courseCode || ''} ${s.courseName || ''}`.trim());
+    const sCode = (s.courseCode || sCourse.code || '').toLowerCase().trim();
+    const sName = (sCourse.name || s.courseName || '').toLowerCase().trim();
 
-    const colId = (src || '').replace(/^gb:/, '');
-    const courseKey = (cleanCourseCode || cleanCourseName || 'course').replace(/[^A-Za-z0-9_]/g, '');
-    const id = colId ? `gbcol_${courseKey}_${colId}` : `gbmark_${courseKey}_${encodeURIComponent(update.title).slice(0, 30)}`;
+    const realMatch = tasks.find(other => {
+      if (!other || syntheticSet.has(other.id)) return false;
+      const oCourse = parseCourseDetails(`${other.courseCode || ''} ${other.courseName || ''}`.trim());
+      const oCode = (other.courseCode || oCourse.code || '').toLowerCase().trim();
+      const oName = (oCourse.name || other.courseName || '').toLowerCase().trim();
+      const sameCourse = (sCode && oCode && sCode === oCode) || (sName && oName && sName === oName);
+      if (!sameCourse && (sCode || sName) && (oCode || oName)) return false;
 
-    if (tombstones[id] || existingIds.has(id)) continue;
+      const coreS = coreTitle(s.title);
+      const coreO = coreTitle(other.title);
+      if (coreS && coreO && coreS.length >= 4 && coreS === coreO) return true;
+      if (isExamItem(s) && isExamItem(other) && /\b(?:midterm|نصفي)\b/i.test(s.title) && /\b(?:midterm|نصفي)\b/i.test(other.title)) return true;
+      return false;
+    });
 
-    let type: TaskType = 'assignment';
-    if (/quiz|كويز|اختبار\s*قصير/i.test(update.title)) {
-      type = 'quiz';
-    } else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(update.title)) {
-      type = 'exam';
-    } else if (/project|مشروع|بحث/i.test(update.title)) {
-      type = 'project';
+    if (realMatch) {
+      realMatch.submissionStatus = 'graded';
+      realMatch.score = s.score;
+      realMatch.maxScore = s.maxScore;
+      realMatch.scoreDisplay = s.scoreDisplay;
+      if (s.gradeSourceId) realMatch.gradeSourceId = s.gradeSourceId;
+      if (s.gradedAt) realMatch.gradedAt = s.gradedAt;
+      realMatch.status = 'completed';
+      realMatch.updatedAt = new Date().toISOString();
     }
-
-    const weightInfo = resolveTaskWeight({
-      title: update.title,
-      courseName: cleanCourseName,
-      courseCode: cleanCourseCode,
-      type,
-      sourceSnippet: update.title
-    });
-    const roomInfo = resolveTaskRoom({
-      courseNameOrCode: cleanCourseName || cleanCourseCode,
-      title: update.title,
-      type
-    });
-
-    const dueIso = update.gradedAt && !isNaN(new Date(update.gradedAt).getTime())
-      ? new Date(update.gradedAt).toISOString()
-      : nowIso;
-
-    const task: DeadlineTask = {
-      id,
-      courseCode: cleanCourseCode,
-      courseName: cleanCourseName || cleanCourseCode,
-      title: update.title,
-      description: '',
-      dueDate: dueIso,
-      hasSpecificTime: false,
-      type,
-      priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
-      status: 'completed',
-      submissionStatus: 'graded',
-      score: update.score,
-      maxScore: update.maxScore,
-      scoreDisplay: update.scoreDisplay || `${update.score} / ${update.maxScore}`,
-      gradedAt: update.gradedAt,
-      gradeSourceId: src,
-      sourceSnippet: update.title,
-      confidence: 1.0,
-      extractedBy: 'local',
-      weight: weightInfo.weight,
-      weightDisplay: weightInfo.weightDisplay,
-      syllabusNote: weightInfo.syllabusNote,
-      room: roomInfo.room || undefined,
-      createdAt: nowIso,
-      updatedAt: nowIso
-    };
-
-    newTasks.push(task);
-    existingIds.add(id);
-    if (src) existingSources.add(src);
   }
 
-  return newTasks;
+  const cleaned = tasks.filter(t => !syntheticSet.has(t.id));
+  return { cleaned, purgedIds };
 }

@@ -247,6 +247,11 @@ export function coreTitle(s?: string): string {
   if (!s) return '';
   let str = s.toLowerCase();
 
+  // Normalize course acronyms and exam words so "EAP Midterm Exam" matches "Midterm"
+  str = str.replace(/\b(?:eap|academic\s*english)\b/gi, ' ');
+  str = str.replace(/\bmidterm\s+(?:exam|examination|test)\b/gi, 'midterm');
+  str = str.replace(/\bfinal\s+(?:exam|examination|test)\b/gi, 'final');
+
   // Normalize ordinals + assessment type into "<type><number>"
   // e.g. "2nd Quiz" -> "quiz 2", "second quiz" -> "quiz 2", "الكويز الثاني" -> "quiz 2"
   str = str.replace(/\b(?:the\s+)?(\d+)(?:st|nd|rd|th)\s+(quiz|exam|test|midterm|assignment|homework|hw|lab)\b/gi, '$2 $1');
@@ -276,7 +281,7 @@ export function coreTitle(s?: string): string {
     .replace(/\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)/gi, ' ')
     .replace(/(?:تمديد\s*(?:فترة|موعد)?\s*(?:تسليم)?|موعد\s*تسليم|فترة\s*تسليم|(?:و)?محاولات\s*التسليم)/gi, ' ')
     .replace(/\b(?:graded|grades?|marks?|score|submission|submit)\b/g, ' ')
-    .replace(/\b(?:students?'?s?|student's|exp|experiment|lab|labs|report|the|of)\b\.?/g, ' ')
+    .replace(/\b(?:students?'?s?|student's|exp|experiment|lab|labs|report|the|of|exam|examination)\b\.?/g, ' ')
     .replace(/[^a-z0-9\u0600-\u06ff]/g, '');
 }
 

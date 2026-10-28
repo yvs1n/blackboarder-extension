@@ -2,6 +2,7 @@ import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes } from '../core/courseHelper';
 import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
+import { purgeSyntheticGradebookTasks } from './gradebook';
 
 export { extractAssessmentNumber };
 
@@ -71,7 +72,8 @@ export function sanitizeTaskMarks(task: DeadlineTask): DeadlineTask {
  */
 export function sanitizeTaskListMarks(tasks: DeadlineTask[]): DeadlineTask[] {
   if (!Array.isArray(tasks) || tasks.length === 0) return tasks || [];
-  const cleaned = tasks.map(sanitizeTaskMarks);
+  const { cleaned: nonSynthetic } = purgeSyntheticGradebookTasks(tasks);
+  const cleaned = nonSynthetic.map(sanitizeTaskMarks);
 
   // Determine true course ownership for each gradebook column id
   const colOwnerCourse = new Map<string, string>();

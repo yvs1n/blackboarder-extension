@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, createTasksForUnmatchedMarks, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
+import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
 import { parseUltraStreamEntries } from '../src/utils/streamParser';
 import type { DeadlineTask } from '../src/types';
 
@@ -214,98 +214,63 @@ describe('gradebook names that differ from task titles', () => {
   });
 });
 
-describe('createTasksForUnmatchedMarks: closing the mark-saving gap', () => {
+describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate marks', () => {
   const english = { courseName: 'English for Academic Purposes', courseCode: '0202 112' };
 
-  it('synthesizes completed deadline tasks for graded gradebook marks with no announcement', () => {
-    const unannouncedMarks = [
+  it('purges synthetic gradebook tasks and transfers marks to matching real tasks', () => {
+    const tasks = [
       {
+        id: 'ann_midterm_1',
+        title: 'Midterm',
         courseName: english.courseName,
         courseCode: english.courseCode,
-        title: 'In-Class Paper Quiz 3',
-        sourceId: 'gb:_999901_1',
+        type: 'exam' as const,
+        status: 'pending' as const,
+        dueDate: '2026-10-26T17:00:00.000Z'
+      } as DeadlineTask,
+      {
+        id: 'gbcol_0202112__1928045_1',
+        title: 'EAP Midterm Exam',
+        courseName: english.courseName,
+        courseCode: english.courseCode,
+        type: 'exam' as const,
+        hasSpecificTime: false,
+        extractedBy: 'local' as const,
+        status: 'completed' as const,
         submissionStatus: 'graded' as const,
-        score: 9.5,
-        maxScore: 10,
-        scoreDisplay: '9.5 / 10 (95%)',
-        gradedAt: '2026-10-27T14:00:00.000Z'
-      },
+        score: 20,
+        maxScore: 20,
+        scoreDisplay: '20 / 20 (100%)',
+        gradeSourceId: 'gb:_1928045_1',
+        dueDate: '2026-10-28T00:00:00.000Z'
+      } as DeadlineTask,
       {
+        id: 'gbcol_0202112__real_assessment_1',
+        title: 'Online Assignment 1',
         courseName: english.courseName,
         courseCode: english.courseCode,
-        title: 'Oral Presentation',
-        sourceId: 'gb:_999902_1',
-        submissionStatus: 'graded' as const,
-        score: 15,
-        maxScore: 15,
-        scoreDisplay: '15 / 15 (100%)',
-        gradedAt: '2026-10-26T10:00:00.000Z'
-      }
-    ];
-
-    const tasks = createTasksForUnmatchedMarks(unannouncedMarks, []);
-    expect(tasks).toHaveLength(2);
-
-    const quiz = tasks.find(t => t.title === 'In-Class Paper Quiz 3')!;
-    expect(quiz.id).toBe('gbcol_0202112__999901_1');
-    expect(quiz.status).toBe('completed');
-    expect(quiz.submissionStatus).toBe('graded');
-    expect(quiz.score).toBe(9.5);
-    expect(quiz.maxScore).toBe(10);
-    expect(quiz.dueDate).toBe('2026-10-27T14:00:00.000Z');
-    expect(quiz.type).toBe('quiz');
-
-    const oral = tasks.find(t => t.title === 'Oral Presentation')!;
-    expect(oral.status).toBe('completed');
-    expect(oral.submissionStatus).toBe('graded');
-    expect(oral.score).toBe(15);
-  });
-
-  it('skips items that already exist, are tombstoned, or are not graded', () => {
-    const tombstones = { 'gbcol_0202112__deleted_1': '2026-10-28T00:00:00Z' };
-    const existing = [
-      {
-        id: 'gbcol_0202112__already_1',
-        gradeSourceId: 'gb:_already_1',
-        title: 'Existing Quiz',
-        courseName: english.courseName,
-        courseCode: english.courseCode,
-        dueDate: '2026-10-20'
+        hasSpecificTime: true,
+        extractedBy: 'local' as const,
+        status: 'pending' as const,
+        dueDate: '2026-11-05T23:59:00.000Z'
       } as DeadlineTask
     ];
 
-    const updates = [
-      // Already exists by gradeSourceId
-      {
-        courseName: english.courseName,
-        courseCode: english.courseCode,
-        title: 'Existing Quiz',
-        sourceId: 'gb:_already_1',
-        submissionStatus: 'graded' as const,
-        score: 5,
-        maxScore: 5
-      },
-      // Tombstoned
-      {
-        courseName: english.courseName,
-        courseCode: english.courseCode,
-        title: 'Deleted Quiz',
-        sourceId: 'gb:_deleted_1',
-        submissionStatus: 'graded' as const,
-        score: 5,
-        maxScore: 5
-      },
-      // Submitted only (no mark given yet - safety against false marks)
-      {
-        courseName: english.courseName,
-        courseCode: english.courseCode,
-        title: 'Research Paper Submitted',
-        sourceId: 'gb:_research_1',
-        submissionStatus: 'submitted' as const
-      }
-    ];
+    const { cleaned, purgedIds } = purgeSyntheticGradebookTasks(tasks);
+    expect(purgedIds).toEqual(['gbcol_0202112__1928045_1']);
+    expect(cleaned).toHaveLength(2);
 
-    const created = createTasksForUnmatchedMarks(updates, existing, tombstones);
-    expect(created).toHaveLength(0);
+    // The real midterm received the 20/20 grade transferred from the synthetic task
+    const realMid = cleaned.find(t => t.id === 'ann_midterm_1')!;
+    expect(realMid.submissionStatus).toBe('graded');
+    expect(realMid.score).toBe(20);
+    expect(realMid.maxScore).toBe(20);
+    expect(realMid.scoreDisplay).toBe('20 / 20 (100%)');
+    expect(realMid.gradeSourceId).toBe('gb:_1928045_1');
+    expect(realMid.status).toBe('completed');
+
+    // The real assessment column with hasSpecificTime === true is preserved
+    const realCol = cleaned.find(t => t.id === 'gbcol_0202112__real_assessment_1')!;
+    expect(realCol).toBeDefined();
   });
 });

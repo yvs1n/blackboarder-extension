@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.5] - 2026-10-28
+
+### Fixed
+
+- **Purged synthetic gradebook deadline tasks.** Gradebook columns without announcements or student due dates are no longer synthesized into fake deadline tasks scheduled for today. Added `purgeSyntheticGradebookTasks` to permanently delete any previously generated synthetic tasks (`id` prefixed with `gbmark_` or untimed `gbcol_`) across local storage, companion web app, and cloud sync tombstones, while safely transferring marks to real matching course tasks.
+- **Deduplicated midterm exams in grades and deadlines.** Streamlined course assessment titles so prefixed variations like "EAP Midterm Exam" and "Midterm" normalize to the same core title. Midterm rows in the Grades summary are deduplicated per course, merging earned scores so the legitimate midterm score (e.g. 20 / 20) is preserved as a single row.
+
+---
+
 ## [1.4.4] - 2026-10-28
 
 ### Fixed

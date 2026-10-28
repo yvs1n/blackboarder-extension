@@ -1,4 +1,5 @@
 import { DeadlineTask, TaskType, TaskPriority, TaskStatus, QuickLink, QuickLinkCategory, UserCourseConfig, CustomScheduleSlot, CustomSyllabusComponent, Weekday, AiProvider, UserSettings } from '../types';
+import { purgeSyntheticGradebookTasks } from '../utils/gradebook';
 import { loadDraft, saveDraft, clearDraft, collectFields, applyFields } from './popupDraft';
 import { attachCoursePicker, findPickedCourse } from './coursePicker';
 import { buildMarksSummary } from '../utils/marks';
@@ -4816,6 +4817,14 @@ async function refreshDataInBackground() {
 
     currentTasks = deduplicateTaskList(currentTasks.filter(isValidTask));
     currentTasks.sort(compareTasksByTime);
+
+    // Purge any synthetic deadline tasks that were incorrectly created for unannounced gradebook marks
+    const { cleaned: purgedTasks, purgedIds } = purgeSyntheticGradebookTasks(currentTasks);
+    if (purgedIds.length > 0) {
+      currentTasks = purgedTasks;
+      purgedIds.forEach(id => recordLocalTombstone(id));
+      updatedAny = true;
+    }
 
     // One-time removal of tasks older scans named only "Exam", "Assignment", "Lab" or "quiz".
     // Each gets a delete record so the cloud copy and the phone do not bring it back.

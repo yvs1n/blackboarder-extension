@@ -1,6 +1,7 @@
 import type { DeadlineTask } from '../types';
 import { coreTitle } from './streamParser';
 import { sanitizeTaskListMarks } from './taskMerge';
+import { isExamItem } from './gradebook';
 
 /** The fields of a syllabus this summary needs (both the extension and phone shapes have them). */
 export interface MarksSyllabus {
@@ -89,12 +90,13 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       }
     }
 
-    // Deduplicate marks within course (e.g. "Quiz 2" vs "2nd Quiz (Vector & Free Fall)")
+    // Deduplicate marks within course (e.g. "Quiz 2" vs "2nd Quiz (Vector & Free Fall)", "EAP Midterm Exam" vs "Midterm")
     const existingIndex = course.marks.findIndex(m => {
       if (t.gradeSourceId && (m as any).gradeSourceId && t.gradeSourceId === (m as any).gradeSourceId) return true;
       const coreT = coreTitle(t.title);
       const coreM = coreTitle(m.title);
       if (coreT && coreM && coreT.length >= 4 && coreT === coreM) return true;
+      if (isExamItem(t) && isExamItem({ title: m.title }) && /\b(?:midterm|نصفي)\b/i.test(t.title) && /\b(?:midterm|نصفي)\b/i.test(m.title)) return true;
       return false;
     });
 
