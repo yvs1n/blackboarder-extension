@@ -2186,16 +2186,14 @@ function openReadingSheet(task: DeadlineTask) {
   const hasAnnouncement = fullAnnouncement && !fullAnnouncement.startsWith('Blackboard Ultra Stream item');
 
   badgeGroup.innerHTML = `
-    <div class="course-badge-main" style="background: ${courseTheme.bgLight}; border: 1px solid ${courseTheme.border}; color: ${courseTheme.textDark};">
-      <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${courseTheme.hex}; display: inline-block;"></span>
+    <div class="course-badge-main reading-course-badge" title="${escapeHtml(resolved.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
+      <span class="course-color-dot" style="background: ${courseTheme.hex};"></span>
       <span class="course-name-text">${escapeHtml(resolved.courseName)}</span>
     </div>
-    <div style="display: flex; align-items: center; gap: 6px;">
-      <span class="type-pill type-${escapeHtml(task.type || 'assignment')}">
-        <span>${getTaskTypeIcon(task.type)}</span>
-        <span>${(task.type || 'assignment').toUpperCase()}</span>
-      </span>
-    </div>
+    <span class="type-pill type-${escapeHtml(task.type || 'assignment')}">
+      <span>${getTaskTypeIcon(task.type)}</span>
+      <span>${(task.type || 'assignment').toUpperCase()}</span>
+    </span>
   `;
 
   content.innerHTML = `
@@ -2214,6 +2212,20 @@ function openReadingSheet(task: DeadlineTask) {
       </button>
       ` : ''}
       ${task.weightDisplay || task.weight ? `<span class="task-weight-pill weight-major">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(task.weightDisplay || `${task.weight}%`)}</span>` : ''}
+      ${task.scoreDisplay || task.score !== undefined ? `
+        <span class="task-grade-pill" title="Grade / Score released on Blackboard">
+          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
+        </span>
+      ` : (task.submissionStatus === 'graded' ? `
+        <span class="task-grade-pill">
+          ${getSvgIcon('star', 'mr-1')} <span>Graded</span>
+        </span>
+      ` : '')}
+      ${task.submissionStatus === 'submitted' ? `
+        <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
+          ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+        </span>
+      ` : ''}
       ${task.priority === 'high' ? '<span class="high-priority-tag">HIGH PRIORITY</span>' : ''}
     </div>
 
@@ -2229,32 +2241,32 @@ function openReadingSheet(task: DeadlineTask) {
           </button>
         ` : ''}
       </div>
-      <div class="reading-box-content" style="max-height: 45vh; overflow-y: auto;">
+      <div class="reading-box-content">
         ${hasAnnouncement ? escapeHtml(fullAnnouncement) : '<span style="color: var(--text-muted);">No detailed announcement text available.</span>'}
       </div>
     </div>
 
     ${task.notes && task.notes.trim() ? `
-      <div class="reading-notes-box" style="margin-top: 8px; padding: 10px 12px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: var(--radius-sm);">
-        <div style="font-size: 11px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 4px; margin-bottom: 4px;">
+      <div class="reading-notes-box">
+        <div class="reading-notes-header">
           ${getSvgIcon('pencil')}
           <span>Student Personal Notes</span>
         </div>
-        <div style="font-size: 12px; color: var(--text-main); white-space: pre-wrap; line-height: 1.4;">${escapeHtml(task.notes)}</div>
+        <div class="reading-notes-content">${escapeHtml(task.notes)}</div>
       </div>
     ` : ''}
 
     <div class="reading-actions-bar">
-      <button type="button" class="btn-primary-action modal-reading-toggle-btn" style="flex: 1; min-height: 36px;">
+      <button type="button" class="btn-primary-action modal-reading-toggle-btn">
         ${isCompleted ? `${getSvgIcon('refresh', 'mr-1')} Mark Pending` : `${getSvgIcon('check', 'mr-1')} Mark Done`}
       </button>
-      <button type="button" class="btn-card-action modal-reading-share-btn" style="min-height: 36px; padding: 0 10px;">
+      <button type="button" class="btn-outline-action modal-reading-share-btn">
         <span>${getSvgIcon('share', 'mr-1')} Share</span>
       </button>
-      <a class="btn-card-action" href="${gcalUrl}" target="_blank" rel="noopener noreferrer" style="min-height: 36px; display: inline-flex; align-items: center; text-decoration: none; padding: 0 10px;">
+      <a class="btn-outline-action modal-reading-gcal-btn" href="${gcalUrl}" target="_blank" rel="noopener noreferrer">
         <span>${getSvgIcon('calendar', 'mr-1')} G-Cal</span>
       </a>
-      <button type="button" class="btn-card-action modal-reading-edit-btn" style="min-height: 36px; padding: 0 10px;">
+      <button type="button" class="btn-outline-action modal-reading-edit-btn">
         <span>${getSvgIcon('pencil', 'mr-1')} Edit</span>
       </button>
     </div>
