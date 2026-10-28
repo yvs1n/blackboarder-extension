@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.4] - 2026-10-28
+
+### Fixed
+
+- **Unannounced gradebook marks permanently saved.** Gradebook marks recorded directly in Blackboard without an announcement or linked Ultra assessment content item are automatically synthesized into completed tasks (`createTasksForUnmatchedMarks`) with resolved syllabus weights and course assignments, preventing scan marks from being discarded.
+- **Race condition in popup persistence fixed.** `persistTasksInBackground`, `addTask`, `updateTask`, and task action event handlers now use `saveTasksMergingLatest` instead of `saveTasks`, preventing concurrent user edits in the popup from wiping out marks written by background scans.
+- **Marked items strictly ranked newest to oldest.** In `buildMarksSummary` (the Grades card) and the Deadlines tab, marked and completed items are ranked descending (newest first, oldest last) using the mark's recording timestamp (`gradedAt`), falling back to `dueDate` and `submittedAt`, ensuring newly received marks appear at the top.
+
+---
+
 ## [1.4.3] - 2026-10-28
 
 ### Changed

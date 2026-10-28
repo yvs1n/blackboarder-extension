@@ -1904,10 +1904,21 @@ function renderTasks() {
     return true;
   });
 
-  // Sort tasks: pending first, sorted by dueDate ascending (earliest first)
+  // Sort tasks: pending first, sorted by dueDate ascending (earliest first); completed/marked tasks newest first
   filtered.sort((a, b) => {
     if (a.status === 'pending' && b.status !== 'pending') return -1;
     if (a.status !== 'pending' && b.status === 'pending') return 1;
+    if (a.status === 'completed' && b.status === 'completed') {
+      const parse = (d?: string) => {
+        if (!d) return NaN;
+        const n = new Date(d).getTime();
+        return isNaN(n) ? NaN : n;
+      };
+      const timeA = parse(a.gradedAt) || parse(a.dueDate) || parse(a.submittedAt) || parse(a.updatedAt) || -Infinity;
+      const timeB = parse(b.gradedAt) || parse(b.dueDate) || parse(b.submittedAt) || parse(b.updatedAt) || -Infinity;
+      if (timeA !== timeB) return timeB - timeA;
+      return (a.title || '').localeCompare(b.title || '');
+    }
     return compareTasksByTime(a, b);
   });
 
@@ -2400,7 +2411,7 @@ function renderAllViewsNow() {
 // Optimistic UI: in-memory state is the source of truth, storage writes are queued in order
 let persistChain: Promise<void> = Promise.resolve();
 function persistTasksInBackground(tasks: DeadlineTask[]): Promise<void> {
-  persistChain = persistChain.then(() => saveTasks(tasks)).catch(() => {});
+  persistChain = persistChain.then(() => saveTasksMergingLatest(tasks)).then(() => {}).catch(() => {});
   return persistChain;
 }
 
@@ -3269,7 +3280,7 @@ function setupEvents() {
 
     currentTasks = deduplicateTaskList(await addTask(newTask));
     currentTasks.sort(compareTasksByTime);
-    await saveTasks(currentTasks);
+    currentTasks = await saveTasksMergingLatest(currentTasks);
 
     formAddTask.reset();
     if (addRoomInput) addRoomInput.value = '';
@@ -4471,7 +4482,7 @@ function initAiExtractModal() {
           };
           currentTasks = await addTask(newTask);
           currentTasks.sort(compareTasksByTime);
-          await saveTasks(currentTasks);
+          currentTasks = await saveTasksMergingLatest(currentTasks);
           refreshAllViews();
           syncTasksToCloud(currentTasks, 'Extracted Announcement Added');
           (addBtn as HTMLButtonElement).disabled = true;

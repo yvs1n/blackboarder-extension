@@ -504,6 +504,15 @@ function syncAllComponents(version) {
       console.log(`  ✓ Synced export/extension/README.md to v${version}`);
     }
   }
+
+  // 6. Sync export/extension/AGENTS.md
+  const agentsPath = r('AGENTS.md');
+  const exportAgentsPath = r('export', 'extension', 'AGENTS.md');
+  if (fs.existsSync(agentsPath) && fs.existsSync(exportAgentsPath)) {
+    if (writeIfChanged(exportAgentsPath, readText(agentsPath))) {
+      console.log('  ✓ Synced export/extension/AGENTS.md from AGENTS.md');
+    }
+  }
 }
 
 async function main() {

@@ -20,6 +20,8 @@ export interface MarkRow {
   /** Course percentage this mark earned: weight x score / max */
   earned?: number;
   dueDate?: string;
+  gradedAt?: string;
+  submittedAt?: string;
 }
 
 export interface CourseMarks {
@@ -69,7 +71,15 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     }
 
     const weight = Number(t.weight) > 0 ? Number(t.weight) : undefined;
-    const row: MarkRow = { id: t.id, title: t.title, status: graded ? 'graded' : 'submitted', weight, dueDate: t.dueDate };
+    const row: MarkRow = {
+      id: t.id,
+      title: t.title,
+      status: graded ? 'graded' : 'submitted',
+      weight,
+      dueDate: t.dueDate,
+      gradedAt: t.gradedAt,
+      submittedAt: t.submittedAt
+    };
     if (graded) {
       row.score = t.score;
       row.maxScore = t.maxScore;
@@ -92,6 +102,20 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       const existingRow = course.marks[existingIndex];
       if (row.title.length > existingRow.title.length) {
         existingRow.title = row.title;
+      }
+      if (row.gradedAt) {
+        if (!existingRow.gradedAt) {
+          existingRow.gradedAt = row.gradedAt;
+        } else {
+          const tNew = new Date(row.gradedAt).getTime();
+          const tOld = new Date(existingRow.gradedAt).getTime();
+          if (!isNaN(tNew) && (isNaN(tOld) || tNew > tOld)) {
+            existingRow.gradedAt = row.gradedAt;
+          }
+        }
+      }
+      if (row.submittedAt && !existingRow.submittedAt) {
+        existingRow.submittedAt = row.submittedAt;
       }
       if (graded && existingRow.status !== 'graded') {
         existingRow.status = 'graded';
@@ -129,12 +153,26 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     c.earnedWeight = round1(c.earnedWeight);
     const pcts = c.marks.filter(m => m.percent !== undefined).map(m => m.percent!);
     if (pcts.length) c.averagePercent = round1(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-    // Most recent first (by the item's date); items without a date go last
+    // Ranked from newest to oldest: most recently graded or due first; undated items go last
     const time = (m: MarkRow) => {
-      const n = new Date(m.dueDate || '').getTime();
-      return isNaN(n) ? -Infinity : n;
+      const parse = (d?: string) => {
+        if (!d) return NaN;
+        const n = new Date(d).getTime();
+        return isNaN(n) ? NaN : n;
+      };
+      const tGraded = parse(m.gradedAt);
+      if (!isNaN(tGraded)) return tGraded;
+      const tDue = parse(m.dueDate);
+      if (!isNaN(tDue)) return tDue;
+      const tSub = parse(m.submittedAt);
+      if (!isNaN(tSub)) return tSub;
+      return -Infinity;
     };
-    c.marks.sort((a, b) => time(b) - time(a));
+    c.marks.sort((a, b) => {
+      const diff = time(b) - time(a);
+      if (diff !== 0) return diff;
+      return a.title.localeCompare(b.title);
+    });
   }
   courses.sort((a, b) => a.courseName.localeCompare(b.courseName));
   return { courses, gradedCount, submittedCount };

@@ -505,3 +505,105 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
 
   return changedTasks.size;
 }
+
+/**
+ * Synthesizes completed DeadlineTasks for gradebook marks that did not match any
+ * existing announcement task. This ensures all real marks recorded in Blackboard's
+ * gradebook are saved to storage and visible in the student's Grades card.
+ */
+export function createTasksForUnmatchedMarks(
+  updates: TaskSubmissionUpdate[],
+  existingTasks: DeadlineTask[],
+  tombstones: Record<string, string> = {},
+  nowMs: number = Date.now()
+): DeadlineTask[] {
+  const newTasks: DeadlineTask[] = [];
+  const nowIso = new Date(nowMs).toISOString();
+
+  // Map existing tasks by ID and gradeSourceId to prevent duplicates
+  const existingIds = new Set(existingTasks.map(t => t.id));
+  const existingSources = new Set(existingTasks.map(t => t.gradeSourceId).filter(Boolean));
+
+  for (const update of updates) {
+    if (!update || update.submissionStatus !== 'graded') continue;
+    if (typeof update.score !== 'number' || isNaN(update.score)) continue;
+    if (!update.maxScore || update.maxScore <= 0) continue;
+
+    const src = update.sourceId;
+    if (src && existingSources.has(src)) continue;
+
+    const uCourse = parseCourseDetails(`${update.courseCode || ''} ${update.courseName || ''}`.trim());
+    const cleanCourseCode = (update.courseCode && update.courseCode !== 'UOS')
+      ? update.courseCode
+      : (uCourse.code && uCourse.code !== 'UOS' ? uCourse.code : '');
+    const cleanCourseName = (update.courseName && update.courseName !== 'General Course' && update.courseName.toLowerCase() !== 'uos')
+      ? update.courseName
+      : (uCourse.name && uCourse.name !== 'General Course' ? uCourse.name : '');
+
+    const colId = (src || '').replace(/^gb:/, '');
+    const courseKey = (cleanCourseCode || cleanCourseName || 'course').replace(/[^A-Za-z0-9_]/g, '');
+    const id = colId ? `gbcol_${courseKey}_${colId}` : `gbmark_${courseKey}_${encodeURIComponent(update.title).slice(0, 30)}`;
+
+    if (tombstones[id] || existingIds.has(id)) continue;
+
+    let type: TaskType = 'assignment';
+    if (/quiz|كويز|اختبار\s*قصير/i.test(update.title)) {
+      type = 'quiz';
+    } else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(update.title)) {
+      type = 'exam';
+    } else if (/project|مشروع|بحث/i.test(update.title)) {
+      type = 'project';
+    }
+
+    const weightInfo = resolveTaskWeight({
+      title: update.title,
+      courseName: cleanCourseName,
+      courseCode: cleanCourseCode,
+      type,
+      sourceSnippet: update.title
+    });
+    const roomInfo = resolveTaskRoom({
+      courseNameOrCode: cleanCourseName || cleanCourseCode,
+      title: update.title,
+      type
+    });
+
+    const dueIso = update.gradedAt && !isNaN(new Date(update.gradedAt).getTime())
+      ? new Date(update.gradedAt).toISOString()
+      : nowIso;
+
+    const task: DeadlineTask = {
+      id,
+      courseCode: cleanCourseCode,
+      courseName: cleanCourseName || cleanCourseCode,
+      title: update.title,
+      description: '',
+      dueDate: dueIso,
+      hasSpecificTime: false,
+      type,
+      priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: update.score,
+      maxScore: update.maxScore,
+      scoreDisplay: update.scoreDisplay || `${update.score} / ${update.maxScore}`,
+      gradedAt: update.gradedAt,
+      gradeSourceId: src,
+      sourceSnippet: update.title,
+      confidence: 1.0,
+      extractedBy: 'local',
+      weight: weightInfo.weight,
+      weightDisplay: weightInfo.weightDisplay,
+      syllabusNote: weightInfo.syllabusNote,
+      room: roomInfo.room || undefined,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+
+    newTasks.push(task);
+    existingIds.add(id);
+    if (src) existingSources.add(src);
+  }
+
+  return newTasks;
+}

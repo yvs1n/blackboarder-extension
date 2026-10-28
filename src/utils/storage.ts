@@ -453,15 +453,13 @@ export async function addTask(task: DeadlineTask): Promise<DeadlineTask[]> {
     updated = [task, ...existing];
   }
   updated = deduplicateTaskList(updated);
-  await saveTasks(updated);
-  return updated;
+  return await saveTasksMergingLatest(updated);
 }
 
 export async function updateTask(taskId: string, updates: Partial<DeadlineTask>): Promise<DeadlineTask[]> {
   const tasks = await getTasks();
   const updated = tasks.map(t => (t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t));
-  await saveTasks(updated);
-  return updated;
+  return await saveTasksMergingLatest(updated);
 }
 
 export async function deleteTask(taskId: string): Promise<DeadlineTask[]> {

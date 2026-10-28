@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.3",
-  "build": "b88447379488",
-  "commit": "dbbaf336ca0b08c5333e547d38cd3b47209be9a3",
-  "shortCommit": "dbbaf33",
-  "timestamp": "2026-10-28T17:48:53.166Z",
-  "message": "build: update generated files for 7f5f8be",
+  "version": "1.4.4",
+  "build": "c4f45d6aa853",
+  "commit": "0dbd4f165e829db0b1ac5cbd9e9995ae9f938a66",
+  "shortCommit": "0dbd4f1",
+  "timestamp": "2026-10-28T19:19:52.070Z",
+  "message": "build: update generated files for be7e31d",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
