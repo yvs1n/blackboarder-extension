@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.0",
-  "build": "38caa6e0aa43",
-  "commit": "43cc49b00209d6a343789ba193a90c8a3f1fd5e6",
-  "shortCommit": "43cc49b",
-  "timestamp": "2026-10-28T15:16:24.896Z",
-  "message": "fix: deduplicate ordinal and numbered assessments across announcements and gradebook",
+  "version": "1.4.2",
+  "build": "734ad636042d",
+  "commit": "34807ff3d405786bc4990e465648f2acfe3870c5",
+  "shortCommit": "34807ff",
+  "timestamp": "2026-10-28T17:12:39.787Z",
+  "message": "docs: formalize version bumping and changelog tracking policy in AGENTS.md",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

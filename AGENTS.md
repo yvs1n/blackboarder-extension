@@ -45,6 +45,7 @@ Run `npm run lint` and `npm test` before every commit. Generated files (`dist/`,
 8. **Never break sync isolation**: every Firebase read and write is scoped to `users/{syncKey}`. Sync keys are `BBS-` plus 26 characters (older keys of 8 or more characters still work).
 9. **No secrets in the repo.** Never commit backups, API keys or sync keys. Tests use made-up values.
 10. **Firebase object keys cannot contain `. $ # [ ] /`.** Maps keyed by task id go through `encodeCloudKeys` when written and `decodeCloudKeys` when read.
+11. **Always bump the version and log changes.** Every update must bump `version` in `package.json`, record changes in `CHANGELOG.md` under the new version header, and commit as `yxsinja <62697781+yas-star@users.noreply.github.com>`. Never commit with bot or AI assistant imprints, and never push changes under an existing version.
 
 ## Verifying changes
 

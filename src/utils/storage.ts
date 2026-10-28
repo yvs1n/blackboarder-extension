@@ -1,7 +1,7 @@
 import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, UserCourseConfig } from '../types';
 import { universityQuickLinks } from '../core/universities';
 import { isValidTask, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
-import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks } from './taskMerge';
+import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks, sanitizeTaskListMarks } from './taskMerge';
 import { DEFAULT_USER_COURSES, setActiveUserCourses } from '../core/userCourses';
 import { resolveTaskWeight } from '../core/syllabusWeights';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../core/courseSchedule';
@@ -114,7 +114,7 @@ export function getCachedTasksSync(): DeadlineTask[] {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.filter(isValidTask);
+        return sanitizeTaskListMarks(parsed.filter(isValidTask));
       }
     } catch {}
   }
@@ -350,22 +350,28 @@ export async function getTasks(): Promise<DeadlineTask[]> {
             try {
               if (chrome.runtime?.lastError) {
                 const raw = safeGetLocalStorage(STORAGE_KEYS.TASKS);
-                resolve(raw ? JSON.parse(raw) : []);
+                resolve(raw ? sanitizeTaskListMarks(JSON.parse(raw)) : []);
                 return;
               }
-              const tasks = (result?.[STORAGE_KEYS.TASKS] as DeadlineTask[]) || [];
+              const rawTasks = (result?.[STORAGE_KEYS.TASKS] as DeadlineTask[]) || [];
+              const tasks = sanitizeTaskListMarks(rawTasks);
               if (tasks && tasks.length > 0) {
                 safeSetLocalStorage(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+                if (JSON.stringify(tasks) !== JSON.stringify(rawTasks)) {
+                  try {
+                    chrome.storage.local.set({ [STORAGE_KEYS.TASKS]: tasks }, () => {});
+                  } catch {}
+                }
               }
               resolve(tasks);
             } catch {
               const raw = safeGetLocalStorage(STORAGE_KEYS.TASKS);
-              resolve(raw ? JSON.parse(raw) : []);
+              resolve(raw ? sanitizeTaskListMarks(JSON.parse(raw)) : []);
             }
           });
         } catch {
           const raw = safeGetLocalStorage(STORAGE_KEYS.TASKS);
-          resolve(raw ? JSON.parse(raw) : []);
+          resolve(raw ? sanitizeTaskListMarks(JSON.parse(raw)) : []);
         }
       });
     } catch {
@@ -376,7 +382,7 @@ export async function getTasks(): Promise<DeadlineTask[]> {
   const raw = safeGetLocalStorage(STORAGE_KEYS.TASKS);
   if (raw) {
     try {
-      return JSON.parse(raw);
+      return sanitizeTaskListMarks(JSON.parse(raw));
     } catch {
       return [];
     }

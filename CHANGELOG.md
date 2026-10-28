@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.2] - 2026-10-28
+
+### Fixed
+
+- **Submitted assessments never show fabricated or stale marks.** Sync merges (`mergeCloudTasks`), local storage loads, gradebook updates, and task card badges now strictly clear `score`, `maxScore`, and `scoreDisplay` whenever `submissionStatus` is `'submitted'` (not `'graded'`), preventing ungraded assignments or research papers (such as `واجب (10 درجات)` and `البحث العلمي (واجب جماعي) 15 درجة`) from displaying `10 / 10` or cross-matched `6 / 10` scores.
+- **Submission receipt cards never extract title points as scores.** Stream submission cards containing point labels in the assessment title no longer parse those numbers as earned marks.
+- **Arabic research extension announcements deduplicate with gradebook columns.** Deadline extension announcements (such as `تمديد فترة تسليم البحث العلمي ومحاولات التسليم`) normalize and merge cleanly with their corresponding `project` gradebook column (`15%`) instead of appearing as a separate graded assignment.
+- **Public extension repository CI and release sync.** Removed local filesystem dependencies from tests and improved commit resolution in `scripts/build.js` so automated builds, public extension syncs, and GitHub Releases run cleanly under `yxsinja`.
+
+---
+
+## [1.4.1] - 2026-10-28
+
+### Added
+
+- **Background exam schedule scan.** The exam schedule page is now scanned directly over HTTP with credentials, without opening background browser tabs.
+
+### Fixed
+
+- **Post-exam review and viewing announcements filtered.** Announcements regarding post-exam paper reviews, Akkindi answer sheet checks, and grade viewing sessions are no longer falsely extracted as upcoming exam deadlines.
+- **Submitted assessments mark safety.** Items marked as submitted in the gradebook (such as term papers or research projects) without published scores are accurately preserved as submitted without spurious zero or mock scores.
+- **Early graded homework auto-completion.** Homework and assignments with released grades are automatically marked as completed, even when their due date is far in the future.
+- **Ordinal assessment deduplication.** Matches and merges ordinal and numeric assessment titles across announcements and gradebooks (e.g. "Quiz 2" and "2nd Quiz", "واجب 1" and "الواجب الأول").
+
+### Changed
+
+- **Announcement details view.** Announcement reading modal updated to a clean, minimal Linear styling consistent with the rest of the app.
+
+---
+
 ## [1.4.0] - 2026-10-28
 
 ### Added

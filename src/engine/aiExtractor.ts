@@ -86,6 +86,7 @@ CRITICAL TIME & DATE RULES:
   ]
 }
 6. If the doctor mentions a specific classroom, hall, or lab to attend in (e.g. "room A8-204", "hall TH005", "Lab 3", "قاعة 103", "مختبر 105"), extract it into "room". Otherwise set "room" to null.
+7. DO NOT extract post-exam reviews, paper viewing sessions, Akkindi / bubble sheet checks, grade disputes, or answer key discussions where the exam has already concluded (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان", "الاطلاع على ورقة الإجابة"). Only extract upcoming future assessments, exams to be taken, or work to be submitted.
 If no deadlines or tasks are found, return { "deadlines": [] }. Output valid JSON only.`;
 
   const cleanBody = sanitizeDoctorAnnouncementText(

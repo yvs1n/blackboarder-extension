@@ -757,7 +757,7 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
           ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(task.weightDisplay)}</span>
         </div>
       ` : ''}
-      ${task.scoreDisplay || task.score !== undefined ? `
+      ${task.submissionStatus === 'graded' && (task.scoreDisplay || task.score !== undefined) ? `
         <div class="task-grade-pill" title="Grade / Score released on Blackboard">
           ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
         </div>
@@ -2052,7 +2052,7 @@ function renderTasks() {
         ${roomBadgeHtml}
         ${weightBadgeHtml}
         ${classTimeBadgeHtml}
-        ${task.scoreDisplay || task.score !== undefined ? `
+        ${task.submissionStatus === 'graded' && (task.scoreDisplay || task.score !== undefined) ? `
           <span class="task-grade-pill" title="Grade / Score released on Blackboard">
             ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
           </span>
@@ -2212,7 +2212,7 @@ function openReadingSheet(task: DeadlineTask) {
       </button>
       ` : ''}
       ${task.weightDisplay || task.weight ? `<span class="task-weight-pill weight-major">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(task.weightDisplay || `${task.weight}%`)}</span>` : ''}
-      ${task.scoreDisplay || task.score !== undefined ? `
+      ${task.submissionStatus === 'graded' && (task.scoreDisplay || task.score !== undefined) ? `
         <span class="task-grade-pill" title="Grade / Score released on Blackboard">
           ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
         </span>

@@ -1,7 +1,14 @@
 import { Announcement, DeadlineTask, TaskType, TaskPriority } from '../types';
 import { resolveTaskWeight } from '../core/syllabusWeights';
 import { resolveTaskTimeWithSchedule, resolveTaskRoom } from '../core/courseSchedule';
-import { sanitizeDoctorAnnouncementText, isBareTypeTitle } from '../core/courseHelper';
+import {
+  sanitizeDoctorAnnouncementText,
+  isBareTypeTitle,
+  isExamReviewTitle,
+  hasExamReviewContent,
+  hasMakeupExamAction,
+  isExamReviewSession
+} from '../core/courseHelper';
 
 interface DateMatchResult {
   date: Date;
@@ -57,7 +64,7 @@ const TASK_TYPE_PATTERNS: Array<{ type: TaskType; regex: RegExp; priority: TaskP
   },
   {
     type: 'project',
-    regex: /(?:\b(project(?:\s*(?:phase|milestone|submission|report|\d+))?|term\s*paper|capstone)\b|(?:مشروع(?:\s*(?:التخرج|\d+))?))/i,
+    regex: /(?:\b(project(?:\s*(?:phase|milestone|submission|report|\d+))?|term\s*paper|research\s*paper|capstone)\b|(?:مشروع(?:\s*(?:التخرج|\d+))?|(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+))/i,
     priority: 'high'
   },
   {
@@ -528,8 +535,8 @@ function extractTaskTitle(sentence: string, taskType: TaskType): string {
     return specificMatch[1].trim();
   }
 
-  // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي"
-  const arTitleMatch = clean.match(/(?:(?:كويز|واجب|امتحان|مشروع|اختبار)(?:\s*(?:الأول|الثاني|الثالث|الرابع|النهائي|النصفي|\d+))?)/i);
+  // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي", "البحث العلمي"
+  const arTitleMatch = clean.match(/(?:(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+|(?:كويز|واجب|امتحان|مشروع|اختبار)(?:\s*(?:الأول|الثاني|الثالث|الرابع|النهائي|النصفي|\d+))?)/i);
   if (arTitleMatch && arTitleMatch[0].length > 2) {
     return arTitleMatch[0].trim();
   }
@@ -573,6 +580,11 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     return [];
   }
 
+  // 2b. Filter out announcements dedicated to post-exam paper reviews, viewing sessions, or Akkindi sheet checks
+  if (isExamReviewSession(announcement.title, cleanContent) && !hasFutureDeadlineAction) {
+    return [];
+  }
+
   const text = `${announcement.title}\n${cleanContent}`;
 
   // Break text into sentences or lines
@@ -585,6 +597,10 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
   const detectedKeys = new Set<string>();
 
   for (const sentence of sentences) {
+    // Skip sentences that announce post-exam paper reviews, viewing sessions, or Akkindi sheet checks
+    if (hasExamReviewContent(sentence) && !hasMakeupExamAction(sentence) && !/(?:submit\s+by|due\s+on|due\s+date|submission\s+deadline|تسليم\s+في|آخر\s+موعد)/iu.test(sentence)) {
+      continue;
+    }
     // Check if the sentence has any academic/deadline intent
     let matchedType: TaskType | null = null;
     let basePriority: TaskPriority = 'medium';
@@ -645,7 +661,7 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     }
     if (isBareTypeTitle(title) && (sentenceType !== effectiveType || effectiveType === 'other')) {
       const fromHeading = extractTaskTitle(announcement.title || '', effectiveType);
-      if (isBareTypeTitle(fromHeading)) continue;
+      if (isBareTypeTitle(fromHeading) || isExamReviewTitle(fromHeading)) continue;
       title = fromHeading;
       const headingType = TASK_TYPE_PATTERNS.find(p => p.type !== 'other' && p.regex.test(fromHeading));
       if (headingType) effectiveType = headingType.type;

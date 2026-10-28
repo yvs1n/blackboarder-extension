@@ -1,5 +1,6 @@
 import type { DeadlineTask } from '../types';
 import { coreTitle } from './streamParser';
+import { sanitizeTaskListMarks } from './taskMerge';
 
 /** The fields of a syllabus this summary needs (both the extension and phone shapes have them). */
 export interface MarksSyllabus {
@@ -49,8 +50,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
   const byCourse = new Map<string, CourseMarks>();
   let gradedCount = 0;
   let submittedCount = 0;
+  const cleanTasks = sanitizeTaskListMarks(tasks || []);
 
-  for (const t of tasks || []) {
+  for (const t of cleanTasks) {
     if (!t) continue;
     const graded = t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
     const submitted = !graded && (t.submissionStatus === 'submitted' || t.submissionStatus === 'graded');

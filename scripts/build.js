@@ -72,7 +72,14 @@ function hashFiles(baseDir, files, normalize = (_rel, text) => text) {
 function gitInfo() {
   const info = { commit: '', shortCommit: '', message: '' };
   try {
-    info.commit = process.env.GITHUB_SHA || execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
+    const head = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim();
+    let candidate = process.env.GITHUB_SHA || head;
+    try {
+      execSync(`git cat-file -e ${candidate}^{commit}`, { cwd: ROOT, stdio: 'ignore' });
+    } catch {
+      candidate = head;
+    }
+    info.commit = candidate;
     info.shortCommit = info.commit.slice(0, 7);
     info.message = execSync(`git log -1 --format=%s ${info.commit}`, { cwd: ROOT, encoding: 'utf8' }).trim();
   } catch (err) {

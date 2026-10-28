@@ -229,6 +229,29 @@ export function parseCourseDetails(rawText: string): CourseInfo {
     name = code !== 'UOS' ? `Course ${code}` : 'General Course';
   }
 
+  // Recognize standard Arabic course names when code is missing or generic UOS
+  if (code === 'UOS' || !code) {
+    if (/(?:ثقافة\s*إسلامية|ثقافة\s*اسلامية|الثقافة\s*الإسلامية|الثقافة\s*الاسلامية)/i.test(name)) {
+      name = 'Islamic Culture';
+      code = '0104100';
+    } else if (/(?:حسبان\s*1|حسبان\s*للمهندسين)/i.test(name)) {
+      name = 'Calculus I for Engineering';
+      code = '1440133';
+    } else if (/(?:مقدمة\s*في\s*هندسة\s*الحاسوب|هندسة\s*الحاسوب)/i.test(name)) {
+      name = 'Introduction to Computer Eng.';
+      code = '1502101';
+    } else if (/(?:مختبر\s*فيزياء\s*1|مختبر\s*الفيزياء\s*1)/i.test(name)) {
+      name = 'Physics 1 Lab';
+      code = '1430116';
+    } else if (/(?:الفيزياء\s*1|فيزياء\s*1)/i.test(name)) {
+      name = 'Physics 1';
+      code = '1430115';
+    } else if (/(?:اللغة\s*الإنجليزية\s*لأغراض\s*أكاديمية|لغة\s*إنجليزية\s*لأغراض\s*أكاديمية)/i.test(name)) {
+      name = 'English for Academic Purposes';
+      code = '0202112';
+    }
+  }
+
   // System navigation tabs (Content, Calendar, Discussions, Gradebook, etc.) are never courses
   if (code === 'UOS' && isBlackboardSystemNoise(name)) {
     return { code: 'UOS', name: 'General Course' };
@@ -486,6 +509,113 @@ export function stripAutoNotes<T extends { notes?: string; userEdited?: boolean;
   return rest as T;
 }
 
+/**
+ * Detects whether a title indicates a post-exam review, paper viewing, Akkindi check, or grade dispute.
+ */
+export function isExamReviewTitle(title: string): boolean {
+  if (!title) return false;
+  const t = title.trim();
+  // English patterns: e.g. "Exam sheet review", "Midterm paper viewing", "Quiz review", "Paper viewing", "Akkindi sheet"
+  const enMatch = (
+    /(?:\b(?:exam|quiz|test|midterm|final|paper|sheet|script)s?\s*(?:sheet\s*)?(?:reviews?|viewing|inspection|check)\b)/i.test(t) ||
+    /(?:\b(?:review|viewing|inspection|checking)\s+(?:of\s+)?(?:the\s+)?(?:exam|quiz|test|midterm|final|paper|sheet|script)s?\b)/i.test(t) ||
+    /(?:\b(?:paper|exam\s*sheet|quiz\s*sheet)\s*viewing\b)/i.test(t) ||
+    /\bakkindi\b/i.test(t)
+  );
+  if (enMatch) return true;
+
+  // Arabic patterns (Rule 2: never \b with Arabic characters)
+  const arMatch = (
+    /(?:^|[^\p{L}\p{N}])(?:مراجعة|الاطلاع\s*على|معاينة|رؤية|تظلمات?|الاعتراض\s*على)\s*(?:أوراق|ورقة|دفاتر|دفتر|درجات|درجة|علامات|علامة|نتائج)?\s*(?:(?:ال)?(?:امتحان|اختبار)\s*)?(?:ال)?(?:امتحان|اختبار|منتصف|ميدتيرم|كويز|فصل|إجابة|اجابة|بابل\s*شيت|فاينل)(?:$|[^\p{L}\p{N}])/iu.test(t) ||
+    /(?:^|[^\p{L}\p{N}])(?:أوراق|ورقة|دفاتر|دفتر)\s*(?:الامتحان|الاختبار|المنتصف|الكويز|الإجابة)\s*(?:مراجعة|اطلاع|معاينة)(?:$|[^\p{L}\p{N}])/iu.test(t)
+  );
+  return arMatch;
+}
+
+/**
+ * Detects whether text describes a post-exam review/viewing session, Akkindi sheet check,
+ * self-grading against posted answers, or grade disputes.
+ */
+export function hasExamReviewContent(text: string): boolean {
+  if (!text) return false;
+  // English indicators
+  const enMatch = (
+    /\b(?:review|view|inspect|check|see)\s+(?:your\s+|the\s+)?(?:exam|quiz|test|midterm|final)\s*(?:sheet|paper|script)?s?\b/i.test(text) ||
+    /\b(?:exam|quiz|test|midterm|final)\s+(?:sheet|paper|script)\s*reviews?\b/i.test(text) ||
+    /\b(?:paper|exam\s*sheet|quiz\s*sheet|midterm\s*sheet)\s*viewing\b/i.test(text) ||
+    /\bakkindi\s*(?:sheet|answer|key)?\b/i.test(text) ||
+    /\bgrade\s+yourself\s+using\s+(?:the\s+)?correct\s+answers\b/i.test(text) ||
+    /\bif\s+you\s+(?:still\s+)?believe\s+(?:that\s+)?your\s+grade\s+should\s+be\s+higher\b/i.test(text) ||
+    /\bno\s+review\s+outside\s+this\s+time\b/i.test(text) ||
+    /\bpost[\s-]*exam\s*(?:review|viewing|inspection)\b/i.test(text)
+  );
+  if (enMatch) return true;
+
+  // Arabic indicators (no \b for Arabic)
+  const arMatch = (
+    /(?:مراجعة|الاطلاع\s*على|معاينة|رؤية)\s*(?:أوراق|ورقة|دفاتر|دفتر)?\s*(?:(?:ال)?(?:امتحان|اختبار)\s*)?(?:ال)?(?:امتحان|اختبار|منتصف|ميدتيرم|كويز|إجابة|اجابة|بابل\s*شيت)/iu.test(text) ||
+    /لمن\s*(?:يرغب|يريد)\s*(?:في\s*)?(?:مراجعة|الاطلاع\s*على)\s*(?:ورقته|أوراقه|درجته|علامته|الامتحان|الاختبار)/iu.test(text) ||
+    /نموذج\s*(?:الإجابة|الحل)\s*(?:لمراجعة|والاطلاع|لتصحيح)/iu.test(text) ||
+    /(?:الاعتراض\s*على\s*(?:الدرجة|العلامة)|تظلمات?\s*(?:الامتحان|الاختبار|الدرجة))/iu.test(text)
+  );
+  return arMatch;
+}
+
+/**
+ * Detects whether text mentions a genuine make-up exam to be taken.
+ */
+export function hasMakeupExamAction(text: string): boolean {
+  if (!text) return false;
+  return /(?:makeup\s+exam|make-up\s+exam|(?:ال)?امتحان\s+(?:ال)?تعويضي|(?:ال)?اختبار\s+(?:ال)?تعويضي|(?:ال)?امتحان\s+(?:ال)?بديل|إعادة\s+(?:امتحان|اختبار)\s+(?:ال)?منتصف)/iu.test(text);
+}
+
+/**
+ * True when an announcement is dedicated to an exam review/viewing session without future assessments.
+ */
+export function isExamReviewSession(title: string, content: string = ''): boolean {
+  const combined = `${title || ''}\n${content || ''}`.trim();
+  if (!combined) return false;
+  if (hasMakeupExamAction(combined)) return false;
+  return isExamReviewTitle(title) || hasExamReviewContent(combined);
+}
+
+/**
+ * True if a task was generated from a post-exam review/viewing session, Akkindi sheet check,
+ * or grade dispute rather than a legitimate assessment.
+ */
+export function isExamReviewTask(task: {
+  title?: string;
+  type?: string;
+  description?: string;
+  sourceSnippet?: string;
+}): boolean {
+  if (!task) return false;
+  const title = (task.title || '').trim();
+  const desc = (task.description || '').trim();
+  const snippet = (task.sourceSnippet || '').trim();
+  const type = (task.type || '').toLowerCase();
+
+  // 1. Title itself is explicitly an exam review/viewing title
+  if (isExamReviewTitle(title)) {
+    return true;
+  }
+
+  // 2. Task is an exam, quiz, other, or has a bare type title ("exam", "quiz", etc.),
+  // and its description or snippet contains exam review / Akkindi content
+  const isCandidate = type === 'exam' || type === 'quiz' || type === 'other' || isBareTypeTitle(title);
+  if (isCandidate) {
+    const textToCheck = `${snippet} ${desc}`.trim();
+    if (hasExamReviewContent(textToCheck)) {
+      if (hasMakeupExamAction(textToCheck) || hasMakeupExamAction(title)) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function isValidTask(task: {
   title?: string;
   courseName?: string;
@@ -540,6 +670,13 @@ export function isValidTask(task: {
     if (!hasFutureAction) {
       return false;
     }
+  }
+
+  // 4b. Drop tasks originating from post-exam review sessions, paper viewing, or grade disputes
+  // (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان")
+  // where the exam is already over, unless there is an explicit makeup exam or submission deadline.
+  if (isExamReviewTask(task)) {
+    return false;
   }
 
   // 5. Generic placeholders

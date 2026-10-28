@@ -1,5 +1,6 @@
 import type { DeadlineTask, TaskType } from '../types';
 import { GradeRow } from '../core/universities';
+import { sanitizeTaskListMarks } from './taskMerge';
 
 /**
  * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
@@ -118,7 +119,8 @@ function pickComponent(task: DeadlineTask, components: GpaComponent[]): GpaCompo
  * on what has been marked so far.
  */
 export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): GpaSummary {
-  const graded = (tasks || []).filter(t => t && isGraded(t));
+  const cleanTasks = sanitizeTaskListMarks(tasks || []);
+  const graded = cleanTasks.filter(t => t && isGraded(t));
   const courses: CourseGrade[] = [];
 
   for (const syl of syllabi || []) {

@@ -60,8 +60,8 @@ jobs:
         env:
           TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git config user.name "yxsinja"
+          git config user.email "62697781+yas-star@users.noreply.github.com"
           git tag -f "$TAG"
           git push -f origin "refs/tags/$TAG"
 

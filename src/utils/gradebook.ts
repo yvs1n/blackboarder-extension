@@ -1,7 +1,7 @@
 import { DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
-import { findTaskForUpdate } from './streamParser';
+import { findTaskForUpdate, findAllTasksForUpdate } from './streamParser';
 import { parseCourseDetails } from '../core/courseHelper';
-import { resolveTaskWeight } from '../core/syllabusWeights';
+import { resolveTaskWeight, extractExplicitPoints } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
 
 /** One gradebook column as Ultra's /learn/api/v1/courses/{id}/gradebook/columns returns it. */
@@ -256,8 +256,88 @@ export function isExamItem(t: { type?: string; title?: string }): boolean {
  */
 export function dropImpossibleMarks(tasks: DeadlineTask[], nowMs: number = Date.now()): number {
   let cleared = 0;
+  // Build map of official gradebook column IDs to courses from gbcol_ tasks
+  const colToCourse = new Map<string, string>();
   for (const t of tasks) {
-    if (t.submissionStatus !== 'graded') continue;
+    const m = (t.id || '').match(/^gbcol_.*(_\d+_\d+)$/);
+    const cKey = (t.courseCode || t.courseName || '').toLowerCase().trim();
+    if (m && cKey && cKey !== 'general course' && cKey !== 'uos') {
+      colToCourse.set(m[1], cKey);
+    }
+  }
+
+  for (const t of tasks) {
+    if (t.submissionStatus !== 'graded') {
+      if (
+        t.score !== undefined ||
+        t.maxScore !== undefined ||
+        t.scoreDisplay !== undefined ||
+        t.gradedAt !== undefined ||
+        t.markProvisional !== undefined
+      ) {
+        delete t.score;
+        delete t.maxScore;
+        delete t.scoreDisplay;
+        delete t.gradedAt;
+        delete t.markProvisional;
+        t.updatedAt = new Date(nowMs).toISOString();
+        cleared++;
+      }
+      continue;
+    }
+
+    // 1. Explicit points in title must agree with maxScore (e.g. "15 درجة" vs maxScore 10)
+    const explicitPts = extractExplicitPoints(t.title);
+    if (explicitPts !== null && typeof t.maxScore === 'number' && Math.abs(explicitPts - t.maxScore) > 0.5) {
+      delete t.score;
+      delete t.maxScore;
+      delete t.scoreDisplay;
+      delete t.gradedAt;
+      delete t.markProvisional;
+      delete t.gradeSourceId;
+      t.submissionStatus = (t.status === 'completed' || (t.id || '').startsWith('gbcol_')) ? 'submitted' : undefined;
+      t.updatedAt = new Date(nowMs).toISOString();
+      cleared++;
+      continue;
+    }
+
+    // 2. A gbcol_ task whose gradeSourceId points to a different column had a cross-matched mark
+    const colM = (t.id || '').match(/^gbcol_.*(_\d+_\d+)$/);
+    if (colM && t.gradeSourceId) {
+      const srcCol = t.gradeSourceId.replace(/^(?:gb:|col_)/, '');
+      if (srcCol !== colM[1]) {
+        delete t.score;
+        delete t.maxScore;
+        delete t.scoreDisplay;
+        delete t.gradedAt;
+        delete t.markProvisional;
+        t.gradeSourceId = `gb:${colM[1]}`;
+        t.submissionStatus = t.status === 'completed' ? 'submitted' : undefined;
+        t.updatedAt = new Date(nowMs).toISOString();
+        cleared++;
+        continue;
+      }
+    }
+
+    // 3. Cross-course gradeSourceId check
+    if (t.gradeSourceId) {
+      const srcCol = t.gradeSourceId.replace(/^(?:gb:|col_)/, '');
+      const ownerCourse = colToCourse.get(srcCol);
+      const tCourse = (t.courseCode || t.courseName || '').toLowerCase().trim();
+      if (ownerCourse && tCourse && ownerCourse !== tCourse) {
+        delete t.score;
+        delete t.maxScore;
+        delete t.scoreDisplay;
+        delete t.gradedAt;
+        delete t.markProvisional;
+        delete t.gradeSourceId;
+        t.submissionStatus = t.status === 'completed' ? 'submitted' : undefined;
+        t.updatedAt = new Date(nowMs).toISOString();
+        cleared++;
+        continue;
+      }
+    }
+
     // Homework, assignments, lab reports and projects can be submitted and graded early
     if (!isExamItem(t)) {
       if (t.status !== 'completed' && t.status !== 'dismissed') {
@@ -304,20 +384,73 @@ function gradedBeforeItem(t: DeadlineTask, update: import('../types').TaskSubmis
 }
 
 export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmissionUpdate[], nowMs: number = Date.now()): number {
-  let marksChanged = 0;
+  const changedTasks = new Set<DeadlineTask>();
   const now = new Date(nowMs).toISOString();
+  const snapBefore = new Map<DeadlineTask, string>(tasks.map(t => [t, JSON.stringify(t)]));
   dropImpossibleMarks(tasks, nowMs);
+  for (const t of tasks) {
+    if (JSON.stringify(t) !== snapBefore.get(t)) changedTasks.add(t);
+  }
+
+  // Strip any mark whose gradeSourceId belongs to a gradebook update from a different course
+  for (const update of updates) {
+    if (!update.sourceId) continue;
+    const uCourse = parseCourseDetails(update.courseName || update.courseCode || '');
+    const uCode = (update.courseCode || uCourse.code || '').toLowerCase().trim();
+    const uName = (uCourse.name || update.courseName || '').toLowerCase().trim();
+    for (const t of tasks) {
+      if (t.gradeSourceId !== update.sourceId) continue;
+      const tCourse = parseCourseDetails(t.courseName || t.courseCode || '');
+      const tCode = (t.courseCode || tCourse.code || '').toLowerCase().trim();
+      const tName = (tCourse.name || t.courseName || '').toLowerCase().trim();
+      const sameCourse = (uCode && tCode && uCode === tCode) || (uName && tName && uName === tName);
+      if (!sameCourse && (uCode || uName) && (tCode || tName)) {
+        delete t.score;
+        delete t.maxScore;
+        delete t.scoreDisplay;
+        delete t.gradedAt;
+        delete t.markProvisional;
+        delete t.gradeSourceId;
+        t.submissionStatus = t.status === 'completed' ? 'submitted' : undefined;
+        t.updatedAt = now;
+        changedTasks.add(t);
+      }
+    }
+  }
+
   for (const update of updates) {
     const src = update.sourceId;
     const seenEarly = (t: DeadlineTask) => Boolean(src && (t.gradeSourcesBefore || []).includes(src));
-    const match = findTaskForUpdate(tasks, update, t =>
-      // A task that already has its mark from one column is not taken by another one, unless that
-      // mark was only provisional (see below) or this column was graded later
-      !(src && t.gradeSourceId && t.gradeSourceId !== src && !gradedLater(t, update) && !(t.markProvisional && !seenEarly(t))) &&
-      // A column seen graded before this task's date may be a practice run. It is tried again once
-      // the date has passed: dated by Blackboard, or (undated) while the task has no mark at all
-      !(seenEarly(t) && (gradedBeforeItem(t, update, nowMs) || (!update.gradedAt && !!t.gradeSourceId)))
-    );
+    if (update.submissionStatus === 'submitted') {
+      const matches = findAllTasksForUpdate(tasks, update, () => true);
+      for (const match of matches) {
+        const hadSpuriousMark = match.submissionStatus === 'graded' || match.score !== undefined || match.maxScore !== undefined || match.scoreDisplay !== undefined;
+        const changed = match.submissionStatus !== 'submitted' ||
+          match.status !== 'completed' ||
+          hadSpuriousMark ||
+          (!!src && match.gradeSourceId !== src);
+        if (!changed) continue;
+        delete match.score;
+        delete match.maxScore;
+        delete match.scoreDisplay;
+        delete match.gradedAt;
+        delete match.markProvisional;
+        match.submissionStatus = 'submitted';
+        if (src) match.gradeSourceId = src;
+        if (update.submittedAt) match.submittedAt = update.submittedAt;
+        if (update.submissionReceipt) match.submissionReceipt = update.submissionReceipt;
+        match.status = 'completed';
+        match.updatedAt = now;
+        changedTasks.add(match);
+      }
+      continue;
+    }
+
+    const match = findTaskForUpdate(tasks, update, t => {
+      if (src && t.id.endsWith(src.replace(/^gb:/, ''))) return true;
+      return !(src && t.gradeSourceId && t.gradeSourceId !== src && !gradedLater(t, update) && !(t.markProvisional && !seenEarly(t))) &&
+        !(seenEarly(t) && (gradedBeforeItem(t, update, nowMs) || (!update.gradedAt && !!t.gradeSourceId)));
+    });
     if (!match) continue;
     const fromEarlyColumn = seenEarly(match);
     // Undated and first seen before the item: shown, but a mark from any other column replaces it
@@ -356,13 +489,7 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       if (update.scoreDisplay) match.scoreDisplay = update.scoreDisplay;
       match.status = 'completed';
       match.updatedAt = now;
-      marksChanged++;
-    } else if (update.submissionStatus === 'submitted' && match.submissionStatus !== 'graded' && match.submissionStatus !== 'submitted') {
-      match.submissionStatus = 'submitted';
-      if (update.submittedAt) match.submittedAt = update.submittedAt;
-      if (update.submissionReceipt) match.submissionReceipt = update.submissionReceipt;
-      match.status = 'completed';
-      match.updatedAt = now;
+      changedTasks.add(match);
     }
   }
 
@@ -372,9 +499,9 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
     if (t.submissionStatus === 'graded' && !isExamItem(t) && t.status !== 'completed' && t.status !== 'dismissed') {
       t.status = 'completed';
       t.updatedAt = now;
-      marksChanged++;
+      changedTasks.add(t);
     }
   }
 
-  return marksChanged;
+  return changedTasks.size;
 }

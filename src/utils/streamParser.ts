@@ -1,6 +1,6 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
-import { resolveTaskWeight } from '../core/syllabusWeights';
+import { resolveTaskWeight, extractExplicitPoints } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
 
 /**
@@ -159,6 +159,26 @@ export function parseSubmissionOrGradeCard(cardText: string): import('../types')
       .trim();
   }
 
+  // Look for confirmation receipt
+  const receiptMatch = cardText.match(/confirmation\s*(?:number|#)?[:\s]*([#\w-]+)/i);
+  const receipt = receiptMatch ? receiptMatch[1] : undefined;
+
+  // Look for submitted date
+  const dateMatch = cardText.match(/(?:submitted\s+(?:on\s+)?|تم\s+التسليم\s+في\s+)(\d{1,2}\/\d{1,2}\/\d{2,4}(?:[,\s]+\d{1,2}:\d{2}(?:\s*[AP]M)?)?)/i);
+  const submittedAt = dateMatch ? dateMatch[1] : undefined;
+
+  // Pure submission confirmation cards must never invent a score from point values in the title
+  if (isSubmission && !isGraded) {
+    return {
+      courseName: courseName !== 'General Course' ? courseName : undefined,
+      courseCode: (courseCode && courseCode !== 'UOS') ? courseCode : undefined,
+      title: title || 'Assignment',
+      submissionStatus: 'submitted',
+      submittedAt,
+      submissionReceipt: receipt
+    };
+  }
+
   // Look for score fraction: e.g. "9.5 / 10", ".25 / 10", "10/10"
   // Must avoid calendar date fractions like 10/12/26 or 9/18/26
   const fractionMatch = cardText.match(/(?:grade|score|mark|pts?|points?|درجة|علامة)[:\s]*(\.?\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)(?!\s*[\/\-]\s*\d{2,4})/i) ||
@@ -186,14 +206,6 @@ export function parseSubmissionOrGradeCard(cardText: string): import('../types')
       scoreDisplay = `${score}%`;
     }
   }
-
-  // Look for confirmation receipt
-  const receiptMatch = cardText.match(/confirmation\s*(?:number|#)?[:\s]*([#\w-]+)/i);
-  const receipt = receiptMatch ? receiptMatch[1] : undefined;
-
-  // Look for submitted date
-  const dateMatch = cardText.match(/(?:submitted\s+(?:on\s+)?|تم\s+التسليم\s+في\s+)(\d{1,2}\/\d{1,2}\/\d{2,4}(?:[,\s]+\d{1,2}:\d{2}(?:\s*[AP]M)?)?)/i);
-  const submittedAt = dateMatch ? dateMatch[1] : undefined;
 
   if (score !== undefined || (isGraded && !isSubmission)) {
     return {
@@ -261,6 +273,8 @@ export function coreTitle(s?: string): string {
 
   return str
     .replace(/\([^)]*\)/g, ' ')
+    .replace(/\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)/gi, ' ')
+    .replace(/(?:تمديد\s*(?:فترة|موعد)?\s*(?:تسليم)?|موعد\s*تسليم|فترة\s*تسليم|(?:و)?محاولات\s*التسليم)/gi, ' ')
     .replace(/\b(?:graded|grades?|marks?|score|submission|submit)\b/g, ' ')
     .replace(/\b(?:students?'?s?|student's|exp|experiment|lab|labs|report|the|of)\b\.?/g, ' ')
     .replace(/[^a-z0-9\u0600-\u06ff]/g, '');
@@ -282,9 +296,12 @@ function wordsKey(s?: string): string {
   return ((s || '').toLowerCase().match(/[a-z0-9؀-ۿ]+/g) || []).sort().join(' ');
 }
 
-/** The numbers in a title ("Quiz 1" -> ["1"]). */
+/** The numbers in a title ("Quiz 1" -> ["1"]), ignoring point values like "(10 درجات)" or "15 درجة". */
 function titleNumbers(s?: string): string[] {
-  return ((s || '').match(/\d+/g) || []).map(n => String(Number(n)));
+  const cleaned = (s || '')
+    .replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)?\s*\)/gi, ' ')
+    .replace(/\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)/gi, ' ');
+  return (cleaned.match(/\d+/g) || []).map(n => String(Number(n)));
 }
 
 /** One side's numbers must all appear on the other ("HW1" fits "HW1_Phys.1_Fall26-27"; "Quiz 1" does not fit "Quiz 10"). */
@@ -298,21 +315,29 @@ function sameCode(a: string, b: string): boolean {
   return a === b || (a.length >= 6 && b.length >= 6 && (a.startsWith(b) || b.startsWith(a)));
 }
 
-export function findTaskForUpdate(
+const ULTRA_GENERIC_RE = /^(?:assignment|task|due|untitled|واجب)$/i;
+
+export function findAllTasksForUpdate(
   tasks: DeadlineTask[],
   update: import('../types').TaskSubmissionUpdate,
   accept?: (t: DeadlineTask) => boolean
-): DeadlineTask | undefined {
+): DeadlineTask[] {
   const want = cleanTitle(update.title);
-  if (want.length < 3) return undefined;
-  const upCode = cleanCode(update.courseCode === 'UOS' ? '' : update.courseCode);
-  const upName = cleanName(update.courseName);
+  if (want.length < 3) return [];
+  const upRes = parseCourseDetails(`${update.courseCode || ''} ${update.courseName || ''}`);
+  const upCode = cleanCode(upRes.code === 'UOS' ? '' : upRes.code);
+  const upName = cleanName(upRes.name === 'General Course' ? '' : upRes.name);
+  const upColId = update.sourceId ? update.sourceId.replace(/^(?:gb:|col_)/, '') : '';
 
   const scored: { task: DeadlineTask; rank: number }[] = [];
   const upPractice = isPracticeTitle(update.title);
   const upNumbers = titleNumbers(update.title);
   for (const t of tasks) {
     if (accept && !accept(t)) continue;
+    // A gradebook column task (gbcol_<course>_<colId>) only accepts gradebook updates from its own column
+    const tColMatch = (t.id || '').match(/^gbcol_.*(_\d+_\d+)$/);
+    if (tColMatch && upColId && tColMatch[1] !== upColId) continue;
+
     const res = parseCourseDetails(`${t.courseCode || ''} ${t.courseName || ''}`);
     const tCode = cleanCode(res.code === 'UOS' ? '' : res.code);
     const tName = cleanName(res.name === 'General Course' ? '' : res.name);
@@ -334,27 +359,42 @@ export function findTaskForUpdate(
     }
     // A practice mark never lands on the real item, and the other way round
     if (isPracticeTitle(t.title) !== upPractice) continue;
+    // Explicit point values in the title (e.g. "15 درجة") must agree with update.maxScore
+    const tExplicit = extractExplicitPoints(t.title);
+    if (tExplicit && update.maxScore && Math.abs(tExplicit - update.maxScore) > 0.5) continue;
     // "Quiz 1" and "Quiz 10" share letters but not numbers
     const tNumbers = titleNumbers(t.title);
     if (!numbersAgree(tNumbers, upNumbers)) continue;
     const have = cleanTitle(t.title);
     if (have.length < 3) continue;
     const exact = have === want;
-    if (!exact && !have.includes(want) && !want.includes(have)) {
-      // Looser match on the identifying words, only inside a course known to be the same
+    if (!courseKnown) {
+      if (!exact) continue;
+      if (ULTRA_GENERIC_RE.test(update.title.trim()) || ULTRA_GENERIC_RE.test(t.title.trim())) continue;
+    }
+    if (!exact) {
+      if (!courseKnown) continue;
       const core = coreTitle(t.title);
       const sameCore = core.length >= 4 && core === coreTitle(update.title);
-      // Same words in another order ("Practice Midterm" / "Midterm Practice")
       const sameWords = wordsKey(t.title).length >= 4 && wordsKey(t.title) === wordsKey(update.title);
-      if (!courseKnown || (!sameCore && !sameWords)) continue;
+      const sub = (have.includes(want) || want.includes(have)) && !ULTRA_GENERIC_RE.test(update.title.trim());
+      if (!sameCore && !sameWords && !sub) continue;
     }
     scored.push({ task: t, rank: (courseExact ? 4 : 0) + (courseKnown ? 2 : 0) + (exact ? 1 : 0) });
   }
-  if (scored.length === 0) return undefined;
+  if (scored.length === 0) return [];
   scored.sort((a, b) => b.rank - a.rank);
   // With no course to go on, only a single candidate is safe
-  if (scored[0].rank < 2 && scored.filter(s => s.rank === scored[0].rank).length > 1) return undefined;
-  return scored[0].task;
+  if (scored[0].rank < 2 && scored.filter(s => s.rank === scored[0].rank).length > 1) return [];
+  return scored.map(s => s.task);
+}
+
+export function findTaskForUpdate(
+  tasks: DeadlineTask[],
+  update: import('../types').TaskSubmissionUpdate,
+  accept?: (t: DeadlineTask) => boolean
+): DeadlineTask | undefined {
+  return findAllTasksForUpdate(tasks, update, accept)[0];
 }
 
 function stripHtmlTags(html: string): string {
