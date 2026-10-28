@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.4.0",
-  "build": "dc254409d4da",
-  "commit": "1c7d86178265eb57ed6178669f1e7d131ecc1051",
-  "shortCommit": "1c7d861",
-  "timestamp": "2026-10-28T15:06:36.488Z",
-  "message": "style: refine announcement reading modal to Linear aesthetic",
+  "build": "38caa6e0aa43",
+  "commit": "43cc49b00209d6a343789ba193a90c8a3f1fd5e6",
+  "shortCommit": "43cc49b",
+  "timestamp": "2026-10-28T15:16:24.896Z",
+  "message": "fix: deduplicate ordinal and numbered assessments across announcements and gradebook",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

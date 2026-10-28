@@ -140,6 +140,11 @@ export function mergeCloudTasks(
   const tasks = deduped.map(t => {
     const clean = stripAutoNotes(t);
     if (clean !== t) changed = true;
+    // If a task has a released mark in the gradebook, it is automatically completed even with far-future deadline
+    if (clean.submissionStatus === 'graded' && clean.status !== 'completed' && clean.status !== 'dismissed') {
+      clean.status = 'completed';
+      changed = true;
+    }
     return clean;
   }).sort(
     (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()

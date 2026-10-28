@@ -185,3 +185,59 @@ describe('the owner\'s English midterm (gradebook has only "EAP Midterm Exam", n
     expect(mid.gradeSourceId).toBe('gb:_1928045_1');
   });
 });
+
+describe('homework with far-future deadline automatically completed upon grade release', () => {
+  it('accepts gradebook marks for homework with far deadline and automatically marks as completed', () => {
+    const hw = task({
+      id: 'hw_far',
+      title: 'Homework 3',
+      type: 'assignment',
+      courseName: 'Calculus I for Engineering',
+      courseCode: '1440133',
+      dueDate: '2026-12-25T23:59:00.000Z',
+      status: 'pending'
+    });
+
+    const markUpdate = graded({
+      title: 'Homework 3',
+      courseName: 'Calculus I for Engineering',
+      courseCode: '1440133',
+      score: 10,
+      maxScore: 10,
+      sourceId: 'col_hw3'
+    });
+
+    // NOW is 2026-10-22 (more than 2 months before dueDate!)
+    // 1. dropImpossibleMarks must NOT wipe marks from homework with far-future deadline
+    expect(dropImpossibleMarks([hw], NOW)).toBe(0);
+
+    // 2. applySubmissionUpdates must apply the mark and automatically set status to completed
+    const changed = applySubmissionUpdates([hw], [markUpdate], NOW);
+    expect(changed).toBe(1);
+    expect(hw.score).toBe(10);
+    expect(hw.submissionStatus).toBe('graded');
+    expect(hw.status).toBe('completed');
+    expect(hw.gradeSourceId).toBe('col_hw3');
+  });
+
+  it('automatically sets status to completed if homework already has a grade even if student forgot to mark it done', () => {
+    const hwPendingWithGrade = task({
+      id: 'hw_pending_graded',
+      title: 'Lab Report 4',
+      type: 'assignment',
+      courseName: 'Physics 1 Lab',
+      courseCode: '1430116',
+      dueDate: '2026-12-30T19:59:00.000Z',
+      status: 'pending',
+      submissionStatus: 'graded',
+      score: 9.5,
+      maxScore: 10,
+      gradeSourceId: 'col_lab4'
+    });
+
+    // dropImpossibleMarks ensures non-exams with released grades are completed
+    dropImpossibleMarks([hwPendingWithGrade], NOW);
+    expect(hwPendingWithGrade.status).toBe('completed');
+    expect(hwPendingWithGrade.score).toBe(9.5);
+  });
+});

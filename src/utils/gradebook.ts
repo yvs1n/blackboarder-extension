@@ -240,14 +240,32 @@ function dueTime(t: DeadlineTask): number {
   return new Date(t.dueDate).getTime();
 }
 
+/** Exams (midterms, finals) are proctored events that cannot happen before their scheduled date.
+ * Homework, assignments, lab reports and projects can be submitted and graded early. */
+export function isExamItem(t: { type?: string; title?: string }): boolean {
+  const type = (t.type || '').toLowerCase();
+  if (type === 'exam') return true;
+  const title = (t.title || '').toLowerCase();
+  return /\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(title);
+}
+
 /**
- * Removes marks from tasks that have not happened yet: such a mark came from another item
- * (a practice midterm's mark on the real midterm). Returns how many tasks were cleared.
+ * Removes marks from exams that have not happened yet: such a mark came from another item
+ * (a practice midterm's mark on the real midterm). Homework and assignments with future
+ * deadlines are kept and automatically marked completed when a mark is released.
  */
 export function dropImpossibleMarks(tasks: DeadlineTask[], nowMs: number = Date.now()): number {
   let cleared = 0;
   for (const t of tasks) {
     if (t.submissionStatus !== 'graded') continue;
+    // Homework, assignments, lab reports and projects can be submitted and graded early
+    if (!isExamItem(t)) {
+      if (t.status !== 'completed' && t.status !== 'dismissed') {
+        t.status = 'completed';
+        t.updatedAt = new Date(nowMs).toISOString();
+      }
+      continue;
+    }
     const due = dueTime(t);
     if (isNaN(due) || due <= nowMs + MARK_SLACK_MS) continue;
     if (t.gradeSourceId) {
@@ -279,6 +297,7 @@ function gradedLater(t: DeadlineTask, update: import('../types').TaskSubmissionU
 }
 
 function gradedBeforeItem(t: DeadlineTask, update: import('../types').TaskSubmissionUpdate, nowMs: number): boolean {
+  if (!isExamItem(t)) return false;
   const due = dueTime(t);
   const gradedMs = update.gradedAt ? new Date(update.gradedAt).getTime() : nowMs;
   return !isNaN(due) && gradedMs + MARK_SLACK_MS < due;
@@ -307,17 +326,20 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       match.gradeSourcesBefore = match.gradeSourcesBefore!.filter(s => s !== src);
     }
     if (update.submissionStatus === 'graded') {
-      const due = dueTime(match);
-      const gradedMs = update.gradedAt ? new Date(update.gradedAt).getTime() : nowMs;
-      if (!isNaN(due) && gradedMs + MARK_SLACK_MS < due) {
-        // Graded before the item took place: a different (practice) item. Remember it so it never lands here.
-        if (src && !(match.gradeSourcesBefore || []).includes(src)) {
-          match.gradeSourcesBefore = [...(match.gradeSourcesBefore || []), src];
-          match.updatedAt = now;
+      if (isExamItem(match)) {
+        const due = dueTime(match);
+        const gradedMs = update.gradedAt ? new Date(update.gradedAt).getTime() : nowMs;
+        if (!isNaN(due) && gradedMs + MARK_SLACK_MS < due) {
+          // Graded before the item took place: a different (practice) item. Remember it so it never lands here.
+          if (src && !(match.gradeSourcesBefore || []).includes(src)) {
+            match.gradeSourcesBefore = [...(match.gradeSourcesBefore || []), src];
+            match.updatedAt = now;
+          }
+          continue;
         }
-        continue;
       }
       const changed = match.submissionStatus !== 'graded' ||
+        match.status !== 'completed' ||
         !!match.markProvisional !== provisional ||
         (!!src && match.gradeSourceId !== src) ||
         (update.score !== undefined && match.score !== update.score) ||
@@ -343,5 +365,16 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       match.updatedAt = now;
     }
   }
+
+  // Any non-exam task with a released mark in the gradebook is automatically marked as completed,
+  // even if its due date is far in the future or the student forgot to mark it as done.
+  for (const t of tasks) {
+    if (t.submissionStatus === 'graded' && !isExamItem(t) && t.status !== 'completed' && t.status !== 'dismissed') {
+      t.status = 'completed';
+      t.updatedAt = now;
+      marksChanged++;
+    }
+  }
+
   return marksChanged;
 }
