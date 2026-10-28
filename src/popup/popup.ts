@@ -2842,7 +2842,10 @@ let scanButtonResetTimer: ReturnType<typeof setTimeout> | null = null;
  * and whenever the status changes, so reopening the popup mid-scan shows the progress again.
  */
 function renderScanStatus(status: ScanStatus | null) {
-  if (!status) return;
+  if (!status) {
+    hideScanBanner();
+    return;
+  }
   const age = Date.now() - new Date(status.updatedAt).getTime();
   if (scanButtonResetTimer) {
     clearTimeout(scanButtonResetTimer);
@@ -2850,7 +2853,11 @@ function renderScanStatus(status: ScanStatus | null) {
   }
 
   if (status.state === 'running') {
-    if (age > SCAN_STALE_MS) return; // the tab was closed or reloaded mid-scan
+    if (age > SCAN_STALE_MS) {
+      hideScanBanner();
+      resetScanButton();
+      return; // the tab was closed or reloaded mid-scan
+    }
     btnScanTab.disabled = true;
     const label = status.total ? 'Parse...' : 'Scan...';
     btnScanTab.innerHTML = `${getSvgIcon(status.total ? 'sparkles' : 'refresh', 'mr-1 is-spinning')}<span>${label}</span>`;
@@ -2858,19 +2865,32 @@ function renderScanStatus(status: ScanStatus | null) {
     return;
   }
 
-  // Finished: only worth showing for a short while after it happened
-  if (age > 60 * 1000) return;
+  // When already synced / finished, never leave or show the persistent scan banner
+  hideScanBanner();
+
+  // Finished: only show completion state on the button if it just happened (<15s)
+  if (age > 15 * 1000) {
+    resetScanButton();
+    return;
+  }
+
   if (status.state === 'done') {
     const added = status.newCount || 0;
+    btnScanTab.disabled = false;
+    btnScanTab.style.background = '';
     btnScanTab.innerHTML = `${getSvgIcon('check', 'mr-1')}<span>${added > 0 ? `+${added}` : 'Synced'}</span>`;
-    btnScanTab.style.background = 'var(--text-main)';
-    showScanBanner(status.message, added > 0 ? 'success' : 'info', 5000);
-    if (added > 0) switchView('calendar');
+    if (added > 0) {
+      showToast(status.message || `+${added} new deadline${added > 1 ? 's' : ''} added`);
+      switchView('calendar');
+    }
+    scanButtonResetTimer = setTimeout(resetScanButton, 2000);
   } else {
+    btnScanTab.disabled = false;
+    btnScanTab.style.background = '';
     btnScanTab.innerHTML = `${getSvgIcon('urgent', 'mr-1')}<span>Failed</span>`;
-    showScanBanner(status.message, 'warning', 5000);
+    showScanBanner(status.message, 'warning', 4000);
+    scanButtonResetTimer = setTimeout(resetScanButton, 3000);
   }
-  scanButtonResetTimer = setTimeout(resetScanButton, 4500);
 }
 
 /**
@@ -2963,7 +2983,10 @@ function watchScanEnd(tabId: number, startedAt: number) {
         return;
       }
       resetScanButton();
-      showScanBanner(lost ? 'The Blackboard tab stopped answering. Refresh it and scan again.' : 'Scan finished.', lost ? 'warning' : 'info', 4000);
+      hideScanBanner();
+      if (lost) {
+        showToast('The Blackboard tab stopped answering. Refresh it and scan again.');
+      }
     });
   };
   setTimeout(check, 3000);
@@ -4663,30 +4686,32 @@ async function refreshDataInBackground() {
       // Repair task due time if teacher gave an explicit time or if class schedule should apply
       let dueDate = task.dueDate;
       let hasSpecificTime = task.hasSpecificTime;
-      const combinedDoctorText = `${task.title} ${task.sourceSnippet || ''} ${task.description || ''}`;
 
-      // Test extraction on combined text to see if an explicit assessment time is stated
-      const testAnn = {
-        id: task.announcementId || 'temp',
-        courseCode: courseCode,
-        courseName: courseName,
-        title: task.title,
-        contentText: combinedDoctorText,
-        sourceUrl: '',
-        scannedAt: new Date().toISOString()
-      };
-      const extractedTasks = extractDeadlinesLocally(testAnn);
-      if (extractedTasks.length > 0) {
-        const best = extractedTasks[0];
-        const bestDate = new Date(best.dueDate);
-        const curDate = new Date(task.dueDate);
+      // Only test extraction if task currently lacks a specific time
+      if (!hasSpecificTime) {
+        const combinedDoctorText = `${task.title} ${task.sourceSnippet || ''} ${task.description || ''}`;
+        const testAnn = {
+          id: task.announcementId || 'temp',
+          courseCode: courseCode,
+          courseName: courseName,
+          title: task.title,
+          contentText: combinedDoctorText,
+          sourceUrl: '',
+          scannedAt: new Date().toISOString()
+        };
+        const extractedTasks = extractDeadlinesLocally(testAnn);
+        if (extractedTasks.length > 0) {
+          const best = extractedTasks[0];
+          const bestDate = new Date(best.dueDate);
+          const curDate = new Date(task.dueDate);
 
-        // Only adopt if task currently lacks a specific time and best has an explicit time!
-        if (!hasSpecificTime && best.hasSpecificTime) {
-          curDate.setHours(bestDate.getHours(), bestDate.getMinutes(), 0, 0);
-          dueDate = curDate.toISOString();
-          hasSpecificTime = true;
-          taskUpdated = true;
+          // Only adopt if best has an explicit time
+          if (best.hasSpecificTime) {
+            curDate.setHours(bestDate.getHours(), bestDate.getMinutes(), 0, 0);
+            dueDate = curDate.toISOString();
+            hasSpecificTime = true;
+            taskUpdated = true;
+          }
         }
       }
 
@@ -4782,7 +4807,7 @@ async function refreshDataInBackground() {
       refreshAllViews();
     }
   } catch (err) {
-    console.warn('[Popup] Background data refresh encountered error:', err);
+    console.info('[Popup] Background data refresh encountered error:', err);
   }
 }
 
@@ -5244,7 +5269,7 @@ function initApp() {
         syncTasksToCloud(currentTasks, 'University Update');
       })();
     }
-  }).then(() => refreshAllViews()).catch(err => console.error('[University] Settings failed to load:', err));
+  }).catch(err => console.error('[University] Settings failed to load:', err));
 
   initSessionBanner();
 
@@ -5254,8 +5279,14 @@ function initApp() {
   // Set up listeners for reactive updates
   setupStorageAndSyncListeners();
 
-  // A scan started earlier keeps running in the Blackboard tab: show where it is
-  getScanStatus().then(renderScanStatus).catch(() => {});
+  // If a scan is actively running in the Blackboard tab, restore its progress
+  getScanStatus().then(status => {
+    if (status?.state === 'running') {
+      renderScanStatus(status);
+    } else {
+      hideScanBanner();
+    }
+  }).catch(() => {});
 
   // Run cloud pull and retroactive upgrades non-blockingly in the background
   refreshDataInBackground();

@@ -540,7 +540,7 @@ body.is-standalone .header {
   z-index: 100;
   background: var(--surface);
   border-bottom: 1px solid var(--surface-border);
-  padding: 14px 16px 10px;
+  padding: 10px 14px 6px;
   width: 100%;
   max-width: 480px;
   box-sizing: border-box;
@@ -552,8 +552,8 @@ body.is-standalone .header {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  gap: 8px 12px;
+  margin-bottom: 8px;
+  gap: 6px 10px;
 }
 
 .brand {
@@ -571,23 +571,21 @@ body.is-standalone .header {
 }
 
 .brand-icon {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   background: #18181b;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
   flex-shrink: 0;
 }
 
 [data-theme="dark"] .brand-icon {
   background: #24242b;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .brand-title {
@@ -678,7 +676,6 @@ body.is-standalone .header {
   justify-content: center;
   gap: 4px;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
   min-width: 74px;
   max-width: 86px;
@@ -713,13 +710,13 @@ body.is-standalone .header {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.25s ease,
-              margin 0.25s ease,
-              padding 0.25s ease;
+  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.2s ease,
+              margin 0.2s ease,
+              padding 0.2s ease;
   background: var(--surface-hover);
   border: 1px solid var(--surface-border);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 0 10px;
   margin-bottom: 0;
   position: relative;
@@ -728,10 +725,10 @@ body.is-standalone .header {
 }
 
 .header-scan-banner.is-active {
-  max-height: 52px;
+  max-height: 40px;
   opacity: 1;
-  padding: 7px 10px 8px;
-  margin-bottom: 10px;
+  padding: 6px 10px 7px;
+  margin-bottom: 8px;
 }
 
 .header-scan-banner.is-success {
@@ -797,14 +794,14 @@ body.is-standalone .header {
   height: 2px;
   background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0;
 }
 
 .header-scan-banner .hsb-progress-fill {
   height: 100%;
   width: 35%;
   background: var(--primary);
-  border-radius: 9999px;
+  border-radius: 0;
   animation: hsb-progress-indeterminate 1.5s infinite ease-in-out;
 }
 
@@ -846,12 +843,12 @@ body.is-standalone .header {
 /* Main Navigation Tabs: Monthly Calendar vs Details */
 .main-nav-tabs {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   background: var(--surface-hover);
   border: 1px solid var(--surface-border);
-  padding: 4px;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  padding: 3px;
+  border-radius: 0;
+  margin-bottom: 8px;
 }
 
 .nav-tab {
@@ -859,14 +856,14 @@ body.is-standalone .header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 8px 12px;
-  font-size: 12px;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
   font-weight: 600;
   border: none;
   background: transparent;
   color: var(--text-muted);
-  border-radius: 7px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.15s ease;
 }
