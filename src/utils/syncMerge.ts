@@ -1,5 +1,6 @@
 import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile } from '../types';
 import { mergeCloudTasks, mergeTombstones, TombstoneMap } from './taskMerge';
+import { purgeSyntheticGradebookTasks } from './gradebook';
 import { newerProfile, sanitizeProfile } from '../core/studentProfile';
 import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys } from './cloudSanitize';
 
@@ -80,12 +81,19 @@ export function readCloudSide(data: any): SyncSide {
 export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | undefined): MergedSync {
   const c = cloud || {};
   const tombstones = mergeTombstones(local.tombstones || {}, c.tombstones || {});
-  const tasks = Array.isArray(c.tasks) && c.tasks.length > 0
+  const rawTasks = Array.isArray(c.tasks) && c.tasks.length > 0
     ? mergeCloudTasks(local.tasks || [], c.tasks, tombstones).tasks
     : (local.tasks || []).filter(t => {
       const tomb = tombstones[t.id];
       return !(tomb && time(tomb) >= time(t.updatedAt || t.createdAt));
     });
+  const { cleaned: tasks, purgedIds } = purgeSyntheticGradebookTasks(rawTasks);
+  if (purgedIds.length > 0) {
+    const nowIso = new Date().toISOString();
+    for (const pid of purgedIds) {
+      tombstones[pid] = nowIso;
+    }
+  }
   // Courses: on a tie the cloud copy is kept (it is what the other devices already have)
   const courses = pickNewerList({ items: local.courses, updatedAt: local.coursesUpdatedAt }, { items: c.courses, updatedAt: c.coursesUpdatedAt }, false);
   // Quick links: before they had a stamp, the device writing kept its own list

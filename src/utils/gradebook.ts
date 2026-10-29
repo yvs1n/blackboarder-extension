@@ -1,5 +1,5 @@
 import { DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
-import { findTaskForUpdate, findAllTasksForUpdate, coreTitle } from './streamParser';
+import { findTaskForUpdate, findAllTasksForUpdate } from './streamParser';
 import { parseCourseDetails } from '../core/courseHelper';
 import { resolveTaskWeight, extractExplicitPoints } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
@@ -507,10 +507,48 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
 }
 
 /**
- * Removes synthetic deadline tasks created by createTasksForUnmatchedMarks in v1.4.4.
- * Real assessment column tasks created by gradebookColumnsToTasks have hasSpecificTime === true,
- * whereas synthetic tasks created from unmatched gradebook columns had hasSpecificTime === false,
- * status === 'completed', and id starting with 'gbcol_' or 'gbmark_'.
+ * Identifies synthetic deadline tasks created from gradebook columns.
+ * Gradebook columns are for marks and grades only; they must never be deadline tasks on the calendar.
+ *
+ * Targets:
+ * 1. Any task with id starting with 'gbmark_'.
+ * 2. Completed gradebook column tasks ('gbcol_') scheduled on 2026-10-28 (the date of the v1.4.4 synthesis scan).
+ * 3. Duplicate exam items (e.g. 'EAP Midterm Exam') where an announced exam ('Midterm') already exists.
+ * 4. Completed local tasks with empty description and matching sourceSnippet that duplicate an existing real task.
+ */
+export function isSyntheticGradebookTask(t: DeadlineTask, allTasks?: DeadlineTask[]): boolean {
+  if (!t || !t.id) return false;
+  const id = t.id;
+
+  // 1. Any task with id starting with gbmark_ is always synthetic
+  if (id.startsWith('gbmark_')) return true;
+
+  if (id.startsWith('gbcol_')) {
+    // 2. All 21 synthetic tasks created on Oct 28 have dueDate on 2026-10-28 and status === 'completed'
+    if (t.status === 'completed' && (t.dueDate || '').startsWith('2026-10-28')) {
+      return true;
+    }
+
+    // 3. Duplicate exam items: if this is an exam and another non-gbcol exam exists in the same course
+    if (allTasks && isExamItem(t)) {
+      const hasOtherExam = allTasks.some(other =>
+        other && other.id !== t.id && !other.id.startsWith('gbcol_') && !other.id.startsWith('gbmark_') &&
+        isExamItem(other) &&
+        (
+          (/\b(?:midterm|نصفي)\b/i.test(t.title) && /\b(?:midterm|نصفي)\b/i.test(other.title)) ||
+          (/\b(?:final|نهائي)\b/i.test(t.title) && /\b(?:final|نهائي)\b/i.test(other.title))
+        )
+      );
+      if (hasOtherExam) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Removes synthetic deadline tasks created from gradebook columns (starting with gbcol_ or gbmark_).
+ * Gradebook columns are for marks and grades only; they must never be deadline tasks on the calendar.
  *
  * If any synthetic task carried a real score for a matching task in the course (e.g. EAP Midterm Exam -> Midterm),
  * the mark is transferred to the real task so no legitimate grade is lost.
@@ -518,46 +556,51 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
 export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: DeadlineTask[]; purgedIds: string[] } {
   if (!Array.isArray(tasks) || tasks.length === 0) return { cleaned: [], purgedIds: [] };
 
-  const synthetic = tasks.filter(t =>
-    t &&
-    (
-      (t.id || '').startsWith('gbmark_') ||
-      ((t.id || '').startsWith('gbcol_') && t.hasSpecificTime === false && t.extractedBy === 'local')
-    )
-  );
-
+  const synthetic = tasks.filter(t => isSyntheticGradebookTask(t, tasks));
   if (synthetic.length === 0) return { cleaned: tasks, purgedIds: [] };
 
   const purgedIds = synthetic.map(t => t.id);
   const syntheticSet = new Set(purgedIds);
+  const realTasks = tasks.filter(t => !syntheticSet.has(t.id));
 
   // Transfer marks from purged synthetic tasks to matching real tasks in the same course
   for (const s of synthetic) {
     if (s.submissionStatus !== 'graded' || typeof s.score !== 'number') continue;
-    const sCourse = parseCourseDetails(`${s.courseCode || ''} ${s.courseName || ''}`.trim());
-    const sCode = (s.courseCode || sCourse.code || '').toLowerCase().trim();
-    const sName = (sCourse.name || s.courseName || '').toLowerCase().trim();
 
-    const realMatch = tasks.find(other => {
-      if (!other || syntheticSet.has(other.id)) return false;
-      const oCourse = parseCourseDetails(`${other.courseCode || ''} ${other.courseName || ''}`.trim());
-      const oCode = (other.courseCode || oCourse.code || '').toLowerCase().trim();
-      const oName = (oCourse.name || other.courseName || '').toLowerCase().trim();
-      const sameCourse = (sCode && oCode && sCode === oCode) || (sName && oName && sName === oName);
-      if (!sameCourse && (sCode || sName) && (oCode || oName)) return false;
-
-      const coreS = coreTitle(s.title);
-      const coreO = coreTitle(other.title);
-      if (coreS && coreO && coreS.length >= 4 && coreS === coreO) return true;
-      if (isExamItem(s) && isExamItem(other) && /\b(?:midterm|نصفي)\b/i.test(s.title) && /\b(?:midterm|نصفي)\b/i.test(other.title)) return true;
-      return false;
+    // First try standard findTaskForUpdate
+    let realMatch = findTaskForUpdate(realTasks, {
+      courseName: s.courseName,
+      courseCode: s.courseCode,
+      title: s.title,
+      submissionStatus: 'graded',
+      score: s.score,
+      maxScore: s.maxScore,
+      sourceId: s.gradeSourceId
     });
+
+    // If not found and this is an exam (e.g. "EAP Midterm Exam"), match to the course's midterm exam
+    if (!realMatch && isExamItem(s)) {
+      realMatch = realTasks.find(other => {
+        if (!other || !isExamItem(other)) return false;
+        const res = parseCourseDetails(`${other.courseCode || ''} ${other.courseName || ''}`);
+        const sRes = parseCourseDetails(`${s.courseCode || ''} ${s.courseName || ''}`);
+        const sName = (sRes.name || s.courseName || '').toLowerCase();
+        const oName = (res.name || other.courseName || '').toLowerCase();
+        const sCode = (sRes.code || s.courseCode || '').toLowerCase();
+        const oCode = (res.code || other.courseCode || '').toLowerCase();
+        const sameCourse = (sCode && oCode && sCode === oCode) || (sName && oName && (sName.includes(oName) || oName.includes(sName)));
+        if (!sameCourse) return false;
+        if (/\b(?:midterm|نصفي)\b/i.test(s.title) && /\b(?:midterm|نصفي)\b/i.test(other.title)) return true;
+        if (/\b(?:final|نهائي)\b/i.test(s.title) && /\b(?:final|نهائي)\b/i.test(other.title)) return true;
+        return false;
+      });
+    }
 
     if (realMatch) {
       realMatch.submissionStatus = 'graded';
       realMatch.score = s.score;
       realMatch.maxScore = s.maxScore;
-      realMatch.scoreDisplay = s.scoreDisplay;
+      realMatch.scoreDisplay = s.scoreDisplay || `${s.score} / ${s.maxScore}`;
       if (s.gradeSourceId) realMatch.gradeSourceId = s.gradeSourceId;
       if (s.gradedAt) realMatch.gradedAt = s.gradedAt;
       realMatch.status = 'completed';

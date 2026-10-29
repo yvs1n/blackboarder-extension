@@ -12,11 +12,10 @@ import {
   setScanStatus
 } from '../utils/storage';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isValidTask } from '../core/courseHelper';
-import { parseUltraStreamEntries, findTaskForUpdate } from '../utils/streamParser';
+import { parseUltraStreamEntries } from '../utils/streamParser';
 import { deduplicateTaskList } from '../utils/taskMerge';
 import {
   gradebookToUpdates,
-  gradebookColumnsToTasks,
   applySubmissionUpdates,
   purgeSyntheticGradebookTasks,
   gradebookReport,
@@ -280,7 +279,7 @@ export async function runHttpBlackboardScan(
         ]);
         if (!cols || !grades) {
           report.push({ course: meta.name || cid, column: '', note: 'gradebook not readable' });
-          return { updates: [] as TaskSubmissionUpdate[], columnTasks: [] as DeadlineTask[] };
+          return { updates: [] as TaskSubmissionUpdate[] };
         }
         coursesRead++;
         report.push(...gradebookReport(cols.results, grades.results, meta.name || cid));
@@ -288,12 +287,7 @@ export async function runHttpBlackboardScan(
           courseName: meta.name && meta.name !== 'General Course' ? meta.name : undefined,
           courseCode: meta.code
         }, skippedGrades);
-        const columnTasks = gradebookColumnsToTasks(cols.results, {
-          courseName: meta.name && meta.name !== 'General Course' ? meta.name : undefined,
-          courseCode: meta.code,
-          courseId: cid
-        });
-        return { updates, columnTasks };
+        return { updates };
       }))
     ]);
 
@@ -310,7 +304,6 @@ export async function runHttpBlackboardScan(
     const directStreamTasks = ultraStream.directTasks
       .filter(t => (fullRescan || !knownDirectIds.has(t.id)) && !tombstones[t.id]);
     const gradebookUpdates = gradebookPerCourse.flatMap(g => g.updates);
-    const gradebookColumnTasks = gradebookPerCourse.flatMap(g => g.columnTasks);
     const submissionUpdates = [...ultraStream.submissionUpdates, ...gradebookUpdates];
 
     const settings = await getSettings();
@@ -391,22 +384,6 @@ export async function runHttpBlackboardScan(
         existingIdMap.set(dt.id, dt);
         if (titleCourseKey) existingTitleCourseMap.set(titleCourseKey, dt);
         if (dateKey) existingDateKeySet.add(dateKey);
-      }
-    }
-
-    const combinedBeforeGbCols = [...newlyAddedDirect, ...mergedAnnTasks];
-    for (const gbTask of gradebookColumnTasks) {
-      if (tombstones[gbTask.id] || existingIdMap.has(gbTask.id)) continue;
-      const existingMatch = findTaskForUpdate(combinedBeforeGbCols, {
-        courseName: gbTask.courseName,
-        courseCode: gbTask.courseCode,
-        title: gbTask.title,
-        submissionStatus: 'graded'
-      });
-      if (!existingMatch) {
-        newlyAddedDirect.push(gbTask);
-        combinedBeforeGbCols.push(gbTask);
-        existingIdMap.set(gbTask.id, gbTask);
       }
     }
 

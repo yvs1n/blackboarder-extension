@@ -2,6 +2,7 @@ import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, 
 import { universityQuickLinks } from '../core/universities';
 import { isValidTask, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
 import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks, sanitizeTaskListMarks } from './taskMerge';
+import { purgeSyntheticGradebookTasks } from './gradebook';
 import { DEFAULT_USER_COURSES, setActiveUserCourses } from '../core/userCourses';
 import { resolveTaskWeight } from '../core/syllabusWeights';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../core/courseSchedule';
@@ -406,8 +407,9 @@ export async function saveTasksMergingLatest(tasks: DeadlineTask[]): Promise<Dea
     }
   } catch {}
   const { tasks: merged } = mergeCloudTasks(tasks, stored, tombstones);
-  await saveTasks(merged);
-  return merged;
+  const { cleaned } = purgeSyntheticGradebookTasks(merged);
+  await saveTasks(cleaned);
+  return cleaned;
 }
 
 export async function saveTasks(tasks: DeadlineTask[]): Promise<void> {

@@ -4822,7 +4822,10 @@ async function refreshDataInBackground() {
     const { cleaned: purgedTasks, purgedIds } = purgeSyntheticGradebookTasks(currentTasks);
     if (purgedIds.length > 0) {
       currentTasks = purgedTasks;
-      purgedIds.forEach(id => recordLocalTombstone(id));
+      await Promise.all(purgedIds.map(id => recordLocalTombstone(id)));
+      await saveTasks(currentTasks);
+      syncTasksToCloud(currentTasks, 'Purge synthetic gradebook tasks');
+      refreshAllViews();
       updatedAny = true;
     }
 
@@ -5291,8 +5294,15 @@ function initApp() {
   initQuickLinksModal();
 
   // Load and render deadlines synchronously from cache (<5ms)
-  currentTasks = deduplicateTaskList(getCachedTasksSync().filter(isValidTask));
+  const cachedRaw = getCachedTasksSync().filter(isValidTask);
+  const { cleaned: purgedCached, purgedIds: startupPurgedIds } = purgeSyntheticGradebookTasks(cachedRaw);
+  currentTasks = deduplicateTaskList(purgedCached);
   currentTasks.sort(compareTasksByTime);
+
+  if (startupPurgedIds.length > 0) {
+    startupPurgedIds.forEach(id => recordLocalTombstone(id));
+    saveTasks(currentTasks).catch(() => {});
+  }
 
   // Render all views immediately so the popup appears instantly populated like on mobile
   refreshAllViews();

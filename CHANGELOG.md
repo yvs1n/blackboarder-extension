@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.6] - 2026-10-29
+
+### Fixed
+
+- **Purged October 28 synthetic gradebook deadlines.** Eliminated the 21 synthetic completed tasks created by the previous synthesis pass on October 28. `purgeSyntheticGradebookTasks` targets tasks with `gbmark_`, completed `gbcol_` tasks on October 28, and duplicate exam columns. Purged tasks are tombstoned immediately in local storage, the companion phone app, and cloud sync.
+- **Removed gradebook column injection into task lists.** Removed the injection loops in `scraper.ts` and `httpScanner.ts` that pushed unannounced gradebook columns into direct deadlines. Gradebook columns are now strictly used to read grades and marks via `gradebookToUpdates`, never synthesized as calendar deadlines.
+- **Eliminated duplicate midterm rows.** Resolved duplicate midterm entries (e.g. "EAP Midterm Exam" and "Midterm" in English for Academic Purposes) by purging the synthetic gradebook column task and safely transferring its 20 / 20 grade onto the student's real midterm deadline task.
+
+---
+
 ## [1.4.5] - 2026-10-28
 
 ### Fixed

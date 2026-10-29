@@ -3,9 +3,9 @@ import { processAnnouncementsBatch, titleCourseKeyFor } from '../engine/hybridEx
 import { getSettings, getTasks, saveTasksMergingLatest, saveAnnouncements, getLastScanCheckpoint, saveLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
 import { setActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode, isValidTask } from '../core/courseHelper';
-import { parseDirectStreamCard, parseSubmissionOrGradeCard, parseUltraStreamEntries, findTaskForUpdate } from '../utils/streamParser';
+import { parseDirectStreamCard, parseSubmissionOrGradeCard, parseUltraStreamEntries } from '../utils/streamParser';
 import { deduplicateTaskList } from '../utils/taskMerge';
-import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
+import { gradebookToUpdates, applySubmissionUpdates, purgeSyntheticGradebookTasks, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
@@ -939,7 +939,6 @@ function saveSessionStatus(expired: boolean): void {
 
 /** What the last gradebook read found, for the scan message and the console line. */
 let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] as string[] };
-let lastGradebookColumnTasks: DeadlineTask[] = [];
 
 async function fetchUltraStreamApi(): Promise<{
   directTasks: DeadlineTask[];
@@ -976,7 +975,6 @@ async function fetchUltraStreamApi(): Promise<{
 
 async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
   lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] };
-  lastGradebookColumnTasks = [];
   const getJson = async (path: string) => {
     const res = await bbFetch(path, { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
     return res.ok ? res.json() : null;
@@ -1009,7 +1007,6 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
 
   const courseIds = await extractAllCourseIdsFromPage();
   lastGradebookRead.courses = courseIds.length;
-  const colTaskLists: DeadlineTask[][] = [];
   const perCourse = await Promise.all(courseIds.map(async cid => {
     try {
       const [cols, grades] = await Promise.all([
@@ -1032,13 +1029,6 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
       if (isOrientationOrSandboxCourse(course.name || apiName)) {
         return [];
       }
-      colTaskLists.push(
-        gradebookColumnsToTasks(cols.results, {
-          courseName: course.name !== 'General Course' ? course.name : undefined,
-          courseCode: course.code,
-          courseId: cid
-        })
-      );
       report.push(...gradebookReport(cols.results, grades.results, apiName || known?.name || cid));
       return gradebookToUpdates(cols.results, grades.results, {
         courseName: course.name !== 'General Course' ? course.name : undefined,
@@ -1048,7 +1038,6 @@ async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
       return [];
     }
   }));
-  lastGradebookColumnTasks = colTaskLists.flat();
   const updates = perCourse.flat();
   // What each gradebook held on the last scan, kept on this device only, to explain a missing mark
   try {
@@ -1549,7 +1538,7 @@ async function runBlackboardScan(run: ScanRun) {
     // New courses take the colour Blackboard gives them (courses already set up keep theirs)
     await autoRegisterDiscoveredCourses(await discoveredCoursesWithColors(getBlackboardJson)).catch(() => {});
 
-    if (directStreamTasks.length === 0 && announcements.length === 0 && submissionUpdates.length === 0 && lastGradebookColumnTasks.length === 0) {
+    if (directStreamTasks.length === 0 && announcements.length === 0 && submissionUpdates.length === 0) {
       if (run.interactive) {
         showSidekickToast('Blackboarder', 'Up to date. No new deadlines found since last scan.');
         run.reported = true;
@@ -1645,24 +1634,6 @@ async function runBlackboardScan(run: ScanRun) {
         existingIdMap.set(dt.id, dt);
         if (titleCourseKey) existingTitleCourseMap.set(titleCourseKey, dt);
         if (dateKey) existingDateKeySet.add(dateKey);
-      }
-    }
-
-    // Add unannounced gradebook assessment columns (e.g. Lab Reports, online assignments)
-    // only when no existing or announced task matches, so announcement due dates are never overwritten.
-    const combinedBeforeGbCols = [...newlyAddedDirect, ...mergedAnnTasks];
-    for (const gbTask of lastGradebookColumnTasks) {
-      if (tombstones[gbTask.id] || existingIdMap.has(gbTask.id)) continue;
-      const existingMatch = findTaskForUpdate(combinedBeforeGbCols, {
-        courseName: gbTask.courseName,
-        courseCode: gbTask.courseCode,
-        title: gbTask.title,
-        submissionStatus: 'graded'
-      });
-      if (!existingMatch) {
-        newlyAddedDirect.push(gbTask);
-        combinedBeforeGbCols.push(gbTask);
-        existingIdMap.set(gbTask.id, gbTask);
       }
     }
 

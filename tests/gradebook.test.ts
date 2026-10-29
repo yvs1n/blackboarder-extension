@@ -245,7 +245,7 @@ describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate mar
         dueDate: '2026-10-28T00:00:00.000Z'
       } as DeadlineTask,
       {
-        id: 'gbcol_0202112__real_assessment_1',
+        id: 'stream_assignment_1',
         title: 'Online Assignment 1',
         courseName: english.courseName,
         courseCode: english.courseCode,
@@ -269,8 +269,47 @@ describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate mar
     expect(realMid.gradeSourceId).toBe('gb:_1928045_1');
     expect(realMid.status).toBe('completed');
 
-    // The real assessment column with hasSpecificTime === true is preserved
-    const realCol = cleaned.find(t => t.id === 'gbcol_0202112__real_assessment_1')!;
+    // Real stream task is preserved
+    const realCol = cleaned.find(t => t.id === 'stream_assignment_1')!;
     expect(realCol).toBeDefined();
+  });
+
+  it('purges all 21 synthetic completed tasks scheduled on 2026-10-28', () => {
+    const tasks: DeadlineTask[] = [];
+    for (let i = 1; i <= 21; i++) {
+      tasks.push({
+        id: `gbcol_course_${i}`,
+        title: `Assessment Item ${i}`,
+        courseName: 'Test Course',
+        courseCode: '1000',
+        type: 'assignment',
+        hasSpecificTime: true,
+        extractedBy: 'local',
+        status: 'completed',
+        submissionStatus: 'graded',
+        score: 10,
+        maxScore: 10,
+        scoreDisplay: '10 / 10',
+        gradeSourceId: `gb:_${i}_1`,
+        dueDate: '2026-10-28T09:00:00.000Z'
+      } as DeadlineTask);
+    }
+    // Plus one real announcement task scheduled on 2026-10-29
+    tasks.push({
+      id: 'ann_real_1',
+      title: 'Real Project Due',
+      courseName: 'Test Course',
+      courseCode: '1000',
+      type: 'project',
+      hasSpecificTime: true,
+      extractedBy: 'local',
+      status: 'pending',
+      dueDate: '2026-10-29T12:00:00.000Z'
+    } as DeadlineTask);
+
+    const { cleaned, purgedIds } = purgeSyntheticGradebookTasks(tasks);
+    expect(purgedIds).toHaveLength(21);
+    expect(cleaned).toHaveLength(1);
+    expect(cleaned[0].id).toBe('ann_real_1');
   });
 });
