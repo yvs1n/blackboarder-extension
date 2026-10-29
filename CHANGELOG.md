@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.10] - 2026-10-29
+
+### Added
+
+- **PWA cloud scan via Firebase Realtime Database.** Students can now trigger full Blackboard scans directly from the mobile companion web app under Sync settings. The request dispatches a pending scan request to Firebase, where the connected extension service worker detects it, runs background HTTP scanning, saves fresh tasks, and updates the mobile app.
+
+### Fixed
+
+- **Pure HTTP background scanning.** Scans now run 100% via background HTTP requests (RUN_HTTP_SCAN) without querying browser tabs, injecting scrapers, or running MutationObserver loops in Blackboard tabs, preventing race conditions and duplicated tasks.
+- **Quiz and assessment deduplication across types.** Updated reTasksDuplicates and uildGpaSummary to merge assessment items matching on sequence numbers (e.g. 3rd quiz and Quiz 3) or normalized core titles regardless of type differences (quiz vs ssignment), preserving marks and eliminating duplicate entries in task lists and GPA quota drop lists.
+---
+
 ## [1.4.9] - 2026-10-29
 
 ### Fixed

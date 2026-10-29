@@ -2952,98 +2952,59 @@ async function scanActiveTab(fullRescan: boolean = false) {
     setTimeout(resetScanButton, 3500);
   };
 
-  if (typeof chrome === 'undefined' || !chrome.tabs) {
-    fail('Please open Blackboard in an active tab first.');
+  if (!chrome.runtime?.sendMessage) {
+    fail('Background scanner unavailable.');
     return;
   }
 
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || !tab.id) {
-    fail('No active Blackboard tab detected.');
-    return;
-  }
-
-  const trigger = () => new Promise<boolean>(resolve => {
-    try {
-      // The tab answers when the scan ends; we only need to know the message arrived
-      chrome.tabs.sendMessage(tab.id!, { type: 'TRIGGER_SCAN', fullRescan }, () => {
-        void chrome.runtime.lastError;
-      });
-      // sendMessage throws or sets lastError synchronously-ish when no content script listens;
-      // check with a quick ping instead of waiting for the whole scan
-      chrome.tabs.sendMessage(tab.id!, { type: 'PING_SCANNER' }, res => {
-        resolve(!chrome.runtime.lastError && Boolean(res?.ok));
-      });
-    } catch {
-      resolve(false);
-    }
-  });
-
-  let started = await trigger();
-
-  // Content script not in this tab yet (e.g. opened before the extension loaded): inject and retry
-  if (!started && (chrome as any).scripting) {
-    try {
-      await (chrome as any).scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-      await new Promise(r => setTimeout(r, 400));
-      started = await trigger();
-    } catch {
-      // restricted browser pages cannot be injected
-    }
-  }
-
-  if (!started) {
-    if (chrome.runtime?.sendMessage) {
-      const startedAt = Date.now();
-      chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
-        void chrome.runtime.lastError;
-        if (res && !res.ok && res.message) {
-          fail(res.message);
-          return;
-        }
-        const status = await getScanStatus().catch(() => null);
-        if (status && new Date(status.updatedAt).getTime() >= startedAt) {
-          renderScanStatus(status);
-        } else {
-          resetScanButton();
-          hideScanBanner();
-        }
-      });
+  const startedAt = Date.now();
+  chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
+    void chrome.runtime.lastError;
+    if (res && !res.ok && res.message) {
+      fail(res.message);
       return;
     }
-    fail('Please navigate to Blackboard Ultra Stream or Course page first.');
-    return;
-  }
-  watchScanEnd(tab.id, Date.now());
+    const status = await getScanStatus().catch(() => null);
+    if (status && new Date(status.updatedAt).getTime() >= startedAt) {
+      renderScanStatus(status);
+    } else {
+      resetScanButton();
+      hideScanBanner();
+    }
+    await refreshDataInBackground();
+  });
+
+  watchScanEnd(startedAt);
 }
 
 /**
- * Backstop for a scan that ends without saving a final status (the tab was reloaded or the
- * extension updated mid-scan): once the tab says no scan is running, reset the button.
+ * Backstop for a scan that ends without saving a final status:
+ * once the background says no scan is running, refresh tasks and reset button.
  */
-function watchScanEnd(tabId: number, startedAt: number) {
+function watchScanEnd(startedAt: number) {
   const check = () => {
-    if (!btnScanTab.disabled || scanButtonResetTimer) return; // a final status is already shown
-    chrome.tabs.sendMessage(tabId, { type: 'PING_SCANNER' }, async res => {
+    if (!btnScanTab.disabled || scanButtonResetTimer) return;
+    chrome.runtime.sendMessage({ type: 'PING_HTTP_SCANNER' }, async res => {
       const lost = Boolean(chrome.runtime.lastError) || !res?.ok;
       if (!lost && res.scanning) {
-        setTimeout(check, 3000);
+        setTimeout(check, 1500);
         return;
       }
       const status = await getScanStatus().catch(() => null);
       if (!btnScanTab.disabled || scanButtonResetTimer) return;
       if (status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt) {
         renderScanStatus(status);
+        await refreshDataInBackground();
         return;
       }
       resetScanButton();
       hideScanBanner();
       if (lost) {
-        showToast('The Blackboard tab stopped answering. Refresh it and scan again.');
+        await refreshDataInBackground();
       }
     });
   };
-  setTimeout(check, 3000);
+  setTimeout(check, 1500);
 }
 
 // ============================================================================

@@ -38,6 +38,14 @@ export async function deleteSyncDataFromFirebase(syncKey: string): Promise<{ suc
   }
 }
 
+export interface CloudScanRequest {
+  state: 'pending' | 'running' | 'done' | 'error';
+  requestedAt: string;
+  completedAt?: string;
+  requestedBy?: string;
+  message?: string;
+}
+
 export interface FirebaseSyncPayload {
   tasks: DeadlineTask[];
   lastSync: string;
@@ -50,6 +58,7 @@ export interface FirebaseSyncPayload {
   quickLinksUpdatedAt?: string;
   tombstones?: Record<string, string>;
   profile?: StudentProfile;
+  scanRequest?: CloudScanRequest;
 }
 
 export { sanitizeCloudTasks };
@@ -107,7 +116,8 @@ export async function pushTasksToFirebase(
       // Keys are task ids and may hold characters Firebase refuses, so they are encoded
       tombstones: encodeCloudKeys(merged.tombstones),
       // Every write replaces the whole payload, so the university always travels with it
-      profile: merged.profile
+      profile: merged.profile,
+      scanRequest: (cloud as any)?.scanRequest
     };
 
     const res = await fetch(targetUrl, {
@@ -150,6 +160,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   courses?: UserCourseConfig[];
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
+  scanRequest?: CloudScanRequest;
 }> {
   try {
     const targetUrl = getFirebaseDataUrl(syncKey);
@@ -175,7 +186,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
         quickLinksUpdatedAt: data?.quickLinksUpdatedAt,
         courses,
         coursesUpdatedAt: data?.coursesUpdatedAt,
-        tombstones: decodeCloudKeys(data?.tombstones)
+        tombstones: decodeCloudKeys(data?.tombstones),
+        scanRequest: data?.scanRequest
       };
     }
 
@@ -188,7 +200,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       quickLinksUpdatedAt: data.quickLinksUpdatedAt,
       courses,
       coursesUpdatedAt: data.coursesUpdatedAt,
-      tombstones: decodeCloudKeys(data.tombstones)
+      tombstones: decodeCloudKeys(data.tombstones),
+      scanRequest: data.scanRequest
     };
   } catch (err: any) {
     return {
@@ -196,6 +209,35 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       tasks: [],
       error: err.message || 'Network error'
     };
+  }
+}
+
+/**
+ * Updates a completed scan request in Firebase so the mobile PWA knows the scan finished.
+ */
+export async function markCloudScanRequestCompleted(
+  syncKey: string,
+  requestedAt: string,
+  message: string = 'Scan complete! Deadlines updated.'
+): Promise<void> {
+  if (!syncKey) return;
+  try {
+    const targetUrl = getFirebaseDataUrl(syncKey);
+    await fetch(targetUrl, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lastSync: new Date().toISOString(),
+        scanRequest: {
+          state: 'done',
+          requestedAt,
+          completedAt: new Date().toISOString(),
+          message
+        }
+      })
+    });
+  } catch (err) {
+    console.warn('[Firebase] Could not mark scan request completed:', err);
   }
 }
 

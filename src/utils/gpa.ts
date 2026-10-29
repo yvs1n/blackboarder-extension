@@ -146,7 +146,15 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
         const numU = extractAssessmentNumber(u.title);
         const typeT = (t.type || '').toLowerCase();
         const typeU = (u.type || '').toLowerCase();
-        if (numT !== null && numU !== null && numT === numU && typeT === typeU) return true;
+        if (numT !== null && numU !== null && numT === numU) {
+          const isQuizT = /quiz|كويز/i.test(t.title);
+          const isQuizU = /quiz|كويز/i.test(u.title);
+          if (isQuizT && isQuizU) return true;
+          const isLabT = /lab|تقرير/i.test(t.title);
+          const isLabU = /lab|تقرير/i.test(u.title);
+          if (isLabT && isLabU) return true;
+          if (typeT === typeU) return true;
+        }
         return false;
       });
       if (!exists) uniqueMine.push(t);

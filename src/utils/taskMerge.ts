@@ -454,26 +454,29 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   const hasTimeB = !isNaN(timeB);
   const diffMs = (hasTimeA && hasTimeB) ? Math.abs(timeA - timeB) : Infinity;
 
-  // Case 0: Same course, same assessment type, and same assessment number (e.g. "Quiz 2" and "2nd Quiz (Vector & Free Fall)")
-  if (numA !== null && numB !== null && numA === numB && typeA === typeB) {
+  // Case 0: Same course, same assessment number for quizzes, labs, or same assessment type
+  if (numA !== null && numB !== null && numA === numB) {
     const isQuizA = /quiz|كويز/i.test(a.title);
     const isQuizB = /quiz|كويز/i.test(b.title);
+    if (isQuizA && isQuizB) return true;
     const isLabA = /lab|تقرير/i.test(a.title);
     const isLabB = /lab|تقرير/i.test(b.title);
-    if (!((isQuizA && isLabB) || (isLabA && isQuizB))) {
+    if (isLabA && isLabB) return true;
+    if (typeA === typeB && !((isQuizA && isLabB) || (isLabA && isQuizB))) {
       return true;
     }
   }
 
-  // Case 0b: Normalized coreTitle match within the same course
+  // Case 0b: Normalized coreTitle match within the same course (e.g. "3rd quiz" and "Quiz 3")
   const coreA = coreTitle(a.title);
   const coreB = coreTitle(b.title);
+  if (coreA && coreB && coreA.length >= 4 && coreA === coreB) {
+    return true;
+  }
+
   const compatibleCoursework = (typeA === typeB) ||
     ((typeA === 'assignment' || typeA === 'project' || typeA === 'lab') &&
      (typeB === 'assignment' || typeB === 'project' || typeB === 'lab'));
-  if (coreA && coreB && coreA.length >= 4 && coreA === coreB && compatibleCoursework) {
-    return true;
-  }
 
   // Case 0c: Both are exams in the same course (e.g. "Midterm" and "EAP Midterm Exam", or "Final" and "Final Exam")
   if (isExamItem(a) && isExamItem(b)) {

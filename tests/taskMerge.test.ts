@@ -184,6 +184,45 @@ describe('areTasksDuplicates & deduplicateTaskList', () => {
     expect(areTasksDuplicates(q1, q2)).toBe(false);
     expect(deduplicateTaskList([q1, q2])).toHaveLength(2);
   });
+
+  it('merges "3rd quiz" and "Quiz 3" in Physics 1 Lab into a single task preserving score', () => {
+    const announcementQuiz = makeTask({
+      id: 'ann_phy1lab_quiz3',
+      courseName: 'Physics 1 Lab',
+      courseCode: '1430116',
+      title: '3rd quiz',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 8.5,
+      maxScore: 10,
+      scoreDisplay: '8.5 / 10 (85%)',
+      room: 'Central Lab Men - 105',
+      dueDate: '2026-10-28T14:00:00.000Z',
+      description: "Dear Students, This is to inform you that the 3rd Quiz will be held next week and will cover the following experiments: Projectile Motion, Newton's 2nd Law, Best Regards"
+    });
+
+    const streamQuiz = makeTask({
+      id: 'stream_1430116_Quiz3_1793215200000',
+      courseName: 'Physics 1 Lab',
+      courseCode: '1430116',
+      title: 'Quiz 3',
+      type: 'assignment',
+      status: 'completed',
+      submissionStatus: 'submitted',
+      room: 'Central Lab Men - 105',
+      dueDate: '2026-10-28T14:00:00.000Z'
+    });
+
+    expect(areTasksDuplicates(announcementQuiz, streamQuiz)).toBe(true);
+
+    const merged = deduplicateTaskList([announcementQuiz, streamQuiz]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].submissionStatus).toBe('graded');
+    expect(merged[0].score).toBe(8.5);
+    expect(merged[0].maxScore).toBe(10);
+    expect(merged[0].status).toBe('completed');
+  });
 });
 
 describe('deduplicateTaskList and mergeCloudTasks with empty due dates', () => {

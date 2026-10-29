@@ -1,5 +1,5 @@
 import { DeadlineTask, UserSettings, DEFAULT_SETTINGS, QuickLink } from '../types';
-import { pushTasksToFirebase, fetchTasksFromFirebase } from '../utils/firebaseSync';
+import { pushTasksToFirebase, fetchTasksFromFirebase, markCloudScanRequestCompleted } from '../utils/firebaseSync';
 import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
 import { pickNewerList } from '../utils/syncMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
@@ -14,6 +14,7 @@ import { runHttpBlackboardScan, isHttpScanRunning } from './httpScanner';
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
 const CLASS_ALARM_NAME = 'bbs_class_reminder';
+const CLOUD_SCAN_ALARM = 'bbs_cloud_scan_poll';
 const CLASS_NOTIFIED_KEY = 'bbs_class_notified';
 
 async function classReminderMinutes(): Promise<number> {
@@ -125,9 +126,24 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
       await chrome.storage.local.set({ bbs_tasks: tasks });
       await updateExtensionBadge();
       console.log('[Background Sync] Pulled and merged latest deadlines & course changes from Firebase into storage');
+    }
+
+    // Fulfill any scan request triggered from the mobile PWA
+    if (syncKey && res.scanRequest && res.scanRequest.state === 'pending' && !isHttpScanRunning()) {
+      console.log('[Background Sync] Fulfilling pending scan request from PWA...');
+      const scanRes = await runHttpBlackboardScan(false, async () => {
+        await updateExtensionBadge();
+        await syncDeadlinesToMobileServer();
+      }).catch(err => ({ ok: false, message: String(err) }));
+      await markCloudScanRequestCompleted(
+        syncKey,
+        res.scanRequest.requestedAt,
+        scanRes.ok ? (scanRes.message || 'Scan complete! Deadlines updated.') : (scanRes.message || 'Scan failed.')
+      );
       return true;
     }
-    return false;
+
+    return changed;
   } catch (err) {
     console.warn('[Background Sync] Failed pulling tasks from Firebase:', err);
     return false;
@@ -315,6 +331,7 @@ chrome.declarativeNetRequest?.updateDynamicRules({
 // Listeners
 chrome.runtime.onInstalled.addListener((details) => {
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 30 });
+  chrome.alarms.create(CLOUD_SCAN_ALARM, { periodInMinutes: 1 });
   scheduleMidnightAlarm();
   getUserCourses().catch(() => {});
   reinjectDarkModeIntoOpenBlackboardTabs();
@@ -325,6 +342,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.runtime.onStartup?.addListener(() => {
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 30 });
+  chrome.alarms.create(CLOUD_SCAN_ALARM, { periodInMinutes: 1 });
   scheduleMidnightAlarm();
   getUserCourses().catch(() => {});
   reinjectDarkModeIntoOpenBlackboardTabs();
@@ -351,6 +369,8 @@ chrome.alarms.onAlarm.addListener(alarm => {
   } else if (alarm.name === ALARM_NAME) {
     pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
     showDueClassReminders().then(() => scheduleClassReminder());
+  } else if (alarm.name === CLOUD_SCAN_ALARM) {
+    pullTasksFromFirebaseToLocal();
   } else if (alarm.name === MIDNIGHT_ALARM_NAME) {
     syncDeadlinesToMobileServer(true);
     scheduleMidnightAlarm();

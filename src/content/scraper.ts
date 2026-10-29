@@ -1341,7 +1341,7 @@ const scanGate = new ScanGate({
  * so closing the popup does not cancel it; progress goes to storage for the popup to show.
  * A Scan press during a quiet scan joins it instead of being dropped (see ScanGate).
  */
-function runScan(interactive: boolean = false, fullRescan: boolean = false): Promise<void> {
+export function runScan(interactive: boolean = false, fullRescan: boolean = false): Promise<void> {
   return scanGate.run(interactive, fullRescan);
 }
 
@@ -1831,8 +1831,28 @@ function init() {
     // Context may already be invalidated
   }
 
-  // Inject floating button (cards are only expanded when extract is explicitly triggered)
-  injectFloatingButton(() => runScan(true));
+  // Inject floating button: triggers pure background HTTP scan
+  injectFloatingButton(() => {
+    if (!isExtensionContextValid()) return;
+    chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN' }, async res => {
+      void chrome.runtime.lastError;
+      const tasks = await getTasks().catch(() => []);
+      const pendingCount = tasks.filter(t => t.status === 'pending').length;
+      const badge = document.getElementById('bbs-floating-badge');
+      if (badge) {
+        if (pendingCount > 0) {
+          badge.textContent = String(pendingCount);
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+      const msg = res?.ok
+        ? (res.newCount ? `Added <strong>${res.newCount}</strong> new deadlines to calendar!` : 'All deadlines up to date.')
+        : (res?.message || 'Could not reach Blackboard.');
+      showSidekickToast('Blackboarder', msg, res?.newCount || 0);
+    });
+  });
 
   if (!onExamPage) {
     // Blackboard's course colours follow the student's course colours
@@ -1915,12 +1935,12 @@ function init() {
             .catch(() => sendResponse({ found: 0 }));
           return true;
         } else if (message.type === 'PING_SCANNER') {
-          sendResponse({ ok: true, scanning: scanGate.running });
+          sendResponse({ ok: true, scanning: false });
           return false;
         } else if (message.type === 'TRIGGER_SCAN') {
-          runScan(true, Boolean(message.fullRescan))
-            .then(() => sendResponse({ success: true }))
-            .catch(() => sendResponse({ success: false }));
+          chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan: Boolean(message.fullRescan) }, res => {
+            sendResponse({ success: Boolean(res?.ok) });
+          });
           return true; // async
         }
         return false;
@@ -1929,90 +1949,6 @@ function init() {
   } catch {
     // Context may already be invalidated
   }
-
-  // Auto-scan on load if enabled
-  getSettings()
-    .then(settings => {
-      if (!isExtensionContextValid()) return;
-      if (settings.autoScanOnPageLoad) {
-        setTimeout(() => {
-          if (isExtensionContextValid()) {
-            runScan(false);
-          }
-        }, 2500);
-      }
-    })
-    .catch(() => {});
-
-  if (!onExamPage) {
-    // Zero-click Ultra Stream Infinite Scroll Observer
-    initUltraStreamObserver();
-  }
-}
-
-/**
- * Watches for dynamically rendered stream cards during infinite scrolling
- * and runs a quiet incremental micro-scan automatically.
- */
-function initUltraStreamObserver() {
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let isScanning = false;
-
-  const observer = new MutationObserver(mutations => {
-    if (!isExtensionContextValid()) {
-      teardownOrphanedContentScript();
-      return;
-    }
-
-    let hasRelevantNodes = false;
-    for (const m of mutations) {
-      if (m.addedNodes && m.addedNodes.length > 0) {
-        for (let i = 0; i < m.addedNodes.length; i++) {
-          const node = m.addedNodes[i];
-          if (node instanceof HTMLElement) {
-            if (node.matches && (
-              node.matches('[role="feed"] > *, .stream-item-container, .stream-item, [class*="activity-card"], bb-announcement-card, #announcementList > *') ||
-              node.querySelector?.('.stream-item-container, .stream-item, bb-announcement-card, [class*="activity-card"], [class*="timeline"]')
-            )) {
-              hasRelevantNodes = true;
-              break;
-            }
-          }
-        }
-      }
-      if (hasRelevantNodes) break;
-    }
-
-    if (hasRelevantNodes && !isScanning) {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        if (!isExtensionContextValid()) {
-          teardownOrphanedContentScript();
-          return;
-        }
-        isScanning = true;
-        try {
-          console.log('[Blackboarder] Ultra stream scroll detected: running quiet incremental scan...');
-          await runScan(false, false);
-        } catch (e: any) {
-          if (e?.message?.includes('Extension context invalidated')) {
-            teardownOrphanedContentScript();
-            console.info('[Blackboarder] Extension was reloaded during auto-scan; refresh this tab to reconnect.');
-          } else {
-            console.warn('[Blackboarder] Infinite scroll auto-scan error:', e);
-          }
-        } finally {
-          isScanning = false;
-        }
-      }, 1500);
-    }
-  });
-
-  activeStreamObserver = observer;
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
 }
 
 // Run after document is ready
