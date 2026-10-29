@@ -769,15 +769,11 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
           ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(task.weightDisplay)}</span>
         </div>
       ` : ''}
-      ${task.submissionStatus === 'graded' && (task.scoreDisplay || task.score !== undefined) ? `
+      ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
         <div class="task-grade-pill" title="Grade / Score released on Blackboard">
-          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
+          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
         </div>
-      ` : (task.submissionStatus === 'graded' ? `
-        <div class="task-grade-pill">
-          ${getSvgIcon('star', 'mr-1')} <span>Graded</span>
-        </div>
-      ` : '')}
+      ` : ''}
       ${task.submissionStatus === 'submitted' ? `
         <div class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
           ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
@@ -2076,15 +2072,11 @@ function renderTasks() {
         ${roomBadgeHtml}
         ${weightBadgeHtml}
         ${classTimeBadgeHtml}
-        ${task.submissionStatus === 'graded' && (task.scoreDisplay || task.score !== undefined) ? `
+        ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
           <span class="task-grade-pill" title="Grade / Score released on Blackboard">
-            ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
+            ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
           </span>
-        ` : (task.submissionStatus === 'graded' ? `
-          <span class="task-grade-pill">
-            ${getSvgIcon('star', 'mr-1')} <span>Graded</span>
-          </span>
-        ` : '')}
+        ` : ''}
         ${task.submissionStatus === 'submitted' ? `
           <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
             ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
@@ -2236,15 +2228,11 @@ function openReadingSheet(task: DeadlineTask) {
       </button>
       ` : ''}
       ${task.weightDisplay || task.weight ? `<span class="task-weight-pill weight-major">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(task.weightDisplay || `${task.weight}%`)}</span>` : ''}
-      ${task.submissionStatus === 'graded' && (task.scoreDisplay || task.score !== undefined) ? `
+      ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
         <span class="task-grade-pill" title="Grade / Score released on Blackboard">
-          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || `${task.score} pts`)}</span>
+          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
         </span>
-      ` : (task.submissionStatus === 'graded' ? `
-        <span class="task-grade-pill">
-          ${getSvgIcon('star', 'mr-1')} <span>Graded</span>
-        </span>
-      ` : '')}
+      ` : ''}
       ${task.submissionStatus === 'submitted' ? `
         <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
           ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
@@ -3581,6 +3569,47 @@ function setupEvents() {
   settingModel?.addEventListener('change', async () => {
     await saveSettings({ openRouterModel: settingModel.value });
     showToast('AI model saved');
+  });
+
+  const settingBadgeNotif = document.getElementById('setting-badge-notif') as HTMLInputElement | null;
+  settingBadgeNotif?.addEventListener('change', async () => {
+    await saveSettings({ badgeNotification: settingBadgeNotif.checked });
+    showToast(settingBadgeNotif.checked ? 'Toolbar badge active' : 'Toolbar badge disabled');
+  });
+
+  const settingReminderHours = document.getElementById('setting-reminder-hours') as HTMLSelectElement | null;
+  settingReminderHours?.addEventListener('change', async () => {
+    const hours = parseInt(settingReminderHours.value, 10) || 24;
+    await saveSettings({ reminderHoursBefore: hours });
+    showToast(`Notification alert window ${hours}h`);
+  });
+
+  const settingSyncMidnight = document.getElementById('setting-sync-midnight') as HTMLInputElement | null;
+  settingSyncMidnight?.addEventListener('change', async () => {
+    await saveSettings({ autoSyncMidnight: settingSyncMidnight.checked });
+    showToast(settingSyncMidnight.checked ? 'Midnight sync on' : 'Midnight sync off');
+  });
+
+  const settingSyncOnScan = document.getElementById('setting-sync-onscan') as HTMLInputElement | null;
+  settingSyncOnScan?.addEventListener('change', async () => {
+    await saveSettings({ autoSyncOnScan: settingSyncOnScan.checked });
+    showToast(settingSyncOnScan.checked ? 'Scan sync on' : 'Scan sync off');
+  });
+
+  const settingAutoScan = document.getElementById('setting-autoscan') as HTMLInputElement | null;
+  settingAutoScan?.addEventListener('change', async () => {
+    await saveSettings({ autoScanOnPageLoad: settingAutoScan.checked });
+    showToast(settingAutoScan.checked ? 'Auto-scan on' : 'Auto-scan off');
+  });
+
+  const settingSyncKeyInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+  settingSyncKeyInput?.addEventListener('change', async () => {
+    const newKey = settingSyncKeyInput.value.trim().toUpperCase();
+    if (newKey) {
+      await saveSettings({ syncKey: newKey });
+      showToast(`Sync Key saved: ${newKey}`);
+      void refreshAiKeyLock(true);
+    }
   });
 
   // Settings Form Submit

@@ -495,9 +495,16 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   const isGbA = (a.id || '').startsWith('gbcol_') || a.sourceSnippet === 'gradebook';
   const isGbB = (b.id || '').startsWith('gbcol_') || b.sourceSnippet === 'gradebook';
   if ((isGbA || isGbB) && !(isGbA && isGbB)) {
-    if (numA !== null && numB !== null && numA === numB && (typeA === typeB || compatibleCoursework)) return true;
+    const isQuizA = /quiz|كويز/i.test(a.title);
+    const isQuizB = /quiz|كويز/i.test(b.title);
+    const isLabA = /lab|تقرير/i.test(a.title);
+    const isLabB = /lab|تقرير/i.test(b.title);
+    const isAssignA = /assignment|hw|homework|واجب/i.test(a.title);
+    const isAssignB = /assignment|hw|homework|واجب/i.test(b.title);
+    const sameAssessType = (isQuizA && isQuizB) || (isLabA && isLabB) || (isAssignA && isAssignB) || (typeA === typeB);
+    if (numA !== null && numB !== null && numA === numB && sameAssessType) return true;
     if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) return true;
-    if (coreA && coreB && coreA.length >= 4 && (coreA === coreB || coreA.includes(coreB) || coreB.includes(coreA)) && (typeA === typeB || compatibleCoursework)) return true;
+    if (coreA && coreB && coreA.length >= 3 && (coreA === coreB || coreA.includes(coreB) || coreB.includes(coreA)) && sameAssessType) return true;
   }
 
   const isGenericA = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(a.title.trim());
@@ -658,7 +665,9 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const gradedSource = existingGradedValid ? existing : (incomingGradedValid ? incoming : null);
   const score = submissionStatus === 'graded' && gradedSource ? gradedSource.score : undefined;
   const maxScore = submissionStatus === 'graded' && gradedSource ? gradedSource.maxScore : undefined;
-  const scoreDisplay = submissionStatus === 'graded' && gradedSource ? gradedSource.scoreDisplay : undefined;
+  const scoreDisplay = submissionStatus === 'graded' && gradedSource
+    ? (gradedSource.scoreDisplay || (typeof score === 'number' && typeof maxScore === 'number' && maxScore > 0 ? `${score} / ${maxScore} (${Math.round((score / maxScore) * 100)}%)` : (typeof score === 'number' ? `${score} pts` : undefined)))
+    : undefined;
   const gradedAt = submissionStatus === 'graded' && gradedSource ? gradedSource.gradedAt : undefined;
   const markProvisional = submissionStatus === 'graded' && gradedSource ? gradedSource.markProvisional : undefined;
   const gradeSourceId = gradedSource?.gradeSourceId || existing.gradeSourceId || incoming.gradeSourceId;

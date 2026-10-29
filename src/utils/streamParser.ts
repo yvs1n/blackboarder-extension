@@ -1,6 +1,6 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
-import { resolveTaskWeight, extractExplicitPoints } from '../core/syllabusWeights';
+import { resolveTaskWeight, extractExplicitPoints, extractAssessmentNumber } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
 
 /**
@@ -358,6 +358,7 @@ function sameCode(a: string, b: string): boolean {
 }
 
 const ULTRA_GENERIC_RE = /^(?:assignment|task|due|untitled|واجب)$/i;
+const isExamTitle = (s?: string) => /\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(s || '');
 
 export function findAllTasksForUpdate(
   tasks: DeadlineTask[],
@@ -365,7 +366,7 @@ export function findAllTasksForUpdate(
   accept?: (t: DeadlineTask) => boolean
 ): DeadlineTask[] {
   const want = cleanTitle(update.title);
-  if (want.length < 3) return [];
+  if (want.length < 2) return [];
   const upRes = parseCourseDetails(`${update.courseCode || ''} ${update.courseName || ''}`);
   const upCode = cleanCode(upRes.code === 'UOS' ? '' : upRes.code);
   const upName = cleanName(upRes.name === 'General Course' ? '' : upRes.name);
@@ -374,6 +375,13 @@ export function findAllTasksForUpdate(
   const scored: { task: DeadlineTask; rank: number }[] = [];
   const upPractice = isPracticeTitle(update.title);
   const upNumbers = titleNumbers(update.title);
+  const upNum = extractAssessmentNumber(update.title);
+  const isUpExam = isExamTitle(update.title);
+  const isUpMid = /(?:\bmidterm\b|نصفي)/i.test(update.title);
+  const isUpFin = /(?:\bfinal\b|نهائي)/i.test(update.title);
+  const isUpQuiz = /quiz|كويز/i.test(update.title);
+  const isUpLab = /lab|تقرير/i.test(update.title);
+  const isUpAssign = /assignment|hw|homework|واجب/i.test(update.title);
   for (const t of tasks) {
     if (accept && !accept(t)) continue;
     // A gradebook column task (gbcol_<course>_<colId>) only accepts gradebook updates from its own column
@@ -412,26 +420,49 @@ export function findAllTasksForUpdate(
     const tNumbers = titleNumbers(t.title);
     if (!numbersAgree(tNumbers, upNumbers)) continue;
     const have = cleanTitle(t.title);
-    if (have.length < 3) continue;
+    if (have.length < 2) continue;
     const exact = have === want;
     if (!courseKnown) {
       if (!exact) continue;
       if (ULTRA_GENERIC_RE.test(update.title.trim()) || ULTRA_GENERIC_RE.test(t.title.trim())) continue;
     }
+    let matchedApprox = false;
     if (!exact) {
       if (!courseKnown) continue;
       const core = coreTitle(t.title);
-      const sameCore = core.length >= 4 && core === coreTitle(update.title);
+      const sameCore = core.length >= 3 && core === coreTitle(update.title);
       const sameWords = wordsKey(t.title).length >= 4 && wordsKey(t.title) === wordsKey(update.title);
       const sub = (have.includes(want) || want.includes(have)) && !ULTRA_GENERIC_RE.test(update.title.trim());
-      if (!sameCore && !sameWords && !sub) continue;
+
+      const tNum = extractAssessmentNumber(t.title);
+      const isTQuiz = /quiz|كويز/i.test(t.title);
+      const isTLab = /lab|تقرير/i.test(t.title);
+      const isTAssign = /assignment|hw|homework|واجب/i.test(t.title);
+      const numAgree = Boolean(
+        tNum !== null && upNum !== null && tNum === upNum && (
+          (isUpQuiz && isTQuiz) ||
+          (isUpLab && isTLab) ||
+          (isUpAssign && isTAssign)
+        )
+      );
+
+      const examAgree = Boolean(
+        (t.type === 'exam' || isExamTitle(t.title)) && isUpExam && (
+          (isUpMid && /(?:\bmidterm\b|نصفي)/i.test(t.title)) ||
+          (isUpFin && /(?:\bfinal\b|نهائي)/i.test(t.title))
+        ) && (tNum === null || upNum === null || tNum === upNum)
+      );
+
+      if (!sameCore && !sameWords && !sub && !numAgree && !examAgree) continue;
+      matchedApprox = Boolean(sameCore || numAgree || examAgree);
     }
-    scored.push({ task: t, rank: (courseExact ? 4 : 0) + (courseKnown ? 2 : 0) + (exact ? 1 : 0) });
+    scored.push({ task: t, rank: (courseExact ? 6 : 0) + (courseKnown ? 3 : 0) + (exact ? 2 : 0) + (matchedApprox ? 1 : 0) });
   }
   if (scored.length === 0) return [];
   scored.sort((a, b) => b.rank - a.rank);
   // With no course to go on, only a single candidate is safe
-  if (scored[0].rank < 2 && scored.filter(s => s.rank === scored[0].rank).length > 1) return [];
+  const hasCourse = Boolean(upCode || upName);
+  if (!hasCourse && scored.filter(s => s.rank === scored[0].rank).length > 1) return [];
   return scored.map(s => s.task);
 }
 

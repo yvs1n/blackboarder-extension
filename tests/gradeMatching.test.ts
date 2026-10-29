@@ -42,4 +42,34 @@ describe('posted marks find the right task', () => {
   it('skips a mark it cannot place rather than guessing', () => {
     expect(findTaskForUpdate(tasks, { title: 'Quiz 1', submissionStatus: 'graded', score: 5 })).toBeUndefined();
   });
+
+  it('attaches a released mark for "Quiz 3 - Projectile Motion" to an announced task "3rd quiz" in Physics 1 Lab', () => {
+    const labTasks = [
+      task('phys-lab-q3', '3rd quiz', 'Physics 1 Lab', '1430116')
+    ];
+    const update = {
+      title: 'Quiz 3 - Projectile Motion',
+      courseName: 'Physics 1 Lab',
+      courseCode: '1430116',
+      submissionStatus: 'graded' as const,
+      score: 8.5,
+      maxScore: 10
+    };
+    expect(findTaskForUpdate(labTasks, update)?.id).toBe('phys-lab-q3');
+  });
+
+  it('attaches a released mark for "EAP Midterm Exam" to an announced task "Midterm worth 25%"', () => {
+    const eapTasks = [
+      { id: 'eap-mid', title: 'Midterm worth 25%', courseName: 'English for Academic Purposes', courseCode: '0202 112', type: 'exam', dueDate: '2026-10-15T10:00:00.000Z' } as DeadlineTask
+    ];
+    const update = {
+      title: 'EAP Midterm Exam',
+      courseName: 'English for Academic Purposes',
+      courseCode: '0202 112',
+      submissionStatus: 'graded' as const,
+      score: 20,
+      maxScore: 20
+    };
+    expect(findTaskForUpdate(eapTasks, update)?.id).toBe('eap-mid');
+  });
 });

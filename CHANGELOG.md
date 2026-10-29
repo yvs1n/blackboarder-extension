@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.11] - 2026-10-29
+
+### Fixed
+
+- **Instant settings persistence.** In the extension popup, all setting controls (toolbar badge, notification window, midnight sync, scan sync, background auto-scan, personal sync key) now save immediately on change with confirmation feedback, ensuring no settings changes are lost when closing the popup.
+- **Guaranteed released mark badge on deadline cards.** Deadline cards in both the extension and mobile companion app now consistently display the grade badge whenever a released numeric score is present or the task is graded, falling back to a clean score fraction when custom scoreDisplay formatting is absent.
+- **Coursework grade update linking.** Hardened `findAllTasksForUpdate` in `streamParser.ts` to attach released gradebook marks to announced deadline tasks (e.g. attaching "Quiz 3 - Projectile Motion" to "3rd quiz", or "EAP Midterm Exam" to "Midterm worth 25%") through shared assessment numbering and exam keywords within the same course.
+
+---
+
 ## [1.4.10] - 2026-10-29
 
 ### Added
