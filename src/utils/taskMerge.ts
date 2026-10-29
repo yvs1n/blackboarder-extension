@@ -2,7 +2,7 @@ import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes } from '../core/courseHelper';
 import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
-import { purgeSyntheticGradebookTasks } from './gradebook';
+import { purgeSyntheticGradebookTasks, isExamItem } from './gradebook';
 
 export { extractAssessmentNumber };
 
@@ -36,7 +36,8 @@ export function sanitizeTaskMarks(task: DeadlineTask): DeadlineTask {
     return task;
   }
 
-  const explicitPts = extractExplicitPoints(task.title);
+  const isWeightPhrase = /(?:worth\s*\d|\bweight\b|%|بنسبة|وزن)/i.test(task.title);
+  const explicitPts = isWeightPhrase ? null : extractExplicitPoints(task.title);
   const pointsMismatch = explicitPts !== null && typeof task.maxScore === 'number' && Math.abs(explicitPts - task.maxScore) > 0.5;
 
   const colMatch = (task.id || '').match(/^gbcol_.*(_\d+_\d+)$/);
@@ -248,6 +249,33 @@ function fillGaps(local: DeadlineTask, cloud: DeadlineTask, sameTime: boolean): 
 }
 
 /**
+ * Safely compares tasks chronologically without producing NaN sort instability:
+ * 1. Tasks with valid due dates sort earliest first.
+ * 2. Tasks with empty or invalid due dates sort stably after dated tasks.
+ * 3. Ties break by createdAt timestamp, then by task id.
+ */
+export function compareTasksChronologically(a: DeadlineTask, b: DeadlineTask): number {
+  const timeA = a.dueDate ? new Date(a.dueDate).getTime() : NaN;
+  const timeB = b.dueDate ? new Date(b.dueDate).getTime() : NaN;
+  const validA = !isNaN(timeA);
+  const validB = !isNaN(timeB);
+
+  if (validA && validB) {
+    if (timeA !== timeB) return timeA - timeB;
+    return a.id.localeCompare(b.id);
+  }
+  if (validA) return -1;
+  if (validB) return 1;
+
+  const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+  const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  if (!isNaN(createdA) && !isNaN(createdB) && createdA !== createdB) {
+    return createdA - createdB;
+  }
+  return a.id.localeCompare(b.id);
+}
+
+/**
  * Merges the cloud task list into the local list.
  * - Newer `updatedAt` wins per task; a locally-newer task is never overridden.
  * - Tombstones delete matching tasks on either side unless the task was edited after the deletion.
@@ -311,7 +339,7 @@ export function mergeCloudTasks(
     }
     return clean;
   }).sort(
-    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    compareTasksChronologically
   );
   return { tasks, changed };
 }
@@ -427,25 +455,46 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   const diffMs = (hasTimeA && hasTimeB) ? Math.abs(timeA - timeB) : Infinity;
 
   // Case 0: Same course, same assessment type, and same assessment number (e.g. "Quiz 2" and "2nd Quiz (Vector & Free Fall)")
-  // Within 7 days (academic week slack between announcement estimate and gradebook cutoff), or missing date.
   if (numA !== null && numB !== null && numA === numB && typeA === typeB) {
-    if (!hasTimeA || !hasTimeB || diffMs <= 7 * 24 * 60 * 60 * 1000) {
+    const isQuizA = /quiz|كويز/i.test(a.title);
+    const isQuizB = /quiz|كويز/i.test(b.title);
+    const isLabA = /lab|تقرير/i.test(a.title);
+    const isLabB = /lab|تقرير/i.test(b.title);
+    if (!((isQuizA && isLabB) || (isLabA && isQuizB))) {
       return true;
     }
   }
 
   // Case 0b: Normalized coreTitle match within the same course
-  // (e.g. "Free Fall Exp. - Lab Report" vs "Free Fall Exp. Student's Lab Report",
-  // or "البحث العلمي (واجب جماعي) 15 درجة" vs "تمديد فترة تسليم البحث العلمي ومحاولات التسليم")
   const coreA = coreTitle(a.title);
   const coreB = coreTitle(b.title);
   const compatibleCoursework = (typeA === typeB) ||
     ((typeA === 'assignment' || typeA === 'project' || typeA === 'lab') &&
      (typeB === 'assignment' || typeB === 'project' || typeB === 'lab'));
   if (coreA && coreB && coreA.length >= 4 && coreA === coreB && compatibleCoursework) {
-    if (!hasTimeA || !hasTimeB || diffMs <= 14 * 24 * 60 * 60 * 1000) {
-      return true;
+    return true;
+  }
+
+  // Case 0c: Both are exams in the same course (e.g. "Midterm" and "EAP Midterm Exam", or "Final" and "Final Exam")
+  if (isExamItem(a) && isExamItem(b)) {
+    const isMidA = /(?:\bmidterm\b|نصفي)/i.test(a.title);
+    const isMidB = /(?:\bmidterm\b|نصفي)/i.test(b.title);
+    const isFinA = /(?:\bfinal\b|نهائي)/i.test(a.title);
+    const isFinB = /(?:\bfinal\b|نهائي)/i.test(b.title);
+    if ((isMidA && isMidB) || (isFinA && isFinB)) {
+      if (!(numA !== null && numB !== null && numA !== numB)) {
+        return true;
+      }
     }
+  }
+
+  // Case 0d: Gradebook task matching an announcement task in the same course
+  const isGbA = (a.id || '').startsWith('gbcol_') || a.sourceSnippet === 'gradebook';
+  const isGbB = (b.id || '').startsWith('gbcol_') || b.sourceSnippet === 'gradebook';
+  if ((isGbA || isGbB) && !(isGbA && isGbB)) {
+    if (numA !== null && numB !== null && numA === numB && (typeA === typeB || compatibleCoursework)) return true;
+    if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) return true;
+    if (coreA && coreB && coreA.length >= 4 && (coreA === coreB || coreA.includes(coreB) || coreB.includes(coreA)) && (typeA === typeB || compatibleCoursework)) return true;
   }
 
   const isGenericA = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(a.title.trim());
@@ -462,15 +511,17 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   }
 
   // Case 2: Same calendar day (YYYY-MM-DD) for the same course
-  const dateStrA = new Date(a.dueDate).toISOString().slice(0, 10);
-  const dateStrB = new Date(b.dueDate).toISOString().slice(0, 10);
+  if (hasTimeA && hasTimeB) {
+    const dateStrA = new Date(a.dueDate).toISOString().slice(0, 10);
+    const dateStrB = new Date(b.dueDate).toISOString().slice(0, 10);
 
-  if (dateStrA === dateStrB) {
-    if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) {
-      if (typeA === typeB || isGenericA || isGenericB || compatibleCoursework) return true;
-    }
-    if (coreA && coreB && coreA.length >= 4 && (coreA.includes(coreB) || coreB.includes(coreA)) && compatibleCoursework) {
-      return true;
+    if (dateStrA === dateStrB) {
+      if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) {
+        if (typeA === typeB || isGenericA || isGenericB || compatibleCoursework) return true;
+      }
+      if (coreA && coreB && coreA.length >= 4 && (coreA.includes(coreB) || coreB.includes(coreA)) && compatibleCoursework) {
+        return true;
+      }
     }
   }
 
@@ -486,9 +537,13 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const incoming = sanitizeTaskMarks(rawIncoming);
   const isUserEdited = Boolean(existing.userEdited || incoming.userEdited);
 
-  // Stable ID: prefer gbcol ID or existing ID over generic stream ID
+  // Stable ID: prefer announcement task ID so real announcements stay in place, then gbcol
   let id = existing.id;
-  if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_')) {
+  if (existing.id.startsWith('ann_')) {
+    id = existing.id;
+  } else if (incoming.id.startsWith('ann_')) {
+    id = incoming.id;
+  } else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_')) {
     id = incoming.id;
   } else if (existing.id.startsWith('stream_UOS_Assignment_') && !incoming.id.startsWith('stream_UOS_Assignment_')) {
     id = incoming.id;
@@ -517,7 +572,7 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     }
   }
 
-  // Due date: student edits win (Rule 3); otherwise prefer specific time or official gbcol date
+  // Due date: student edits win (Rule 3); otherwise prefer real announcement/schedule date over scan-time gbcol date
   let dueDate = existing.dueDate;
   let hasSpecificTime = existing.hasSpecificTime;
   if (existing.userEdited && !incoming.userEdited) {
@@ -526,12 +581,20 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   } else if (incoming.userEdited && !existing.userEdited) {
     dueDate = incoming.dueDate;
     hasSpecificTime = incoming.hasSpecificTime;
-  } else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_') && incoming.hasSpecificTime) {
-    dueDate = incoming.dueDate;
-    hasSpecificTime = true;
-  } else if (!existing.hasSpecificTime && incoming.hasSpecificTime) {
-    dueDate = incoming.dueDate;
-    hasSpecificTime = true;
+  } else {
+    const isScanDate = (d?: string) => Boolean(d && d.startsWith('2026-10-28'));
+    const existReal = Boolean(existing.dueDate && !isScanDate(existing.dueDate));
+    const inReal = Boolean(incoming.dueDate && !isScanDate(incoming.dueDate));
+    if (existReal && !inReal) {
+      dueDate = existing.dueDate;
+      hasSpecificTime = existing.hasSpecificTime;
+    } else if (inReal && !existReal) {
+      dueDate = incoming.dueDate;
+      hasSpecificTime = incoming.hasSpecificTime;
+    } else if (incoming.hasSpecificTime && !existing.hasSpecificTime) {
+      dueDate = incoming.dueDate;
+      hasSpecificTime = true;
+    }
   }
 
   // Type: prefer specific type over generic assignment
@@ -550,21 +613,12 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     ? (incoming.syllabusNote || existing.syllabusNote)
     : (existing.syllabusNote || incoming.syllabusNote);
 
-  // Determine valid marks & submission status:
-  // If one side was explicitly updated to 'submitted' more recently (or via the target gbcol's own column),
-  // do not resurrect an older spurious 'graded' status.
-  const targetColMatch = (id || '').match(/^gbcol_.*(_\d+_\d+)$/);
-  const targetColId = targetColMatch ? targetColMatch[1] : '';
-
   const isMarkValidForMerged = (t: DeadlineTask): boolean => {
-    if (t.submissionStatus !== 'graded') return false;
-    const explicitPts = extractExplicitPoints(title);
+    if (t.submissionStatus !== 'graded' || typeof t.score !== 'number') return false;
+    const isWeightPhrase = /(?:worth\s*\d|\bweight\b|%|بنسبة|وزن)/i.test(title);
+    const explicitPts = isWeightPhrase ? null : extractExplicitPoints(title);
     if (explicitPts !== null && typeof t.maxScore === 'number' && Math.abs(explicitPts - t.maxScore) > 0.5) {
       return false;
-    }
-    if (targetColId && t.gradeSourceId) {
-      const col = t.gradeSourceId.replace(/^(?:gb:|col_)/, '');
-      if (col && col !== targetColId) return false;
     }
     return true;
   };
@@ -572,18 +626,8 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const existingGradedValid = isMarkValidForMerged(existing);
   const incomingGradedValid = isMarkValidForMerged(incoming);
 
-  // If one copy has official column submissionStatus === 'submitted' matching targetColId, or is newer and 'submitted'
-  const existingOfficialSubmitted = existing.submissionStatus === 'submitted' &&
-    Boolean(targetColId && existing.gradeSourceId && existing.gradeSourceId.replace(/^(?:gb:|col_)/, '') === targetColId);
-  const incomingOfficialSubmitted = incoming.submissionStatus === 'submitted' &&
-    Boolean(targetColId && incoming.gradeSourceId && incoming.gradeSourceId.replace(/^(?:gb:|col_)/, '') === targetColId);
-
   let submissionStatus: DeadlineTask['submissionStatus'];
-  if (existingOfficialSubmitted && (!incomingGradedValid || !incoming.gradeSourceId)) {
-    submissionStatus = 'submitted';
-  } else if (incomingOfficialSubmitted && (!existingGradedValid || !existing.gradeSourceId)) {
-    submissionStatus = 'submitted';
-  } else if (existingGradedValid || incomingGradedValid) {
+  if (existingGradedValid || incomingGradedValid) {
     submissionStatus = 'graded';
   } else if (existing.submissionStatus === 'submitted' || incoming.submissionStatus === 'submitted') {
     submissionStatus = 'submitted';
@@ -614,8 +658,7 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const scoreDisplay = submissionStatus === 'graded' && gradedSource ? gradedSource.scoreDisplay : undefined;
   const gradedAt = submissionStatus === 'graded' && gradedSource ? gradedSource.gradedAt : undefined;
   const markProvisional = submissionStatus === 'graded' && gradedSource ? gradedSource.markProvisional : undefined;
-  const gradeSourceId = gradedSource?.gradeSourceId ||
-    (targetColId ? (existing.gradeSourceId || incoming.gradeSourceId) : (existing.gradeSourceId || incoming.gradeSourceId));
+  const gradeSourceId = gradedSource?.gradeSourceId || existing.gradeSourceId || incoming.gradeSourceId;
   const gradeSourcesBefore = Array.from(new Set([
     ...(existing.gradeSourcesBefore || []),
     ...(incoming.gradeSourcesBefore || [])
@@ -719,5 +762,5 @@ export function deduplicateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
     }
   }
 
-  return sanitizeTaskListMarks(result).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  return sanitizeTaskListMarks(result).sort(compareTasksChronologically);
 }

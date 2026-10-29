@@ -1,5 +1,6 @@
 import type { DeadlineTask } from '../types';
 import { coreTitle } from './streamParser';
+import { extractAssessmentNumber } from '../core/syllabusWeights';
 import { sanitizeTaskListMarks } from './taskMerge';
 import { isExamItem } from './gradebook';
 
@@ -93,10 +94,24 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     // Deduplicate marks within course (e.g. "Quiz 2" vs "2nd Quiz (Vector & Free Fall)", "EAP Midterm Exam" vs "Midterm")
     const existingIndex = course.marks.findIndex(m => {
       if (t.gradeSourceId && (m as any).gradeSourceId && t.gradeSourceId === (m as any).gradeSourceId) return true;
+      const numT = extractAssessmentNumber(t.title);
+      const numM = extractAssessmentNumber(m.title);
+      const isQuizT = /quiz|كويز/i.test(t.title);
+      const isQuizM = /quiz|كويز/i.test(m.title);
+      const isAssignT = /assignment|hw|homework|واجب/i.test(t.title);
+      const isAssignM = /assignment|hw|homework|واجب/i.test(m.title);
+      const isLabT = /lab|تقرير/i.test(t.title);
+      const isLabM = /lab|تقرير/i.test(m.title);
+      if (numT !== null && numM !== null && numT === numM) {
+        if ((isQuizT && isQuizM) || (isAssignT && isAssignM) || (isLabT && isLabM)) return true;
+      }
       const coreT = coreTitle(t.title);
       const coreM = coreTitle(m.title);
       if (coreT && coreM && coreT.length >= 4 && coreT === coreM) return true;
-      if (isExamItem(t) && isExamItem({ title: m.title }) && /\b(?:midterm|نصفي)\b/i.test(t.title) && /\b(?:midterm|نصفي)\b/i.test(m.title)) return true;
+      if (isExamItem(t) && isExamItem({ title: m.title })) {
+        if (/(?:\bmidterm\b|نصفي)/i.test(t.title) && /(?:\bmidterm\b|نصفي)/i.test(m.title)) return true;
+        if (/(?:\bfinal\b|نهائي)/i.test(t.title) && /(?:\bfinal\b|نهائي)/i.test(m.title)) return true;
+      }
       return false;
     });
 
@@ -132,6 +147,11 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
         }
         gradedCount++;
         submittedCount--;
+      } else if (weight && !existingRow.weight && typeof existingRow.score === 'number' && existingRow.maxScore) {
+        existingRow.weight = weight;
+        existingRow.earned = round1((existingRow.score / existingRow.maxScore) * weight);
+        course.gradedWeight += weight;
+        course.earnedWeight += (existingRow.score / existingRow.maxScore) * weight;
       }
       continue;
     }

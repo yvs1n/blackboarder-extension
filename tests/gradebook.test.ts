@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
+import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, isSyntheticGradebookTask, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
 import { parseUltraStreamEntries, coreTitle } from '../src/utils/streamParser';
 import type { DeadlineTask } from '../src/types';
 
@@ -346,5 +346,153 @@ describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate mar
     expect(coreTitle('In-Class Midterm Exam')).toBe('midterm');
     expect(coreTitle('الامتحان النصفي')).toBe('midterm');
     expect(coreTitle('الامتحان النهائي')).toBe('final');
+  });
+
+  it('isSyntheticGradebookTask returns false for unannounced gradebook marks and items with fallback titles', () => {
+    const unannounced = {
+      id: 'gbcol_0401201_p1',
+      title: 'Participation',
+      courseName: 'Computer Programming',
+      courseCode: '0401201',
+      type: 'assignment',
+      hasSpecificTime: false,
+      extractedBy: 'local',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      scoreDisplay: '10 / 10 (100%)',
+      gradeSourceId: 'gb:_1902479_1',
+      sourceSnippet: 'gradebook',
+      dueDate: ''
+    } as DeadlineTask;
+
+    const item1 = {
+      id: 'gbcol_item1',
+      title: 'Graded Item',
+      courseName: 'Physics 1',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 5,
+      maxScore: 5
+    } as DeadlineTask;
+
+    const item2 = {
+      id: 'gbcol_item2',
+      title: 'Quiz 1 Grade',
+      courseName: 'Physics 1',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 4.5,
+      maxScore: 5
+    } as DeadlineTask;
+
+    expect(isSyntheticGradebookTask(unannounced)).toBe(false);
+    expect(isSyntheticGradebookTask(item1)).toBe(false);
+    expect(isSyntheticGradebookTask(item2)).toBe(false);
+  });
+
+  it('isSyntheticGradebookTask distinguishes distinct exams in the same or different courses', () => {
+    const annMid1 = {
+      id: 'ann_mid1',
+      title: 'Midterm 1',
+      courseName: 'Computer Programming',
+      courseCode: '0401201',
+      type: 'exam',
+      status: 'pending',
+      dueDate: '2026-11-01T10:00:00.000Z'
+    } as DeadlineTask;
+
+    const gbMid2 = {
+      id: 'gbcol_mid2',
+      title: 'Midterm 2',
+      courseName: 'Computer Programming',
+      courseCode: '0401201',
+      type: 'exam',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 19,
+      maxScore: 20,
+      dueDate: '2026-11-20T10:00:00.000Z'
+    } as DeadlineTask;
+
+    const diffCourseExam = {
+      id: 'gbcol_phys_mid',
+      title: 'Midterm',
+      courseName: 'Physics 1',
+      courseCode: '1430115',
+      type: 'exam',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 25,
+      maxScore: 25,
+      dueDate: '2026-11-05T10:00:00.000Z'
+    } as DeadlineTask;
+
+    // Distinct exam number (Midterm 2 vs Midterm 1) should not be synthetic
+    expect(isSyntheticGradebookTask(gbMid2, [annMid1, gbMid2])).toBe(false);
+    // Exam in a different course should not be synthetic
+    expect(isSyntheticGradebookTask(diffCourseExam, [annMid1, diffCourseExam])).toBe(false);
+  });
+
+  it('applySubmissionUpdates preserves marks across substring course names and section codes', () => {
+    const tasks: DeadlineTask[] = [{
+      id: 't_phys',
+      title: 'Lab Report 1',
+      courseName: 'Physics 1 - ALL Sections',
+      courseCode: '1430115-01',
+      type: 'assignment',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      gradeSourceId: 'gb:_col_phys_1',
+      dueDate: '2026-10-15T10:00:00.000Z'
+    } as DeadlineTask];
+
+    const updates = [{
+      title: 'Lab Report 1',
+      courseName: 'Physics 1',
+      courseCode: '1430115',
+      sourceId: 'gb:_col_phys_1',
+      submissionStatus: 'graded' as const,
+      score: 10,
+      maxScore: 10
+    }];
+
+    applySubmissionUpdates(tasks, updates);
+    expect(tasks[0].score).toBe(10);
+    expect(tasks[0].submissionStatus).toBe('graded');
+  });
+
+  it('matches EAP Midterm Exam grade to an announcement titled Midterm worth 25%', () => {
+    const annTask: DeadlineTask = {
+      id: 'ann_eap_midterm',
+      title: 'Midterm worth 25%',
+      courseName: 'English for Academic Purposes',
+      courseCode: '0202 112',
+      type: 'exam',
+      status: 'pending',
+      dueDate: '2026-10-25T06:00:00.000Z',
+      weight: 25,
+      weightDisplay: 'worth 25%'
+    } as DeadlineTask;
+
+    const updates = gradebookToUpdates(columns, grades, english);
+    const midUpdate = updates.find(u => u.title === 'EAP Midterm Exam');
+    expect(midUpdate).toBeDefined();
+
+    expect(coreTitle('Midterm worth 25%')).toBe('midterm');
+    expect(coreTitle('EAP Midterm Exam')).toBe('midterm');
+
+    const tasks = [annTask];
+    applySubmissionUpdates(tasks, [midUpdate!], new Date('2026-10-26T12:00:00Z').getTime());
+
+    expect(tasks[0].score).toBe(20);
+    expect(tasks[0].maxScore).toBe(20);
+    expect(tasks[0].submissionStatus).toBe('graded');
+    expect(tasks[0].status).toBe('completed');
   });
 });

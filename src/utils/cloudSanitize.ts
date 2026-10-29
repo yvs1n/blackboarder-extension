@@ -65,8 +65,19 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
   for (const raw of tasks) {
     if (!raw || typeof raw !== 'object' || !isSafeCloudId((raw as any).id)) continue;
     const t = raw as any;
-    // A task without a usable due date would break sorting, calendars and ICS export
-    if (isNaN(new Date(t.dueDate).getTime())) continue;
+    const isGradebookTask = Boolean(
+      t.sourceSnippet === 'gradebook' ||
+      t.gradeSourceId ||
+      t.submissionStatus === 'graded' ||
+      (typeof t.id === 'string' && t.id.startsWith('gbcol_'))
+    );
+    const hasValidDate = !isNaN(new Date(t.dueDate).getTime());
+    if (!hasValidDate) {
+      const isEmptyDueDate = t.dueDate === '' || t.dueDate === undefined || t.dueDate === null;
+      if (!isGradebookTask || !isEmptyDueDate) {
+        continue;
+      }
+    }
 
     const clean: any = {
       ...t,
@@ -76,7 +87,7 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       courseName: str(t.courseName),
       description: str(t.description),
       sourceSnippet: str(t.sourceSnippet),
-      dueDate: t.dueDate,
+      dueDate: hasValidDate ? str(t.dueDate) : '',
       hasSpecificTime: Boolean(t.hasSpecificTime),
       type: TASK_TYPES.includes(t.type) ? t.type : 'other',
       priority: PRIORITIES.includes(t.priority) ? t.priority : 'medium',

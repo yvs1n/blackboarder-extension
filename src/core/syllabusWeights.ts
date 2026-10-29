@@ -400,7 +400,12 @@ export function findCourseSyllabus(courseName: string = '', courseCode: string =
 export function extractAssessmentNumber(title: string, context?: string): number | null {
   if (!title && !context) return null;
 
-  const combined = `${title || ''} ${context || ''}`.trim();
+  // Strip weight and percentage mentions so "Midterm worth 25%" or "Quiz (10%)" is not treated as number 25 or 10
+  const combined = `${title || ''} ${context || ''}`
+    .replace(/\bworth\s*\d+(?:\.\d+)?%?/gi, ' ')
+    .replace(/(?:بنسبة|وزن)?\s*\d+(?:\.\d+)?%/gi, ' ')
+    .replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/gi, ' ')
+    .trim();
 
   // 1. Explicit numbering attached to keyword: "Quiz 2", "Quiz #2", "Quiz (1)", "Quiz [2]", "Quiz - 2", "HW2", "Assignment 2", "Lab 2", "كويز 2"
   const m = combined.match(/(?:quiz|test|exam|midterm|assignment|hw|homework|lab|report|activity|task|كويز|اختبار|امتحان|واجب|تقرير|مشروع)[^0-9a-z\u0600-\u06ff\n]*#?\s*\(?\s*(\d+|[١-٩]|١٠)(?:[^0-9a-z\u0600-\u06ff]|$)\s*\)?/i);

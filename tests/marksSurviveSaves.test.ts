@@ -61,3 +61,160 @@ describe('the owner\'s real gradebook item names reach their deadlines (scores m
     expect(score('eap-mid')).toBeUndefined();
   });
 });
+
+describe('unannounced gradebook marks survive popup open, background refresh, and reopen simulation', () => {
+  it('preserves unannounced marks with empty dueDate through complete popup lifecycle', async () => {
+    const { isValidTask, findLegacyNamelessTaskIds } = await import('../src/core/courseHelper');
+    const { purgeSyntheticGradebookTasks } = await import('../src/utils/gradebook');
+    const { deduplicateTaskList, mergeCloudTasks } = await import('../src/utils/taskMerge');
+    const { compareTasksByTime } = await import('../src/utils/calendar');
+    const { sanitizeCloudTasks } = await import('../src/utils/cloudSanitize');
+    const { resolveTaskTimeWithSchedule } = await import('../src/core/courseSchedule');
+
+    // 1. Initial State: Scanned tasks saved in storage
+    const scannedUnannouncedQuiz: DeadlineTask = {
+      id: 'gbcol_1440133_q1grade',
+      title: 'Quiz 1 Grade',
+      courseName: 'Calculus I for Engineering',
+      courseCode: '1440133',
+      dueDate: '',
+      hasSpecificTime: false,
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      scoreDisplay: '10 / 10 (100%)',
+      sourceSnippet: 'gradebook',
+      gradeSourceId: 'gb:_1001_1',
+      extractedBy: 'local',
+      createdAt: '2026-10-29T08:00:00.000Z',
+      updatedAt: '2026-10-29T08:00:00.000Z'
+    } as DeadlineTask;
+
+    const scannedParticipation: DeadlineTask = {
+      id: 'gbcol_0401201_part',
+      title: 'Participation',
+      courseName: 'Computer Programming',
+      courseCode: '0401201',
+      dueDate: '',
+      hasSpecificTime: false,
+      type: 'other',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      scoreDisplay: '10 / 10',
+      sourceSnippet: 'gradebook',
+      gradeSourceId: 'gb:_1002_1',
+      extractedBy: 'local',
+      createdAt: '2026-10-29T08:00:00.000Z',
+      updatedAt: '2026-10-29T08:00:00.000Z'
+    } as DeadlineTask;
+
+    const announcedAssignment: DeadlineTask = {
+      id: 'ann_calc_a1',
+      title: 'Assignment 1',
+      courseName: 'Calculus I for Engineering',
+      courseCode: '1440133',
+      dueDate: '2026-10-31T23:59:00.000Z',
+      hasSpecificTime: true,
+      type: 'assignment',
+      status: 'pending',
+      extractedBy: 'local',
+      createdAt: '2026-10-29T08:00:00.000Z',
+      updatedAt: '2026-10-29T08:00:00.000Z'
+    } as DeadlineTask;
+
+    let storageTasks = [scannedUnannouncedQuiz, scannedParticipation, announcedAssignment];
+
+    // --- POPUP OPEN SESSION 1 (initApp) ---
+    // Step 1: isValidTask filtering on cache load
+    const cachedValid = storageTasks.filter(isValidTask);
+    expect(cachedValid).toHaveLength(3);
+    expect(cachedValid.find(t => t.id === 'gbcol_1440133_q1grade')).toBeDefined();
+    expect(cachedValid.find(t => t.id === 'gbcol_0401201_part')).toBeDefined();
+
+    // Step 2: purgeSyntheticGradebookTasks
+    const { cleaned: purgedCached, purgedIds } = purgeSyntheticGradebookTasks(cachedValid);
+    expect(purgedIds).toHaveLength(0);
+    expect(purgedCached).toHaveLength(3);
+
+    // Step 3: deduplicateTaskList
+    let currentTasks = deduplicateTaskList(purgedCached);
+    expect(currentTasks).toHaveLength(3);
+
+    // Step 4: compareTasksByTime sorting
+    expect(() => currentTasks.sort(compareTasksByTime)).not.toThrow();
+    expect(currentTasks).toHaveLength(3);
+
+    // --- BACKGROUND REFRESH (refreshDataInBackground) ---
+    // Step 5: getTasks() and validate
+    const freshTasks = storageTasks.filter(isValidTask);
+    expect(freshTasks).toHaveLength(3);
+
+    // Step 6: resolveTaskTimeWithSchedule (must be guarded against empty due date)
+    for (const task of freshTasks) {
+      if (!task.hasSpecificTime && task.dueDate) {
+        const schedRes = resolveTaskTimeWithSchedule({
+          dueDate: new Date(task.dueDate),
+          courseNameOrCode: task.courseName || task.courseCode,
+          hasSpecificTime: false,
+          title: task.title
+        });
+        if (schedRes.appliedSchedule) {
+          task.dueDate = schedRes.dueDate.toISOString();
+        }
+      }
+    }
+    // Verify due date was NOT altered for empty due date tasks
+    expect(freshTasks.find(t => t.id === 'gbcol_1440133_q1grade')?.dueDate).toBe('');
+    expect(freshTasks.find(t => t.id === 'gbcol_0401201_part')?.dueDate).toBe('');
+
+    // Step 7: legacy nameless cleanup
+    const legacyIds = new Set(findLegacyNamelessTaskIds(freshTasks as any));
+    expect(legacyIds.has('gbcol_1440133_q1grade')).toBe(false);
+    expect(legacyIds.has('gbcol_0401201_part')).toBe(false);
+
+    // Step 8: Cloud sync cycle (sanitize & merge)
+    const sanitizedCloud = sanitizeCloudTasks(freshTasks);
+    expect(sanitizedCloud).toHaveLength(3);
+    const { tasks: mergedTasks } = mergeCloudTasks(freshTasks, sanitizedCloud);
+    expect(mergedTasks).toHaveLength(3);
+
+    // Simulated safe save back to storage
+    storageTasks = [...mergedTasks];
+
+    // --- POPUP REOPEN SESSION 2 ---
+    // Repeat load flow from storage
+    const reopenValid = storageTasks.filter(isValidTask);
+    const { cleaned: reopenCleaned } = purgeSyntheticGradebookTasks(reopenValid);
+    const reopenTasks = deduplicateTaskList(reopenCleaned);
+    reopenTasks.sort(compareTasksByTime);
+
+    // Final Assertion: unannounced marks exist and retain exact score and status
+    expect(reopenTasks).toHaveLength(3);
+    const quiz = reopenTasks.find(t => t.id === 'gbcol_1440133_q1grade')!;
+    expect(quiz).toBeDefined();
+    expect(quiz.score).toBe(10);
+    expect(quiz.maxScore).toBe(10);
+    expect(quiz.submissionStatus).toBe('graded');
+    expect(quiz.status).toBe('completed');
+    expect(quiz.dueDate).toBe('');
+
+    const part = reopenTasks.find(t => t.id === 'gbcol_0401201_part')!;
+    expect(part).toBeDefined();
+    expect(part.score).toBe(10);
+    expect(part.maxScore).toBe(10);
+    expect(part.submissionStatus).toBe('graded');
+    expect(part.status).toBe('completed');
+  });
+
+  it('verifies that popup.ts contains zero unmerged saveTasks calls in synthetic purge handlers', () => {
+    const popupContent = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    // Lines around purgeSyntheticGradebookTasks must not use bare saveTasks
+    const purgeMatches = popupContent.match(/purgeSyntheticGradebookTasks[\s\S]{1,150}saveTasks\(/g);
+    expect(purgeMatches).toBeNull();
+  });
+});
+

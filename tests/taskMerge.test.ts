@@ -185,3 +185,103 @@ describe('areTasksDuplicates & deduplicateTaskList', () => {
     expect(deduplicateTaskList([q1, q2])).toHaveLength(2);
   });
 });
+
+describe('deduplicateTaskList and mergeCloudTasks with empty due dates', () => {
+  it('deduplicateTaskList processes tasks with empty dueDate without throwing RangeError', () => {
+    const t1 = makeTask({
+      id: 'gbcol_1',
+      title: 'In-Class Quiz 1',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 10
+    });
+    const t2 = makeTask({
+      id: 'gbcol_2',
+      title: 'In-Class Quiz 2',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 9
+    });
+
+    expect(() => {
+      const result = deduplicateTaskList([t1, t2]);
+      expect(result).toHaveLength(2);
+      expect(result.map(t => t.id).sort()).toEqual(['gbcol_1', 'gbcol_2']);
+    }).not.toThrow();
+  });
+
+  it('deduplicateTaskList correctly merges identical gradebook tasks with empty dueDate', () => {
+    const existing = makeTask({
+      id: 'gbcol_math_q1',
+      title: 'Quiz 1 Grade',
+      courseCode: '1440133',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10
+    });
+    const incoming = makeTask({
+      id: 'gbcol_math_q1',
+      title: 'Quiz 1 Grade',
+      courseCode: '1440133',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10
+    });
+
+    const result = deduplicateTaskList([existing, incoming]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('gbcol_math_q1');
+    expect(result[0].score).toBe(10);
+  });
+
+  it('mergeCloudTasks sorts empty dueDate tasks stably to the end without NaN comparison error', () => {
+    const dated1 = makeTask({ id: 't_early', dueDate: '2026-10-10T10:00:00.000Z', title: 'Early Task' });
+    const dated2 = makeTask({ id: 't_late', dueDate: '2026-10-25T10:00:00.000Z', title: 'Late Task' });
+    const undatedA = makeTask({ id: 't_undated_a', dueDate: '', title: 'Alpha Undated', sourceSnippet: 'gradebook', submissionStatus: 'graded' });
+    const undatedB = makeTask({ id: 't_undated_b', dueDate: '', title: 'Beta Undated', sourceSnippet: 'gradebook', submissionStatus: 'graded' });
+
+    const { tasks } = mergeCloudTasks([dated2, undatedB], [dated1, undatedA]);
+    expect(tasks).toHaveLength(4);
+    // Dated tasks should come first chronologically
+    expect(tasks[0].id).toBe('t_early');
+    expect(tasks[1].id).toBe('t_late');
+    // Undated tasks should be sorted predictably at the end
+    expect(tasks.slice(2).map(t => t.id)).toEqual(['t_undated_a', 't_undated_b']);
+  });
+
+  it('mergeCloudTasks preserves local unannounced gradebook marks during cloud merge', () => {
+    const localGradebook = makeTask({
+      id: 'gbcol_part',
+      title: 'Participation',
+      courseCode: '0401201',
+      dueDate: '',
+      sourceSnippet: 'gradebook',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      updatedAt: '2026-10-29T10:00:00.000Z'
+    });
+    const cloudTask = makeTask({
+      id: 'cloud_exam',
+      title: 'Final Exam',
+      dueDate: '2026-12-15T09:00:00.000Z',
+      updatedAt: '2026-10-20T10:00:00.000Z'
+    });
+
+    const { tasks } = mergeCloudTasks([localGradebook], [cloudTask]);
+    expect(tasks.find(t => t.id === 'gbcol_part')).toBeDefined();
+    expect(tasks.find(t => t.id === 'gbcol_part')?.score).toBe(10);
+    expect(tasks.find(t => t.id === 'cloud_exam')).toBeDefined();
+  });
+});
+

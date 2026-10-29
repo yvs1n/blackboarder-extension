@@ -617,6 +617,7 @@ export function isExamReviewTask(task: {
 }
 
 export function isValidTask(task: {
+  id?: string;
   title?: string;
   courseName?: string;
   courseCode?: string;
@@ -625,10 +626,20 @@ export function isValidTask(task: {
   userEdited?: boolean;
   extractedBy?: string;
   type?: string;
+  submissionStatus?: string;
+  gradeSourceId?: string;
+  dueDate?: string;
 }): boolean {
   if (!task || !task.title || !task.title.trim()) return false;
   // User-created or user-edited tasks are ALWAYS valid and must never be pruned
   if (task.userEdited || task.extractedBy === 'manual') return true;
+
+  const isGradebookTask = Boolean(
+    task.sourceSnippet === 'gradebook' ||
+    task.gradeSourceId ||
+    task.submissionStatus === 'graded' ||
+    (typeof task.id === 'string' && task.id.startsWith('gbcol_'))
+  );
 
   // Presentation schedules (who presents when) are not deadlines, however they were read
   if (isPresentationTitle(task.title)) return false;
@@ -643,7 +654,7 @@ export function isValidTask(task: {
   }
 
   // 2. Drop grade notifications and score postings
-  if (/(?:grade\s+posted|score\s+posted|graded|new\s+grade|grades\s+available|grades\s+released|تم\s+نشر\s+الدرجة|تم\s+رصد\s+الدرجة|درجة\s+جديدة|تم\s+تقييم)/i.test(titleLower)) {
+  if (!isGradebookTask && /(?:grade\s+posted|score\s+posted|graded|new\s+grade|grades\s+available|grades\s+released|تم\s+نشر\s+الدرجة|تم\s+رصد\s+الدرجة|درجة\s+جديدة|تم\s+تقييم)/i.test(titleLower)) {
     return false;
   }
 
@@ -664,7 +675,7 @@ export function isValidTask(task: {
   // 4. Drop announcements reporting grades/marks without future deadlines
   // e.g. "درجة الكويز الأول", "درجات الاختبار", "Results of Midterm"
   const isGradeReportTitle = /(?:^|[^\p{L}\p{N}])(?:درجات|درجة|علامات|علامة|نتائج|النتائج|العلامات|الدرجات|grades?|marks?|scores?|results?|feedback)(?:$|[^\p{L}\p{N}])/iu.test(titleLower);
-  if (isGradeReportTitle) {
+  if (!isGradebookTask && isGradeReportTitle) {
     const combinedContext = `${titleLower} ${desc} ${snippet}`;
     const hasFutureAction = /(?:submit\s+by|due\s+on|due\s+date|submission\s+deadline|makeup\s+exam|make-up\s+exam|تسليم\s+في|آخر\s+موعد|امتحان\s+تعويضي|اختبار\s+تعويضي)/iu.test(combinedContext);
     if (!hasFutureAction) {
@@ -691,7 +702,7 @@ export function isValidTask(task: {
   // any task read from an announcement as type "other" or "meeting" (office hours, paper
   // reviews, presentation schedules, start dates). Blackboard due-date items ("Due date: ...") stay.
   const isDueDateItem = /^due\s*date/i.test(snippet || desc);
-  if (!isDueDateItem && (/^(?:meeting|other|event|task|deadline)$/i.test(titleLower) || task.type === 'other' || task.type === 'meeting')) {
+  if (!isGradebookTask && !isDueDateItem && (/^(?:meeting|other|event|task|deadline)$/i.test(titleLower) || task.type === 'other' || task.type === 'meeting')) {
     return false;
   }
   return true;
@@ -709,9 +720,12 @@ export function findLegacyNamelessTaskIds(tasks: Array<{
   sourceSnippet?: string;
   userEdited?: boolean;
   extractedBy?: string;
+  gradeSourceId?: string;
+  submissionStatus?: string;
 }>): string[] {
   return tasks
     .filter(t => t && !t.userEdited && t.extractedBy !== 'manual' && isBareTypeTitle(t.title || ''))
+    .filter(t => t.sourceSnippet !== 'gradebook' && !t.gradeSourceId && t.submissionStatus !== 'graded' && !(typeof t.id === 'string' && t.id.startsWith('gbcol_')))
     .filter(t => !/^due\s*date/i.test((t.sourceSnippet || t.description || '').trim()))
     .map(t => t.id);
 }

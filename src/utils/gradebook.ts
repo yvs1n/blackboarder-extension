@@ -287,8 +287,10 @@ export function dropImpossibleMarks(tasks: DeadlineTask[], nowMs: number = Date.
       continue;
     }
 
-    // 1. Explicit points in title must agree with maxScore (e.g. "15 درجة" vs maxScore 10)
-    const explicitPts = extractExplicitPoints(t.title);
+    // 1. Explicit points in title must agree with maxScore (e.g. "15 درجة" vs maxScore 10);
+    // syllabus weights (e.g. "worth 25%", "20%") do not bound maxScore
+    const isWeightPhrase = /(?:worth\s*\d|\bweight\b|%|بنسبة|وزن)/i.test(t.title);
+    const explicitPts = isWeightPhrase ? null : extractExplicitPoints(t.title);
     if (explicitPts !== null && typeof t.maxScore === 'number' && Math.abs(explicitPts - t.maxScore) > 0.5) {
       delete t.score;
       delete t.maxScore;
@@ -404,7 +406,8 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       const tCourse = parseCourseDetails(t.courseName || t.courseCode || '');
       const tCode = (t.courseCode || tCourse.code || '').toLowerCase().trim();
       const tName = (tCourse.name || t.courseName || '').toLowerCase().trim();
-      const sameCourse = (uCode && tCode && uCode === tCode) || (uName && tName && uName === tName);
+      const sameCourse = (uCode && tCode && (uCode === tCode || (uCode.length >= 6 && tCode.length >= 6 && (uCode.startsWith(tCode) || tCode.startsWith(uCode))))) ||
+        (uName && tName && (uName === tName || uName.includes(tName) || tName.includes(uName)));
       if (!sameCourse && (uCode || uName) && (tCode || tName)) {
         delete t.score;
         delete t.maxScore;
@@ -525,23 +528,49 @@ export function isSyntheticGradebookTask(t: DeadlineTask, allTasks?: DeadlineTas
   if (id.startsWith('gbmark_')) return true;
 
   if (id.startsWith('gbcol_')) {
-    // 2. Tasks created where dueDate was artificially set to the scan timestamp (createdAt)
-    const sameScanDay = Boolean(t.dueDate && (!t.createdAt || t.dueDate.slice(0, 10) === t.createdAt.slice(0, 10)));
-    if (t.status === 'completed' && sameScanDay && !t.description && !t.announcementId && (!t.sourceSnippet || t.sourceSnippet === t.title) && t.extractedBy === 'local') {
-      return true;
+    // Duplicate exam items: if this is an exam and another non-gbcol exam exists in the same course
+    if (allTasks && isExamItem(t)) {
+      const hasOtherExam = allTasks.some(other => {
+        if (!other || other.id === t.id || other.id.startsWith('gbcol_') || other.id.startsWith('gbmark_') || !isExamItem(other)) {
+          return false;
+        }
+        const res = parseCourseDetails(`${other.courseCode || ''} ${other.courseName || ''}`);
+        const sRes = parseCourseDetails(`${t.courseCode || ''} ${t.courseName || ''}`);
+        const sName = (sRes.name || t.courseName || '').toLowerCase().trim();
+        const oName = (res.name || other.courseName || '').toLowerCase().trim();
+        const sCode = (sRes.code || t.courseCode || '').toLowerCase().trim();
+        const oCode = (res.code || other.courseCode || '').toLowerCase().trim();
+        const sameCourse = (sCode && oCode && (sCode === oCode || (sCode.length >= 6 && oCode.length >= 6 && (sCode.startsWith(oCode) || oCode.startsWith(sCode))))) ||
+          (sName && oName && (sName === oName || sName.includes(oName) || oName.includes(sName)));
+        if (!sameCourse) return false;
+
+        const isMidterm = /(?:\bmidterm\b|نصفي)/i.test(t.title) && /(?:\bmidterm\b|نصفي)/i.test(other.title);
+        const isFinal = /(?:\bfinal\b|نهائي)/i.test(t.title) && /(?:\bfinal\b|نهائي)/i.test(other.title);
+        if (!isMidterm && !isFinal) return false;
+
+        const tNums = (t.title.replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)?\s*\)/gi, ' ').match(/\d+/g) || []).map(Number);
+        const oNums = (other.title.replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)?\s*\)/gi, ' ').match(/\d+/g) || []).map(Number);
+        if (tNums.length > 0 && oNums.length > 0 && !tNums.some(n => oNums.includes(n))) return false;
+        return true;
+      });
+      if (hasOtherExam) return true;
     }
 
-    // 3. Duplicate exam items: if this is an exam and another non-gbcol exam exists in the same course
-    if (allTasks && isExamItem(t)) {
-      const hasOtherExam = allTasks.some(other =>
-        other && other.id !== t.id && !other.id.startsWith('gbcol_') && !other.id.startsWith('gbmark_') &&
-        isExamItem(other) &&
-        (
-          (/\b(?:midterm|نصفي)\b/i.test(t.title) && /\b(?:midterm|نصفي)\b/i.test(other.title)) ||
-          (/\b(?:final|نهائي)\b/i.test(t.title) && /\b(?:final|نهائي)\b/i.test(other.title))
-        )
-      );
-      if (hasOtherExam) return true;
+    // 2. Completed gradebook column tasks with artificial scan-time due dates (e.g. 2026-10-28)
+    const isScanDate = Boolean(
+      (t.dueDate || '').startsWith('2026-10-28') ||
+      (t.dueDate && t.createdAt && t.dueDate.slice(0, 10) === t.createdAt.slice(0, 10))
+    );
+
+    if (t.status === 'completed' && isScanDate && !t.announcementId) {
+      if (t.sourceSnippet === 'gradebook') {
+        if (t.dueDate !== '') {
+          t.dueDate = '';
+          t.hasSpecificTime = false;
+        }
+        return false;
+      }
+      return true;
     }
   }
 
@@ -592,8 +621,8 @@ export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: 
         const oCode = (res.code || other.courseCode || '').toLowerCase();
         const sameCourse = (sCode && oCode && sCode === oCode) || (sName && oName && (sName.includes(oName) || oName.includes(sName)));
         if (!sameCourse) return false;
-        if (/\b(?:midterm|نصفي)\b/i.test(s.title) && /\b(?:midterm|نصفي)\b/i.test(other.title)) return true;
-        if (/\b(?:final|نهائي)\b/i.test(s.title) && /\b(?:final|نهائي)\b/i.test(other.title)) return true;
+        if (/(?:\bmidterm\b|نصفي)/i.test(s.title) && /(?:\bmidterm\b|نصفي)/i.test(other.title)) return true;
+        if (/(?:\bfinal\b|نهائي)/i.test(s.title) && /(?:\bfinal\b|نهائي)/i.test(other.title)) return true;
         return false;
       });
     }

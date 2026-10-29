@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.9] - 2026-10-29
+
+### Fixed
+
+- **Eliminated mark disappearing and layout flickering on reopen.** In the extension popup, `initApp` now fetches directly from `chrome.storage.local` before the initial view render instead of rendering stale `localStorage` first, eliminating intermediate visual state changes and flickering when opening and closing the extension.
+- **Removed fake calendar deadlines for yesterday and today.** Unannounced gradebook marks (`sourceSnippet: 'gradebook'` and synthetic `gbcol_` entries) now strictly use empty due dates (`dueDate: ''`) and are filtered out of calendar day cells and day drawers, keeping the calendar clean and dedicated exclusively to student deadlines.
+- **Seamless announcement matching for exams with stated weights.** Titles like "Midterm worth 25%" now normalize cleanly to "midterm" without treating "worth 25%" as a 25-point limit (`maxScore`), allowing official gradebook columns ("EAP Midterm Exam" 20/20) to attach directly to the announced midterm task without generating duplicate entries or phantom dropped quiz rows.
+
+---
+
+## [1.4.8] - 2026-10-29
+
+### Fixed
+
+- **Gradebook mark persistence across popup sessions.** Exempted gradebook items (`sourceSnippet: 'gradebook'`, `gradeSourceId`, and `submissionStatus: 'graded'`) from `isValidTask` filtering, allowing legitimate unannounced marks (e.g. "Graded Item", "Participation", "Quiz 1 Grade") with empty due dates to persist cleanly through popup load and background refresh.
+- **Cloud sanitization support for unannounced marks.** Updated `sanitizeCloudTasks` in `src/utils/cloudSanitize.ts` to permit empty `dueDate: ''` on tasks originating from the gradebook, ensuring unannounced marks are retained across Firebase sync cycles without being dropped.
+- **Safe deduplication and sorting with empty due dates.** Hardened `isDuplicateCandidate` and `mergeCloudTasks` in `src/utils/taskMerge.ts` against empty due dates, eliminating `RangeError` from `.toISOString()` and `NaN` comparisons during sorting.
+- **Popup lifecycle safety.** Replaced unmerged `saveTasks` calls with `saveTasksMergingLatest` during synthetic task purging in `src/popup/popup.ts`, and guarded schedule time resolution against empty due dates.
+
 ## [1.4.7] - 2026-10-29
 
 ### Fixed

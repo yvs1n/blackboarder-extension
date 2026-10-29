@@ -224,4 +224,104 @@ describe('Ghost Task Prevention & Stream Parser Resilience', () => {
     expect(parseCourseDetails('Discussions').name).toBe('General Course');
     expect(parseCourseDetails('Gradebook').name).toBe('General Course');
   });
+
+  describe('isValidTask Gradebook Item Exemptions & Preservation', () => {
+    const baseGradebookTask = {
+      id: 'gbcol_0401201_1923809_1',
+      courseName: 'Computer Programming',
+      courseCode: '0401201',
+      dueDate: '',
+      hasSpecificTime: false,
+      extractedBy: 'local',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      sourceSnippet: 'gradebook',
+      gradeSourceId: 'gb:_1923809_1'
+    };
+
+    it('accepts gradebook tasks with empty dueDate when sourceSnippet is gradebook', () => {
+      expect(isValidTask({ ...baseGradebookTask, title: 'In-Class Quiz 1', dueDate: '' } as any)).toBe(true);
+    });
+
+    it('accepts gradebook tasks with "Graded Item" fallback title', () => {
+      expect(isValidTask({ ...baseGradebookTask, title: 'Graded Item' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'graded' } as any)).toBe(true);
+    });
+
+    it('accepts gradebook tasks with "Grade", "Score", or "Marks" in the title', () => {
+      expect(isValidTask({ ...baseGradebookTask, title: 'Quiz 1 Grade' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'Midterm Exam Score' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'Lab 2 Marks' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'Assignment 1 (Graded)' } as any)).toBe(true);
+    });
+
+    it('accepts Arabic gradebook assessment titles without future action text', () => {
+      expect(isValidTask({ ...baseGradebookTask, title: 'درجة المشاركة' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'درجات الكويز الأول' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'علامات المختبر' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'نتيجة الاختبار' } as any)).toBe(true);
+    });
+
+    it('accepts non-deadline gradebook items such as "Participation"', () => {
+      expect(isValidTask({ ...baseGradebookTask, title: 'Participation', type: 'other' } as any)).toBe(true);
+      expect(isValidTask({ ...baseGradebookTask, title: 'Attendance & Participation', type: 'other' } as any)).toBe(true);
+    });
+
+    it('accepts tasks having gradeSourceId or submissionStatus graded even with empty dueDate', () => {
+      const taskWithSourceId = {
+        id: 'task_custom_1',
+        title: 'Practical Exam',
+        courseName: 'Physics 1 Lab',
+        courseCode: '1430116',
+        dueDate: '',
+        gradeSourceId: 'gb:_999_1',
+        submissionStatus: 'graded'
+      };
+      expect(isValidTask(taskWithSourceId as any)).toBe(true);
+    });
+
+    it('still drops pure announcement grade notifications and ghost stream items', () => {
+      // Pure announcement saying "Grade Posted" without gradebook source
+      expect(isValidTask({
+        id: 'ann_1',
+        title: 'Grade Posted: Midterm',
+        courseName: 'Calculus I for Engineering',
+        courseCode: '1440133',
+        description: 'Grades have been uploaded to Blackboard.'
+      } as any)).toBe(false);
+
+      // Arabic announcement without gradebook source and no deadline
+      expect(isValidTask({
+        id: 'ann_2',
+        title: 'درجة الكويز الأول',
+        courseName: 'Physics 1',
+        courseCode: '1430115',
+        description: 'تم رصد درجات الكويز الأول'
+      } as any)).toBe(false);
+
+      // Fraction-only stream cards
+      expect(isValidTask({
+        id: 'ann_3',
+        title: 'Lab Report',
+        courseName: 'Physics 1 Lab',
+        courseCode: '1430116',
+        description: '9 / 10'
+      } as any)).toBe(false);
+    });
+
+    it('findLegacyNamelessTaskIds does not flag gradebook tasks with bare type titles', async () => {
+      const { findLegacyNamelessTaskIds } = await import('../src/core/courseHelper');
+      const tasks = [
+        { id: 'gb_quiz', title: 'Quiz', sourceSnippet: 'gradebook', submissionStatus: 'graded' },
+        { id: 'gb_assignment', title: 'Assignment', gradeSourceId: 'gb:_col1', submissionStatus: 'graded' },
+        { id: 'ann_quiz', title: 'Quiz', description: 'Quiz on Sunday', sourceSnippet: 'announcement' }
+      ];
+      const flagged = findLegacyNamelessTaskIds(tasks as any);
+      expect(flagged).toContain('ann_quiz');
+      expect(flagged).not.toContain('gb_quiz');
+      expect(flagged).not.toContain('gb_assignment');
+    });
+  });
 });

@@ -446,6 +446,15 @@ function getTaskTypeIcon(type: TaskType): string {
 // ============================================================================
 // Calendar Rendering
 // ============================================================================
+// Unannounced gradebook marks (sourceSnippet: 'gradebook' or synthetic gbcol_ without announcement)
+// belong in the Grades card in the Courses tab and must never be scheduled as deadlines on the calendar.
+function isCalendarDeadline(task: DeadlineTask): boolean {
+  if (!task || !task.dueDate) return false;
+  if (task.sourceSnippet === 'gradebook') return false;
+  if (typeof task.id === 'string' && task.id.startsWith('gbcol_') && !task.announcementId) return false;
+  return true;
+}
+
 function renderCalendar() {
   calMonthTitle.textContent = formatMonthYear(calendarYear, calendarMonth);
 
@@ -453,6 +462,7 @@ function renderCalendar() {
   const tasksByDate = new Map<string, DeadlineTask[]>();
   currentTasks.forEach(task => {
     if (!matchesSelectedCourseFilter(task, selectedCourseFilter)) return;
+    if (!isCalendarDeadline(task)) return;
     const d = new Date(task.dueDate);
     if (!isNaN(d.getTime())) {
       const key = formatDateKey(d);
@@ -653,6 +663,7 @@ function openDayExpandedDrawer(dateKey: string) {
 
   const tasksOnDate = currentTasks.filter(task => {
     if (!matchesSelectedCourseFilter(task, selectedCourseFilter)) return false;
+    if (!isCalendarDeadline(task)) return false;
     const taskD = new Date(task.dueDate);
     return !isNaN(taskD.getTime()) && formatDateKey(taskD) === dateKey;
   });
@@ -930,6 +941,7 @@ function renderSelectedDay() {
 
   const tasksOnDate = currentTasks.filter(task => {
     if (!matchesSelectedCourseFilter(task, selectedCourseFilter)) return false;
+    if (!isCalendarDeadline(task)) return false;
     const taskD = new Date(task.dueDate);
     return !isNaN(taskD.getTime()) && formatDateKey(taskD) === selectedDateStr;
   });
@@ -4515,7 +4527,9 @@ function setupStorageAndSyncListeners() {
   if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.bbs_tasks) {
-        currentTasks = (changes.bbs_tasks.newValue as DeadlineTask[]) || [];
+        const newTasks = (changes.bbs_tasks.newValue as DeadlineTask[]) || [];
+        try { localStorage.setItem('bbs_tasks', JSON.stringify(newTasks)); } catch {}
+        currentTasks = deduplicateTaskList(newTasks.filter(isValidTask));
         currentTasks.sort(compareTasksByTime);
         refreshAllViews();
       }
@@ -4621,10 +4635,6 @@ async function refreshDataInBackground() {
       viewsNeedUpdate = true;
     }
 
-    if (viewsNeedUpdate) {
-      refreshAllViews();
-    }
-
     const currentSettings = await getSettings();
     // Ensure every user has a unique, isolated Sync Key on first run. The key is never copied into
     // (or read back from) the Blackboard page's localStorage: that origin's scripts could read it,
@@ -4725,51 +4735,60 @@ async function refreshDataInBackground() {
         taskUpdated = true;
       }
 
-      // Repair task due time if teacher gave an explicit time or if class schedule should apply
       let dueDate = task.dueDate;
       let hasSpecificTime = task.hasSpecificTime;
 
-      // Only test extraction if task currently lacks a specific time
-      if (!hasSpecificTime) {
-        const combinedDoctorText = `${task.title} ${task.sourceSnippet || ''} ${task.description || ''}`;
-        const testAnn = {
-          id: task.announcementId || 'temp',
-          courseCode: courseCode,
-          courseName: courseName,
-          title: task.title,
-          contentText: combinedDoctorText,
-          sourceUrl: '',
-          scannedAt: new Date().toISOString()
-        };
-        const extractedTasks = extractDeadlinesLocally(testAnn);
-        if (extractedTasks.length > 0) {
-          const best = extractedTasks[0];
-          const bestDate = new Date(best.dueDate);
-          const curDate = new Date(task.dueDate);
+      // Gradebook marks: clear legacy artificial scan dates so they never clutter the calendar
+      const isGradebookTask = task.id.startsWith('gbcol_') || task.sourceSnippet === 'gradebook';
+      if (isGradebookTask && !task.announcementId) {
+        if (dueDate && (dueDate.startsWith('2026-10-28') || dueDate.startsWith('2026-10-29') || (task.createdAt && dueDate.slice(0, 10) === task.createdAt.slice(0, 10)))) {
+          dueDate = '';
+          hasSpecificTime = false;
+          taskUpdated = true;
+        }
+      } else {
+        // Repair task due time if teacher gave an explicit time or if class schedule should apply
+        if (!hasSpecificTime) {
+          const combinedDoctorText = `${task.title} ${task.sourceSnippet || ''} ${task.description || ''}`;
+          const testAnn = {
+            id: task.announcementId || 'temp',
+            courseCode: courseCode,
+            courseName: courseName,
+            title: task.title,
+            contentText: combinedDoctorText,
+            sourceUrl: '',
+            scannedAt: new Date().toISOString()
+          };
+          const extractedTasks = extractDeadlinesLocally(testAnn);
+          if (extractedTasks.length > 0) {
+            const best = extractedTasks[0];
+            const bestDate = new Date(best.dueDate);
+            const curDate = new Date(task.dueDate);
 
-          // Only adopt if best has an explicit time
-          if (best.hasSpecificTime) {
-            curDate.setHours(bestDate.getHours(), bestDate.getMinutes(), 0, 0);
-            dueDate = curDate.toISOString();
-            hasSpecificTime = true;
-            taskUpdated = true;
+            // Only adopt if best has an explicit time
+            if (best.hasSpecificTime) {
+              curDate.setHours(bestDate.getHours(), bestDate.getMinutes(), 0, 0);
+              dueDate = curDate.toISOString();
+              hasSpecificTime = true;
+              taskUpdated = true;
+            }
           }
         }
-      }
 
-      // Adjust to class schedule time if no specific teacher time was recorded
-      if (!hasSpecificTime) {
-        const schedRes = resolveTaskTimeWithSchedule({
-          dueDate: new Date(dueDate),
-          courseNameOrCode: courseName || courseCode,
-          hasSpecificTime: false,
-          announcementText: description || sourceSnippet,
-          title: task.title
-        });
-        if (schedRes.appliedSchedule) {
-          dueDate = schedRes.dueDate.toISOString();
-          hasSpecificTime = schedRes.hasSpecificTime;
-          taskUpdated = true;
+        // Adjust to class schedule time if no specific teacher time was recorded
+        if (!hasSpecificTime && dueDate && !isNaN(new Date(dueDate).getTime())) {
+          const schedRes = resolveTaskTimeWithSchedule({
+            dueDate: new Date(dueDate),
+            courseNameOrCode: courseName || courseCode,
+            hasSpecificTime: false,
+            announcementText: description || sourceSnippet,
+            title: task.title
+          });
+          if (schedRes.appliedSchedule && schedRes.dueDate && !isNaN(schedRes.dueDate.getTime())) {
+            dueDate = schedRes.dueDate.toISOString();
+            hasSpecificTime = schedRes.hasSpecificTime;
+            taskUpdated = true;
+          }
         }
       }
 
@@ -4823,16 +4842,18 @@ async function refreshDataInBackground() {
     if (purgedIds.length > 0) {
       currentTasks = purgedTasks;
       await Promise.all(purgedIds.map(id => recordLocalTombstone(id)));
-      await saveTasks(currentTasks);
+      await saveTasksMergingLatest(currentTasks);
       syncTasksToCloud(currentTasks, 'Purge synthetic gradebook tasks');
-      refreshAllViews();
+      viewsNeedUpdate = true;
       updatedAny = true;
     }
 
     // One-time removal of tasks older scans named only "Exam", "Assignment", "Lab" or "quiz".
     // Each gets a delete record so the cloud copy and the phone do not bring it back.
     if (!(await readLocalFlag(LEGACY_NAMELESS_CLEANUP_KEY))) {
-      const legacyIds = new Set(findLegacyNamelessTaskIds(currentTasks));
+      const legacyIds = new Set(findLegacyNamelessTaskIds(
+        currentTasks.filter(t => t.sourceSnippet !== 'gradebook' && !t.gradeSourceId && !t.id.startsWith('gbcol_'))
+      ));
       if (legacyIds.size > 0) {
         currentTasks = currentTasks.filter(t => !legacyIds.has(t.id));
         legacyIds.forEach(id => recordLocalTombstone(id));
@@ -4857,6 +4878,8 @@ async function refreshDataInBackground() {
       // Merge with what is stored now: a scan may have saved marks while this ran
       currentTasks = (await saveTasksMergingLatest(currentTasks)).sort(compareTasksByTime);
       syncTasksToCloud(currentTasks, 'Retroactive Upgrades & Cleanup');
+      refreshAllViews();
+    } else if (viewsNeedUpdate) {
       refreshAllViews();
     }
   } catch (err) {
@@ -5265,7 +5288,7 @@ function isToolbarPopup(): boolean {
   return window.innerWidth <= 520;
 }
 
-function initApp() {
+async function initApp() {
   // Synchronously initialize theme to eliminate light/dark flashes
   if (!isToolbarPopup()) {
     document.documentElement.classList.add('is-standalone');
@@ -5293,18 +5316,22 @@ function initApp() {
   renderQuickLinksBar();
   initQuickLinksModal();
 
-  // Load and render deadlines synchronously from cache (<5ms)
-  const cachedRaw = getCachedTasksSync().filter(isValidTask);
-  const { cleaned: purgedCached, purgedIds: startupPurgedIds } = purgeSyntheticGradebookTasks(cachedRaw);
+  // Load and render deadlines: fetch fresh from storage (fallback to cache)
+  let rawTasks = await getTasks();
+  if (!rawTasks || rawTasks.length === 0) {
+    rawTasks = getCachedTasksSync();
+  }
+  const validTasks = rawTasks.filter(isValidTask);
+  const { cleaned: purgedCached, purgedIds: startupPurgedIds } = purgeSyntheticGradebookTasks(validTasks);
   currentTasks = deduplicateTaskList(purgedCached);
   currentTasks.sort(compareTasksByTime);
 
   if (startupPurgedIds.length > 0) {
     startupPurgedIds.forEach(id => recordLocalTombstone(id));
-    saveTasks(currentTasks).catch(() => {});
+    saveTasksMergingLatest(currentTasks).catch(() => {});
   }
 
-  // Render all views immediately so the popup appears instantly populated like on mobile
+  // Render all views immediately so the popup appears instantly populated with up-to-date data
   refreshAllViews();
   switchView('calendar');
   // Back to an unfinished add / edit / settings page, if the popup was closed during one

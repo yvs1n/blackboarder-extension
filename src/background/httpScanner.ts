@@ -403,7 +403,6 @@ export async function runHttpBlackboardScan(
       if (typeof u.score !== 'number' || !u.maxScore) continue;
       const courseKey = (u.courseCode || u.courseName || 'other').replace(/[^A-Za-z0-9_]/g, '');
       const colId = (u.sourceId || '').replace(/^gb:/, '');
-      const officialDue = u.dueDate && !isNaN(new Date(u.dueDate).getTime()) ? u.dueDate : '';
       let type: TaskType = 'assignment';
       const lowTitle = (u.title || '').toLowerCase();
       if (/quiz|كويز|اختبار\s*قصير/i.test(lowTitle)) type = 'quiz';
@@ -417,8 +416,8 @@ export async function runHttpBlackboardScan(
         courseName: u.courseName || u.courseCode || 'Other',
         title: u.title || 'Graded Item',
         description: '',
-        dueDate: officialDue,
-        hasSpecificTime: Boolean(officialDue),
+        dueDate: '',
+        hasSpecificTime: false,
         type,
         priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
         status: 'completed',

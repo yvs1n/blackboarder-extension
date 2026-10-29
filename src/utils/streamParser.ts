@@ -247,6 +247,11 @@ export function coreTitle(s?: string): string {
   if (!s) return '';
   let str = s.toLowerCase();
 
+  // Strip weight and percentage mentions (e.g. "worth 25%", "(25%)", "10%", "بنسبة 20%")
+  str = str.replace(/\bworth\s*\d+(?:\.\d+)?%?/gi, ' ');
+  str = str.replace(/(?:بنسبة|وزن)?\s*\d+(?:\.\d+)?%/gi, ' ');
+  str = str.replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/gi, ' ');
+
   // Normalize course acronyms and exam words so "EAP Midterm Exam" matches "Midterm"
   str = str.replace(/\bmidterm\s+(?:exam|examination|test)\b/gi, 'midterm');
   str = str.replace(/\bfinal\s+(?:exam|examination|test)\b/gi, 'final');
@@ -334,8 +339,10 @@ function wordsKey(s?: string): string {
 /** The numbers in a title ("Quiz 1" -> ["1"]), ignoring point values like "(10 درجات)" or "15 درجة". */
 function titleNumbers(s?: string): string[] {
   const cleaned = (s || '')
-    .replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)?\s*\)/gi, ' ')
-    .replace(/\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)/gi, ' ');
+    .replace(/\bworth\s*\d+(?:\.\d+)?%?/gi, ' ')
+    .replace(/(?:بنسبة|وزن)?\s*\d+(?:\.\d+)?%/gi, ' ')
+    .replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة|%)?\s*\)/gi, ' ')
+    .replace(/\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة|%)/gi, ' ');
   return (cleaned.match(/\d+/g) || []).map(n => String(Number(n)));
 }
 
@@ -394,9 +401,13 @@ export function findAllTasksForUpdate(
     }
     // A practice mark never lands on the real item, and the other way round
     if (isPracticeTitle(t.title) !== upPractice) continue;
-    // Explicit point values in the title (e.g. "15 درجة") must agree with update.maxScore
-    const tExplicit = extractExplicitPoints(t.title);
-    if (tExplicit && update.maxScore && Math.abs(tExplicit - update.maxScore) > 0.5) continue;
+    // Explicit point values in the title (e.g. "15 درجة", "10 pts") must agree with update.maxScore;
+    // syllabus weights (e.g. "worth 25%", "20%") do not bound update.maxScore
+    const isWeightPhrase = /(?:worth\s*\d|\bweight\b|%|بنسبة|وزن)/i.test(t.title);
+    if (!isWeightPhrase) {
+      const tExplicit = extractExplicitPoints(t.title);
+      if (tExplicit && update.maxScore && Math.abs(tExplicit - update.maxScore) > 0.5) continue;
+    }
     // "Quiz 1" and "Quiz 10" share letters but not numbers
     const tNumbers = titleNumbers(t.title);
     if (!numbersAgree(tNumbers, upNumbers)) continue;
