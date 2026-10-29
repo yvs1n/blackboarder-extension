@@ -7,6 +7,8 @@ import {
   deduplicateTaskList
 } from '../src/utils/taskMerge';
 import { DeadlineTask } from '../src/types';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 function makeTask(overrides: Partial<DeadlineTask> = {}): DeadlineTask {
   return {
@@ -154,6 +156,7 @@ describe('getTaskSeriesInfo', () => {
 
 describe('areTasksDuplicates & deduplicateTaskList', () => {
   it('detects duplicate stream items with generic Assignment title vs specific lab report', () => {
+    setActiveUserCourses(SAMPLE_COURSES);
     const genericStream = makeTask({
       id: 'stream_UOS_Assignment_1789156740000',
       title: 'Assignment',

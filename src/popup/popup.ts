@@ -11,7 +11,7 @@ import { initUniversitySettings, getCachedProfile } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { quickLinkPreset } from '../core/universities';
 import { classesOnDay, todaysClassesHtml } from '../core/classSchedule';
-import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, resetUserCoursesToDefault, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt } from '../utils/storage';
+import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
 import { resolveAiEndpoint, normalizeAiBaseUrl, testAiEndpoint, IFM_MODEL } from '../engine/aiProviders';
@@ -21,7 +21,7 @@ import { syncAiKeyLock, getAiLockState, describeAiLock, ensureAiPass, newAiPass,
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, resolveCourseInfo, isValidTask, findLegacyNamelessTaskIds, matchesSelectedCourseFilter, isBlackboardSystemNoise } from '../core/courseHelper';
 import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
 import { resolveTaskWeight, getAllSyllabi } from '../core/syllabusWeights';
-import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, STUDENT_CLASS_SCHEDULE } from '../core/courseSchedule';
+import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, getAllCourseSchedules } from '../core/courseSchedule';
 import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
 import { sanitizeCloudTasks } from '../utils/cloudSanitize';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
@@ -30,7 +30,7 @@ import { applyCourseImport, type CourseDraft } from '../core/courseDocument';
 import { courseImportReviewHtml, readCourseImportReview } from '../core/courseImportView';
 import { fileToText, type PdfJsLike } from '../core/documentText';
 import { findCoursesInDocument } from '../engine/aiCourseImport';
-import { getActiveCourseLegend } from '../core/userCourses';
+import { getActiveCourseLegend, activeCourseHintOptions } from '../core/userCourses';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../utils/updateChecker';
 import { POPUP_PORT_NAME, AUTO_UPDATE_STATUS_KEY, type AutoUpdateStatus } from '../background/autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
@@ -1669,18 +1669,13 @@ function exportCoursesJson() {
 }
 
 async function handleResetCourses() {
-  // The built-in course list is UOS's; anywhere else a reset starts empty and the next scan fills it in
-  const atUos = profileUniversity(getCachedProfile()).id === 'uos';
-  const question = atUos
-    ? 'Reset all courses, class schedules, and grading weights to the 6 official UOS defaults?'
-    : 'Remove all courses? Your next Blackboard scan adds the courses you are enrolled in.';
-  if (!confirm(question)) {
+  // There are no built-in courses: a reset starts empty and the next scan fills it in
+  if (!confirm('Remove all courses? Your next Blackboard scan adds the courses you are enrolled in.')) {
     return;
   }
-  const resetCourses = atUos ? await resetUserCoursesToDefault() : [];
-  if (!atUos) await saveUserCourses([]);
-  await handleCoursesUpdated(resetCourses);
-  showToast(atUos ? 'Reset courses to official UOS defaults!' : 'Courses cleared. Scan Blackboard to add yours.');
+  await saveUserCourses([]);
+  await handleCoursesUpdated([]);
+  showToast('Courses cleared. Scan Blackboard to add yours.');
 }
 
 // ============================================================================
@@ -2340,7 +2335,15 @@ function openRoomPicker(taskId: string) {
   const currentRoom = (task.room || '').trim();
   if (customInput) customInput.value = currentRoom;
 
-  presetsContainer.innerHTML = STUDENT_CLASS_SCHEDULE.map(s => {
+  // Presets are the rooms on the student's own courses, one button per room
+  const seenRooms = new Set<string>();
+  const roomPresets = getAllCourseSchedules().filter(s => {
+    const key = (s.room || '').trim().toLowerCase();
+    if (!key || seenRooms.has(key)) return false;
+    seenRooms.add(key);
+    return true;
+  });
+  presetsContainer.innerHTML = roomPresets.map(s => {
     const isCurrent = currentRoom.toLowerCase() === s.room.toLowerCase();
     return `
       <button type="button" class="room-preset-btn ${isCurrent ? 'is-active' : ''}" data-room="${escapeHtml(s.room)}">
@@ -4341,6 +4344,14 @@ function initAiExtractModal() {
 
   btnOpen?.addEventListener('click', () => {
     if (extractModal) {
+      // The course hint lists the student's own courses
+      const hint = document.getElementById('extract-course-hint') as HTMLSelectElement | null;
+      if (hint) {
+        const chosen = hint.value;
+        hint.innerHTML = '<option value="">Auto-detect from text</option>' + activeCourseHintOptions()
+          .map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+        hint.value = chosen;
+      }
       extractModal.style.display = 'flex';
       extractModal.classList.remove('hidden');
       const input = document.getElementById('input-extract-text') as HTMLTextAreaElement;
@@ -4731,7 +4742,7 @@ async function refreshDataInBackground() {
       // Gradebook marks: clear legacy artificial scan dates so they never clutter the calendar
       const isGradebookTask = task.id.startsWith('gbcol_') || task.sourceSnippet === 'gradebook';
       if (isGradebookTask && !task.announcementId) {
-        if (dueDate && (dueDate.startsWith('2026-10-28') || dueDate.startsWith('2026-10-29') || (task.createdAt && dueDate.slice(0, 10) === task.createdAt.slice(0, 10)))) {
+        if (dueDate && task.createdAt && dueDate.slice(0, 10) === task.createdAt.slice(0, 10)) {
           dueDate = '';
           hasSpecificTime = false;
           taskUpdated = true;

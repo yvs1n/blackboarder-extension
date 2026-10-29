@@ -1,37 +1,32 @@
-import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
-import { processAnnouncementsBatch, titleCourseKeyFor } from '../engine/hybridExtractor';
-import { getSettings, getTasks, saveTasksMergingLatest, saveAnnouncements, getLastScanCheckpoint, saveLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
-import { setActiveUserCourses } from '../core/userCourses';
+import { Announcement, DeadlineTask, TaskSubmissionUpdate } from '../types';
+import { getSettings, getTasks, saveTasksMergingLatest, getLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
+import { setActiveUserCourses, getActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode, isValidTask } from '../core/courseHelper';
-import { parseDirectStreamCard, parseSubmissionOrGradeCard, parseUltraStreamEntries } from '../utils/streamParser';
+import { parseDirectStreamCard, parseSubmissionOrGradeCard } from '../utils/streamParser';
 import { deduplicateTaskList } from '../utils/taskMerge';
-import { gradebookToUpdates, applySubmissionUpdates, purgeSyntheticGradebookTasks, gradebookReport, GradebookReportRow, GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
+import { GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
-import { SESSION_STATUS_KEY, isSessionExpiredResponse } from '../utils/sessionStatus';
+import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
 import { ScanGate, ScanRun } from './scanGate';
 import { detectUniversityFromHost } from '../utils/profile';
 import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks } from '../core/examSchedule';
 import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
-
-/**
- * Known University of Sharjah Blackboard Course IDs mapped to courses.
- * Used for instant, zero-click background API lookups when stream cards omit course parameters.
- */
-// Ids checked against the owner's Blackboard course list on 2026-10-22 (they were swapped for
-// Physics 1, Physics 1 Lab and Islamic Culture before). "Physics 1 - ALL" is the shared section
-// that posts the homework.
-export const KNOWN_UOS_COURSE_IDS = [
-  { pattern: /(?:intro.*comp|comp(?:uter)?\s*eng|هندسة.*حاسوب|1502101|0402101)/i, courseId: '_87148_1', name: 'Introduction to Computer Eng.', code: '1502 101' },
-  { pattern: /(?:calculus|calc\b|حسبان|1440133|1440131)/i, courseId: '_86929_1', name: 'Calculus I for Engineering', code: '1440 133' },
-  { pattern: /(?:english|eap\b|academic\s*purposes|إنجليزي|0202112)/i, courseId: '_87240_1', name: 'English for Academic Purposes', code: '0202 112' },
-  { pattern: /(?:physics.*lab|فيزياء.*عملي|مختبر.*فيزياء|1430116)/i, courseId: '_85276_1', name: 'Physics 1 Lab', code: '1430 116' },
-  { pattern: /(?:physics\s*1\s*-\s*all)/i, courseId: '_88369_1', name: 'Physics 1', code: '1430 115' },
-  { pattern: /(?:physics\s*1(?!\s*lab)|general\s*physics\s*1|فيزياء\s*1(?!\s*عملي)|1430115)/i, courseId: '_84837_1', name: 'Physics 1', code: '1430 115' },
-  { pattern: /(?:islamic|ثقافة\s*إسلامية|0104100)/i, courseId: '_87186_1', name: 'Islamic Culture', code: '0104 100' }
-];
+import {
+  ApiResult,
+  BbFetch,
+  CourseMeta,
+  fetchCourseAnnouncements,
+  fetchEnrolledCourses,
+  isOrientationOrSandboxCourse,
+  mergeCourseMaps,
+  readBlackboardApi
+} from '../scan/blackboardApi';
+import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
+import { findCourseIdForText } from '../scan/courseLookup';
+import { claimAutoScan } from '../scan/autoScan';
 
 /**
  * Scrapes direct deadline cards from the Blackboard Ultra Stream timeline
@@ -169,11 +164,6 @@ function scrapeEnrolledCourses(): { courseName: string; courseCode?: string }[] 
     }
   });
 
-  // 2. Pre-seed with any known registered course IDs if user is enrolled
-  KNOWN_UOS_COURSE_IDS.forEach(k => {
-    register(k.name, k.code);
-  });
-
   return discovered;
 }
 
@@ -181,7 +171,11 @@ function scrapeEnrolledCourses(): { courseName: string; courseCode?: string }[] 
  * Scrapes announcements from Blackboard (Classic, Ultra Course, and Ultra Stream).
  * Supports incremental scanning by stopping when hitting announcements already processed.
  */
-async function scrapeAnnouncements(knownAnnIds?: Set<string>, knownKeys?: Set<string>): Promise<Announcement[]> {
+async function scrapeAnnouncements(
+  knownAnnIds?: Set<string>,
+  knownKeys?: Set<string>,
+  resolveCourseId?: (text: string) => Promise<string>
+): Promise<Announcement[]> {
   const currentUrl = window.location.href;
   const pageTitle = document.title || '';
 
@@ -374,15 +368,10 @@ async function scrapeAnnouncements(knownAnnIds?: Set<string>, knownKeys?: Set<st
       }
     }
 
-    // Fallback: If courseId is still empty, map from known UOS course database
-    if (!courseId) {
-      const courseStr = `${cardCourseName} ${cardCourseCode} ${rawCourseStr} ${title}`;
-      for (const m of KNOWN_UOS_COURSE_IDS) {
-        if (m.pattern.test(courseStr)) {
-          courseId = m.courseId;
-          break;
-        }
-      }
+    // No course link on the card: find it among the student's own Blackboard courses (enrolment
+    // list and page links) by code, name, or the saved course the card matches
+    if (!courseId && resolveCourseId) {
+      courseId = await resolveCourseId(`${cardCourseName} ${cardCourseCode} ${rawCourseStr} ${title}`);
     }
 
     // Clone card to prune non-announcement elements safely
@@ -586,100 +575,82 @@ function getBlackboardFetchHeaders(): Record<string, string> {
   return headers;
 }
 
-/** Course id -> course name, filled while collecting course ids. */
-const courseNamesById = new Map<string, string>();
-const courseCodesById = new Map<string, string>();
-const skippedCourseIds = new Set<string>();
+/**
+ * bbFetch with Blackboard's AJAX headers and the session cookie: the fetch the shared API
+ * readers (src/scan/blackboardApi.ts) use in this tab.
+ */
+const tabFetch: BbFetch = (path, init) => bbFetch(path, {
+  credentials: 'same-origin',
+  ...init,
+  headers: { ...getBlackboardFetchHeaders(), ...((init?.headers as Record<string, string>) || {}) }
+});
 
-function isOrientationOrSandboxCourse(name?: string, externalId?: string): boolean {
-  const n = String(name || '');
-  const ext = String(externalId || '');
-  return /^mock_exam/i.test(ext) || /student\s*hands-on\s*orientation|blackboard\s*orientation/i.test(n);
-}
+type EnrolledCourses = ApiResult<{ courses: Map<string, CourseMeta>; skipped: Set<string> }>;
 
-function extractCodeFromExternalId(externalId?: string): string {
-  const s = String(externalId || '').trim();
-  const m = s.match(/^(\d{4})\s*(\d{3})(?:[_\s-]|$)/) || s.match(/^([A-Za-z]{2,4}[-\s]?\d{3})(?:[_\s-]|$)/);
-  if (!m) return '';
-  return m[2] ? `${m[1]} ${m[2]}` : m[1].toUpperCase();
+/** A course name as a page link writes it ("Calculus I for Engineering- 21 - حسبان 1"). */
+function courseMetaFromPageText(raw: string): CourseMeta {
+  const parsed = parseCourseDetails(raw);
+  return {
+    name: parsed.name !== 'General Course' ? parsed.name : raw,
+    code: parsed.code !== 'UOS' ? parsed.code : ''
+  };
 }
 
 /**
- * Extracts all Blackboard course IDs from the URL, DOM elements, and student course API.
+ * Course ids and names the page itself shows (URL, data attributes, course links), and the
+ * orientation or sandbox courses it links to. The enrolment list adds the rest.
  */
-async function extractAllCourseIdsFromPage(): Promise<string[]> {
-  const ids = new Set<string>();
+function collectPageCourses(): { courses: Map<string, CourseMeta>; skipped: Set<string> } {
+  const courses = new Map<string, CourseMeta>();
+  const skipped = new Set<string>();
+  const add = (cid: string, rawName: string = '') => {
+    if (!cid || !cid.startsWith('_') || skipped.has(cid)) return;
+    const known = courses.get(cid);
+    if (known && known.name) return;
+    courses.set(cid, rawName ? courseMetaFromPageText(rawName) : { name: '', code: '' });
+  };
 
-  // 0. Seed with known registered student course IDs
-  KNOWN_UOS_COURSE_IDS.forEach(k => ids.add(k.courseId));
-
-  // 1. Current URL
+  // 1. Current URL (on the course's own page the heading names it)
   const urlMatch = window.location.href.match(/(?:courses\/|course_id=|[?&]id=)(_\d+_\d+)/);
-  if (urlMatch) ids.add(urlMatch[1]);
 
   // 2. DOM elements with data attributes
   document.querySelectorAll('[data-course-id], [data-course]').forEach(el => {
-    const cid = el.getAttribute('data-course-id') || el.getAttribute('data-course');
-    if (cid && cid.startsWith('_')) ids.add(cid);
+    add(el.getAttribute('data-course-id') || el.getAttribute('data-course') || '');
   });
 
   // 3. Links to courses on stream cards (their text is the course name)
   document.querySelectorAll('a[href*="/courses/"], a[href*="course_id="], a[href*="launcher?type=Course"]').forEach(a => {
     const href = (a as HTMLAnchorElement).getAttribute('href') || '';
     const m = href.match(/(?:courses\/|course_id=|[?&]id=)(_\d+_\d+)/);
-    if (m) {
-      const name = a.textContent?.trim() || '';
-      if (isOrientationOrSandboxCourse(name)) {
-        skippedCourseIds.add(m[1]);
-        ids.delete(m[1]);
-        return;
-      }
-      ids.add(m[1]);
-      if (name && !courseNamesById.has(m[1])) courseNamesById.set(m[1], name);
+    if (!m) return;
+    const name = a.textContent?.trim() || '';
+    if (isOrientationOrSandboxCourse(name)) {
+      skipped.add(m[1]);
+      courses.delete(m[1]);
+      return;
     }
+    add(m[1], name);
   });
 
-  // 4. Blackboard Learn user enrolled courses REST API
-  try {
-    const res = await bbFetch('/learn/api/public/v1/users/me/courses?expand=course', {
-      headers: getBlackboardFetchHeaders(),
-      credentials: 'same-origin'
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.results)) {
-        for (const item of data.results) {
-          if (item.courseId && typeof item.courseId === 'string' && item.courseId.startsWith('_')) {
-            const name = typeof item.course?.name === 'string' ? item.course.name.trim() : '';
-            const extId = String(item.course?.courseId || item.course?.externalId || '');
-            if (isOrientationOrSandboxCourse(name, extId)) {
-              skippedCourseIds.add(item.courseId);
-              ids.delete(item.courseId);
-              courseNamesById.delete(item.courseId);
-              continue;
-            }
-            ids.add(item.courseId);
-            const extCode = extractCodeFromExternalId(extId);
-            if (extCode) courseCodesById.set(item.courseId, extCode);
-            if (name) {
-              const combined = extCode && !name.includes(extCode.replace(/\s+/g, ''))
-                ? `${extCode} - ${name}`
-                : name;
-              courseNamesById.set(item.courseId, combined);
-            }
-          }
-        }
-      }
-    }
-  } catch {
-    // Ignore API discovery failure if offline or permissions restricted
+  if (urlMatch && !skipped.has(urlMatch[1]) && !courses.get(urlMatch[1])?.name) {
+    const heading = document.querySelector('#courseMenuPalette_paletteTitleHeading, .course-title, header h1, [aria-label*="Course Name"], #course-title-header, .bb-course-title');
+    courses.delete(urlMatch[1]);
+    add(urlMatch[1], heading?.textContent?.trim() || '');
   }
 
-  for (const skipId of skippedCourseIds) {
-    ids.delete(skipId);
-  }
+  return { courses, skipped };
+}
 
-  return Array.from(ids);
+/**
+ * Starts reading the enrolment list once per scan. Stream cards without a course link find their
+ * course in it (and in the page's course links), by name, code, or the saved course they match.
+ */
+function startCourseLookup(page: { courses: Map<string, CourseMeta>; skipped: Set<string> }) {
+  const enrolled: Promise<EnrolledCourses> = fetchEnrolledCourses(tabFetch)
+    .catch(err => ({ ok: false as const, error: String(err) }));
+  const courses = async () => mergeCourseMaps(await enrolled, page.courses, page.skipped);
+  const resolve = async (text: string) => findCourseIdForText(text, await courses(), getActiveUserCourses());
+  return { enrolled, courses, resolve };
 }
 
 /**
@@ -849,86 +820,7 @@ async function fetchFullAnnouncementBodyFromCode(
   return null;
 }
 
-/**
- * Attempts to fetch complete announcement bodies directly from Blackboard's authenticated REST API.
- */
-async function fetchCourseAnnouncementsApi(
-  courseId: string,
-  fallbackCourseName?: string,
-  fallbackCourseCode?: string
-): Promise<Announcement[] | null> {
-  try {
-    // The public REST API can refuse students; Ultra's own pages use the internal one
-    let results: any[] | null = null;
-    for (const base of ['/learn/api/public/v1', '/learn/api/v1']) {
-      try {
-        const res = await bbFetch(`${base}/courses/${encodeURIComponent(courseId)}/announcements`, {
-          headers: getBlackboardFetchHeaders(),
-          credentials: 'same-origin'
-        });
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (data && Array.isArray(data.results)) {
-          results = data.results;
-          break;
-        }
-      } catch {}
-    }
-    if (!results) return null;
-
-    let cName = fallbackCourseName || '';
-    let cCode = fallbackCourseCode || '';
-
-    const knownName = courseNamesById.get(courseId);
-    if (knownName) {
-      const parsed = parseCourseDetails(knownName);
-      cName = parsed.name;
-      cCode = parsed.code;
-    } else if ((!cName || !cCode) && window.location.href.includes(courseId)) {
-      // Only trust the page heading on that course's own page; on the stream it says "Activity Stream"
-      const pageHeadingEl = document.querySelector('#courseMenuPalette_paletteTitleHeading, .course-title, header h1, [aria-label*="Course Name"], #course-title-header, .bb-course-title');
-      const rawCourseText = pageHeadingEl?.textContent?.trim() || '';
-      if (rawCourseText) {
-        const parsed = parseCourseDetails(rawCourseText);
-        if (!cName) cName = parsed.name;
-        if (!cCode) cCode = parsed.code;
-      }
-    }
-
-    return results.map((item: any, idx: number) => {
-      const temp = document.createElement('div');
-      // Public API: body is an HTML string. Internal API: { displayText, rawText }.
-      const bodyHtml = typeof item.body === 'string' ? item.body : (item.body?.displayText || item.body?.rawText || '');
-      item = { ...item, body: bodyHtml };
-      temp.innerHTML = item.body || '';
-      const text = temp.textContent?.trim() || temp.innerText?.trim() || '';
-      const cleanCourseCode = (cCode && cCode !== 'UOS') ? cCode : '';
-      const cleanCourseName = (cName && cName.toLowerCase() !== 'uos') ? cName : 'General Course';
-      const cleanText = sanitizeDoctorAnnouncementText(text, cleanCourseName, cleanCourseCode, item.title);
-
-      return {
-        id: `ann_api_${item.id || idx}`,
-        courseCode: cleanCourseCode,
-        courseName: cleanCourseName,
-        title: item.title || `Announcement ${idx + 1}`,
-        postedAt: item.created || new Date().toISOString(),
-        contentText: cleanText,
-        contentHtml: item.body || '',
-        sourceUrl: window.location.href,
-        scannedAt: new Date().toISOString()
-      };
-    }).filter((a: Announcement) => a.contentText && a.contentText.length > 5);
-  } catch (err) {
-    console.info('[Scraper] Course announcements not readable, using the page instead:', String(err));
-    return [];
-  }
-}
-
-/**
- * Reads the student's marks from each course gradebook, the same requests Ultra's Grades page
- * makes: /learn/api/v1/users/me for the user id, then columns (names, max points) and grades
- * per course. A course that refuses is skipped.
- */
+/** Saves whether the Blackboard session is alive (from the users/me call), for the popup's banner. */
 function saveSessionStatus(expired: boolean): void {
   try {
     chrome.storage.local.set({ [SESSION_STATUS_KEY]: { expired, checkedAt: new Date().toISOString() } });
@@ -940,111 +832,14 @@ function saveSessionStatus(expired: boolean): void {
 /** What the last gradebook read found, for the scan message and the console line. */
 let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] as string[] };
 
-async function fetchUltraStreamApi(): Promise<{
-  directTasks: DeadlineTask[];
-  announcements: Announcement[];
-  submissionUpdates: TaskSubmissionUpdate[];
-}> {
-  try {
-    const res = await bbFetch('/learn/api/v1/streams/ultra', {
-      method: 'POST',
-      headers: {
-        ...getBlackboardFetchHeaders(),
-        'Content-Type': 'application/json'
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify({ providers: {}, forOverview: false, retrieveOnly: true, flushCache: false })
-    });
-    if (!res.ok) return { directTasks: [], announcements: [], submissionUpdates: [] };
-    const data = await res.json();
-    const coursesMap = new Map<string, { name: string; code: string }>();
-    for (const k of KNOWN_UOS_COURSE_IDS) {
-      coursesMap.set(k.courseId, { name: k.name, code: k.code });
-    }
-    for (const [cid, rawName] of courseNamesById.entries()) {
-      const parsed = parseCourseDetails(rawName);
-      const code = courseCodesById.get(cid) || (parsed.code !== 'UOS' ? parsed.code : '');
-      const name = parsed.name !== 'General Course' ? parsed.name : rawName;
-      coursesMap.set(cid, { name, code });
-    }
-    return parseUltraStreamEntries(data, coursesMap, window.location.origin);
-  } catch {
-    return { directTasks: [], announcements: [], submissionUpdates: [] };
-  }
-}
-
-async function fetchGradebookUpdates(): Promise<TaskSubmissionUpdate[]> {
-  lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] };
-  const getJson = async (path: string) => {
-    const res = await bbFetch(path, { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
-    return res.ok ? res.json() : null;
-  };
-  // Every page of a list (Blackboard pages long gradebooks), or null when the first page is refused
-  const getAll = async (path: string): Promise<{ results: any[] } | null> => {
-    const first = await getJson(path);
-    if (!Array.isArray(first?.results)) return null;
-    const results = [...first.results];
-    let next: string | undefined = first?.paging?.nextPage;
-    for (let page = 0; next && page < 10; page++) {
-      const more = await getJson(next);
-      if (!Array.isArray(more?.results)) break;
-      results.push(...more.results);
-      next = more?.paging?.nextPage;
-    }
-    return { results };
-  };
-  const report: GradebookReportRow[] = [];
-  let userId = '';
-  try {
-    const meRes = await bbFetch('/learn/api/v1/users/me', { headers: getBlackboardFetchHeaders(), credentials: 'same-origin' });
-    if (isSessionExpiredResponse(meRes.status, meRes.headers.get('content-type'))) lastGradebookRead.expired = true;
-    else if (meRes.ok) userId = (await meRes.json())?.id || '';
-  } catch {}
-  // Tell the popup whether the session is alive, so it can show a banner when it is not
-  if (userId || lastGradebookRead.expired) saveSessionStatus(lastGradebookRead.expired);
-  if (!userId) return [];
-  lastGradebookRead.signedIn = true;
-
-  const courseIds = await extractAllCourseIdsFromPage();
-  lastGradebookRead.courses = courseIds.length;
-  const perCourse = await Promise.all(courseIds.map(async cid => {
-    try {
-      const [cols, grades] = await Promise.all([
-        getAll(`/learn/api/v1/courses/${encodeURIComponent(cid)}/gradebook/columns?includeInvisible=false&limit=200`),
-        getAll(`/learn/api/v1/courses/${encodeURIComponent(cid)}/gradebook/grades?limit=200&userId=${encodeURIComponent(userId)}`)
-      ]);
-      if (!cols || !grades) {
-        report.push({ course: courseNamesById.get(cid) || cid, column: '', note: 'gradebook not readable' });
-        return [];
-      }
-      lastGradebookRead.coursesRead++;
-      // Blackboard's own course name first; the built-in list only when it is unknown
-      const known = KNOWN_UOS_COURSE_IDS.find(k => k.courseId === cid);
-      const apiName = courseNamesById.get(cid);
-      const parsed = apiName ? parseCourseDetails(apiName) : null;
-      const extCode = courseCodesById.get(cid);
-      const course = parsed && parsed.name !== 'General Course'
-        ? { name: parsed.name, code: (parsed.code !== 'UOS' ? parsed.code : '') || extCode || known?.code || '' }
-        : known ? { name: known.name, code: extCode || known.code } : { name: '', code: extCode || '' };
-      if (isOrientationOrSandboxCourse(course.name || apiName)) {
-        return [];
-      }
-      report.push(...gradebookReport(cols.results, grades.results, apiName || known?.name || cid));
-      return gradebookToUpdates(cols.results, grades.results, {
-        courseName: course.name !== 'General Course' ? course.name : undefined,
-        courseCode: course.code
-      }, lastGradebookRead.skipped);
-    } catch {
-      return [];
-    }
-  }));
-  const updates = perCourse.flat();
-  // What each gradebook held on the last scan, kept on this device only, to explain a missing mark
-  try {
-    chrome.storage.local.set({ [GRADEBOOK_REPORT_KEY]: { readAt: new Date().toISOString(), rows: report } });
-  } catch {}
-  console.info(`[Blackboarder] Gradebook: ${updates.filter(u => u.submissionStatus === 'graded').length} marks from ${courseIds.length} courses`);
-  return updates;
+/** One line in the page console so a missed deadline can be traced without a debugger. */
+function logCourseAnnouncementRead(streamCount: number, courseCount: number, courseIds: string[], failedIds: string[]): void {
+  if (courseIds.length === 0) return;
+  console.info(
+    `[Blackboarder] Scan read ${streamCount} stream announcements and ${courseCount} course announcements ` +
+    `from ${courseIds.length - failedIds.length} of ${courseIds.length} courses` +
+    (failedIds.length ? ` (${failedIds.length} refused: ${failedIds.join(', ')})` : '')
+  );
 }
 
 /** Small deterministic string hash (djb2) for building stable ids. */
@@ -1088,14 +883,12 @@ function scrapeOpenDrawerAnnouncement(): Announcement | null {
 }
 
 /**
- * Orchestrates announcement scraping: auto-expands collapsed cards, checks REST API,
- * checks open drawers, and scrapes DOM cards with complete un-truncated text.
- * Supports incremental scanning by passing known checkpoint IDs.
+ * Orchestrates announcement scraping: auto-expands collapsed cards, reads the page's cards with
+ * complete un-truncated text, reads every course's announcements over the REST API, and checks
+ * open drawers. Supports incremental scanning by passing known checkpoint IDs.
  */
 export async function scrapeAnnouncementsFull(options?: { fullRescan?: boolean }): Promise<Announcement[]> {
-  const checkpoint = options?.fullRescan
-    ? { lastScannedAt: '', processedAnnouncementIds: [], processedDirectTaskIds: [], processedAnnouncementKeys: [] }
-    : await getLastScanCheckpoint();
+  const checkpoint = options?.fullRescan ? emptyCheckpoint() : await getLastScanCheckpoint();
 
   const knownAnnIds = new Set(checkpoint.processedAnnouncementIds);
   const knownKeys = new Set(checkpoint.processedAnnouncementKeys || []);
@@ -1104,39 +897,25 @@ export async function scrapeAnnouncementsFull(options?: { fullRescan?: boolean }
   await expandAllTruncatedAnnouncements();
 
   // 2. Scrape regular DOM announcements (skips already processed items and stops when reaching checkpoint)
+  const lookup = startCourseLookup(collectPageCourses());
   const domAnnouncements = await scrapeAnnouncements(
     options?.fullRescan ? undefined : knownAnnIds,
-    options?.fullRescan ? undefined : knownKeys
+    options?.fullRescan ? undefined : knownKeys,
+    lookup.resolve
   );
 
   // 3. Always fetch complete course announcements from Blackboard REST API in parallel
   // This guarantees complete, unabridged announcement bodies for students on /ultra/stream as well as course pages.
-  const apiAnnouncements: Announcement[] = [];
-  const courseIds = await extractAllCourseIdsFromPage();
-  if (courseIds.length > 0) {
-    const results = await Promise.all(
-      courseIds.map(cid => {
-        const matched = domAnnouncements.find(a => a.id.includes(cid) || a.sourceUrl.includes(cid));
-        return fetchCourseAnnouncementsApi(cid, matched?.courseName, matched?.courseCode).catch(() => null);
-      })
-    );
-    for (const arr of results) {
-      if (arr) apiAnnouncements.push(...arr);
-    }
-    const refused = results.filter(r => r === null).length;
-    // One line in the page console so a missed deadline can be traced without a debugger
-    console.info(
-      `[Blackboarder] Scan read ${domAnnouncements.length} stream announcements and ${apiAnnouncements.length} course announcements ` +
-      `from ${courseIds.length - refused} of ${courseIds.length} courses` +
-      (refused ? ` (${refused} refused: ${courseIds.filter((_, i) => results[i] === null).join(', ')})` : '')
-    );
-  }
+  const courses = await lookup.courses();
+  const courseIds = Array.from(courses.keys());
+  const results = await Promise.all(
+    courseIds.map(cid => fetchCourseAnnouncements(tabFetch, cid, courses.get(cid), window.location.origin))
+  );
+  const apiAnnouncements = results.flatMap(r => (r.ok ? r.announcements : []));
+  logCourseAnnouncementRead(domAnnouncements.length, apiAnnouncements.length, courseIds, courseIds.filter((_, i) => !results[i].ok));
 
-  // 4. Scrape any currently open side drawer/modal
-  const drawerAnn = scrapeOpenDrawerAnnouncement();
-
-  // 5. Merge: full course bodies replace cut-short stream cards of the same course only
-  return mergeStreamAndCourseAnnouncements(domAnnouncements, apiAnnouncements, drawerAnn);
+  // 4. Merge: full course bodies replace cut-short stream cards of the same course only; an open side drawer replaces its card
+  return mergeStreamAndCourseAnnouncements(domAnnouncements, apiAnnouncements, scrapeOpenDrawerAnnouncement());
 }
 
 /**
@@ -1321,6 +1100,9 @@ function injectFloatingButton(onScanClick: () => void) {
   document.body.appendChild(root);
 }
 
+/** What the last scan in this tab did, for the RUN_TAB_SCAN reply to the service worker. */
+let lastTabScanResult: { ok: boolean; newCount: number; message: string } | null = null;
+
 /**
  * Main scan execution routine. Supports incremental scanning by default.
  */
@@ -1376,6 +1158,7 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
 
   const examTasks = (await waitForExamScheduleTasks(waitMs ?? (run.interactive ? 5000 : 3500))).filter(t => !tombstones[t.id]);
   if (examTasks.length === 0) {
+    lastTabScanResult = { ok: true, newCount: 0, message: 'No exam schedule rows found on this page.' };
     if (run.interactive) {
       showSidekickToast('Blackboarder', 'No exam rows found on this page yet. Wait for the table to load and try again.');
       run.reported = true;
@@ -1409,6 +1192,7 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
   }
 
   const changedTotal = addedCount + updatedCount;
+  lastTabScanResult = { ok: true, newCount: addedCount, message: `Read ${examTasks.length} exams from the exam schedule.` };
   if (run.interactive || changedTotal > 0) {
     const msg = addedCount > 0
       ? `Added <strong>${addedCount}</strong> exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from your Exam Schedule!`
@@ -1472,6 +1256,7 @@ async function runBlackboardScan(run: ScanRun) {
     } else {
       console.info('[Blackboarder] Extension was reloaded; refresh this tab to reconnect.');
     }
+    lastTabScanResult = { ok: false, newCount: 0, message: 'Blackboarder was reloaded. Refresh the Blackboard tab and try again.' };
     return;
   }
 
@@ -1488,227 +1273,73 @@ async function runBlackboardScan(run: ScanRun) {
   }
 
   try {
-    const checkpoint = fullRescan
-      ? { lastScannedAt: '', processedAnnouncementIds: [], processedDirectTaskIds: [] }
-      : await getLastScanCheckpoint();
-
+    const checkpoint = fullRescan ? emptyCheckpoint() : await getLastScanCheckpoint();
     const knownDirectIds = new Set(checkpoint.processedDirectTaskIds);
     const knownAnnIds = new Set(checkpoint.processedAnnouncementIds);
+    const knownKeys = new Set(checkpoint.processedAnnouncementKeys || []);
 
-    // 1. Scrape direct due date cards (incremental)
-    // Stream task ids are deterministic, so a card the user deleted would come back on a full re-scan
-    // unless the deletion record is honoured here
-    const tombstones: Record<string, string> = await new Promise(resolve => {
-      try {
-        chrome.storage.local.get(['bbs_tombstones'], res => resolve((res?.bbs_tombstones as Record<string, string>) || {}));
-      } catch {
-        resolve({});
-      }
-    });
+    // 1. Page-only sources: direct due date cards (incremental), stream submission and grade cards
     const domDirectTasks = scrapeUltraStreamDueItems(fullRescan ? undefined : knownDirectIds);
+    const domSubmissionUpdates = scrapeStreamSubmissionsAndGrades();
+    await expandAllTruncatedAnnouncements();
+    const page = collectPageCourses();
+    const lookup = startCourseLookup(page);
 
-    // 2. Scrape announcement cards (incremental) & Ultra Stream REST API
-    const [scrapedAnnouncements, gradebookUpdates, ultraStreamApi] = await Promise.all([
-      scrapeAnnouncementsFull({ fullRescan }),
-      fetchGradebookUpdates().catch(() => [] as TaskSubmissionUpdate[]),
-      fetchUltraStreamApi()
+    // 2. The HTTP sources the service worker scanner reads too (session, courses, stream,
+    // course announcements, gradebooks), in parallel with the page's announcement cards
+    const [api, domAnnouncements] = await Promise.all([
+      readBlackboardApi(tabFetch, {
+        origin: window.location.origin,
+        pageCourses: page.courses,
+        pageSkipped: page.skipped,
+        enrolled: lookup.enrolled
+      }),
+      scrapeAnnouncements(fullRescan ? undefined : knownAnnIds, fullRescan ? undefined : knownKeys, lookup.resolve)
     ]);
+    const { sources } = api;
+    lastGradebookRead = {
+      signedIn: sources.session === 'ok',
+      expired: sources.session === 'expired',
+      courses: api.courseIds.length,
+      coursesRead: sources.gradebook.ok,
+      skipped: api.skippedGrades
+    };
+    // Tell the popup whether the session is alive, so it can show a banner when it is not
+    if (lastGradebookRead.signedIn || lastGradebookRead.expired) saveSessionStatus(lastGradebookRead.expired);
+    if (lastGradebookRead.signedIn) {
+      // What each gradebook held on the last scan, kept on this device only, to explain a missing mark
+      try {
+        chrome.storage.local.set({ [GRADEBOOK_REPORT_KEY]: { readAt: new Date().toISOString(), rows: api.gradebookReport } });
+      } catch {}
+      logCourseAnnouncementRead(domAnnouncements.length, api.courseAnnouncements.length, api.courseIds, sources.announcements.failedCourseIds);
+    }
 
-    const directStreamTasks = [
-      ...domDirectTasks,
-      ...ultraStreamApi.directTasks.filter(t => fullRescan || !knownDirectIds.has(t.id))
-    ].filter(t => !tombstones[t.id]);
-
-    const announcements = mergeStreamAndCourseAnnouncements(
-      ultraStreamApi.announcements.filter(a => fullRescan || !knownAnnIds.has(a.id)),
-      scrapedAnnouncements,
-      null
-    );
-
-    // 3. Submission receipts and posted marks: stream cards + stream API, then the gradebook (it has every mark, so it goes last and wins)
-    const submissionUpdates = [
-      ...scrapeStreamSubmissionsAndGrades(),
-      ...ultraStreamApi.submissionUpdates,
-      ...gradebookUpdates
-    ];
-
-    // 4. Auto-discover enrolled courses from page
-    const discoveredCourses = scrapeEnrolledCourses();
+    // 3. Full course bodies replace cut-short page cards of the same course only; an open side drawer replaces its card
+    const tabAnnouncements = mergeStreamAndCourseAnnouncements(domAnnouncements, api.courseAnnouncements, scrapeOpenDrawerAnnouncement());
 
     // New courses take the colour Blackboard gives them (courses already set up keep theirs)
     await autoRegisterDiscoveredCourses(await discoveredCoursesWithColors(getBlackboardJson)).catch(() => {});
 
-    if (directStreamTasks.length === 0 && announcements.length === 0 && submissionUpdates.length === 0) {
-      if (run.interactive) {
-        showSidekickToast('Blackboarder', 'Up to date. No new deadlines found since last scan.');
-        run.reported = true;
-        await setScanStatus({ state: 'done', message: 'Up to date. No new deadlines since the last scan.', newCount: 0 });
-      }
-      return;
-    }
-
-    // Progress is written at most every 400 ms so storage is not flooded
-    let lastProgressWrite = 0;
-    const reportProgress = (done: number, total: number) => {
-      if (!run.interactive) return;
-      const now = Date.now();
-      if (done !== 0 && done !== total && now - lastProgressWrite < 400) return;
-      lastProgressWrite = now;
-      void setScanStatus({
-        state: 'running',
-        message: `Read ${announcements.length} announcements & ${directTasks.length} stream items. Extracting ${done}/${total}...`,
-        done,
-        total
-      });
-    };
-    const directTasks = directStreamTasks;
-
-    const settings = await getSettings();
-    let existingTasks = await getTasks();
-    const { cleaned: cleanedExisting, purgedIds: purgedSyntheticIds } = purgeSyntheticGradebookTasks(existingTasks);
-    if (purgedSyntheticIds.length > 0) {
-      existingTasks = cleanedExisting;
-      purgedSyntheticIds.forEach(id => {
-        tombstones[id] = new Date().toISOString();
-      });
-      await new Promise<void>(resolve => {
-        try {
-          chrome.storage.local.set({ bbs_tombstones: tombstones }, () => resolve());
-        } catch { resolve(); }
-      });
-    }
-
-    // Save announcements to storage (merges with existing)
-    if (announcements.length > 0) {
-      await saveAnnouncements(announcements);
-    }
-
-    // Process announcements for deadlines (skips already processed IDs)
-    const { newTasks: extractedTasks, allTasks: mergedAnnTasks } = await processAnnouncementsBatch(
-      announcements,
-      existingTasks,
-      settings,
-      fullRescan ? undefined : knownAnnIds,
-      reportProgress
-    );
-
-    // Merge direct stream tasks with deduplication against existing stored tasks
-    const existingIdMap = new Map<string, DeadlineTask>();
-    const existingTitleCourseMap = new Map<string, DeadlineTask>();
-    const existingDateKeySet = new Set<string>();
-
-    for (const t of mergedAnnTasks) {
-      existingIdMap.set(t.id, t);
-      const tcKey = titleCourseKeyFor(t);
-      if (tcKey) existingTitleCourseMap.set(tcKey, t);
-      try {
-        existingDateKeySet.add(`${t.courseCode}_${t.title}_${new Date(t.dueDate).toISOString().slice(0, 10)}`);
-      } catch {}
-    }
-
-    const newlyAddedDirect: DeadlineTask[] = [];
-
-    for (const dt of directStreamTasks) {
-      // '' when the course is unknown, so "Quiz 3" from two courses is never merged
-      const titleCourseKey = titleCourseKeyFor(dt);
-      let dateKey = '';
-      try {
-        dateKey = `${dt.courseCode}_${dt.title}_${new Date(dt.dueDate).toISOString().slice(0, 10)}`;
-      } catch {}
-
-      const matched = existingIdMap.get(dt.id)
-        || (titleCourseKey ? existingTitleCourseMap.get(titleCourseKey) : undefined)
-        || (dateKey && existingDateKeySet.has(dateKey) ? true : undefined);
-
-      if (matched && typeof matched === 'object') {
-        // Matched an existing task! If user edited it, never overwrite user changes.
-        if (!matched.userEdited && matched.extractedBy !== 'manual') {
-          if (!matched.hasSpecificTime && dt.hasSpecificTime) {
-            matched.dueDate = dt.dueDate;
-            matched.hasSpecificTime = dt.hasSpecificTime;
-            matched.updatedAt = new Date().toISOString();
-          }
-        }
-      } else if (!matched) {
-        newlyAddedDirect.push(dt);
-        existingIdMap.set(dt.id, dt);
-        if (titleCourseKey) existingTitleCourseMap.set(titleCourseKey, dt);
-        if (dateKey) existingDateKeySet.add(dateKey);
-      }
-    }
-
-    const finalTasks = deduplicateTaskList([...newlyAddedDirect, ...mergedAnnTasks]).filter(isValidTask);
-
-    // Put marks and submissions on their tasks (only changed tasks are touched)
-    const marksChanged = applySubmissionUpdates(finalTasks, submissionUpdates);
-
-    // Which gradebook marks found no deadline (shown in the scan message and the page console)
-    const gradebookMarks = submissionUpdates.filter(u => u.sourceId && u.submissionStatus === 'graded');
-    const unmatchedMarks = gradebookMarks.filter(u =>
-      !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
-    );
-
-    // Preserve unannounced gradebook marks in the Grades card without creating fake calendar deadlines:
-    // If a gradebook mark had no matching announcement task, add a completed task preserving its official
-    // column due date (or empty dueDate if none) so it appears in the Grades card & GPA without cluttering the calendar.
-    const scanTimestamp = new Date().toISOString();
-    for (const u of unmatchedMarks) {
-      if (typeof u.score !== 'number' || !u.maxScore) continue;
-      const courseKey = (u.courseCode || u.courseName || 'other').replace(/[^A-Za-z0-9_]/g, '');
-      const colId = (u.sourceId || '').replace(/^gb:/, '');
-      let type: TaskType = 'assignment';
-      const lowTitle = (u.title || '').toLowerCase();
-      if (/quiz|كويز|اختبار\s*قصير/i.test(lowTitle)) type = 'quiz';
-      else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(lowTitle)) type = 'exam';
-      else if (/project|مشروع|بحث/i.test(lowTitle)) type = 'project';
-      else if (/lab|تقرير/i.test(lowTitle)) type = 'lab';
-
-      const markTask: DeadlineTask = {
-        id: `gbcol_${courseKey}_${colId || u.title.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`,
-        courseCode: u.courseCode || '',
-        courseName: u.courseName || u.courseCode || 'Other',
-        title: u.title || 'Graded Item',
-        description: '',
-        dueDate: '',
-        hasSpecificTime: false,
-        type,
-        priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
-        status: 'completed',
-        submissionStatus: 'graded',
-        score: u.score,
-        maxScore: u.maxScore,
-        scoreDisplay: u.scoreDisplay,
-        gradeSourceId: u.sourceId,
-        gradedAt: u.gradedAt,
-        sourceSnippet: 'gradebook',
-        confidence: 1.0,
-        extractedBy: 'local',
-        createdAt: scanTimestamp,
-        updatedAt: scanTimestamp
-      };
-      finalTasks.push(markTask);
-    }
-    console.info(
-      `[Blackboarder] Gradebook: ${lastGradebookRead.signedIn ? `${lastGradebookRead.coursesRead}/${lastGradebookRead.courses} courses read, ${gradebookMarks.length} marks` : 'not readable (signed out?)'}` +
-      (unmatchedMarks.length ? `; no matching deadline for: ${unmatchedMarks.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '') +
-      (lastGradebookRead.skipped.length ? `; not read: ${lastGradebookRead.skipped.join(' | ')}` : '')
-    );
-    const gradebookNote = lastGradebookRead.expired
-      ? ' Your Blackboard session has ended: sign in again, then scan.'
-      : !lastGradebookRead.signedIn
-      ? ' Marks: gradebook not readable.'
-      : ` Marks: ${gradebookMarks.length - unmatchedMarks.length} of ${gradebookMarks.length} matched${
-        unmatchedMarks.length ? ` (no deadline for ${unmatchedMarks.slice(0, 4).map(u => u.title).join(', ')}${unmatchedMarks.length > 4 ? ', ...' : ''})` : ''}.${
-        lastGradebookRead.skipped.length ? ` Not read: ${lastGradebookRead.skipped.slice(0, 3).join(', ')}.` : ''}`;
-
-    // Correct weights and rooms saved by older rules (tasks the student edited are left alone)
-    repairTaskWeightsAndRooms(finalTasks);
-
-    // Auto-register any new courses found in scanned tasks or discovered courses
-    await autoRegisterDiscoveredCourses([...finalTasks, ...discoveredCourses]).catch(() => {});
-
-    // Merge with what is stored now: the popup or a phone edit may have saved while this scan ran
-    await saveTasksMergingLatest(finalTasks);
+    // 4. Extract, put marks on tasks, save and checkpoint: the same steps as the service worker scan.
+    // Marks: stream cards + stream API, then the gradebook (it has every mark, so it goes last and wins)
+    const result = await runScanPipeline({
+      streamAnnouncements: api.stream.announcements,
+      courseAnnouncements: tabAnnouncements,
+      directTasks: [...domDirectTasks, ...api.stream.directTasks],
+      submissionUpdates: [...domSubmissionUpdates, ...api.stream.submissionUpdates, ...api.gradebookUpdates],
+      discoveredCourses: scrapeEnrolledCourses(),
+      gradebook: {
+        expired: lastGradebookRead.expired,
+        courses: lastGradebookRead.courses,
+        coursesRead: lastGradebookRead.coursesRead,
+        skipped: lastGradebookRead.skipped
+      },
+      sources: lastGradebookRead.signedIn ? sources : undefined,
+      checkpoint,
+      fullRescan,
+      isInteractive: () => run.interactive
+    });
+    lastTabScanResult = { ok: true, newCount: result.newCount, message: result.message };
 
     // Automatically push newly scanned tasks & courses to Firebase / sync server
     try {
@@ -1718,49 +1349,24 @@ async function runBlackboardScan(run: ScanRun) {
       }
     } catch {}
 
-    // Update scan checkpoint with newly processed IDs
-    const newAnnIds = announcements.map(a => a.id);
-    const newDirectIds = directStreamTasks.map(d => d.id);
-    const newKeys = announcements.flatMap(a => [
-      a.title.toLowerCase().trim(),
-      `${a.courseCode}_${a.title.toLowerCase().trim()}`
-    ]);
-    await saveLastScanCheckpoint({
-      lastScannedAt: new Date().toISOString(),
-      processedAnnouncementIds: newAnnIds,
-      processedDirectTaskIds: newDirectIds,
-      processedAnnouncementKeys: newKeys
-    });
-
-    const totalNewCount = newlyAddedDirect.length + extractedTasks.length;
+    const totalNewCount = result.newCount;
 
     // Update floating badge
     const badge = document.getElementById('bbs-floating-badge');
-    if (badge) {
-      const pendingCount = finalTasks.filter(t => t.status === 'pending').length;
-      if (pendingCount > 0) {
-        badge.textContent = String(pendingCount);
-        badge.style.display = 'inline-block';
-      }
+    if (badge && result.pendingCount > 0) {
+      badge.textContent = String(result.pendingCount);
+      badge.style.display = 'inline-block';
     }
 
     if (run.interactive || totalNewCount > 0) {
       const msg = totalNewCount > 0
         ? `Found <strong>${totalNewCount}</strong> new deadline${totalNewCount > 1 ? 's' : ''} (Quizzes & Assignments) from Blackboard!`
-        : `All deadlines up to date. (${finalTasks.filter(t => t.status === 'pending').length} pending tasks in dashboard)`;
+        : `All deadlines up to date. (${result.pendingCount} pending tasks in dashboard)`;
       showSidekickToast('Scan Complete', msg, totalNewCount);
     }
     if (run.interactive) {
       run.reported = true;
-      await setScanStatus({
-        state: 'done',
-        message: (totalNewCount > 0
-          ? `Added ${totalNewCount} new deadline${totalNewCount > 1 ? 's' : ''} to calendar!`
-          : (marksChanged > 0
-            ? `Up to date. Added or updated ${marksChanged} mark${marksChanged > 1 ? 's' : ''}.`
-            : `Up to date. Read ${announcements.length + directTasks.length} items with no new deadlines.`)) + gradebookNote,
-        newCount: totalNewCount
-      });
+      await setScanStatus({ state: 'done', message: result.message, newCount: totalNewCount });
     }
   } catch (error: any) {
     if (error?.message?.includes('Extension context invalidated')) {
@@ -1769,9 +1375,11 @@ async function runBlackboardScan(run: ScanRun) {
       if (run.interactive) {
         showExtensionReloadToast();
       }
+      lastTabScanResult = { ok: false, newCount: 0, message: 'Blackboarder was reloaded. Refresh the Blackboard tab and try again.' };
       return;
     }
     console.error('Error during Blackboard scan:', error);
+    lastTabScanResult = { ok: false, newCount: 0, message: 'Scan hit a problem. Refresh the Blackboard tab and try again.' };
     if (run.interactive) {
       showSidekickToast('Scan Notice', 'Blackboard scan encountered an issue. If page layout changed, try refreshing the tab.', 0);
       run.reported = true;
@@ -1831,10 +1439,11 @@ function init() {
     // Context may already be invalidated
   }
 
-  // Inject floating button: triggers pure background HTTP scan
+  // Floating button: HTTP first in the service worker; when Blackboard does not answer over HTTP
+  // the service worker runs the scan here, in this tab (RUN_TAB_SCAN), instead of opening another
   injectFloatingButton(() => {
     if (!isExtensionContextValid()) return;
-    chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN' }, async res => {
+    chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', interactive: true }, async res => {
       void chrome.runtime.lastError;
       const tasks = await getTasks().catch(() => []);
       const pendingCount = tasks.filter(t => t.status === 'pending').length;
@@ -1848,7 +1457,7 @@ function init() {
         }
       }
       const msg = res?.ok
-        ? (res.newCount ? `Added <strong>${res.newCount}</strong> new deadlines to calendar!` : 'All deadlines up to date.')
+        ? (res.newCount ? `Added <strong>${res.newCount}</strong> new deadlines to calendar!` : (res.message || 'All deadlines up to date.'))
         : (res?.message || 'Could not reach Blackboard.');
       showSidekickToast('Blackboarder', msg, res?.newCount || 0);
     });
@@ -1935,8 +1544,25 @@ function init() {
             .catch(() => sendResponse({ found: 0 }));
           return true;
         } else if (message.type === 'PING_SCANNER') {
-          sendResponse({ ok: true, scanning: false });
+          sendResponse({ ok: true, scanning: scanGate.running, loginPage: isSignInPage() });
           return false;
+        } else if (message.type === 'RUN_TAB_SCAN') {
+          // Sent by the service worker when Blackboard did not answer over HTTP: scan this page
+          // and answer when the scan (and, for a visible one, the exam schedule read) is done
+          const startedAt = Date.now();
+          const interactive = Boolean(message.interactive);
+          lastTabScanResult = null;
+          runScan(interactive, Boolean(message.fullRescan))
+            .then(async () => {
+              const status = interactive ? await getScanStatus() : null;
+              if (status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt) {
+                sendResponse({ ok: status.state === 'done', newCount: status.newCount || 0, message: status.message });
+              } else {
+                sendResponse(lastTabScanResult || { ok: true, newCount: 0, message: 'Scan finished.' });
+              }
+            })
+            .catch(err => sendResponse({ ok: false, newCount: 0, message: String(err) }));
+          return true; // async
         } else if (message.type === 'TRIGGER_SCAN') {
           chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan: Boolean(message.fullRescan) }, res => {
             sendResponse({ success: Boolean(res?.ok) });
@@ -1949,6 +1575,37 @@ function init() {
   } catch {
     // Context may already be invalidated
   }
+
+  // Automatic scan when a Blackboard page loads (Settings > Scanning), at most every 30 minutes
+  if (!onExamPage) scheduleAutoScan();
+}
+
+/** A Blackboard sign-in page rather than a signed-in one (the service worker treats it as a signed-out session). */
+function isSignInPage(): boolean {
+  return Boolean(document.querySelector('input[type="password"]')) || /(?:^|\/)login(?:\/|$)/i.test(window.location.pathname);
+}
+
+/**
+ * Asks the service worker for a quiet scan: HTTP first, never reading the exam schedule. When
+ * Blackboard does not answer over HTTP the scan runs in this tab; no other tab is opened.
+ */
+function scheduleAutoScan(): void {
+  getSettings()
+    .then(settings => {
+      if (!settings.autoScanOnPageLoad || !isExtensionContextValid() || isSignInPage()) return;
+      setTimeout(async () => {
+        if (!isExtensionContextValid()) return;
+        if (!(await claimAutoScan(chrome.storage.local as any))) return;
+        try {
+          chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', auto: true }, () => {
+            void chrome.runtime.lastError;
+          });
+        } catch {
+          // Extension context invalidated: the next page load asks again
+        }
+      }, 2500);
+    })
+    .catch(() => {});
 }
 
 // Run after document is ready

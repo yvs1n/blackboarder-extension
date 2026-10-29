@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { createGoogleCalendarUrl, generateIcsContent, formatTaskTime, compareTasksByTime, formatCountdown } from '../src/utils/calendar';
 import { DeadlineTask } from '../src/types';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Calendar Utilities', () => {
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
   });
   const sampleTask: DeadlineTask = {
     id: 'test-task-1',

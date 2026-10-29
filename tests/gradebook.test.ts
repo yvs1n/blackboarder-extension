@@ -242,6 +242,7 @@ describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate mar
         maxScore: 20,
         scoreDisplay: '20 / 20 (100%)',
         gradeSourceId: 'gb:_1928045_1',
+        createdAt: '2026-10-28T08:00:00.000Z',
         dueDate: '2026-10-28T00:00:00.000Z'
       } as DeadlineTask,
       {
@@ -291,6 +292,7 @@ describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate mar
         maxScore: 10,
         scoreDisplay: '10 / 10',
         gradeSourceId: `gb:_${i}_1`,
+        createdAt: '2026-10-28T08:00:00.000Z',
         dueDate: '2026-10-28T09:00:00.000Z'
       } as DeadlineTask);
     }

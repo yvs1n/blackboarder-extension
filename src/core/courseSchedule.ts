@@ -1,9 +1,8 @@
 /**
- * Course Schedule Database & Class Time Resolution Engine
- * Source: schedule.pdf (Fall 2026/2027 Schedule - University of Sharjah)
+ * Class time and room resolution from the student's own courses (their class times and rooms).
  */
 import type { Weekday } from '../types';
-import { getActiveScheduleEntries } from './userCourses';
+import { getActiveScheduleEntries, pickCourseMatch } from './userCourses';
 
 export type { Weekday };
 
@@ -25,123 +24,6 @@ export interface CourseScheduleEntry {
   matcher: RegExp;
 }
 
-export const STUDENT_CLASS_SCHEDULE: CourseScheduleEntry[] = [
-  // 1. Introduction to Computer Eng.
-  {
-    courseId: 'compeng',
-    courseName: 'Introduction to Computer Eng.',
-    courseCode: '1502 101 01',
-    crn: '12056',
-    days: ['Tuesday', 'Thursday'],
-    dayIndices: [2, 4],
-    startHour: 11,
-    startMinute: 0,
-    endHour: 12,
-    endMinute: 15,
-    timeRangeDisplay: '11:00 AM - 12:15 PM',
-    location: "UOS Men's Campus, A8, 103",
-    room: 'A8-103',
-    instructor: 'Arain, Bilal',
-    matcher: /(?:intro.*comp|comp(?:uter)?\s*eng|هندسة.*حاسوب|حاسوب|1502101|0402101|0402102)/i
-  },
-
-  // 2. Calculus I for Engineering
-  {
-    courseId: 'calc1',
-    courseName: 'Calculus I for Engineering',
-    courseCode: '1440 133 02',
-    crn: '10806',
-    days: ['Tuesday', 'Thursday'],
-    dayIndices: [2, 4],
-    startHour: 12,
-    startMinute: 30,
-    endHour: 13,
-    endMinute: 45,
-    timeRangeDisplay: '12:30 PM - 01:45 PM',
-    location: "UOS Men's Campus, A12, 110",
-    room: 'A12-110',
-    instructor: 'Al-Teraifi, Randa',
-    matcher: /(?:calculus|calc\b|حسبان|1440133|1440131|0401101|0401201)/i
-  },
-
-  // 3. English for Academic Purposes
-  {
-    courseId: 'eap',
-    courseName: 'English for Academic Purposes',
-    courseCode: '0202 112 09',
-    crn: '10175',
-    days: ['Tuesday', 'Thursday'],
-    dayIndices: [2, 4],
-    startHour: 14,
-    startMinute: 0,
-    endHour: 15,
-    endMinute: 15,
-    timeRangeDisplay: '02:00 PM - 03:15 PM',
-    location: "UOS Men's Campus, A3, 184",
-    room: 'A3-184',
-    instructor: 'Manzol, Mutwakil',
-    matcher: /(?:english|eap\b|academic\s*purposes|إنجليزي|انجليزي|0202112|0202111)/i
-  },
-
-  // 4. Physics 1
-  {
-    courseId: 'phy1',
-    courseName: 'Physics 1',
-    courseCode: '1430 115 02',
-    crn: '10668',
-    days: ['Monday', 'Wednesday'],
-    dayIndices: [1, 3],
-    startHour: 11,
-    startMinute: 0,
-    endHour: 12,
-    endMinute: 15,
-    timeRangeDisplay: '11:00 AM - 12:15 PM',
-    location: "UOS Men's Campus, A8, 110",
-    room: 'A8-110',
-    instructor: 'Ahriche, Amine',
-    // Must NOT match Physics 1 Lab
-    matcher: /(?:physics\s*1(?!\s*lab)|general\s*physics\s*1|فيزياء\s*1(?!\s*عملي)|فيزياء\s*عامة\s*1|1430115)/i
-  },
-
-  // 5. Physics 1 Lab
-  {
-    courseId: 'phy1lab',
-    courseName: 'Physics 1 Lab',
-    courseCode: '1430 116 11L',
-    crn: '10708',
-    days: ['Wednesday'],
-    dayIndices: [3],
-    startHour: 14,
-    startMinute: 0,
-    endHour: 16,
-    endMinute: 45,
-    timeRangeDisplay: '02:00 PM - 04:45 PM',
-    location: "UOS Men's Campus, Central Laboratories (Men), 105",
-    room: 'Central Lab Men - 105',
-    instructor: 'Khudada Mohamed, Abdulraheem',
-    matcher: /(?:physics.*lab|phy(?:sics)?\s*1\s*lab|مختبر.*فيزياء|فيزياء.*عملي|1430116|measuring\s*density|free\s*fall|student'?s\s*lab)/i
-  },
-
-  // 6. Islamic Culture
-  {
-    courseId: 'islamic',
-    courseName: 'Islamic Culture',
-    courseCode: '0104 100 13A',
-    crn: '10475',
-    days: ['Monday', 'Wednesday'],
-    dayIndices: [1, 3],
-    startHour: 17,
-    startMinute: 0,
-    endHour: 18,
-    endMinute: 15,
-    timeRangeDisplay: '05:00 PM - 06:15 PM',
-    location: "UOS Men's Campus, A8, TH005",
-    room: 'A8-TH005',
-    instructor: 'Haq, Zia Ul',
-    matcher: /(?:islamic|ثقافة\s*إسلامية|ثقافة\s*اسلامية|إسلام|اسلام|0104100|0104101)/i
-  }
-];
-
 /**
  * Finds matching course schedule entry by course name, course code, or context.
  */
@@ -149,21 +31,8 @@ export function findCourseSchedule(courseNameOrCode: string, extraContext?: stri
   const combined = `${courseNameOrCode || ''} ${extraContext || ''}`.trim();
   if (!combined) return null;
 
-  const entries = getActiveScheduleEntries();
-
-  // First check Physics Lab specifically so it doesn't get hijacked by Physics 1
-  if (/(?:lab|مختبر|عملي)/i.test(combined) && /(?:physics|فيزياء)/i.test(combined)) {
-    const labEntry = entries.find(s => s.courseId === 'phy1lab' || /lab/i.test(s.courseName));
-    if (labEntry) return labEntry;
-  }
-
-  for (const entry of entries) {
-    if (entry.matcher.test(combined)) {
-      return entry;
-    }
-  }
-
-  return null;
+  // A lab course wins text that mentions a lab over its lecture course
+  return pickCourseMatch(getActiveScheduleEntries(), combined, entry => entry.matcher, entry => entry.courseName);
 }
 
 /**
@@ -184,7 +53,7 @@ export function isHomeTaskWithSpecificTime(text: string, hasSpecificTime: boolea
  * 1. If the instructor assigned an explicit time (e.g. 11:59 PM, 10:00 AM) or specifies done at home with a specific time:
  *    Preserve the instructor's assigned date and time!
  * 2. If NO specific time was given by the instructor (or generic default was used):
- *    Set the exact time to the class meeting start time from schedule.pdf!
+ *    Set the exact time to the class meeting start time from the student's course!
  */
 export function resolveTaskTimeWithSchedule(params: {
   dueDate: Date;
@@ -335,7 +204,7 @@ export function resolveTaskRoom(params: {
     return { room: existingRoom!.trim(), isCustom: true };
   }
 
-  // 3. Otherwise fall back to the default room from schedule.pdf
+  // 3. Otherwise fall back to the room on the student's course
   const schedule = findCourseSchedule(courseNameOrCode, combinedText);
   if (schedule && schedule.room) {
     return { room: schedule.room, isCustom: false };

@@ -2,7 +2,8 @@ import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile } from '
 import { mergeCloudTasks, mergeTombstones, TombstoneMap } from './taskMerge';
 import { purgeSyntheticGradebookTasks } from './gradebook';
 import { newerProfile, sanitizeProfile } from '../core/studentProfile';
-import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys } from './cloudSanitize';
+import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys, sanitizeScanRequest } from './cloudSanitize';
+import type { CloudScanRequest } from './cloudSanitize';
 
 /**
  * Every write to Firebase replaces the whole `users/{syncKey}/data` object, so each device first
@@ -10,6 +11,7 @@ import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, deco
  * - tasks: the newer `updatedAt` wins per task, deletions (tombstones) win unless the task was edited after
  * - courses and quick links: the list with the newer `...UpdatedAt` wins as a whole
  * - profile (university and grading scale): the newer `updatedAt` wins
+ * - scan request from the phone: the newer `requestedAt` wins; for the same request, done or error beats pending or running
  * Used by the extension (`pushTasksToFirebase`) and the phone app (`pushStateToCloud`, via BBCore).
  */
 
@@ -21,6 +23,7 @@ export interface SyncSide {
   quickLinks?: QuickLink[];
   quickLinksUpdatedAt?: string | null;
   profile?: StudentProfile | null;
+  scanRequest?: CloudScanRequest | null;
 }
 
 export interface MergedSync {
@@ -31,6 +34,7 @@ export interface MergedSync {
   quickLinks?: QuickLink[];
   quickLinksUpdatedAt?: string;
   profile?: StudentProfile;
+  scanRequest?: CloudScanRequest;
   /** True when the cloud's courses or quick links won, so this device should take them too */
   coursesFromCloud: boolean;
   quickLinksFromCloud: boolean;
@@ -63,6 +67,24 @@ export function pickNewerList<T>(
   return preferLocalOnTie ? localOut : cloudOut;
 }
 
+const scanFinished = (r: CloudScanRequest) => r.state === 'done' || r.state === 'error';
+
+/**
+ * Which scan request to keep. A newer request replaces an older one; for the same request a finished
+ * state (done, error) beats an unfinished one, so a whole-document write never undoes "done".
+ */
+export function newerScanRequest(local: unknown, cloud: unknown): CloudScanRequest | undefined {
+  const a = sanitizeScanRequest(local);
+  const b = sanitizeScanRequest(cloud);
+  if (!a) return b;
+  if (!b) return a;
+  const ta = time(a.requestedAt);
+  const tb = time(b.requestedAt);
+  if (ta !== tb) return ta > tb ? a : b;
+  if (scanFinished(a) !== scanFinished(b)) return scanFinished(a) ? a : b;
+  return b;
+}
+
 /** The cloud document (`users/{syncKey}/data`) as one side of the merge, cleaned. */
 export function readCloudSide(data: any): SyncSide {
   if (!data || typeof data !== 'object') return {};
@@ -73,7 +95,8 @@ export function readCloudSide(data: any): SyncSide {
     coursesUpdatedAt: typeof data.coursesUpdatedAt === 'string' ? data.coursesUpdatedAt : undefined,
     quickLinks: sanitizeCloudQuickLinks(data.quickLinks),
     quickLinksUpdatedAt: typeof data.quickLinksUpdatedAt === 'string' ? data.quickLinksUpdatedAt : undefined,
-    profile: sanitizeProfile(data.profile)
+    profile: sanitizeProfile(data.profile),
+    scanRequest: sanitizeScanRequest(data.scanRequest)
   };
 }
 
@@ -106,6 +129,7 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
     quickLinks: links.items,
     quickLinksUpdatedAt: links.updatedAt,
     profile: newerProfile(local.profile, c.profile) || undefined,
+    scanRequest: newerScanRequest(local.scanRequest, c.scanRequest),
     coursesFromCloud: courses.fromCloud,
     quickLinksFromCloud: links.fromCloud
   };

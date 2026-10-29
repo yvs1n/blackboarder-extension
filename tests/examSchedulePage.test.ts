@@ -12,8 +12,9 @@ import {
   isExamSchedulePage,
   mergeExamScheduleTasks
 } from '../src/core/examSchedule';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { setActiveUserCourses } from '../src/core/userCourses';
 import type { DeadlineTask } from '../src/types';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 const BANNER_STUDENT_EXAM_HTML = `
 <!DOCTYPE html>
@@ -208,7 +209,7 @@ const BANNER_STUDENT_EXAM_HTML = `
 
 describe('Banner Student Exam Schedule Page Parser', () => {
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
   });
 
   it('parses both standard 12-hour times and Banner 24-hour+PM hybrid times', () => {

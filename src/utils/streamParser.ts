@@ -58,16 +58,10 @@ export function parseDirectStreamCard(cardText: string): DeadlineTask | null {
     rawCourseText = lines[0];
   }
 
-  // If title was not after "Due:", extract meaningful lab/assignment name from cardText
-  if (!title) {
-    if (/measuring\s*density/i.test(cardText)) {
-      title = 'Measuring Density - Lab Report';
-    } else if (/free\s*fall/i.test(cardText)) {
-      title = 'Free Fall Exp. - Lab Report';
-    } else if (/lab\.?\s*report/i.test(cardText)) {
-      const match = cardText.match(/([^\n\r,]+(?:Lab\.?\s*Report|Exp\.?))/i);
-      title = match ? match[1].trim() : 'Lab Report';
-    }
+  // If title was not after "Due:", take the lab report or experiment name from cardText
+  if (!title && /lab\.?\s*report|\bexp(?:eriment)?\b/i.test(cardText)) {
+    const match = cardText.match(/([^\n\r,]+(?:Lab\.?\s*Report|Exp\.?))/i);
+    title = match ? match[1].trim() : 'Lab Report';
   }
 
   // Sanitize title: strip "Due in 2 days", "Reminder:", etc.

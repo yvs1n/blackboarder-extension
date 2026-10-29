@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { processAnnouncementsBatch } from '../src/engine/hybridExtractor';
 import { resolveTaskRoom } from '../src/core/courseSchedule';
 import { Announcement, DeadlineTask, UserSettings } from '../src/types';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Batch Rescan & In-Place Task Updating Engine', () => {
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
   });
   const defaultSettings: UserSettings = {
     customDomains: [],

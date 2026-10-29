@@ -5,13 +5,14 @@ import path from 'node:path';
 import { parseDirectStreamCard } from '../src/utils/streamParser';
 import { extractDeadlinesLocally } from '../src/engine/localExtractor';
 import { parseCourseDetails } from '../src/core/courseHelper';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Real Blackboard DOM Scraper & Layout Handling Suite', () => {
   let fixtureHtml: string;
 
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
     const fixturePath = path.join(__dirname, 'fixtures', 'test_ultra_stream_fixture.html');
     fixtureHtml = fs.readFileSync(fixturePath, 'utf8');
     document.body.innerHTML = fixtureHtml;

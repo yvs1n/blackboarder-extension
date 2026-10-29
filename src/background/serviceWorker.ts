@@ -9,7 +9,8 @@ import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
 import { dueClassReminders, nextClassReminderAt, classReminderText } from '../core/classSchedule';
 import { refreshExamSchedule } from './examRefresh';
-import { runHttpBlackboardScan, isHttpScanRunning } from './httpScanner';
+import { scanOrchestrator } from './scanOrchestrator';
+import { fetchCloudScanRequest, isScanRequestStale, SCAN_REQUEST_EXPIRED_MESSAGE } from '../utils/cloudScanRequest';
 
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
@@ -128,25 +129,44 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
       console.log('[Background Sync] Pulled and merged latest deadlines & course changes from Firebase into storage');
     }
 
-    // Fulfill any scan request triggered from the mobile PWA
-    if (syncKey && res.scanRequest && res.scanRequest.state === 'pending' && !isHttpScanRunning()) {
-      console.log('[Background Sync] Fulfilling pending scan request from PWA...');
-      const scanRes = await runHttpBlackboardScan(false, async () => {
-        await updateExtensionBadge();
-        await syncDeadlinesToMobileServer();
-      }).catch(err => ({ ok: false, message: String(err) }));
-      await markCloudScanRequestCompleted(
-        syncKey,
-        res.scanRequest.requestedAt,
-        scanRes.ok ? (scanRes.message || 'Scan complete! Deadlines updated.') : (scanRes.message || 'Scan failed.')
-      );
-      return true;
-    }
-
     return changed;
   } catch (err) {
-    console.warn('[Background Sync] Failed pulling tasks from Firebase:', err);
+    console.info('[Background Sync] Could not pull tasks from Firebase:', err);
     return false;
+  }
+}
+
+/** After a scan: refresh the badge and push the new tasks to Firebase. */
+async function afterScanSync() {
+  await updateExtensionBadge();
+  await syncDeadlinesToMobileServer();
+}
+
+/**
+ * Runs a scan the phone asked for. The 1-minute alarm reads only the scanRequest field; the full
+ * pull and merge stay on the 30-minute alarm. A request older than 15 minutes is closed unrun.
+ */
+async function pollCloudScanRequest() {
+  try {
+    const data = await chrome.storage.local.get(['bbs_settings']) as { bbs_settings?: UserSettings };
+    const syncKey = (data.bbs_settings?.syncKey || '').trim();
+    if (!syncKey || scanOrchestrator().isRunning()) return;
+    const req = await fetchCloudScanRequest(syncKey);
+    if (!req || req.state !== 'pending') return;
+    if (isScanRequestStale(req)) {
+      await markCloudScanRequestCompleted(syncKey, req.requestedAt, SCAN_REQUEST_EXPIRED_MESSAGE);
+      return;
+    }
+    console.info('[Background Sync] Running the scan the phone asked for...');
+    const scanRes = await scanOrchestrator().requestScan({ fullRescan: false, interactive: true, onSync: afterScanSync })
+      .catch(err => ({ ok: false, message: String(err) }));
+    await markCloudScanRequestCompleted(
+      syncKey,
+      req.requestedAt,
+      scanRes.ok ? (scanRes.message || 'Scan complete! Deadlines updated.') : (scanRes.message || 'Scan failed.')
+    );
+  } catch (err) {
+    console.error('[Background Sync] Phone scan request failed:', err);
   }
 }
 
@@ -370,14 +390,14 @@ chrome.alarms.onAlarm.addListener(alarm => {
     pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
     showDueClassReminders().then(() => scheduleClassReminder());
   } else if (alarm.name === CLOUD_SCAN_ALARM) {
-    pullTasksFromFirebaseToLocal();
+    pollCloudScanRequest();
   } else if (alarm.name === MIDNIGHT_ALARM_NAME) {
     syncDeadlinesToMobileServer(true);
     scheduleMidnightAlarm();
   }
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 2. Content Script Proxy: generative AI chat (bypasses Blackboard page CSP).
   // OpenRouter by default; IFM or a custom OpenAI-compatible URL when the student picked one.
   if (message.type === 'PROXY_OPENROUTER_CHAT') {
@@ -444,16 +464,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message.type === 'RUN_HTTP_SCAN') {
-    runHttpBlackboardScan(Boolean(message.fullRescan), async () => {
-      await updateExtensionBadge();
-      await syncDeadlinesToMobileServer();
+    // HTTP first; the tab scanner takes over when Blackboard does not answer (the asking tab, an
+    // open Blackboard tab, or a background tab). Automatic scans stay quiet and never open a tab.
+    const auto = Boolean(message.auto);
+    scanOrchestrator().requestScan({
+      fullRescan: Boolean(message.fullRescan),
+      interactive: !auto && message.interactive !== false,
+      auto,
+      senderTabId: typeof sender?.tab?.id === 'number' ? sender.tab.id : undefined,
+      onSync: afterScanSync
     })
       .then(res => sendResponse(res))
       .catch(err => sendResponse({ ok: false, error: String(err) }));
     return true;
   }
   if (message.type === 'PING_HTTP_SCANNER') {
-    sendResponse({ ok: true, scanning: isHttpScanRunning() });
+    sendResponse({ ok: true, scanning: scanOrchestrator().isRunning() });
     return false;
   }
   if (message.type === 'OPEN_POPUP') {

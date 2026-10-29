@@ -146,10 +146,10 @@ describe('Academic Quick Links Management & Sync', () => {
       }
     ];
 
-    await pushTasksToFirebase([], 'Extension Test', undefined, customLinks);
+    await pushTasksToFirebase([], 'Extension Test', 'BBS-TESTKEY1', customLinks);
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      `${FIREBASE_DB_URL}/data.json`,
+      `${FIREBASE_DB_URL}/users/BBS-TESTKEY1/data.json`,
       expect.objectContaining({
         method: 'PUT',
         body: expect.stringContaining('"quickLinks"')
@@ -184,7 +184,7 @@ describe('Academic Quick Links Management & Sync', () => {
       new Response(JSON.stringify(cloudPayload), { status: 200 })
     );
 
-    const res = await fetchTasksFromFirebase();
+    const res = await fetchTasksFromFirebase('BBS-TESTKEY1');
     expect(res.quickLinks).toBeDefined();
     expect(res.quickLinks).toHaveLength(1);
     expect(res.quickLinks?.[0].title).toBe('Cloud Attendance');

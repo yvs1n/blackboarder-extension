@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  DEFAULT_USER_COURSES,
   userCoursesToScheduleEntries,
   userCoursesToSyllabi,
   userCoursesToLegend,
@@ -14,34 +13,34 @@ import { findCourseSyllabus, resolveTaskWeight } from '../src/core/syllabusWeigh
 import { UserCourseConfig, DeadlineTask } from '../src/types';
 import {
   saveUserCourses,
-  resetUserCoursesToDefault,
   recalculateTasksWithActiveCourses,
   saveTasks,
   autoRegisterDiscoveredCourses
 } from '../src/utils/storage';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Dynamic User Courses & Adapters (userCourses.ts)', () => {
   beforeEach(() => {
     resetActiveUserCourses();
   });
 
-  it('contains 6 default courses with valid schedule and syllabus definitions', () => {
-    expect(DEFAULT_USER_COURSES.length).toBe(6);
+  it('sample fixture has 6 courses with valid schedule and syllabus definitions', () => {
+    expect(SAMPLE_COURSES.length).toBe(6);
 
-    const calc = DEFAULT_USER_COURSES.find(c => c.id === 'calc1');
+    const calc = SAMPLE_COURSES.find(c => c.id === 'calc1');
     expect(calc).toBeDefined();
     expect(calc?.scheduleSlots[0].startTime).toBe('12:30');
     expect(calc?.scheduleSlots[0].endTime).toBe('13:45');
     expect(calc?.scheduleSlots[0].room).toBe('A12-110');
     expect(calc?.syllabus.length).toBeGreaterThan(0);
 
-    const phyLab = DEFAULT_USER_COURSES.find(c => c.id === 'phy1lab');
+    const phyLab = SAMPLE_COURSES.find(c => c.id === 'phy1lab');
     expect(phyLab).toBeDefined();
     expect(phyLab?.scheduleSlots[0].room).toBe('Central Lab Men - 105');
   });
 
   it('converts UserCourseConfig[] into CourseScheduleEntry[]', () => {
-    const entries = userCoursesToScheduleEntries(DEFAULT_USER_COURSES);
+    const entries = userCoursesToScheduleEntries(SAMPLE_COURSES);
     expect(entries.length).toBe(6);
 
     const comp = entries.find(e => e.courseId === 'compeng');
@@ -54,7 +53,7 @@ describe('Dynamic User Courses & Adapters (userCourses.ts)', () => {
   });
 
   it('converts UserCourseConfig[] into CourseSyllabus[]', () => {
-    const syllabi = userCoursesToSyllabi(DEFAULT_USER_COURSES);
+    const syllabi = userCoursesToSyllabi(SAMPLE_COURSES);
     expect(syllabi.length).toBe(6);
 
     const eap = syllabi.find(s => s.courseId === 'eap');
@@ -66,8 +65,8 @@ describe('Dynamic User Courses & Adapters (userCourses.ts)', () => {
     expect(finalExam?.matcher.test('Final Exam')).toBe(true);
   });
 
-  it('converts UserCourseConfig[] into permanent course legend items', () => {
-    const legend = userCoursesToLegend(DEFAULT_USER_COURSES);
+  it('converts UserCourseConfig[] into course legend items', () => {
+    const legend = userCoursesToLegend(SAMPLE_COURSES);
     expect(legend.length).toBe(6);
     expect(legend.find(l => l.name === 'Calculus I for Engineering')?.hex).toBe('#dc2626');
   });
@@ -175,7 +174,7 @@ describe('Dynamic User Courses & Adapters (userCourses.ts)', () => {
     expect(recalculated?.room).toBe('W11-102');
 
     // Clean up
-    await resetUserCoursesToDefault();
+    await saveUserCourses(SAMPLE_COURSES);
   });
 
   it('reactively updates active legend when custom courses are added or modified', async () => {
@@ -192,7 +191,7 @@ describe('Dynamic User Courses & Adapters (userCourses.ts)', () => {
       syllabus: []
     };
 
-    await saveUserCourses([...DEFAULT_USER_COURSES, extraCourse]);
+    await saveUserCourses([...SAMPLE_COURSES, extraCourse]);
     const updatedLegend = getActiveCourseLegend();
     expect(updatedLegend.length).toBe(7);
 
@@ -201,7 +200,7 @@ describe('Dynamic User Courses & Adapters (userCourses.ts)', () => {
     expect(chemEntry?.hex).toBe('#059669');
     expect(chemEntry?.pattern.test('chem 1')).toBe(true);
 
-    await resetUserCoursesToDefault();
+    await saveUserCourses(SAMPLE_COURSES);
     expect(getActiveCourseLegend().length).toBe(6);
   });
 

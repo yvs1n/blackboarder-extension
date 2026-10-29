@@ -218,7 +218,7 @@ export function examScheduleRowToTask(row: ExamScheduleRow, nowIso: string = new
     matchedUserCourse = userCourses.find(uc => {
       const ucName = (uc.courseName || '').trim().toLowerCase();
       if (ucName && normRawTitle && ucName === normRawTitle) return true;
-      return compileCoursePattern(uc).test(combined);
+      return compileCoursePattern(uc, userCourses).test(combined);
     });
   }
 

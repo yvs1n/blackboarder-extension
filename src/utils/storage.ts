@@ -1,9 +1,9 @@
 import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, UserCourseConfig } from '../types';
 import { universityQuickLinks } from '../core/universities';
 import { isValidTask, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
-import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks, sanitizeTaskListMarks } from './taskMerge';
+import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks, mergeTombstones, sanitizeTaskListMarks } from './taskMerge';
 import { purgeSyntheticGradebookTasks } from './gradebook';
-import { DEFAULT_USER_COURSES, setActiveUserCourses } from '../core/userCourses';
+import { setActiveUserCourses } from '../core/userCourses';
 import { resolveTaskWeight } from '../core/syllabusWeights';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../core/courseSchedule';
 import { filterCleanUserCourses } from '../core/courseFilter';
@@ -406,8 +406,21 @@ export async function saveTasksMergingLatest(tasks: DeadlineTask[]): Promise<Dea
       tombstones = (data?.bbs_tombstones as Record<string, string>) || {};
     }
   } catch {}
-  const { tasks: merged } = mergeCloudTasks(tasks, stored, tombstones);
-  const { cleaned } = purgeSyntheticGradebookTasks(merged);
+  // Purge the incoming list first: mergeCloudTasks sanitizes silently, so purging only afterwards would never see these ids
+  const pre = purgeSyntheticGradebookTasks(tasks);
+  const { tasks: merged } = mergeCloudTasks(pre.cleaned, stored, tombstones);
+  const post = purgeSyntheticGradebookTasks(merged);
+  const cleaned = post.cleaned;
+  const purgedIds = [...pre.purgedIds, ...post.purgedIds];
+  if (purgedIds.length > 0 && isExtensionContextValid()) {
+    // Tombstone what was purged, as the cloud path does, so the cloud copy cannot bring it back next cycle
+    try {
+      const nowIso = new Date().toISOString();
+      const purged: Record<string, string> = {};
+      for (const pid of purgedIds) purged[pid] = nowIso;
+      await chrome.storage.local.set({ bbs_tombstones: mergeTombstones(tombstones, purged) });
+    } catch {}
+  }
   await saveTasks(cleaned);
   return cleaned;
 }
@@ -906,11 +919,6 @@ export async function saveUserCourses(courses: UserCourseConfig[], updatedAt?: s
       // Fall through
     }
   }
-}
-
-export async function resetUserCoursesToDefault(): Promise<UserCourseConfig[]> {
-  await saveUserCourses(DEFAULT_USER_COURSES);
-  return DEFAULT_USER_COURSES;
 }
 
 /**

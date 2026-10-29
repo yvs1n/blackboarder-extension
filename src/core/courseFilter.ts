@@ -1,6 +1,5 @@
 import type { UserCourseConfig } from '../types';
-import { isBlackboardSystemNoise, hasValidAcademicCourseCode } from './courseHelper';
-import { DEFAULT_USER_COURSES } from './userCourses';
+import { isBlackboardSystemNoise } from './courseHelper';
 import { sanitizeCloudCourses } from '../utils/cloudSanitize';
 
 /**
@@ -11,7 +10,6 @@ export function filterCleanUserCourses(rawCourses: UserCourseConfig[]): UserCour
   if (!Array.isArray(rawCourses)) return [];
   // Stored courses can originate from the cloud: repair missing arrays and unsafe colors up front
   const courses = sanitizeCloudCourses(rawCourses) ?? [];
-  const defaultIds = new Set(DEFAULT_USER_COURSES.map(d => d.id));
   const seenCodes = new Set<string>();
   const seenNames = new Set<string>();
   const result: UserCourseConfig[] = [];
@@ -22,15 +20,13 @@ export function filterCleanUserCourses(rawCourses: UserCourseConfig[]): UserCour
     if (!name && !code) continue;
 
     // Reject Blackboard system noise, navigation tabs, and Details & Actions items
-    if (isBlackboardSystemNoise(name) || isBlackboardSystemNoise(code)) {
+    // (an empty field is not noise: a course added by hand may have no code)
+    if ((name && isBlackboardSystemNoise(name)) || (code && isBlackboardSystemNoise(code))) {
       continue;
     }
 
-    // Require either a valid academic course code or an entry matching default courses
-    const isDefault = defaultIds.has(c.id);
-    if (!isDefault && !hasValidAcademicCourseCode(code) && !hasValidAcademicCourseCode(name)) {
-      continue;
-    }
+    // Anything else with a name or code stays: courses the student added by hand or imported need
+    // no academic code, and a saved course is never dropped just because it has none
 
     const normCode = code.replace(/[\s_-]+/g, '').toLowerCase();
     const normName = name.toLowerCase();

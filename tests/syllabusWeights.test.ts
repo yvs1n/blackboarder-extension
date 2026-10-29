@@ -1,15 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resolveTaskWeight, findCourseSyllabus, DEFAULT_SYLLABUS_DATABASE, extractAssessmentNumber } from '../src/core/syllabusWeights';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { resolveTaskWeight, findCourseSyllabus, getAllSyllabi, extractAssessmentNumber } from '../src/core/syllabusWeights';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Syllabus Weights Database & Resolution', () => {
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
   });
   it('contains all 6 configured courses with totalWeight of 100%', () => {
-    expect(DEFAULT_SYLLABUS_DATABASE.length).toBe(6);
+    expect(getAllSyllabi().length).toBe(6);
     expect(findCourseSyllabus('Calculus 1')?.courseId).toBe('calc1');
-    DEFAULT_SYLLABUS_DATABASE.forEach(course => {
+    getAllSyllabi().forEach(course => {
       const sum = course.components.reduce((acc, c) => acc + c.totalWeight, 0);
       expect(sum).toBe(100);
     });

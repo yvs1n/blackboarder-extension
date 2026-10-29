@@ -2,21 +2,20 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   findCourseSchedule,
   resolveTaskTimeWithSchedule,
-  STUDENT_CLASS_SCHEDULE,
   getAllCourseSchedules,
   extractRoomFromText,
   resolveTaskRoom
 } from '../src/core/courseSchedule';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Student Class Schedule Engine (schedule.pdf)', () => {
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
   });
   it('loads all 6 registered courses with accurate class timings', () => {
     const schedules = getAllCourseSchedules();
     expect(schedules.length).toBe(6);
-    expect(STUDENT_CLASS_SCHEDULE.length).toBe(6);
 
     const calc = schedules.find(s => s.courseId === 'calc1');
     expect(calc).toBeDefined();

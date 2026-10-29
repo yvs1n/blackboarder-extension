@@ -106,6 +106,32 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
   return out;
 }
 
+/**
+ * A scan the phone asked the extension to run (`data.scanRequest`). The phone sets it to pending,
+ * the extension marks it done or error. It is read back from the cloud, so only the known shape is kept.
+ */
+export interface CloudScanRequest {
+  state: 'pending' | 'running' | 'done' | 'error';
+  requestedAt: string;
+  completedAt?: string;
+  requestedBy?: string;
+  message?: string;
+}
+
+const SCAN_STATES = ['pending', 'running', 'done', 'error'];
+const isStamp = (v: unknown): v is string => typeof v === 'string' && v.length <= 40 && !isNaN(Date.parse(v));
+
+export function sanitizeScanRequest(raw: unknown): CloudScanRequest | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as any;
+  if (!SCAN_STATES.includes(r.state) || !isStamp(r.requestedAt)) return undefined;
+  const out: CloudScanRequest = { state: r.state, requestedAt: r.requestedAt };
+  if (isStamp(r.completedAt)) out.completedAt = r.completedAt;
+  if (typeof r.requestedBy === 'string' && r.requestedBy) out.requestedBy = r.requestedBy.slice(0, 40);
+  if (typeof r.message === 'string' && r.message) out.message = r.message.slice(0, 300);
+  return out;
+}
+
 export function sanitizeCloudQuickLinks(links: unknown): QuickLink[] | undefined {
   if (!Array.isArray(links)) return undefined;
   return links.filter(

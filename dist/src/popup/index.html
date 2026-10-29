@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-Dv13I8fA.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-BZtov5lZ.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-B55ml4k9.css">
 </head>
 <body>
@@ -303,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.11</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.12</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -331,7 +331,7 @@
     <!-- Course Colors Legend & Quick Filter Bar -->
     <div class="course-legend-bar" id="course-legend-panel">
       <div class="legend-chips-container" id="legend-chips-container">
-        <!-- Rendered dynamically from PERMANENT_COURSE_LEGEND with interactive chips -->
+        <!-- Rendered from the student's courses with interactive chips -->
       </div>
     </div>
 
@@ -566,7 +566,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Course Code & Name</label>
-        <input type="text" id="add-course" class="form-input" placeholder="e.g. Calculus 1 for Engineering" required>
+        <input type="text" id="add-course" class="form-input" placeholder="e.g. Calculus I" required>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
         <div class="form-group">
@@ -1039,7 +1039,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.11</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.12</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1376,12 +1376,7 @@
           <label class="form-label" for="extract-course-hint">Course <span style="font-weight: normal; color: var(--text-muted);">(Optional hint)</span></label>
           <select id="extract-course-hint" class="filter-select mobile-select" style="width: 100%;">
             <option value="">Auto-detect from text</option>
-            <option value="Calculus I for Engineering">Calculus I for Engineering (A12-110)</option>
-            <option value="Intro to Comp Eng.">Introduction to Computer Engineering (A8-103)</option>
-            <option value="Physics 1">Physics 1 (A8-110)</option>
-            <option value="Physics 1 Lab">Physics 1 Lab (Central Lab Men - 105)</option>
-            <option value="English for Academic Purposes">English for Academic Purposes (A3-184)</option>
-            <option value="Islamic Culture">Islamic Culture (A8-TH005)</option>
+            <!-- The student's own courses are added when the box opens -->
           </select>
         </div>
         <div class="form-group" style="margin-bottom: 10px;">
@@ -1492,7 +1487,7 @@
           <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-bottom: 8px;">
             <div class="form-group">
               <label class="form-label" for="editor-course-code">Course Code</label>
-              <input type="text" id="editor-course-code" class="form-input" placeholder="e.g. 1502101" required>
+              <input type="text" id="editor-course-code" class="form-input" placeholder="e.g. MATH 101" required>
             </div>
             <div class="form-group">
               <label class="form-label" for="editor-course-name">Course Name</label>
@@ -1667,7 +1662,7 @@
           <div style="margin-bottom: 10px;">
             <input type="file" id="input-import-json-file" accept=".json" style="font-size: 11px;">
           </div>
-          <textarea id="import-json-text" class="form-textarea" rows="5" placeholder='Paste JSON courses array here... e.g. [{"courseCode": "1502101", "courseName": "Intro to Comp Eng", ...}]' style="font-size: 11px; font-family: monospace;"></textarea>
+          <textarea id="import-json-text" class="form-textarea" rows="5" placeholder='Paste JSON courses array here... e.g. [{"courseCode": "MATH101", "courseName": "Calculus I", ...}]' style="font-size: 11px; font-family: monospace;"></textarea>
           <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
             <button type="button" class="btn-primary" id="btn-confirm-json-import" style="font-size: 11.5px; padding: 5px 14px;">
               Import Courses JSON

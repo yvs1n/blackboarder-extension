@@ -1,7 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parseCourseDetails, resolveCourseInfo } from '../src/core/courseHelper';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Course Details Extraction', () => {
+  beforeEach(() => {
+    setActiveUserCourses(SAMPLE_COURSES);
+  });
+
   it('extracts course name and code from UOS hyphenated format', () => {
     const raw = '0401201-01 Computer Programming (Spring 2026) - Announcements';
     const result = parseCourseDetails(raw);
@@ -46,11 +52,15 @@ describe('Course Details Extraction', () => {
     expect(res1.courseName).toBe('Physics 1 Lab');
     expect(res1.courseCode).toBe('1430116');
 
+    // "Topic of a paragraph" was a built-in rule for one English course; it now needs to be one of
+    // the student's own aliases (without it, the Blackboard nav label stays a general course)
     const rawEnglish = {
       courseName: 'Topic of a paragraph',
       courseCode: 'UOS',
       title: 'Topic of a paragraph'
     };
+    expect(resolveCourseInfo(rawEnglish).courseName).toBe('General Course');
+    setActiveUserCourses(SAMPLE_COURSES.map(c => c.id === 'eap' ? { ...c, aliases: [...c.aliases, 'topic of a paragraph'] } : c));
     const res2 = resolveCourseInfo(rawEnglish);
     expect(res2.courseName).toBe('English for Academic Purposes');
     expect(res2.courseCode).toBe('0202112');

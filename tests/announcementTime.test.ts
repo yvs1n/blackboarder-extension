@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { extractDeadlinesLocally } from '../src/engine/localExtractor';
 import { sanitizeDoctorAnnouncementText } from '../src/core/courseHelper';
 import { Announcement } from '../src/types';
-import { setActiveUserCourses, DEFAULT_USER_COURSES } from '../src/core/userCourses';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 describe('Midterm Exam Announcement Extraction & Text Sanitization', () => {
   beforeEach(() => {
-    setActiveUserCourses(DEFAULT_USER_COURSES);
+    setActiveUserCourses(SAMPLE_COURSES);
   });
   it('extracts date and exact doctor time (12:30 PM) from announcement with leading post timestamp', () => {
     const ann: Announcement = {

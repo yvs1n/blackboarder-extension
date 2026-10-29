@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { buildGpaSummary, gradeForPercent, bestOfFromNote, UOS_GRADE_SCALE } from '../src/utils/gpa';
 import { buildMarksSummary } from '../src/utils/marks';
 import { gradesHtml } from '../src/utils/grades';
-import { DEFAULT_USER_COURSES, userCoursesToSyllabi } from '../src/core/userCourses';
+import { userCoursesToSyllabi } from '../src/core/userCourses';
 import { sanitizeCloudCourses } from '../src/utils/cloudSanitize';
 import type { DeadlineTask } from '../src/types';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 let n = 0;
 function mark(courseName: string, title: string, type: DeadlineTask['type'], score: number, maxScore = 10): DeadlineTask {
@@ -14,7 +15,7 @@ function mark(courseName: string, title: string, type: DeadlineTask['type'], sco
   } as DeadlineTask;
 }
 
-const syllabi = userCoursesToSyllabi(DEFAULT_USER_COURSES);
+const syllabi = userCoursesToSyllabi(SAMPLE_COURSES);
 
 describe('UOS grade scale', () => {
   it('maps percentages to letters and points', () => {
@@ -102,15 +103,16 @@ describe('projected GPA', () => {
   });
 
   it('credit hours survive sync', () => {
-    const [c] = sanitizeCloudCourses([{ ...DEFAULT_USER_COURSES[0], creditHours: 4, syllabus: [{ id: 'q', name: 'Quizzes', type: 'quiz', totalWeight: 20, count: 2, outOf: 3 }] }])!;
+    const [c] = sanitizeCloudCourses([{ ...SAMPLE_COURSES[0], creditHours: 4, syllabus: [{ id: 'q', name: 'Quizzes', type: 'quiz', totalWeight: 20, count: 2, outOf: 3 }] }])!;
     expect(c.creditHours).toBe(4);
     expect(c.syllabus[0].outOf).toBe(3);
   });
 
-  it('a synced course without credit hours keeps the default course value', () => {
-    const lab = DEFAULT_USER_COURSES.find(c => c.id === 'phy1lab')!;
+  it('a synced course without credit hours counts as 3 (there is no built-in course to copy it from)', () => {
+    const lab = SAMPLE_COURSES.find(c => c.id === 'phy1lab')!;
+    expect(userCoursesToSyllabi([lab])[0].creditHours).toBe(1);
     const [syl] = userCoursesToSyllabi([{ ...lab, creditHours: undefined }]);
-    expect(syl.creditHours).toBe(1);
+    expect(syl.creditHours).toBe(3);
   });
 
   it('the card escapes titles and shows the dropped item', () => {

@@ -2,7 +2,7 @@ import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes } from '../core/courseHelper';
 import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
-import { purgeSyntheticGradebookTasks, isExamItem } from './gradebook';
+import { purgeSyntheticGradebookTasks, isExamItem, hasScanTimeDueDate } from './gradebook';
 
 export { extractAssessmentNumber };
 
@@ -412,6 +412,41 @@ export function getTaskSeriesInfo(
   };
 }
 
+const UNKNOWN_COURSE = /^(?:|uos|course|general course|other)$/;
+
+/**
+ * A course name without the decorations Blackboard adds in some places and not others:
+ * a leading course code ("PHYS 101 - "), brackets ("(Lecture)") and a trailing section ("- 12").
+ */
+function courseNameKey(name: string): string {
+  return name.toLowerCase()
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replace(/^\s*[a-z]{2,6}\s?-?\d{3,4}[a-z]?\b\s*[-\u2013:|]?\s*/i, '')
+    .replace(/\s*(?:[-\u2013:|]\s*(?:section|sec|s)?|\b(?:section|sec))\s*\d{1,3}[a-z]?\s*$/i, '')
+    .replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+}
+
+/**
+ * How two tasks' courses compare. 'unknown' means one of them names no course at all
+ * (the stream sometimes gives none), which only a stronger title and date check can settle.
+ */
+function compareTaskCourses(a: DeadlineTask, b: DeadlineTask): 'same' | 'different' | 'unknown' {
+  const infoA = resolveCourseInfo(a);
+  const infoB = resolveCourseInfo(b);
+  const nameA = infoA.courseName.trim().toLowerCase();
+  const nameB = infoB.courseName.trim().toLowerCase();
+  if (nameA === nameB && !UNKNOWN_COURSE.test(nameA)) return 'same';
+  if (UNKNOWN_COURSE.test(nameA) || UNKNOWN_COURSE.test(nameB)) {
+    return UNKNOWN_COURSE.test(nameA) && UNKNOWN_COURSE.test(nameB) ? 'same' : 'unknown';
+  }
+  const codeA = infoA.courseCode.replace(/\s+/g, '').toUpperCase();
+  const codeB = infoB.courseCode.replace(/\s+/g, '').toUpperCase();
+  if (codeA && codeB && codeA !== 'UOS' && codeB !== 'UOS') return codeA === codeB ? 'same' : 'different';
+  const keyA = courseNameKey(nameA);
+  const keyB = courseNameKey(nameB);
+  return keyA.length >= 4 && keyA === keyB ? 'same' : 'different';
+}
+
 /**
  * Checks if two tasks represent the exact same real-world deadline.
  */
@@ -419,18 +454,26 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   if (!a || !b) return false;
   if (a.id === b.id) return true;
 
-  // Exact same grade source ID from gradebook column (e.g. col__1924969_1) when in the same course
-  const courseA = resolveCourseInfo(a).courseName.toLowerCase();
-  const courseB = resolveCourseInfo(b).courseName.toLowerCase();
-  if (courseA !== courseB) return false;
-
-  if (a.gradeSourceId && b.gradeSourceId && a.gradeSourceId === b.gradeSourceId) return true;
+  const courses = compareTaskCourses(a, b);
+  if (courses === 'different') return false;
 
   // A practice run, mock exam, or sample paper never matches a real assessment
   if (isPracticeTitle(a.title) !== isPracticeTitle(b.title)) return false;
 
   const cleanA = (a.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
   const cleanB = (b.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+
+  if (courses === 'unknown') {
+    // One copy names no course: only the same title on the same day is the same deadline
+    const dayA = new Date(a.dueDate).getTime();
+    const dayB = new Date(b.dueDate).getTime();
+    if (isNaN(dayA) || isNaN(dayB)) return false;
+    return !!cleanA && cleanA === cleanB &&
+      new Date(dayA).toISOString().slice(0, 10) === new Date(dayB).toISOString().slice(0, 10);
+  }
+
+  // Exact same grade source ID from gradebook column (e.g. col__1924969_1) when in the same course
+  if (a.gradeSourceId && b.gradeSourceId && a.gradeSourceId === b.gradeSourceId) return true;
 
   // One announcement can announce several deadlines, so a shared announcement only
   // means "same task" when the titles also match.
@@ -592,9 +635,14 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     dueDate = incoming.dueDate;
     hasSpecificTime = incoming.hasSpecificTime;
   } else {
-    const isScanDate = (d?: string) => Boolean(d && d.startsWith('2026-10-28'));
-    const existReal = Boolean(existing.dueDate && !isScanDate(existing.dueDate));
-    const inReal = Boolean(incoming.dueDate && !isScanDate(incoming.dueDate));
+    // A scan-time date is a gradebook-sourced task whose due date is the day it was created
+    const isScanDate = (t: DeadlineTask) => Boolean(
+      t.dueDate && !t.announcementId &&
+      (t.id.startsWith('gbcol_') || t.id.startsWith('gbmark_') || t.sourceSnippet === 'gradebook') &&
+      hasScanTimeDueDate(t)
+    );
+    const existReal = Boolean(existing.dueDate && !isScanDate(existing));
+    const inReal = Boolean(incoming.dueDate && !isScanDate(incoming));
     if (existReal && !inReal) {
       dueDate = existing.dueDate;
       hasSpecificTime = existing.hasSpecificTime;

@@ -1,5 +1,4 @@
-import { PERMANENT_COURSE_LEGEND } from './courseColors';
-import { getActiveCourseLegend, getActiveUserCourses, compileCoursePattern } from './userCourses';
+import { getActiveCourseLegend, getActiveUserCourses, findActiveCourseInText } from './userCourses';
 
 /**
  * Utility to extract clean course names and course codes from Blackboard text.
@@ -166,10 +165,7 @@ export function parseCourseDetails(rawText: string): CourseInfo {
     .replace(/\(UTC[+-]?\d+\)/gi, '')
     .trim();
 
-  // Recognize known Physics 1 Lab assignments/reports
-  if (/measuring\s*density|free\s*fall|lab\.?\s*report|student's\s*lab/i.test(clean)) {
-    return { code: '1430116', name: 'Physics 1 Lab' };
-  }
+  const originalText = clean;
 
   // Match Blackboard external course prefix:
   // e.g. "1430116_10708_FALL2026-2027 Physics 1 Lab..." or "CS101_01_FALL2026 Introduction..."
@@ -229,26 +225,12 @@ export function parseCourseDetails(rawText: string): CourseInfo {
     name = code !== 'UOS' ? `Course ${code}` : 'General Course';
   }
 
-  // Recognize standard Arabic course names when code is missing or generic UOS
+  // Without a code, the student's own course the text names (its name or one of its aliases, Arabic
+  // names and assignment titles included) gives the course; the original text is checked too
   if (code === 'UOS' || !code) {
-    if (/(?:ثقافة\s*إسلامية|ثقافة\s*اسلامية|الثقافة\s*الإسلامية|الثقافة\s*الاسلامية)/i.test(name)) {
-      name = 'Islamic Culture';
-      code = '0104100';
-    } else if (/(?:حسبان\s*1|حسبان\s*للمهندسين)/i.test(name)) {
-      name = 'Calculus I for Engineering';
-      code = '1440133';
-    } else if (/(?:مقدمة\s*في\s*هندسة\s*الحاسوب|هندسة\s*الحاسوب)/i.test(name)) {
-      name = 'Introduction to Computer Eng.';
-      code = '1502101';
-    } else if (/(?:مختبر\s*فيزياء\s*1|مختبر\s*الفيزياء\s*1)/i.test(name)) {
-      name = 'Physics 1 Lab';
-      code = '1430116';
-    } else if (/(?:الفيزياء\s*1|فيزياء\s*1)/i.test(name)) {
-      name = 'Physics 1';
-      code = '1430115';
-    } else if (/(?:اللغة\s*الإنجليزية\s*لأغراض\s*أكاديمية|لغة\s*إنجليزية\s*لأغراض\s*أكاديمية)/i.test(name)) {
-      name = 'English for Academic Purposes';
-      code = '0202112';
+    const known = findActiveCourseInText(name) || findActiveCourseInText(originalText);
+    if (known && (known.courseName || known.courseCode)) {
+      return { code: (known.courseCode || '').replace(/\s+/g, '').toUpperCase() || 'UOS', name: known.courseName || name };
     }
   }
 
@@ -260,8 +242,38 @@ export function parseCourseDetails(rawText: string): CourseInfo {
   return { code, name };
 }
 
+/** The student's course names and plain aliases (no regex syntax), longest first, for header stripping. */
+function activeCourseHeaderNames(): string[] {
+  const names = new Set<string>();
+  for (const c of getActiveUserCourses()) {
+    if (c && typeof c.courseName === 'string' && c.courseName.trim().length > 3) names.add(c.courseName.trim());
+    for (const alias of Array.isArray(c?.aliases) ? c.aliases : []) {
+      if (typeof alias !== 'string') continue;
+      const a = alias.trim();
+      if (a.length >= 3 && /[A-Za-z؀-ۿ]/.test(a) && !/[\\.*+?^${}()|[\]]/.test(a)) names.add(a);
+    }
+  }
+  return Array.from(names).sort((x, y) => y.length - x.length);
+}
+
 /**
- * Strips Blackboard system noise (posted timestamps like "1:21 PM\n" or "14 minutes ago\n",
+ * Patterns for a course header at the start of a stream card: "<name> - 02 - <Arabic name>" (the
+ * Arabic title after the section, up to the line end or the first Latin letter), then the shorter
+ * "<name> - 02 -".
+ */
+function courseHeaderPatterns(names: string[]): RegExp[] {
+  const list = names.filter(Boolean).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'));
+  if (!list.length) return [];
+  const alt = `(?:${list.join('|')})`;
+  return [
+    new RegExp(`^\\s*${alt}\\s*[-–—:]+\\s*\\d{1,2}[A-Z]?\\s*[-–—:]+[ \\t]*(?:[\\u0600-\\u06FF][\\u0600-\\u06FF\\d \\t]*)?[-–—:]*\\s*`, 'i'),
+    new RegExp(`^\\s*${alt}\\s*[-–—:]*\\s*(?:\\b\\d{1,2}[A-Z]?\\b)?\\s*[-–—:]*\\s*`, 'i')
+  ];
+}
+
+/**
+ * Strips Blackboard system noise (posted timestamps
+ like "1:21 PM\n" or "14 minutes ago\n",
  * course header banner lines, and section numbers) from the very beginning of a raw DOM scrape,
  * leaving the professor's actual announcement text 100% intact and complete.
  * Never trims mid-sentence words, dates, or titles.
@@ -289,21 +301,14 @@ export function sanitizeDoctorAnnouncementText(
     /^\s*(?:منذ\s+\d+\s+(?:دقائق|دقيقة|ساعات|ساعة|أيام|يوم)|اليوم|أمس)(?:\s+الساعة)?\s*(?:\d{1,2}:\d{2}\s*(?:صباحاً|صباحا|مساءً|مساء)?)?\s*/
   ];
 
-  // Known course header banners appearing at top of stream cards
-  const knownCoursePatterns = [
-    /^\s*(?:Introduction\s+to\s+Computer\s+Eng(?:\.|ineering)?|مقدمة\s+في\s+هندسة\s+الحاسوب)\s*[-–—:]*\s*(?:\b\d{1,2}[A-Z]?\b)?\s*[-–—:]*\s*(?:مقدمة\s+في\s+هندسة\s+الحاسوب|Introduction\s+to\s+Computer\s+Eng(?:\.|ineering)?)?\s*[-–—:]*\s*/i,
-    /^\s*(?:Calculus\s+I\s+(?:for\s+Engineering)?|حسبان\s*1(?:\s*للمهندسين)?)\s*[-–—:]*\s*(?:\b\d{1,2}[A-Z]?\b)?\s*[-–—:]*\s*(?:حسبان\s*1(?:\s*للمهندسين)?|Calculus\s+I\s+(?:for\s+Engineering)?)?\s*[-–—:]*\s*/i,
-    /^\s*(?:Physics\s*1\s*Lab|مختبر\s*فيزياء\s*1|فيزياء\s*1\s*عملي)\s*[-–—:]*\s*(?:\b\d{1,2}[A-Z]?\b)?\s*[-–—:]*\s*/i,
-    /^\s*(?:Physics\s*1|General\s*Physics\s*1|فيزياء\s*1|فيزياء\s*عامة\s*1)\s*[-–—:]*\s*(?:\b\d{1,2}[A-Z]?\b)?\s*[-–—:]*\s*/i,
-    /^\s*(?:English\s+for\s+Academic\s+Purposes|EAP|إنجليزي|انجليزي)\s*[-–—:]*\s*(?:\b\d{1,2}[A-Z]?\b)?\s*[-–—:]*\s*/i,
-    /^\s*(?:Islamic\s+Culture|ثقافة\s*إسلامية|ثقافة\s*اسلامية)\s*[-–—:]*\s*(?:\b\d{1,2}[A-Z]?\b)?\s*[-–—:]*\s*/i
-  ];
+  // Course header banners at the top of stream cards ("<name> - 02 - <Arabic name>"), from the
+  // student's own course names and plain aliases
+  const knownCoursePatterns = courseHeaderPatterns(activeCourseHeaderNames());
 
   // Specific course name or code passed from context
   const dynamicCoursePatterns: RegExp[] = [];
   if (courseName && courseName !== 'General Course' && courseName.trim().length > 3) {
-    const escaped = courseName.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    dynamicCoursePatterns.push(new RegExp(`^\\s*${escaped}\\s*[-–—:]*\\s*(?:\\b\\d{1,2}[A-Z]?\\b)?\\s*[-–—:]*`, 'i'));
+    dynamicCoursePatterns.push(...courseHeaderPatterns([courseName.trim()]));
   }
   if (courseCode && courseCode !== 'UOS' && courseCode.trim().length > 2) {
     const escapedCode = courseCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
@@ -382,9 +387,9 @@ export function sanitizeDoctorAnnouncementText(
 
 /**
  * Standardizes and normalizes course name and course code from task fields and text patterns.
- * Solves raw Ultra stream card strings (e.g. "Measuring Density...", "Topic of a paragraph...")
- * by resolving to official course titles ("Physics 1 Lab", "English for Academic Purposes")
- * while preserving custom edits made by the user.
+ * Solves raw Ultra stream card strings (an assignment title in place of the course) by resolving
+ * them to the student's own course names through their names and aliases, while preserving
+ * custom edits made by the user.
  */
 export function resolveCourseInfo(task: {
   courseName?: string;
@@ -398,88 +403,45 @@ export function resolveCourseInfo(task: {
   let courseCode = (task.courseCode || '').trim();
   const title = (task.title || '').trim();
 
-  // Fix messy Ultra stream direct assignments
-  if (/measuring\s*density/i.test(courseName) || /measuring\s*density/i.test(title)) {
-    courseName = 'Physics 1 Lab';
-    courseCode = '1430116';
-  } else if (/free\s*fall/i.test(courseName) || /free\s*fall/i.test(title)) {
-    courseName = 'Physics 1 Lab';
-    courseCode = '1430116';
-  } else if (/vectors?\s*exp/i.test(courseName) || /vectors?\s*exp/i.test(title)) {
-    courseName = 'Physics 1 Lab';
-    courseCode = '1430116';
-  } else if (/lab\.?\s*report/i.test(courseName) || /student's\s*lab/i.test(courseName)) {
-    courseName = 'Physics 1 Lab';
-    courseCode = '1430116';
-  } else if (/topic\s*of\s*a\s*paragraph/i.test(courseName) || /topic\s*of\s*a\s*paragraph/i.test(title)) {
-    courseName = 'English for Academic Purposes';
-    courseCode = '0202112';
-  } else {
-    // Strip trailing stream card metadata
-    courseName = courseName
-      .replace(/(?:Report)?Due\s*date:.*$/gi, '')
-      .replace(/New\s*Group\s*\d+/gi, '')
-      .replace(/\(UTC[+-]?\d+\)/gi, '')
-      .replace(/^[:\-–—|\s]+|[:\-–—|\s]+$/g, '')
-      .trim();
-  }
+  // Strip trailing stream card metadata
+  courseName = courseName
+    .replace(/(?:Report)?Due\s*date:.*$/gi, '')
+    .replace(/New\s*Group\s*\d+/gi, '')
+    .replace(/\(UTC[+-]?\d+\)/gi, '')
+    .replace(/^[:\-–—|\s]+|[:\-–—|\s]+$/g, '')
+    .trim();
+
+  const userCourses = getActiveUserCourses();
+  const isOwnCourse = (name: string) => {
+    const lower = name.toLowerCase();
+    return userCourses.some(c => (c.courseName || '').trim().toLowerCase() === lower);
+  };
 
   const isGeneric = !courseName || 
                     courseName.toLowerCase() === 'uos' || 
                     courseName.toLowerCase() === 'course' || 
                     courseName.toLowerCase() === 'general course' ||
-                    courseName === courseCode;
+                    courseName === courseCode ||
+                    isBlackboardSystemNoise(courseName);
 
   if (isGeneric) {
+    // No usable course name: the student's course the code, title or text names
     const combined = `${courseCode} ${courseName} ${title} ${task.description || ''} ${task.sourceSnippet || ''} ${task.notes || ''}`;
-    const userCourses = getActiveUserCourses();
-    let matched = false;
-
-    // First check Physics 1 Lab specifically if lab is mentioned
-    if (/(?:phys(?:ics)?.*lab|lab.*phys(?:ics)?|مختبر.*فيزياء|1430116)/i.test(combined)) {
-      const labCourse = userCourses.find(c => c.id === 'phy1lab' || /lab/i.test(c.courseName));
-      if (labCourse) {
-        courseName = labCourse.courseName;
-        courseCode = labCourse.courseCode;
-        matched = true;
-      }
+    const match = findActiveCourseInText(combined);
+    if (match) {
+      courseName = match.courseName;
+      courseCode = match.courseCode;
+    } else if (courseName && isBlackboardSystemNoise(courseName)) {
+      // A Blackboard navigation label is never a course
+      courseName = '';
     }
-
-    if (!matched) {
-      for (const uc of userCourses) {
-        if (uc.id === 'phy1' && /(?:lab|مختبر|عملي)/i.test(combined)) {
-          continue;
-        }
-        const pat = compileCoursePattern(uc);
-        if (pat.test(combined)) {
-          courseName = uc.courseName;
-          courseCode = uc.courseCode;
-          matched = true;
-          break;
-        }
-      }
-    }
-
-    if (!matched) {
-      if (/(?:intro.*comp|comp(?:uter)?\s*eng|هندسة.*حاسوب|حاسوب|1502101|0402101)/i.test(combined)) {
-        courseName = 'Introduction to Computer Eng.';
-        courseCode = '1502101';
-      } else if (/(?:calculus|calc\b|حسبان|1440133|1440131|0401101)/i.test(combined)) {
-        courseName = 'Calculus I for Engineering';
-        courseCode = '1440133';
-      } else if (/(?:english|eap\b|academic\s*purposes|academic\s*english|إنجليزي|انجليزي|0202112)/i.test(combined)) {
-        courseName = 'English for Academic Purposes';
-        courseCode = '0202112';
-      } else if (/(?:phys(?:ics)?.*lab|lab.*phys(?:ics)?|مختبر.*فيزياء|1430116)/i.test(combined)) {
-        courseName = 'Physics 1 Lab';
-        courseCode = '1430116';
-      } else if (/(?:physics\s*1(?!\s*lab)|general\s*physics\s*1|فيزياء\s*1|1430115)/i.test(combined)) {
-        courseName = 'Physics 1';
-        courseCode = '1430115';
-      } else if (/(?:islamic|إسلام|اسلام|ثقافة|0104100)/i.test(combined)) {
-        courseName = 'Islamic Culture';
-        courseCode = '0104100';
-      }
+  } else if (!isOwnCourse(courseName)) {
+    // A raw Ultra stream string in place of the course ("Measuring Density - Lab Report") or a short
+    // form of a course name: the student's course it names, from their names and aliases
+    const match = findActiveCourseInText(courseName);
+    if (match && match.courseName) {
+      courseName = match.courseName;
+      courseCode = match.courseCode || courseCode;
     }
   }
 
@@ -754,8 +716,7 @@ export function matchesSelectedCourseFilter(task: {
     return true;
   }
   const activeLegend = getActiveCourseLegend();
-  const legendItem = activeLegend.find(c => c.name === filter || c.code === filter) ||
-                     PERMANENT_COURSE_LEGEND.find(c => c.name === filter || c.code === filter);
+  const legendItem = activeLegend.find(c => c.name === filter || c.code === filter);
   if (legendItem) {
     const combined = `${task.courseName || ''} ${task.courseCode || ''} ${courseName || ''} ${courseCode || ''} ${task.title || ''}`;
     if (legendItem.pattern.test(combined)) {

@@ -510,6 +510,19 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
   return changedTasks.size;
 }
 
+/** True when the due date is on the same calendar day the task was created: a scan-time placeholder, not a real date. */
+export function hasScanTimeDueDate(t: Pick<DeadlineTask, 'dueDate' | 'createdAt'>): boolean {
+  return Boolean(t.dueDate && t.createdAt && t.dueDate.slice(0, 10) === t.createdAt.slice(0, 10));
+}
+
+/** A completed official gradebook mark (not announced) whose due date is only a scan-time placeholder. */
+function needsGradebookDateReset(t: DeadlineTask): boolean {
+  return Boolean(
+    t && t.id && t.id.startsWith('gbcol_') && t.status === 'completed' && t.sourceSnippet === 'gradebook' &&
+    !t.announcementId && hasScanTimeDueDate(t)
+  );
+}
+
 /**
  * Identifies synthetic deadline tasks created from gradebook columns.
  * Gradebook columns are for marks and grades only; they must never be deadline tasks on the calendar.
@@ -556,21 +569,11 @@ export function isSyntheticGradebookTask(t: DeadlineTask, allTasks?: DeadlineTas
       if (hasOtherExam) return true;
     }
 
-    // 2. Completed gradebook column tasks with artificial scan-time due dates (e.g. 2026-10-28)
-    const isScanDate = Boolean(
-      (t.dueDate || '').startsWith('2026-10-28') ||
-      (t.dueDate && t.createdAt && t.dueDate.slice(0, 10) === t.createdAt.slice(0, 10))
-    );
-
-    if (t.status === 'completed' && isScanDate && !t.announcementId) {
-      if (t.sourceSnippet === 'gradebook') {
-        if (t.dueDate !== '') {
-          t.dueDate = '';
-          t.hasSpecificTime = false;
-        }
-        return false;
-      }
-      return true;
+    // 2. Completed gradebook column tasks whose due date is just the day they were created (a scan-time
+    // placeholder). Marks with an official gradebook source are kept; purgeSyntheticGradebookTasks clears
+    // their placeholder date. This predicate never changes the task it is given.
+    if (t.status === 'completed' && hasScanTimeDueDate(t) && !t.announcementId) {
+      return t.sourceSnippet !== 'gradebook';
     }
   }
 
@@ -584,15 +587,29 @@ export function isSyntheticGradebookTask(t: DeadlineTask, allTasks?: DeadlineTas
  * If any synthetic task carried a real score for a matching task in the course (e.g. EAP Midterm Exam -> Midterm),
  * the mark is transferred to the real task so no legitimate grade is lost.
  */
-export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: DeadlineTask[]; purgedIds: string[] } {
-  if (!Array.isArray(tasks) || tasks.length === 0) return { cleaned: [], purgedIds: [] };
+export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: DeadlineTask[]; purgedIds: string[]; normalizedIds: string[] } {
+  if (!Array.isArray(tasks) || tasks.length === 0) return { cleaned: [], purgedIds: [], normalizedIds: [] };
 
-  const synthetic = tasks.filter(t => isSyntheticGradebookTask(t, tasks));
-  if (synthetic.length === 0) return { cleaned: tasks, purgedIds: [] };
+  // Step 1: official gradebook marks that still carry a scan-time placeholder due date lose that date.
+  // The task is copied, never edited in place, and gets a new updatedAt (Rule 5): the cloud copy still has
+  // the placeholder, and without the bump the older cloud copy would win the next merge and bring it back.
+  // This happens once; afterwards the date is empty and nothing matches again.
+  const normalizedIds: string[] = [];
+  const nowIso = new Date().toISOString();
+  const work = tasks.map(t => {
+    if (needsGradebookDateReset(t)) {
+      normalizedIds.push(t.id);
+      return { ...t, dueDate: '', hasSpecificTime: false, updatedAt: nowIso };
+    }
+    return t;
+  });
+
+  const synthetic = work.filter(t => isSyntheticGradebookTask(t, work));
+  if (synthetic.length === 0) return { cleaned: normalizedIds.length > 0 ? work : tasks, purgedIds: [], normalizedIds };
 
   const purgedIds = synthetic.map(t => t.id);
   const syntheticSet = new Set(purgedIds);
-  const realTasks = tasks.filter(t => !syntheticSet.has(t.id));
+  const realTasks = work.filter(t => !syntheticSet.has(t.id));
 
   // Transfer marks from purged synthetic tasks to matching real tasks in the same course
   for (const s of synthetic) {
@@ -628,6 +645,12 @@ export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: 
     }
 
     if (realMatch) {
+      // Copy before writing so the caller's (or the cloud copy's) task object is not edited in place
+      const idx = realTasks.indexOf(realMatch);
+      if (idx >= 0) {
+        realMatch = { ...realMatch };
+        realTasks[idx] = realMatch;
+      }
       realMatch.submissionStatus = 'graded';
       realMatch.score = s.score;
       realMatch.maxScore = s.maxScore;
@@ -639,6 +662,5 @@ export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: 
     }
   }
 
-  const cleaned = tasks.filter(t => !syntheticSet.has(t.id));
-  return { cleaned, purgedIds };
+  return { cleaned: realTasks, purgedIds, normalizedIds };
 }

@@ -7,6 +7,8 @@ import { buildMarksSummary } from '../src/utils/marks';
 import { gradesHtml } from '../src/utils/grades';
 import { buildGpaSummary, UOS_GRADE_SCALE } from '../src/utils/gpa';
 import { DeadlineTask, TaskSubmissionUpdate } from '../src/types';
+import { setActiveUserCourses } from '../src/core/userCourses';
+import { SAMPLE_COURSES } from './fixtures/sampleCourses';
 
 function makeTask(partial: Partial<DeadlineTask>): DeadlineTask {
   return {
@@ -30,7 +32,8 @@ function makeTask(partial: Partial<DeadlineTask>): DeadlineTask {
 }
 
 describe('Islamic Culture Research and Submitted Items Safety', () => {
-  it('normalizes Arabic course names to standard names and codes in parseCourseDetails', () => {
+  it('normalizes Arabic course names to the student\'s course names and codes in parseCourseDetails', () => {
+    setActiveUserCourses(SAMPLE_COURSES);
     expect(parseCourseDetails('الثقافة الإسلامية')).toEqual({
       name: 'Islamic Culture',
       code: '0104100'

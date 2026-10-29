@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.12] - 2026-10-29
+
+### Added
+
+- **Scan fallback.** Every scan tries Blackboard over HTTP first. If Blackboard cannot be reached, or the course list and the activity stream both fail, the scan runs again in a Blackboard tab: the tab that asked, an open one, or a background tab that is opened and closed again. A signed-out session never falls back, and a partial failure says how many courses could not be read.
+- **One scan pipeline.** The HTTP scanner and the tab scanner share the same Blackboard readers and the same save steps (`src/scan/`), so a fix lands in both.
+
+### Fixed
+
+- **Auto-scan works again.** The "Auto-scan" setting scans quietly when a Blackboard page loads, at most every 30 minutes. It had no effect since 1.4.10.
+- **Phone scan requests are no longer lost.** Every sync from the extension, the phone or the server dropped a pending "Scan Blackboard" request. They now keep it, and a request older than 15 minutes expires instead of waiting forever.
+- **Lost updates between devices.** Cloud writes use Firebase ETags, so a write that raced another device is merged again and retried.
+- **The server no longer wipes data.** A cloud copy with no deadlines was read as empty, and the next server sync deleted courses, quick links and deletion records. A failed read now refuses to write, and a refused write is reported as a failure instead of success.
+- **Real marks dated October 28 are kept.** Hardcoded dates in the gradebook cleanup removed any student's real completed item due on 2026-10-28 or 2026-10-29. The cleanup no longer changes the tasks it checks, and deletions it makes are recorded on this device too.
+- **No more doubled deadlines ("Quiz 2, Quiz 2").** The same deadline from the HTTP scan and the page scan showed twice when the two named its course differently ("PHYS 101 - Physics I" and "Physics I") or one gave no course. Course names are now compared without codes in front or sections after, and a copy with no course merges only with the same title on the same day.
+- **Lighter background checks.** The extension checks for a phone scan request by reading only that request every minute, instead of downloading all synced data.
+- **Sync key kept out of calendars.** The calendar subscription name no longer shows the sync key.
+- **Server checks.** The sync API checks sizes and shapes, accepts only known task states, blocks more private addresses for custom AI URLs, and never falls back to the database root without a sync key.
+
+### Removed
+
+- **Built-in courses and syllabus data.** There are no default courses, class schedules, syllabus weights, course colours or Blackboard course ids built in any more. Courses come only from your enrolment list, file import or manual entry; saved courses are kept. Reset Courses now clears the list for every university.
+
+---
+
 ## [1.4.11] - 2026-10-29
 
 ### Fixed
