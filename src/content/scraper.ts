@@ -10,6 +10,7 @@ import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
 import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
+import { GET_BLACKBOARD_XSRF, needsXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
 import { ScanGate, ScanRun } from './scanGate';
 import { detectUniversityFromHost } from '../utils/profile';
 import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks } from '../core/examSchedule';
@@ -579,11 +580,32 @@ function getBlackboardFetchHeaders(): Record<string, string> {
  * bbFetch with Blackboard's AJAX headers and the session cookie: the fetch the shared API
  * readers (src/scan/blackboardApi.ts) use in this tab.
  */
-const tabFetch: BbFetch = (path, init) => bbFetch(path, {
-  credentials: 'same-origin',
-  ...init,
-  headers: { ...getBlackboardFetchHeaders(), ...((init?.headers as Record<string, string>) || {}) }
-});
+const tabFetch: BbFetch = async (path, init) => {
+  const extra: Record<string, string> = {};
+  if (needsXsrf(init)) {
+    const token = await tabXsrfToken();
+    if (token) extra[XSRF_HEADER] = token;
+  }
+  return bbFetch(path, {
+    credentials: 'same-origin',
+    ...init,
+    headers: { ...getBlackboardFetchHeaders(), ...extra, ...((init?.headers as Record<string, string>) || {}) }
+  });
+};
+
+/** The session's XSRF token from the service worker (the cookie holding it is HttpOnly). */
+function tabXsrfToken(): Promise<string | null> {
+  return new Promise(resolve => {
+    try {
+      chrome.runtime.sendMessage({ type: GET_BLACKBOARD_XSRF }, res => {
+        void chrome.runtime.lastError;
+        resolve(typeof res?.token === 'string' ? res.token : null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
 
 type EnrolledCourses = ApiResult<{ courses: Map<string, CourseMeta>; skipped: Set<string> }>;
 

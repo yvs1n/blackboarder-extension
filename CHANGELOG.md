@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.13] - 2026-10-29
+
+### Fixed
+
+- **The activity stream is read again over HTTP.** Blackboard refused the stream request with 403 because it carried no XSRF token, so deadlines that only appear on stream cards were missed. Both scanners now send the session's token (`X-Blackboard-XSRF`, from the `BbRouter` cookie) on that request. This needs the `cookies` permission, which Chrome grants without a new prompt.
+
+---
+
 ## [1.4.12] - 2026-10-29
 
 ### Added

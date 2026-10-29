@@ -10,6 +10,7 @@ import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY
 import { dueClassReminders, nextClassReminderAt, classReminderText } from '../core/classSchedule';
 import { refreshExamSchedule } from './examRefresh';
 import { scanOrchestrator } from './scanOrchestrator';
+import { GET_BLACKBOARD_XSRF, readBlackboardXsrf } from '../utils/blackboardXsrf';
 import { fetchCloudScanRequest, isScanRequestStale, SCAN_REQUEST_EXPIRED_MESSAGE } from '../utils/cloudScanRequest';
 
 const ALARM_NAME = 'bbs_check_deadlines';
@@ -398,6 +399,20 @@ chrome.alarms.onAlarm.addListener(alarm => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // The tab scanner's POSTs need the HttpOnly session token; a tab only ever gets its own site's
+  if (message.type === GET_BLACKBOARD_XSRF) {
+    let origin = '';
+    try {
+      origin = sender.id === chrome.runtime.id && sender.tab?.url ? new URL(sender.tab.url).origin : '';
+    } catch {}
+    if (!origin.startsWith('https://')) {
+      sendResponse({ token: null });
+      return false;
+    }
+    readBlackboardXsrf(origin).then(token => sendResponse({ token }));
+    return true;
+  }
+
   // 2. Content Script Proxy: generative AI chat (bypasses Blackboard page CSP).
   // OpenRouter by default; IFM or a custom OpenAI-compatible URL when the student picked one.
   if (message.type === 'PROXY_OPENROUTER_CHAT') {

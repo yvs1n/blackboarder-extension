@@ -9,6 +9,7 @@ import { refreshExamSchedule, examRefreshNote } from './examRefresh';
 import { BbFetch, ScanSourceOutcomes, readBlackboardApi } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
 import { decideFallback, FallbackReason, SIGN_IN_MESSAGE, UNREACHABLE_MESSAGE } from '../scan/scanFallback';
+import { needsXsrf, readBlackboardXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
 
 export async function resolveBlackboardOrigin(): Promise<string> {
   try {
@@ -25,18 +26,29 @@ export async function resolveBlackboardOrigin(): Promise<string> {
   return 'https://elearning.sharjah.ac.ae';
 }
 
-/** fetch() for a Blackboard path from the service worker: the university origin, with the student's cookies. */
-export function serviceWorkerFetch(origin: string): BbFetch {
+/**
+ * fetch() for a Blackboard path from the service worker: the university origin, with the
+ * student's cookies, and the XSRF token on POSTs (read once per scan).
+ */
+export function serviceWorkerFetch(origin: string, readXsrf: (origin: string) => Promise<string | null> = readBlackboardXsrf): BbFetch {
   const headers: Record<string, string> = {
     Accept: 'application/json, text/plain, */*',
     'X-Requested-With': 'XMLHttpRequest'
   };
-  return (path: string, init?: RequestInit) =>
-    fetch(new URL(path, origin).href, {
+  let xsrf: Promise<string | null> | null = null;
+  return async (path: string, init?: RequestInit) => {
+    const extra: Record<string, string> = {};
+    if (needsXsrf(init)) {
+      xsrf ??= readXsrf(origin);
+      const token = await xsrf;
+      if (token) extra[XSRF_HEADER] = token;
+    }
+    return fetch(new URL(path, origin).href, {
       ...init,
       credentials: 'include',
-      headers: { ...headers, ...(init?.headers as Record<string, string> || {}) }
+      headers: { ...headers, ...extra, ...(init?.headers as Record<string, string> || {}) }
     });
+  };
 }
 
 export interface ScanResult {
