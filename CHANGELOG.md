@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.7] - 2026-10-29
+
+### Fixed
+
+- **Dynamic assessment matching without hardcoded values.** Completely removed all hardcoded date filters and course-specific titles. Core title matching (`coreTitle`) now generically normalizes exam titles (midterm, final) and delivery modes (in-class, online, paper, take-home, bonus) across all courses, and expands Arabic assessment matching to handle both ordinals (الاول through العاشر) and digit numbers (واجب 1, كويز 2, تقرير 3, مشروع 1).
+- **100% gradebook mark synchronization.** Resolved missing marks in the Grades card (Courses tab) for assessments posted directly to Blackboard gradebook columns without an announcement. Unannounced gradebook marks are preserved as completed items with their official column due date (or empty if none) and `sourceSnippet: 'gradebook'`, allowing full synchronization into the Marks section and GPA without creating fake deadlines on the calendar for "today".
+- **Deduplicated GPA components and drop list.** Eliminated duplicated assessment entries in the GPA calculation and dropped-items breakdown (e.g. "Quizzes: not counted Quiz 1 90%, Quiz 1 90%") by deduplicating graded course tasks in `buildGpaSummary` across matching `gradeSourceId`, `coreTitle`, and assessment numbers.
+
 ## [1.4.6] - 2026-10-29
 
 ### Fixed

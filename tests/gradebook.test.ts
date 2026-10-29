@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
-import { parseUltraStreamEntries } from '../src/utils/streamParser';
+import { parseUltraStreamEntries, coreTitle } from '../src/utils/streamParser';
 import type { DeadlineTask } from '../src/types';
 
 // Trimmed from Ultra's /learn/api/v1/courses/_87240_1/gradebook/columns and .../grades (English, Oct 2026)
@@ -311,5 +311,40 @@ describe('purgeSyntheticGradebookTasks: purge fake deadlines and deduplicate mar
     expect(purgedIds).toHaveLength(21);
     expect(cleaned).toHaveLength(1);
     expect(cleaned[0].id).toBe('ann_real_1');
+  });
+  it('preserves legitimate unannounced gradebook marks and does not purge them', () => {
+    const unannounced = {
+      id: 'gbcol_test_123',
+      title: 'In-Class Quiz 3',
+      courseName: 'Test Course',
+      courseCode: '1000',
+      type: 'quiz' as const,
+      hasSpecificTime: false,
+      extractedBy: 'local' as const,
+      status: 'completed' as const,
+      submissionStatus: 'graded' as const,
+      score: 9,
+      maxScore: 10,
+      scoreDisplay: '9 / 10',
+      gradeSourceId: 'gb:_123_1',
+      sourceSnippet: 'gradebook',
+      dueDate: ''
+    } as DeadlineTask;
+
+    const { cleaned, purgedIds } = purgeSyntheticGradebookTasks([unannounced]);
+    expect(purgedIds).toHaveLength(0);
+    expect(cleaned).toHaveLength(1);
+    expect(cleaned[0].id).toBe('gbcol_test_123');
+    expect(cleaned[0].score).toBe(9);
+  });
+
+  it('normalizes Arabic ordinals and delivery qualifiers dynamically', () => {
+    expect(coreTitle('الواجب الأول')).toBe('assignment1');
+    expect(coreTitle('الواجب 1')).toBe('assignment1');
+        expect(coreTitle('Online Quiz 1')).toBe('quiz1');
+    expect(coreTitle('Quiz 1')).toBe('quiz1');
+    expect(coreTitle('In-Class Midterm Exam')).toBe('midterm');
+    expect(coreTitle('الامتحان النصفي')).toBe('midterm');
+    expect(coreTitle('الامتحان النهائي')).toBe('final');
   });
 });

@@ -1,4 +1,4 @@
-import { Announcement, DeadlineTask, TaskSubmissionUpdate } from '../types';
+import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
 import { processAnnouncementsBatch, titleCourseKeyFor } from '../engine/hybridExtractor';
 import { getSettings, getTasks, saveTasksMergingLatest, saveAnnouncements, getLastScanCheckpoint, saveLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
 import { setActiveUserCourses } from '../core/userCourses';
@@ -1647,6 +1647,48 @@ async function runBlackboardScan(run: ScanRun) {
     const unmatchedMarks = gradebookMarks.filter(u =>
       !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
     );
+
+    // Preserve unannounced gradebook marks in the Grades card without creating fake calendar deadlines:
+    // If a gradebook mark had no matching announcement task, add a completed task preserving its official
+    // column due date (or empty dueDate if none) so it appears in the Grades card & GPA without cluttering the calendar.
+    const scanTimestamp = new Date().toISOString();
+    for (const u of unmatchedMarks) {
+      if (typeof u.score !== 'number' || !u.maxScore) continue;
+      const courseKey = (u.courseCode || u.courseName || 'other').replace(/[^A-Za-z0-9_]/g, '');
+      const colId = (u.sourceId || '').replace(/^gb:/, '');
+      const officialDue = u.dueDate && !isNaN(new Date(u.dueDate).getTime()) ? u.dueDate : '';
+      let type: TaskType = 'assignment';
+      const lowTitle = (u.title || '').toLowerCase();
+      if (/quiz|كويز|اختبار\s*قصير/i.test(lowTitle)) type = 'quiz';
+      else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(lowTitle)) type = 'exam';
+      else if (/project|مشروع|بحث/i.test(lowTitle)) type = 'project';
+      else if (/lab|تقرير/i.test(lowTitle)) type = 'lab';
+
+      const markTask: DeadlineTask = {
+        id: `gbcol_${courseKey}_${colId || u.title.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`,
+        courseCode: u.courseCode || '',
+        courseName: u.courseName || u.courseCode || 'Other',
+        title: u.title || 'Graded Item',
+        description: '',
+        dueDate: officialDue,
+        hasSpecificTime: Boolean(officialDue),
+        type,
+        priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
+        status: 'completed',
+        submissionStatus: 'graded',
+        score: u.score,
+        maxScore: u.maxScore,
+        scoreDisplay: u.scoreDisplay,
+        gradeSourceId: u.sourceId,
+        gradedAt: u.gradedAt,
+        sourceSnippet: 'gradebook',
+        confidence: 1.0,
+        extractedBy: 'local',
+        createdAt: scanTimestamp,
+        updatedAt: scanTimestamp
+      };
+      finalTasks.push(markTask);
+    }
     console.info(
       `[Blackboarder] Gradebook: ${lastGradebookRead.signedIn ? `${lastGradebookRead.coursesRead}/${lastGradebookRead.courses} courses read, ${gradebookMarks.length} marks` : 'not readable (signed out?)'}` +
       (unmatchedMarks.length ? `; no matching deadline for: ${unmatchedMarks.map(u => `${u.courseName || '?'}: ${u.title}`).join(' | ')}` : '') +

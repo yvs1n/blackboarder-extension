@@ -133,6 +133,7 @@ export interface TaskSubmissionUpdate {
   scoreDisplay?: string;
   feedback?: string;
   sourceId?: string; // Gradebook column id ("gb:_123_1")
+  dueDate?: string; // Official instructor due date from Blackboard column, if set
   gradedAt?: string; // When Blackboard recorded the grade, if it says
 }
 

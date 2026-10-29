@@ -117,6 +117,7 @@ export function gradebookToUpdates(
       courseCode: course.courseCode && course.courseCode !== 'UOS' ? course.courseCode : undefined,
       title,
       sourceId: `gb:${col.id}`,
+      dueDate: col?.dueDate && !col.userCreatedColumn && !isNaN(new Date(col.dueDate).getTime()) ? new Date(col.dueDate).toISOString() : undefined,
       gradedAt: gradedAt && !isNaN(new Date(gradedAt).getTime()) ? gradedAt : undefined
     };
 
@@ -512,7 +513,7 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
  *
  * Targets:
  * 1. Any task with id starting with 'gbmark_'.
- * 2. Completed gradebook column tasks ('gbcol_') scheduled on 2026-10-28 (the date of the v1.4.4 synthesis scan).
+ * 2. Completed gradebook column tasks ('gbcol_') with artificial scan-time due dates.
  * 3. Duplicate exam items (e.g. 'EAP Midterm Exam') where an announced exam ('Midterm') already exists.
  * 4. Completed local tasks with empty description and matching sourceSnippet that duplicate an existing real task.
  */
@@ -524,8 +525,9 @@ export function isSyntheticGradebookTask(t: DeadlineTask, allTasks?: DeadlineTas
   if (id.startsWith('gbmark_')) return true;
 
   if (id.startsWith('gbcol_')) {
-    // 2. All 21 synthetic tasks created on Oct 28 have dueDate on 2026-10-28 and status === 'completed'
-    if (t.status === 'completed' && (t.dueDate || '').startsWith('2026-10-28')) {
+    // 2. Tasks created where dueDate was artificially set to the scan timestamp (createdAt)
+    const sameScanDay = Boolean(t.dueDate && (!t.createdAt || t.dueDate.slice(0, 10) === t.createdAt.slice(0, 10)));
+    if (t.status === 'completed' && sameScanDay && !t.description && !t.announcementId && (!t.sourceSnippet || t.sourceSnippet === t.title) && t.extractedBy === 'local') {
       return true;
     }
 

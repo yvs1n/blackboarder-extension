@@ -248,9 +248,15 @@ export function coreTitle(s?: string): string {
   let str = s.toLowerCase();
 
   // Normalize course acronyms and exam words so "EAP Midterm Exam" matches "Midterm"
-  str = str.replace(/\b(?:eap|academic\s*english)\b/gi, ' ');
   str = str.replace(/\bmidterm\s+(?:exam|examination|test)\b/gi, 'midterm');
   str = str.replace(/\bfinal\s+(?:exam|examination|test)\b/gi, 'final');
+
+  // Arabic exam normalization
+  str = str.replace(/(?:امتحان|اختبار)\s*(?:نصفي|منتصف\s*الفصل)|(?:الامتحان|الاختبار)\s*(?:النصفي)/gi, 'midterm');
+  str = str.replace(/(?:امتحان|اختبار)\s*(?:نهائي|فصلي)|(?:الامتحان|الاختبار)\s*(?:النهائي)/gi, 'final');
+
+  // Normalize delivery modes and qualifiers: in-class, online, paper, take-home
+  str = str.replace(/\b(?:in[\s_-]*class|take[\s_-]*home|paper|online|bonus)\b/gi, ' ');
 
   // Normalize ordinals + assessment type into "<type><number>"
   // e.g. "2nd Quiz" -> "quiz 2", "second quiz" -> "quiz 2", "الكويز الثاني" -> "quiz 2"
@@ -269,12 +275,36 @@ export function coreTitle(s?: string): string {
     };
     return `${typ} ${romMap[rom.toLowerCase()] || rom}`;
   });
-  str = str.replace(/(?:الكويز|كويز|الاختبار|اختبار)\s+(?:ال)?(اول|أول|ثاني|ثانى|ثالث|رابع|خامس)/gi, (_, ord) => {
-    const arMap: Record<string, number> = {
-      'اول': 1, 'أول': 1, 'ثاني': 2, 'ثانى': 2, 'ثالث': 3, 'رابع': 4, 'خامس': 5
-    };
-    return `quiz ${arMap[ord] || 1}`;
+
+  const arOrdMap: Record<string, number> = {
+    'اول': 1, 'أول': 1, 'ثاني': 2, 'ثانى': 2, 'ثالث': 3, 'رابع': 4, 'خامس': 5,
+    'سادس': 6, 'سابع': 7, 'ثامن': 8, 'تاسع': 9, 'عاشر': 10
+  };
+
+  str = str.replace(/(?:الكويز|كويز|الاختبار|اختبار)\s+(?:ال)?(اول|أول|ثاني|ثانى|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)/gi, (_, ord) => {
+    return `quiz ${arOrdMap[ord] || 1}`;
   });
+  str = str.replace(/(?:الواجب|واجب)\s+(?:ال)?(اول|أول|ثاني|ثانى|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)/gi, (_, ord) => {
+    return `assignment ${arOrdMap[ord] || 1}`;
+  });
+  str = str.replace(/(?:التقرير|تقرير)\s+(?:ال)?(اول|أول|ثاني|ثانى|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)/gi, (_, ord) => {
+    return `lab ${arOrdMap[ord] || 1}`;
+  });
+  str = str.replace(/(?:المشروع|مشروع|البحث|بحث)\s+(?:ال)?(اول|أول|ثاني|ثانى|ثالث|رابع|خامس)/gi, (_, ord) => {
+    return `project ${arOrdMap[ord] || 1}`;
+  });
+
+  // Arabic types with digit numbers: واجب 1, كويز 2, تقرير 3, مشروع 1
+  str = str.replace(/(?:الكويز|كويز|الاختبار|اختبار)\s*#?\s*(\d+)/gi, 'quiz $1');
+  str = str.replace(/(?:الواجب|واجب)\s*#?\s*(\d+)/gi, 'assignment $1');
+  str = str.replace(/(?:التقرير|تقرير)\s*#?\s*(\d+)/gi, 'lab $1');
+  str = str.replace(/(?:المشروع|مشروع|البحث|بحث)\s*#?\s*(\d+)/gi, 'project $1');
+
+  // Generic exam normalization: if an exam title has no ordinal/number, collapse to core exam name
+  if (!/\d/.test(str)) {
+    if (/\bmidterm\b/.test(str)) str = 'midterm';
+    else if (/\bfinal\b/.test(str)) str = 'final';
+  }
 
   return str
     .replace(/\([^)]*\)/g, ' ')

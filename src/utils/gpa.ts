@@ -1,6 +1,7 @@
 import type { DeadlineTask, TaskType } from '../types';
 import { GradeRow } from '../core/universities';
-import { sanitizeTaskListMarks } from './taskMerge';
+import { sanitizeTaskListMarks, extractAssessmentNumber } from './taskMerge';
+import { coreTitle } from './streamParser';
 
 /**
  * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
@@ -134,7 +135,24 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     let gradedWeight = 0;
     let earnedWeight = 0;
 
+    const uniqueMine: DeadlineTask[] = [];
     for (const t of mine) {
+      const exists = uniqueMine.some(u => {
+        if (t.gradeSourceId && u.gradeSourceId && t.gradeSourceId === u.gradeSourceId) return true;
+        const coreT = coreTitle(t.title);
+        const coreU = coreTitle(u.title);
+        if (coreT && coreU && coreT.length >= 4 && coreT === coreU) return true;
+        const numT = extractAssessmentNumber(t.title);
+        const numU = extractAssessmentNumber(u.title);
+        const typeT = (t.type || '').toLowerCase();
+        const typeU = (u.type || '').toLowerCase();
+        if (numT !== null && numU !== null && numT === numU && typeT === typeU) return true;
+        return false;
+      });
+      if (!exists) uniqueMine.push(t);
+    }
+
+    for (const t of uniqueMine) {
       const item = { title: t.title, percent: (t.score! / t.maxScore!) * 100 };
       const comp = pickComponent(t, components);
       if (comp) {

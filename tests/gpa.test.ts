@@ -124,4 +124,16 @@ describe('projected GPA', () => {
     expect(html).toContain('best 2 of 3');
     expect(html).not.toMatch(/—/);
   });
+  it('deduplicates duplicate tasks so an item is never counted or dropped twice', () => {
+    const tasks = [
+      mark('Calculus I for Engineering', 'Quiz 1', 'quiz', 9),
+      mark('Calculus I for Engineering', 'Quiz 1', 'quiz', 9),
+      mark('Calculus I for Engineering', 'Quiz 2', 'quiz', 10)
+    ];
+    const s = buildGpaSummary(tasks, syllabi);
+    const calc = s.courses.find(c => c.courseName.startsWith('Calculus'))!;
+    const quizComp = calc.components.find(k => k.name === 'Quizzes')!;
+    expect(quizComp.dropped).toHaveLength(0);
+    expect(quizComp.counted).toHaveLength(2);
+  });
 });

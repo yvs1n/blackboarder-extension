@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.6",
-  "build": "b3ba0278ab58",
-  "commit": "3f50ed0f0007afa095bd78ba11817197a6f4ab85",
-  "shortCommit": "3f50ed0",
-  "timestamp": "2026-10-29T03:04:56.384Z",
-  "message": "Release v1.4.5: purge synthetic gradebook deadlines and deduplicate midterm marks",
+  "version": "1.4.7",
+  "build": "c22fc40ce827",
+  "commit": "c162cd201d61130cc2a51135943a873914c666c1",
+  "shortCommit": "c162cd2",
+  "timestamp": "2026-10-29T04:14:07.647Z",
+  "message": "Release v1.4.6: purge October 28 synthetic gradebook deadlines and remove scraper column injection",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
