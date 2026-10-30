@@ -23,7 +23,9 @@ import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
 import { resolveTaskWeight, getAllSyllabi } from '../core/syllabusWeights';
 import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, getAllCourseSchedules } from '../core/courseSchedule';
 import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
-import { sanitizeCloudTasks } from '../utils/cloudSanitize';
+import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks } from '../utils/cloudSanitize';
+import { getProfile, saveProfile } from '../utils/profile';
+import { filterCleanUserCourses } from '../core/courseFilter';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
 import { parseSyllabusWeightsText, parseCoursesFromJson, mergeImportedCourses } from '../core/courseImporter';
 import { applyCourseImport, type CourseDraft } from '../core/courseDocument';
@@ -2658,10 +2660,16 @@ function closeEditModal() {
 // ============================================================================
 async function exportJsonBackup() {
   const settings = await getSettings();
+  const courses = await getUserCourses();
+  const quickLinks = await getQuickLinks();
+  const profile = await getProfile().catch(() => null);
   const backupData = {
     version: BUILD_INFO.version,
     exportedAt: new Date().toISOString(),
     tasks: currentTasks,
+    courses,
+    quickLinks,
+    profile,
     settings
   };
 
@@ -2674,6 +2682,7 @@ async function exportJsonBackup() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  showToast('Downloaded full backup with courses, syllabi and deadlines!');
 }
 
 async function handleRestoreJson(file: File) {
@@ -2681,34 +2690,63 @@ async function handleRestoreJson(file: File) {
     const text = await file.text();
     const data = JSON.parse(text);
 
-    if (!data.tasks || !Array.isArray(data.tasks)) {
+    if ((!data.tasks || !Array.isArray(data.tasks)) && (!data.courses || !Array.isArray(data.courses))) {
       alert('Invalid backup file format.');
       return;
     }
 
-    const existingMap = new Map<string, DeadlineTask>();
-    currentTasks.forEach(t => existingMap.set(t.id, t));
+    let restoredTaskCount = 0;
+    if (data.tasks && Array.isArray(data.tasks)) {
+      const existingMap = new Map<string, DeadlineTask>();
+      currentTasks.forEach(t => existingMap.set(t.id, t));
 
-    // Merge imported tasks
-    // Backup files are untrusted input: drop tasks with unsafe ids or unusable dates
-    sanitizeCloudTasks(data.tasks).forEach((t: DeadlineTask) => {
-      if (t.title) {
-        existingMap.set(t.id, t);
+      // Merge imported tasks
+      // Backup files are untrusted input: drop tasks with unsafe ids or unusable dates
+      sanitizeCloudTasks(data.tasks).forEach((t: DeadlineTask) => {
+        if (t.title) {
+          existingMap.set(t.id, t);
+        }
+      });
+
+      const merged = Array.from(existingMap.values()).sort(compareTasksByTime);
+      await saveTasks(merged);
+      currentTasks = merged;
+      restoredTaskCount = data.tasks.length;
+    }
+
+    let restoredCourseCount = 0;
+    if (data.courses && Array.isArray(data.courses)) {
+      const sanitizedCourses = sanitizeCloudCourses(data.courses) || [];
+      const cleanCourses = filterCleanUserCourses(sanitizedCourses);
+      if (cleanCourses.length > 0) {
+        await saveUserCourses(cleanCourses);
+        currentUserCourses = cleanCourses;
+        restoredCourseCount = cleanCourses.length;
       }
-    });
+    }
 
-    const merged = Array.from(existingMap.values()).sort(compareTasksByTime);
+    if (data.quickLinks && Array.isArray(data.quickLinks)) {
+      const cleanLinks = sanitizeCloudQuickLinks(data.quickLinks);
+      if (cleanLinks && cleanLinks.length > 0) {
+        await saveQuickLinks(cleanLinks);
+        currentQuickLinks = cleanLinks;
+      }
+    }
 
-    await saveTasks(merged);
-    currentTasks = merged;
+    if (data.profile && typeof data.profile === 'object') {
+      await saveProfile(data.profile).catch(() => {});
+    }
 
-    if (data.settings) {
+    if (data.settings && typeof data.settings === 'object') {
       await saveSettings(data.settings);
     }
 
     refreshAllViews();
     syncTasksToCloud(currentTasks, 'Restored Backup');
-    alert(`Successfully restored ${data.tasks.length} deadlines!`);
+    const msg = restoredCourseCount > 0
+      ? `Successfully restored ${restoredTaskCount} deadlines and ${restoredCourseCount} courses!`
+      : `Successfully restored ${restoredTaskCount} deadlines!`;
+    alert(msg);
   } catch (err) {
     console.error('Failed to parse backup JSON:', err);
     alert('Failed to read or parse the JSON backup file.');

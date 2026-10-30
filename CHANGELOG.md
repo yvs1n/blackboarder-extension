@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.16] - 2026-10-30
+
+### Added
+
+- **Unified full data backup and restore in Settings.** Settings > Data > Backup JSON now exports complete state including deadlines, courses (with colors, schedule times, rooms, syllabus weights, credit hours), quick links, profile university and grading scale, and alert settings in a single JSON file. Restoring this backup seamlessly reinstates all course configurations and tasks without needing a separate courses export.
+
 ## [1.4.15] - 2026-10-30
 
 ### Fixed

@@ -146,16 +146,16 @@ export function sanitizeCloudCourses(courses: unknown): UserCourseConfig[] | und
     if (!raw || typeof raw !== 'object') continue;
     const c = raw as any;
     // Courses with a missing or unsafe id are repaired rather than dropped
-    const fallbackId = `course_${str(c.courseCode || c.courseName).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40) || 'unnamed'}`;
+    const fallbackId = `course_${str(c.courseCode || c.code || c.courseName || c.name).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 40) || 'unnamed'}`;
     const id = isSafeCloudId(c.id) ? c.id : fallbackId;
     out.push({
       ...c,
       id,
-      courseCode: str(c.courseCode),
-      courseName: str(c.courseName),
+      courseCode: str(c.courseCode || c.code),
+      courseName: str(c.courseName || c.name),
       crn: typeof c.crn === 'string' ? c.crn : undefined,
       creditHours: optNum(c.creditHours),
-      colorHex: safeHexColor(c.colorHex),
+      colorHex: safeHexColor(c.colorHex || c.color),
       aliases: Array.isArray(c.aliases) ? c.aliases.filter((a: unknown) => typeof a === 'string') : [],
       scheduleSlots: (Array.isArray(c.scheduleSlots) ? c.scheduleSlots : [])
         .filter((s: any) => s && typeof s === 'object')
