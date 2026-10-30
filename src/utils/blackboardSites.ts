@@ -8,7 +8,7 @@ export const EXTRA_SITES_KEY = 'bbs_extra_blackboard_origins';
 export const EXTRA_SCRIPT_IDS = ['bbs-extra-dark', 'bbs-extra-scraper'];
 
 /** Addresses the manifest already covers; adding them again is not needed. */
-const BUILT_IN = /(^|\.)(sharjah\.ac\.ae|blackboard\.com)$/i;
+const BUILT_IN = /(^|\.)(sharjah\.ac\.ae|blackboard\.com|uaeu\.ac\.ae|adu\.ac\.ae|zu\.ac\.ae|aud\.edu|aus\.edu|aurak\.ac\.ae)$/i;
 
 /**
  * "lms.example.edu/ultra/course" or "https://lms.example.edu" to "https://lms.example.edu".

@@ -151,6 +151,8 @@ describe('Blackboard addresses', () => {
   it('knows which addresses already work', () => {
     expect(isBuiltInBlackboardHost('elearning.sharjah.ac.ae')).toBe(true);
     expect(isBuiltInBlackboardHost('zu.blackboard.com')).toBe(true);
-    expect(isBuiltInBlackboardHost('ilearn.aus.edu')).toBe(false);
+    expect(isBuiltInBlackboardHost('learn.uaeu.ac.ae')).toBe(true);
+    expect(isBuiltInBlackboardHost('ilearn.aus.edu')).toBe(true);
+    expect(isBuiltInBlackboardHost('lms.example.edu')).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Blackboarder: Academic Calendar & Deadline Companion",
-  "version": "1.4.19",
+  "version": "1.4.20",
   "description": "Extracts assignments, quizzes, and course deadlines from Blackboard Learn with calendar sync, syllabus weighting, and quick links.",
   "icons": {
     "16": "icons/icon16.png",
@@ -23,7 +23,10 @@
     "default_path": "src/popup/index.html?view=panel"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
   },
   "browser_specific_settings": {
     "gecko": {
@@ -38,7 +41,14 @@
         "*://blackboard.sharjah.ac.ae/*",
         "*://mylearn.sharjah.ac.ae/*",
         "https://*.blackboard.com/*",
-        "https://*.sharjah.ac.ae/*"
+        "https://*.sharjah.ac.ae/*",
+        "https://*.uaeu.ac.ae/*",
+        "https://*.adu.ac.ae/*",
+        "https://*.zu.ac.ae/*",
+        "https://*.aud.edu/*",
+        "https://*.aus.edu/*",
+        "*://bb.aurak.ac.ae/*",
+        "https://*.aurak.ac.ae/*"
       ],
       "all_frames": true,
       "match_about_blank": true,
@@ -54,7 +64,14 @@
       "matches": [
         "https://blackboard.sharjah.ac.ae/*",
         "https://*.blackboard.com/*",
-        "https://*.sharjah.ac.ae/*"
+        "https://*.sharjah.ac.ae/*",
+        "https://*.uaeu.ac.ae/*",
+        "https://*.adu.ac.ae/*",
+        "https://*.zu.ac.ae/*",
+        "https://*.aud.edu/*",
+        "https://*.aus.edu/*",
+        "*://bb.aurak.ac.ae/*",
+        "https://*.aurak.ac.ae/*"
       ],
       "js": [
         "content.js"
@@ -81,6 +98,13 @@
     "https://blackboard.sharjah.ac.ae/*",
     "https://*.blackboard.com/*",
     "https://*.sharjah.ac.ae/*",
+    "https://*.uaeu.ac.ae/*",
+    "https://*.adu.ac.ae/*",
+    "https://*.zu.ac.ae/*",
+    "https://*.aud.edu/*",
+    "https://*.aus.edu/*",
+    "*://bb.aurak.ac.ae/*",
+    "https://*.aurak.ac.ae/*",
     "https://raw.githubusercontent.com/*",
     "https://github.com/*",
     "https://openrouter.ai/*",

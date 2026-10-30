@@ -172,7 +172,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     domains: ['aurak.ac.ae'],
     gradeScale: AURAK_SCALE,
     lowestPass: 'D',
-    blackboardUrl: 'https://blackboard.aurak.ac.ae/ultra/course',
+    blackboardUrl: 'https://bb.aurak.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {

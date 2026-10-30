@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.20] - 2026-10-30
+
+### Fixed
+
+- **Built-in multi-university manifest matches:** Added all supported universities (`uaeu.ac.ae`, `adu.ac.ae`, `zu.ac.ae`, `aud.edu`, `aus.edu`, `aurak.ac.ae`) to `content_scripts.matches` and `host_permissions` in `manifest.json`. The scraper and dark mode now run immediately upon visiting any supported university Blackboard page without requiring manual site registration.
+
 ## [1.4.19] - 2026-10-30
 
 ### Added
