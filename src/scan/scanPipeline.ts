@@ -186,7 +186,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
     }
   }
 
-  const finalTasks = deduplicateTaskList([...newlyAddedDirect, ...mergedAnnTasks]).filter(isValidTask);
+  let finalTasks = deduplicateTaskList([...newlyAddedDirect, ...mergedAnnTasks]).filter(isValidTask);
 
   // Put marks and submissions on their tasks (only changed tasks are touched)
   const marksChanged = applySubmissionUpdates(finalTasks, submissionUpdates);
@@ -230,6 +230,14 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
       updatedAt: scanTimestamp
     });
   }
+
+  // Deduplicate again after injecting unmatched gradebook items to prevent duplicates side-by-side
+  finalTasks = deduplicateTaskList(finalTasks).filter(t =>
+    isValidTask(t) &&
+    !/orientation|توجيه|تهيئة/i.test(t.courseName || '') &&
+    !/orientation/i.test(t.courseCode || '') &&
+    !/orientation|توجيه|تهيئة/i.test(t.title || '')
+  );
 
   const gb = input.gradebook;
   console.info(

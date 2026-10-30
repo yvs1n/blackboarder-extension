@@ -72,4 +72,50 @@ describe('posted marks find the right task', () => {
     };
     expect(findTaskForUpdate(eapTasks, update)?.id).toBe('eap-mid');
   });
+
+  it('does NOT attach a specific lab report mark to a generic orientation "Lab" task via substring matching', () => {
+    const labTasks = [
+      task('gen-lab', 'Lab', 'Physics 1 Lab', '1430116')
+    ];
+    const update = {
+      title: "Vectors Exp. Student Lab Report",
+      courseName: 'Physics 1 Lab',
+      courseCode: '1430116',
+      submissionStatus: 'graded' as const,
+      score: 9.25,
+      maxScore: 10
+    };
+    expect(findTaskForUpdate(labTasks, update)).toBeUndefined();
+  });
+
+  it('matches the specific lab report task instead of the generic "Lab" task when both are present', () => {
+    const labTasks = [
+      task('gen-lab', 'Lab', 'Physics 1 Lab', '1430116'),
+      task('vectors-rep', 'Vectors Exp. Student Lab Report', 'Physics 1 Lab', '1430116')
+    ];
+    const update = {
+      title: "Vectors Exp. Student Lab Report",
+      courseName: 'Physics 1 Lab',
+      courseCode: '1430116',
+      submissionStatus: 'graded' as const,
+      score: 9.25,
+      maxScore: 10
+    };
+    expect(findTaskForUpdate(labTasks, update)?.id).toBe('vectors-rep');
+  });
+
+  it('does not match generic "Assignment" with "Assignment 1"', () => {
+    const tasksList = [
+      task('gen-asgn', 'Assignment', 'Calculus I for Engineering', '1440133')
+    ];
+    const update = {
+      title: 'Assignment 1',
+      courseName: 'Calculus I for Engineering',
+      courseCode: '1440133',
+      submissionStatus: 'graded' as const,
+      score: 10,
+      maxScore: 10
+    };
+    expect(findTaskForUpdate(tasksList, update)).toBeUndefined();
+  });
 });

@@ -4,7 +4,8 @@ import {
   mergeTombstones,
   getTaskSeriesInfo,
   areTasksDuplicates,
-  deduplicateTaskList
+  deduplicateTaskList,
+  mergeDuplicatePair
 } from '../src/utils/taskMerge';
 import { DeadlineTask } from '../src/types';
 import { setActiveUserCourses } from '../src/core/userCourses';
@@ -326,4 +327,204 @@ describe('deduplicateTaskList and mergeCloudTasks with empty due dates', () => {
     expect(tasks.find(t => t.id === 'cloud_exam')).toBeDefined();
   });
 });
+
+describe('duplicate deadline prevention and stable primary key regressions', () => {
+  it('mergeDuplicatePair preserves announcement task ID and never mutates to incoming gbcol_ ID', () => {
+    const announcementTask = makeTask({
+      id: 'task_1788804995135_gf1w4',
+      courseCode: '1502101',
+      courseName: 'Intro to Computer Eng',
+      title: 'Quiz 1',
+      dueDate: '2026-09-10T07:00:00.000Z',
+      type: 'quiz',
+      status: 'pending'
+    });
+    const gradebookTask = makeTask({
+      id: 'gbcol_1502101__1901958_1',
+      courseCode: '1502101',
+      courseName: 'Intro to Computer Eng',
+      title: 'Quiz 1',
+      dueDate: '',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 21,
+      maxScore: 25,
+      scoreDisplay: '21 / 25 (84%)',
+      gradeSourceId: 'gb:_1901958_1'
+    });
+
+    const merged = mergeDuplicatePair(announcementTask, gradebookTask);
+    expect(merged.id).toBe('task_1788804995135_gf1w4');
+    expect(merged.score).toBe(21);
+    expect(merged.maxScore).toBe(25);
+    expect(merged.submissionStatus).toBe('graded');
+    expect(merged.status).toBe('completed');
+    expect(merged.dueDate).toBe('2026-09-10T07:00:00.000Z');
+  });
+
+  it('deduplicateTaskList merges duplicate announcement and gbcol tasks into single task with announcement ID', () => {
+    const announcementTask = makeTask({
+      id: 'task_1788804995135_gf1w4',
+      courseCode: '1502101',
+      courseName: 'Intro to Computer Eng',
+      title: 'Quiz 1',
+      dueDate: '2026-09-10T07:00:00.000Z',
+      type: 'quiz',
+      status: 'pending'
+    });
+    const gradebookTask = makeTask({
+      id: 'gbcol_1502101__1901958_1',
+      courseCode: '1502101',
+      courseName: 'Intro to Computer Eng',
+      title: 'Quiz 1',
+      dueDate: '',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 21,
+      maxScore: 25
+    });
+
+    const deduped = deduplicateTaskList([announcementTask, gradebookTask]);
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].id).toBe('task_1788804995135_gf1w4');
+    expect(deduped[0].score).toBe(21);
+    expect(deduped[0].dueDate).toBe('2026-09-10T07:00:00.000Z');
+  });
+
+  it('mergeCloudTasks does not resurrect duplicate tasks when tombstoned', () => {
+    const cleanLocal = [
+      makeTask({
+        id: 'task_1788804995135_gf1w4',
+        title: 'Quiz 1',
+        score: 21,
+        submissionStatus: 'graded'
+      })
+    ];
+    const staleCloud = [
+      makeTask({
+        id: 'task_1788804995135_gf1w4',
+        title: 'Quiz 1'
+      }),
+      makeTask({
+        id: 'gbcol_1502101__1901958_1',
+        title: 'Quiz 1',
+        score: 21
+      })
+    ];
+    const tombstones = { 'gbcol_1502101__1901958_1': '2026-10-29T10:00:00.000Z' };
+    const { tasks } = mergeCloudTasks(cleanLocal, staleCloud, tombstones);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].id).toBe('task_1788804995135_gf1w4');
+  });
+
+  it('processAnnouncementsBatch never overwrites due dates or descriptions of completed or graded tasks with generic unnumbered announcements', async () => {
+    const { processAnnouncementsBatch } = await import('../src/engine/hybridExtractor');
+    const existingCompleted = makeTask({
+      id: 'task_calc_hw1',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Assignment',
+      description: 'First assignment on limits and derivatives',
+      dueDate: '2026-09-15T12:00:00.000Z',
+      type: 'assignment',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10
+    });
+
+    const newAnnouncement: import('../src/types').Announcement = {
+      id: 'ann_calc_hw_oct',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Assignment',
+      contentText: 'Good afternoon, Assignment submission deadline is Sunday, October 18th, 11:59 PM on Blackboard.',
+      postedAt: '2026-10-10T08:00:00.000Z',
+      sourceUrl: '',
+      scannedAt: '2026-10-10T08:00:00.000Z'
+    };
+
+    const result = await processAnnouncementsBatch(
+      [newAnnouncement],
+      [existingCompleted],
+      { aiExtraction: false } as any
+    );
+
+    // Existing completed task should not have its due date or description modified
+    const kept = result.allTasks.find(t => t.id === 'task_calc_hw1');
+    expect(kept).toBeDefined();
+    expect(kept?.dueDate).toBe('2026-09-15T12:00:00.000Z');
+    expect(kept?.description).toBe('First assignment on limits and derivatives');
+    expect(kept?.status).toBe('completed');
+    expect(kept?.score).toBe(10);
+
+    // A new task should have been created for the new assignment
+    const newlyCreated = result.newTasks.find(t => t.id !== 'task_calc_hw1');
+    expect(newlyCreated).toBeDefined();
+    expect(newlyCreated?.title).toContain('Assignment');
+    expect(new Date(newlyCreated!.dueDate).toISOString().slice(0, 10)).toBe('2026-10-18');
+  });
+
+  it('processAnnouncementsBatch allows rescheduling for uncompleted tasks with rescheduling keywords', async () => {
+    const { processAnnouncementsBatch } = await import('../src/engine/hybridExtractor');
+    const existingPending = makeTask({
+      id: 'task_calc_hw2',
+      courseCode: '0402202',
+      courseName: 'Data Structures',
+      title: 'Assignment 3',
+      description: 'Assignment 3 on binary trees',
+      dueDate: '2026-10-10T12:00:00.000Z',
+      type: 'assignment',
+      status: 'pending'
+    });
+
+    const rescheduleAnnouncement: import('../src/types').Announcement = {
+      id: 'ann_calc_hw2_postponed',
+      courseCode: '0402202',
+      courseName: 'Data Structures',
+      title: 'Assignment 3 Extension',
+      contentText: 'Good afternoon, Assignment 3 submission deadline has been extended to Sunday, October 18th, 11:59 PM on Blackboard.',
+      postedAt: '2026-10-12T08:00:00.000Z',
+      sourceUrl: '',
+      scannedAt: '2026-10-12T08:00:00.000Z'
+    };
+
+    const result = await processAnnouncementsBatch(
+      [rescheduleAnnouncement],
+      [existingPending],
+      { aiExtraction: false } as any
+    );
+
+    const updated = result.allTasks.find(t => t.id === 'task_calc_hw2');
+    expect(updated).toBeDefined();
+    expect(new Date(updated!.dueDate).toISOString().slice(0, 10)).toBe('2026-10-18');
+  });
+
+  it('preserves Arabic unicode characters in key normalization and task title deduplication', () => {
+    const arabicTask1 = makeTask({
+      id: 'task_ar_1',
+      courseCode: '0104100',
+      courseName: 'Islamic Culture',
+      title: 'واجب 1',
+      type: 'assignment',
+      dueDate: '2026-10-15T12:00:00.000Z'
+    });
+    const arabicTask2 = makeTask({
+      id: 'task_ar_2',
+      courseCode: '0104100',
+      courseName: 'Islamic Culture',
+      title: 'كويز 1',
+      type: 'quiz',
+      dueDate: '2026-10-15T12:00:00.000Z'
+    });
+
+    // They are distinct tasks on the same date because their Arabic titles and types differ
+    expect(areTasksDuplicates(arabicTask1, arabicTask2)).toBe(false);
+    const deduped = deduplicateTaskList([arabicTask1, arabicTask2]);
+    expect(deduped).toHaveLength(2);
+  });
+});
+
 

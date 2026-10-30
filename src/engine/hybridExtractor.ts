@@ -2,7 +2,7 @@ import { Announcement, DeadlineTask, TaskType, UserSettings } from '../types';
 import { extractDeadlinesLocally } from './localExtractor';
 import { extractDeadlinesWithAi } from './aiExtractor';
 import { AiSettings, resolveAiEndpoint } from './aiProviders';
-import { resolveTaskWeight } from '../core/syllabusWeights';
+import { resolveTaskWeight, extractAssessmentNumber } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
 import { isPresentationTitle } from '../core/courseHelper';
 
@@ -12,7 +12,7 @@ import { isPresentationTitle } from '../core/courseHelper';
 function normalizeTaskKey(task: DeadlineTask): string {
   const dueTime = new Date(task.dueDate).getTime();
   const dateStr = isNaN(dueTime) ? 'invalid' : new Date(dueTime).toISOString().slice(0, 10);
-  const cleanTitle = task.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanTitle = task.title.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
   return `${task.courseCode}_${task.type}_${dateStr}_${cleanTitle}`;
 }
 
@@ -286,7 +286,27 @@ export async function processAnnouncementsBatch(
         || existingIdMap.get(task.id)
         || existingKeyMap.get(key);
       // Same title in the same (known) course on another day: the course moved the date
-      const rescheduledFrom = !exactMatch && titleCourseKey ? existingTitleCourseMap.get(titleCourseKey) : undefined;
+      let rescheduledFrom: DeadlineTask | undefined;
+      if (!exactMatch && titleCourseKey) {
+        const candidate = existingTitleCourseMap.get(titleCourseKey);
+        if (candidate) {
+          const isDone = candidate.status === 'completed' ||
+            candidate.submissionStatus === 'graded' ||
+            candidate.submissionStatus === 'submitted';
+          if (!isDone) {
+            const candNum = extractAssessmentNumber(candidate.title);
+            const taskNum = extractAssessmentNumber(task.title);
+            const hasNum = candNum !== null || taskNum !== null;
+            const hasRescheduleKeyword = /(?:reschedul|postpon|delay|extend|move|تأجيل|تمديد|تغيير\s*موعد)/i.test(
+              `${task.title} ${task.description || ''} ${task.sourceSnippet || ''}`
+            );
+            const isGeneric = /^(?:assignment|homework|hw\d*|quiz|test|exam|lab|report|project|task|due|untitled|واجب|كويز|امتحان|اختبار|تقرير|مشروع)$/i.test(task.title.trim());
+            if (!isGeneric || hasNum || hasRescheduleKeyword) {
+              rescheduledFrom = candidate;
+            }
+          }
+        }
+      }
       // The same exam described again (format, rules, reminders) is not a new exam, and keeps its date
       const sameExam = !exactMatch && !rescheduledFrom ? findSameExam(task, existingIdMap.values()) : undefined;
       const existing = exactMatch || rescheduledFrom || sameExam;

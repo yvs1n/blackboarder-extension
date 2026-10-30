@@ -95,6 +95,9 @@ export function gradebookToUpdates(
   /** Receives "Title (reason)" for each column that holds a grade but was not read, so a scan can say why. */
   skipped?: string[]
 ): TaskSubmissionUpdate[] {
+  if (/orientation|توجيه|تهيئة/i.test(course.courseName || '') || /orientation/i.test(course.courseCode || '')) {
+    return [];
+  }
   const byId = new Map(columns.map(c => [c.id, c]));
   const updates: TaskSubmissionUpdate[] = [];
 
@@ -109,7 +112,7 @@ export function gradebookToUpdates(
     if (col.calculationType && col.calculationType !== 'NON_CALCULATED') { skip('a calculated column'); continue; }
     if ((col.scoreProviderHandle || '').includes('attendance')) continue;
     if (g.isExempt) { skip('exempt'); continue; }
-    if (!title) continue;
+    if (!title || /orientation|توجيه|تهيئة/i.test(title)) continue;
 
     const gradedAt = g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified;
     const base = {
@@ -164,6 +167,7 @@ export function gradebookColumnsToTasks(
     ? course.courseName
     : (parsedCourse.name && parsedCourse.name !== 'General Course' ? parsedCourse.name : '');
   if (!cleanCourseName && !cleanCourseCode) return tasks;
+  if (/orientation|توجيه|تهيئة/i.test(cleanCourseName) || /orientation/i.test(cleanCourseCode)) return tasks;
 
   for (const col of columns) {
     if (!col || col.visible === false || col.deleted) continue;
@@ -175,7 +179,7 @@ export function gradebookColumnsToTasks(
     if (isNaN(due.getTime())) continue;
 
     const title = decodeEntities(col.effectiveColumnName || col.columnName || '').trim();
-    if (!title || /blackboard\s*orientation/i.test(title)) continue;
+    if (!title || /orientation|توجيه|تهيئة/i.test(title)) continue;
 
     const catTitle = col.gradebookCategory?.title || '';
     let type: TaskType = 'assignment';

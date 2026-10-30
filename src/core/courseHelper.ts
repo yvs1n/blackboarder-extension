@@ -121,6 +121,7 @@ export function isBlackboardSystemNoise(nameOrCode?: string): boolean {
   const s = nameOrCode.trim().toLowerCase().replace(/[:\-–|]+/g, ' ').replace(/\s+/g, ' ');
   if (!s || s.length < 2) return true;
   if (BLACKBOARD_NAV_BLACKLIST.has(s)) return true;
+  if (/orientation|توجيه|تهيئة/i.test(s)) return true;
   if (/^(?:roster\b|attendance\b|books\s*(?:&|and)\s*tools|details\s*(?:&|and)\s*actions|join\s+session|achievements\b|course\s+room\b)/i.test(s)) {
     return true;
   }
@@ -183,9 +184,9 @@ export function parseCourseDetails(rawText: string): CourseInfo {
     .replace(/\b(?:FALL|SPRING|SUMMER|WINTER)\d{2,4}(?:[-/]\d{2,4})?\b/gi, '')
     .trim();
 
-  // Match Course Code if not already set: 7-digit UOS code (e.g. 0401201) or Letter+Digits (e.g. CS101, MATH201)
+  // Match Course Code if not already set: 7-digit UOS code (e.g. 0401201 or 0202 112) or Letter+Digits (e.g. CS101, MATH201)
   if (code === 'UOS') {
-    const codeMatch = clean.match(/(?:^|[^0-9A-Za-z])([0-9]{7}|[A-Z]{2,4}\s*[0-9]{3,4})(?:[^0-9A-Za-z]|$)/i);
+    const codeMatch = clean.match(/(?:^|[^0-9A-Za-z])([0-9]{4}\s*[0-9]{3}|[0-9]{7}|[A-Z]{2,4}\s*[0-9]{3,4})(?:[^0-9A-Za-z]|$)/i);
     if (codeMatch) {
       code = codeMatch[1].replace(/\s+/g, '').toUpperCase();
     }
@@ -198,7 +199,8 @@ export function parseCourseDetails(rawText: string): CourseInfo {
 
   for (const part of parts) {
     // Check if this part is just a section number (e.g. "02", "13A", "ALL", "1") or just the code
-    const isSectionOrCode = /^(?:\d{1,7}[A-Z]?|ALL|SEC\b.*)$/i.test(part) || part.toUpperCase() === code;
+    const cleanPart = part.replace(/\s+/g, '');
+    const isSectionOrCode = /^(?:\d{1,7}[A-Z]?|ALL|SEC\b.*)$/i.test(cleanPart) || cleanPart.toUpperCase() === code;
     if (!isSectionOrCode && part.length >= 3) {
       name = part;
       break;
@@ -211,8 +213,9 @@ export function parseCourseDetails(rawText: string): CourseInfo {
   }
 
   // Thorough cleaning of the selected name
+  const spacedCodePattern = code.length === 7 ? `${code.slice(0, 4)}\\s*${code.slice(4)}` : code;
   name = name
-    .replace(new RegExp(`\\b${code}\\b`, 'i'), '')
+    .replace(new RegExp(`(?:\\b${code}\\b|\\b${spacedCodePattern}\\b)`, 'i'), '')
     .replace(/^[-_.]?\d{1,3}[A-Z]?\s+/g, '') // leading section numbers like "01 " or "-01 "
     .replace(/[-_.]\d{1,3}[A-Z]?\b/g, '')
     .replace(/[\[\]]/g, ' ')

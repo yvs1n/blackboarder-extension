@@ -68,6 +68,7 @@ export function gradesHtml(
 
   // Marks for courses that are not set up (no grade, but the marks still show)
   for (const c of marksByCourse.values()) {
+    if (/orientation|توجيه|تهيئة/i.test(c.courseName)) continue;
     const total = c.averagePercent !== undefined ? `<span class="marks-course-total">Avg ${c.averagePercent}%</span>` : '';
     courseRows.push(`<div class="marks-course">
       <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span>${total}</div>

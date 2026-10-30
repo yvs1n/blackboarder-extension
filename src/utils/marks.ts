@@ -58,6 +58,12 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
 
   for (const t of cleanTasks) {
     if (!t) continue;
+    const cName = t.courseName || '';
+    const cCode = t.courseCode || '';
+    const title = t.title || '';
+    if (/orientation|توجيه|تهيئة/i.test(cName) || /orientation/i.test(cCode) || /orientation|توجيه|تهيئة/i.test(title)) {
+      continue;
+    }
     const graded = t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
     const submitted = !graded && (t.submissionStatus === 'submitted' || t.submissionStatus === 'graded');
     if (!graded && !submitted) continue;

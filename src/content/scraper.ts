@@ -627,6 +627,11 @@ function collectPageCourses(): { courses: Map<string, CourseMeta>; skipped: Set<
   const skipped = new Set<string>();
   const add = (cid: string, rawName: string = '') => {
     if (!cid || !cid.startsWith('_') || skipped.has(cid)) return;
+    if (rawName && isOrientationOrSandboxCourse(rawName)) {
+      skipped.add(cid);
+      courses.delete(cid);
+      return;
+    }
     const known = courses.get(cid);
     if (known && known.name) return;
     courses.set(cid, rawName ? courseMetaFromPageText(rawName) : { name: '', code: '' });
@@ -656,8 +661,14 @@ function collectPageCourses(): { courses: Map<string, CourseMeta>; skipped: Set<
 
   if (urlMatch && !skipped.has(urlMatch[1]) && !courses.get(urlMatch[1])?.name) {
     const heading = document.querySelector('#courseMenuPalette_paletteTitleHeading, .course-title, header h1, [aria-label*="Course Name"], #course-title-header, .bb-course-title');
-    courses.delete(urlMatch[1]);
-    add(urlMatch[1], heading?.textContent?.trim() || '');
+    const hText = heading?.textContent?.trim() || '';
+    if (isOrientationOrSandboxCourse(hText)) {
+      skipped.add(urlMatch[1]);
+      courses.delete(urlMatch[1]);
+    } else {
+      courses.delete(urlMatch[1]);
+      add(urlMatch[1], hText);
+    }
   }
 
   return { courses, skipped };

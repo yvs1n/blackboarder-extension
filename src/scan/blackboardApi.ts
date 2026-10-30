@@ -44,7 +44,8 @@ const MAX_EXTRA_PAGES = 10;
 export function isOrientationOrSandboxCourse(name?: string, externalId?: string): boolean {
   const n = String(name || '');
   const ext = String(externalId || '');
-  return /^mock_exam/i.test(ext) || /student\s*hands-on\s*orientation|blackboard\s*orientation/i.test(n);
+  return /orientation|sandbox|mock[_\s-]*exam/i.test(ext) ||
+    /orientation|توجيه|تهيئة/i.test(n);
 }
 
 export function extractCodeFromExternalId(externalId?: string): string {
@@ -166,6 +167,9 @@ export async function fetchCourseAnnouncements(
   meta: CourseMeta | undefined,
   origin: string
 ): Promise<ApiResult<{ announcements: Announcement[] }>> {
+  if (isOrientationOrSandboxCourse(meta?.name, meta?.code)) {
+    return { ok: true, announcements: [] };
+  }
   let last: ApiFailure = failure('not read');
   for (const base of ['/learn/api/public/v1', '/learn/api/v1']) {
     const res = await readJson(fetchFn, `${base}/courses/${encodeURIComponent(courseId)}/announcements`);
@@ -242,6 +246,9 @@ export async function fetchCourseGradebook(
   meta: CourseMeta | undefined,
   skippedGrades: string[]
 ): Promise<ApiResult<{ updates: TaskSubmissionUpdate[]; report: GradebookReportRow[] }>> {
+  if (isOrientationOrSandboxCourse(meta?.name, meta?.code)) {
+    return { ok: true, updates: [], report: [] };
+  }
   const cid = encodeURIComponent(courseId);
   const [cols, grades] = await Promise.all([
     fetchAllPages(fetchFn, `/learn/api/v1/courses/${cid}/gradebook/columns?includeInvisible=false&limit=200`),
@@ -271,10 +278,20 @@ export function mergeCourseMaps(
   const courses = new Map<string, CourseMeta>();
   const skipped = new Set<string>(pageSkipped || []);
   if (enrolled?.ok) {
-    enrolled.courses.forEach((meta, cid) => courses.set(cid, meta));
+    enrolled.courses.forEach((meta, cid) => {
+      if (isOrientationOrSandboxCourse(meta.name, meta.code)) {
+        skipped.add(cid);
+        return;
+      }
+      courses.set(cid, meta);
+    });
     enrolled.skipped.forEach(cid => skipped.add(cid));
   }
   pageCourses?.forEach((meta, cid) => {
+    if (isOrientationOrSandboxCourse(meta.name, meta.code)) {
+      skipped.add(cid);
+      return;
+    }
     const known = courses.get(cid);
     if (!known) courses.set(cid, meta);
     else if (!known.name && meta.name) courses.set(cid, { name: meta.name, code: known.code || meta.code });

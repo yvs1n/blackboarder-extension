@@ -120,7 +120,12 @@ function pickComponent(task: DeadlineTask, components: GpaComponent[]): GpaCompo
  * on what has been marked so far.
  */
 export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): GpaSummary {
-  const cleanTasks = sanitizeTaskListMarks(tasks || []);
+  const cleanTasks = sanitizeTaskListMarks(tasks || []).filter(t =>
+    t &&
+    !/orientation|توجيه|تهيئة/i.test(t.courseName || '') &&
+    !/orientation/i.test(t.courseCode || '') &&
+    !/orientation|توجيه|تهيئة/i.test(t.title || '')
+  );
   const graded = cleanTasks.filter(t => t && isGraded(t));
   const courses: CourseGrade[] = [];
 

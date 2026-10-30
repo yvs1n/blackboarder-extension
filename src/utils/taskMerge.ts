@@ -592,9 +592,10 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
 
   // Stable ID: prefer announcement task ID so real announcements stay in place, then gbcol
   let id = existing.id;
-  if (existing.id.startsWith('ann_')) {
+  const isAnnouncement = (s: string) => (s || '').startsWith('task_') || (s || '').startsWith('ann_');
+  if (isAnnouncement(existing.id)) {
     id = existing.id;
-  } else if (incoming.id.startsWith('ann_')) {
+  } else if (isAnnouncement(incoming.id)) {
     id = incoming.id;
   } else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_')) {
     id = incoming.id;

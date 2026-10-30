@@ -36,6 +36,23 @@ describe('Course Details Extraction', () => {
     expect(result.name).toBe('تفاضل وتكامل 1');
   });
 
+  it('extracts from spaced 7-digit UOS course codes with and without hyphens', () => {
+    const raw1 = '0202 112 English for Academic Purposes';
+    const result1 = parseCourseDetails(raw1);
+    expect(result1.code).toBe('0202112');
+    expect(result1.name).toBe('English for Academic Purposes');
+
+    const raw2 = '0202 112 - English for Academic Purposes';
+    const result2 = parseCourseDetails(raw2);
+    expect(result2.code).toBe('0202112');
+    expect(result2.name).toBe('English for Academic Purposes');
+
+    const raw3 = '1502 101 - Introduction to Computer Eng';
+    const result3 = parseCourseDetails(raw3);
+    expect(result3.code).toBe('1502101');
+    expect(result3.name).toBe('Introduction to Computer Eng');
+  });
+
   it('provides sensible defaults for empty or general strings', () => {
     const result = parseCourseDetails('');
     expect(result.code).toBe('UOS');
@@ -332,6 +349,60 @@ describe('Ghost Task Prevention & Stream Parser Resilience', () => {
       expect(flagged).toContain('ann_quiz');
       expect(flagged).not.toContain('gb_quiz');
       expect(flagged).not.toContain('gb_assignment');
+    });
+
+    it('filters out any course mentioning orientation from user courses and marks', async () => {
+      const { isBlackboardSystemNoise } = await import('../src/core/courseHelper');
+      const { filterCleanUserCourses } = await import('../src/core/courseFilter');
+      const { isOrientationOrSandboxCourse } = await import('../src/scan/blackboardApi');
+      const { buildMarksSummary } = await import('../src/utils/marks');
+      const { buildGpaSummary } = await import('../src/utils/gpa');
+
+      expect(isBlackboardSystemNoise('Student Hands-On Orientation')).toBe(true);
+      expect(isBlackboardSystemNoise('Freshman Orientation Session')).toBe(true);
+      expect(isBlackboardSystemNoise('برنامج توجيه الطلبة الجدد')).toBe(true);
+      expect(isBlackboardSystemNoise('دورة تهيئة')).toBe(true);
+      expect(isBlackboardSystemNoise('Physics 1')).toBe(false);
+
+      expect(isOrientationOrSandboxCourse('Student Hands-On Orientation')).toBe(true);
+      expect(isOrientationOrSandboxCourse('Orientation')).toBe(true);
+      expect(isOrientationOrSandboxCourse('برنامج تهيئة الطلبة')).toBe(true);
+      expect(isOrientationOrSandboxCourse('Calculus I')).toBe(false);
+
+      const courses = [
+        { id: 'c1', courseName: 'Student Hands-On Orientation', courseCode: 'ORIENTATION' },
+        { id: 'c2', courseName: 'Calculus I for Engineering', courseCode: '1440133' }
+      ] as any;
+      const clean = filterCleanUserCourses(courses);
+      expect(clean).toHaveLength(1);
+      expect(clean[0].courseCode).toBe('1440133');
+
+      const tasks = [
+        {
+          id: 't1',
+          title: 'Orientation Survey',
+          courseName: 'Student Hands-On Orientation',
+          courseCode: 'ORIENTATION',
+          submissionStatus: 'graded',
+          score: 10,
+          maxScore: 10
+        },
+        {
+          id: 't2',
+          title: 'Quiz 1',
+          courseName: 'Calculus I for Engineering',
+          courseCode: '1440133',
+          submissionStatus: 'graded',
+          score: 20,
+          maxScore: 20
+        }
+      ] as any;
+      const marks = buildMarksSummary(tasks);
+      expect(marks.courses).toHaveLength(1);
+      expect(marks.courses[0].courseName).toBe('Calculus I for Engineering');
+
+      const gpa = buildGpaSummary(tasks, [{ courseName: 'Calculus I for Engineering', courseCodePattern: /1440133|calculus/i, totalWeight: 100, creditHours: 3, components: [] }]);
+      expect(gpa.courses.some(c => c.courseName.includes('Orientation'))).toBe(false);
     });
   });
 });

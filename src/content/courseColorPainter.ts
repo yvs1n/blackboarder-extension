@@ -13,6 +13,7 @@ import {
 } from '../core/blackboardColors';
 import { findConfiguredCourseHex } from '../core/courseColors';
 import { parseCourseDetails } from '../core/courseHelper';
+import { isOrientationOrSandboxCourse } from '../scan/blackboardApi';
 
 type GetJson = (path: string) => Promise<any>;
 
@@ -49,7 +50,7 @@ export async function discoveredCoursesWithColors(getJson: GetJson): Promise<{ c
   for (const m of await getBlackboardMemberships(getJson)) {
     if (!m.code) continue;
     const { name } = parseCourseDetails(m.name);
-    if (!name || name === 'General Course') continue;
+    if (!name || name === 'General Course' || isOrientationOrSandboxCourse(name, m.code)) continue;
     out.push({ courseName: name, courseCode: m.code, colorHex: m.hex || undefined });
   }
   return out;

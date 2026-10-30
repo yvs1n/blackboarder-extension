@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.15] - 2026-10-30
+
+### Fixed
+
+- **Exclusion of orientation courses and noise.** Any course mentioning "orientation" (such as "Student Hands-On Orientation" or Arabic equivalents) is strictly excluded from discovered courses, enrolled courses, user courses, activity stream ingestion, and the Grades and marks cards.
+- **CI test cleanliness.** Removed machine-dependent test checking local desktop paths, restoring automated CI builds and public repository export.
+
+
+### Fixed
+
+- **Permanent elimination of duplicate deadlines.** Fixed task ID mutations where merging reassigned gradebook column IDs over stable announcement task IDs, causing cloud sync to see them as distinct entities and resurrect duplicates. Added automatic deduplication and tombstoning on task persistence.
+- **Rescheduling and date protection.** Guarded deadline reschedule logic to never modify due dates or titles of completed or graded tasks, preventing completed quizzes and assignments from being shifted to yesterday.
+- **Synthetic gradebook task deduplication.** Prevented gradebook scanning from generating duplicate entries when matching announced or activity stream tasks already exist.
+- **Space-separated course code normalization.** Fixed matching for course codes with spaced numbering (e.g. "1502 101" vs "1502101") to prevent cross-course deadline collisions.
+- **Course and syllabus data recovery.** Restored full course configurations, credit hours, meeting times, syllabus assessment rules, marks, and clean deadlines to both desktop recovery backup and Firebase cloud sync under BBS-IK0T.
+
+---
+
 ## [1.4.13] - 2026-10-29
 
 ### Fixed

@@ -351,7 +351,7 @@ function sameCode(a: string, b: string): boolean {
   return a === b || (a.length >= 6 && b.length >= 6 && (a.startsWith(b) || b.startsWith(a)));
 }
 
-const ULTRA_GENERIC_RE = /^(?:assignment|task|due|untitled|واجب)$/i;
+const ULTRA_GENERIC_RE = /^(?:assignment|homework|hw\d*|quiz|test|exam|midterm|final|lab|report|project|task|due|untitled|واجب|كويز|امتحان|اختبار|تقرير|مشروع)$/i;
 const isExamTitle = (s?: string) => /\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(s || '');
 
 export function findAllTasksForUpdate(
@@ -426,7 +426,7 @@ export function findAllTasksForUpdate(
       const core = coreTitle(t.title);
       const sameCore = core.length >= 3 && core === coreTitle(update.title);
       const sameWords = wordsKey(t.title).length >= 4 && wordsKey(t.title) === wordsKey(update.title);
-      const sub = (have.includes(want) || want.includes(have)) && !ULTRA_GENERIC_RE.test(update.title.trim());
+      const sub = (have.includes(want) || want.includes(have)) && !ULTRA_GENERIC_RE.test(update.title.trim()) && !ULTRA_GENERIC_RE.test(t.title.trim());
 
       const tNum = extractAssessmentNumber(t.title);
       const isTQuiz = /quiz|كويز/i.test(t.title);
@@ -526,7 +526,7 @@ export function parseUltraStreamEntries(
       : (parsedCourse.code !== 'UOS' ? parsedCourse.code : '');
 
     // Skip orientation / mock sandbox courses
-    if (/student hands-on orientation|blackboard orientation/i.test(courseName)) continue;
+    if (/orientation|توجيه|تهيئة/i.test(courseName) || /orientation/i.test(courseCode) || /orientation/i.test(courseId)) continue;
 
     const providerId = String(entry.providerId || '');
     const itemData = entry.itemSpecificData || {};
@@ -561,7 +561,7 @@ export function parseUltraStreamEntries(
     if (providerId === 'bb_mygrades' || itemData.gradeDetails) {
       const gd = itemData.gradeDetails || {};
       if (gd.isExempt || (gd.calculationType && gd.calculationType !== 'NON_CALCULATED')) continue;
-      if (!rawTitle || /attendance/i.test(rawTitle)) continue;
+      if (!rawTitle || /attendance/i.test(rawTitle) || /orientation|توجيه|تهيئة/i.test(rawTitle)) continue;
 
       const rhs = String(entry.se_rhs || '');
       const colMatch = rhs.match(/gradable_item_id=(_\d+_\d+)/);
@@ -596,7 +596,7 @@ export function parseUltraStreamEntries(
       const eventType = String(notif.eventType || '');
       // Skip non-deadline notifications or file-upload noise
       if (/^(?:added|updated|edited|new\s+content)\s*:/i.test(rawTitle)) continue;
-      if (/blackboard\s*orientation/i.test(rawTitle)) continue;
+      if (/orientation|توجيه|تهيئة/i.test(rawTitle)) continue;
       if (eventType && /GRADED|SUBMITTED/i.test(eventType)) continue;
 
       const due = new Date(notif.dueDate);
