@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-CjqbaxHr.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-CbRDAu8c.css">
+  <script type="module" crossorigin src="../../assets/popup-DlarbRv8.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-DWkl5TwE.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -257,7 +257,7 @@
       </div>
     </div>
 
-    <!-- Extended Scan Status Banner (slides down smoothly without horizontal layout shift) -->
+    <!-- Floating Live Scan Notification (zero layout shift) -->
     <div class="header-scan-banner" id="header-scan-banner" aria-live="polite">
       <div class="hsb-inner">
         <div class="hsb-indicator">
@@ -266,6 +266,7 @@
         <div class="hsb-content">
           <span class="hsb-text" id="hsb-text">Scanning Blackboard...</span>
         </div>
+        <button type="button" class="hsb-close" id="hsb-close" title="Dismiss" aria-label="Dismiss notification">✕</button>
       </div>
       <div class="hsb-progress-bar"><div class="hsb-progress-fill" id="hsb-progress-fill"></div></div>
     </div>
@@ -303,7 +304,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.20</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.21</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -1039,7 +1040,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.20</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.21</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

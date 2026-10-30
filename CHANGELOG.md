@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.21] - 2026-10-30
+
+### Fixed
+
+- **Doctor announcement display and quote cleanup:** Fixed stray quotation artifacts in professor announcements (e.g. `time."Quiz` converted cleanly to `time. Quiz`, removed surrounding hardcoded quotes, and eliminated stray punctuation spacing). In Day View cards, announcements are now displayed in a clean 3-line clamped preview with an inline toggle and "Full View" reading sheet inspector, eliminating internal nested scrollbars and ensuring card action buttons (Completed, Share, Edit, G-Cal, Delete) are always visible and never cut off.
+- **Double scan notification deduplication:** Resolved race condition between tab fallback scan completion and background HTTP scan message callbacks on Blackboard tabs. The tab now receives exactly one unified toast notification on scan completion.
+- **Floating live scan notification with zero layout shift:** Replaced the top header scan banner with a floating overlay notification card featuring an animated bottom progress line. The notification floats seamlessly at the bottom during scanning, updates status live without shifting header or calendar elements by even 1 pixel, smoothly fills the progress bar to 100% on completion, and holds for 3.5 seconds before fading out.
+
 ## [1.4.20] - 2026-10-30
 
 ### Fixed

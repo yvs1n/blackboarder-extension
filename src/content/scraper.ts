@@ -1004,10 +1004,26 @@ function teardownOrphanedContentScript() {
   }
 }
 
+let toastDismissTimer: any = null;
+let lastTabScanToastAt = 0;
+
+// Lightning bolt line icon (the same shape as the extension's icon-bolt)
+const BOLT_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>';
+const SPARKLE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="animation: hsb-spin 1.8s linear infinite;"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"></path></svg>';
+
 /**
- * Shows a toast message on top-right of the page.
+ * Shows a toast message on top-right of the page with an animated bottom progress line.
  */
-function showSidekickToast(title: string, message: string, taskCount: number = 0) {
+function showSidekickToast(
+  title: string,
+  message: string,
+  taskCount: number = 0,
+  inProgress: boolean = false
+) {
+  if (toastDismissTimer) {
+    clearTimeout(toastDismissTimer);
+    toastDismissTimer = null;
+  }
   let toast = document.getElementById('bbs-toast') as HTMLDivElement | null;
   if (!toast) {
     toast = document.createElement('div');
@@ -1018,8 +1034,11 @@ function showSidekickToast(title: string, message: string, taskCount: number = 0
 
   toast.innerHTML = `
     <div class="bbs-toast-header">
-      <span class="bbs-toast-title">${BOLT_SVG}${title}</span>
-      <span style="cursor:pointer;opacity:0.6;" id="bbs-toast-close">✕</span>
+      <span class="bbs-toast-title">
+        ${inProgress ? SPARKLE_SVG : BOLT_SVG}
+        <span>${title}</span>
+      </span>
+      <span style="cursor:pointer;opacity:0.6;font-size:13px;padding:2px 4px;" id="bbs-toast-close" title="Dismiss">✕</span>
     </div>
     <div class="bbs-toast-body">${message}</div>
     ${taskCount > 0 ? `
@@ -1027,6 +1046,9 @@ function showSidekickToast(title: string, message: string, taskCount: number = 0
         <button class="bbs-toast-btn-primary" id="bbs-toast-view">Open Blackboarder</button>
       </div>
     ` : ''}
+    <div class="bbs-toast-progress">
+      <div class="bbs-toast-progress-fill ${inProgress ? 'is-loading' : 'is-done'}"></div>
+    </div>
   `;
 
   toast.classList.add('bbs-toast-visible');
@@ -1054,13 +1076,12 @@ function showSidekickToast(title: string, message: string, taskCount: number = 0
     toast?.classList.remove('bbs-toast-visible');
   });
 
-  setTimeout(() => {
-    toast?.classList.remove('bbs-toast-visible');
-  }, 6000);
+  if (!inProgress) {
+    toastDismissTimer = setTimeout(() => {
+      toast?.classList.remove('bbs-toast-visible');
+    }, 4500);
+  }
 }
-
-// Lightning bolt line icon (the same shape as the extension's icon-bolt)
-const BOLT_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"></path></svg>';
 
 /**
  * Injects the floating quick-scan button (a bolt icon) onto Blackboard pages.
@@ -1396,6 +1417,7 @@ async function runBlackboardScan(run: ScanRun) {
         ? `Found <strong>${totalNewCount}</strong> new deadline${totalNewCount > 1 ? 's' : ''} (Quizzes & Assignments) from Blackboard!`
         : `All deadlines up to date. (${result.pendingCount} pending tasks in dashboard)`;
       showSidekickToast('Scan Complete', msg, totalNewCount);
+      lastTabScanToastAt = Date.now();
     }
     if (run.interactive) {
       run.reported = true;
@@ -1476,6 +1498,9 @@ function init() {
   // the service worker runs the scan here, in this tab (RUN_TAB_SCAN), instead of opening another
   injectFloatingButton(() => {
     if (!isExtensionContextValid()) return;
+    const scanStartedAt = Date.now();
+    showSidekickToast('Scanning Blackboard...', 'Checking announcements and enrolled courses...', 0, true);
+
     chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', interactive: true }, async res => {
       void chrome.runtime.lastError;
       const tasks = await getTasks().catch(() => []);
@@ -1489,10 +1514,16 @@ function init() {
           badge.style.display = 'none';
         }
       }
+
+      // If scanPage() ran in this tab and already showed the completion toast, don't show a second duplicate toast!
+      if (lastTabScanToastAt >= scanStartedAt) {
+        return;
+      }
+
       const msg = res?.ok
         ? (res.newCount ? `Added <strong>${res.newCount}</strong> new deadlines to calendar!` : (res.message || 'All deadlines up to date.'))
         : (res?.message || 'Could not reach Blackboard.');
-      showSidekickToast('Blackboarder', msg, res?.newCount || 0);
+      showSidekickToast(res?.ok ? 'Scan Complete' : 'Scan Notice', msg, res?.newCount || 0);
     });
   });
 

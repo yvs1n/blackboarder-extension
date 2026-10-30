@@ -101,16 +101,17 @@
   background: rgba(24, 24, 28, 0.96);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0 !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
-  padding: 13px 15px;
+  padding: 13px 15px 16px;
   transform: translateY(12px);
   opacity: 0;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
   z-index: 99999999;
   color: #f4f4f6;
+  overflow: hidden;
 }
 
 .bbs-toast.bbs-toast-visible {
@@ -170,6 +171,39 @@
 
 .bbs-toast-btn-secondary:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+.bbs-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.bbs-toast-progress-fill {
+  height: 100%;
+  width: 0;
+  background: #f4f4f6;
+  transition: width 0.25s ease;
+}
+
+.bbs-toast-progress-fill.is-loading {
+  width: 35%;
+  animation: bbs-toast-indeterminate 1.5s infinite ease-in-out;
+}
+
+.bbs-toast-progress-fill.is-done {
+  width: 100%;
+  animation: none;
+}
+
+@keyframes bbs-toast-indeterminate {
+  0% { transform: translateX(-100%); width: 25%; }
+  50% { width: 50%; }
+  100% { transform: translateX(350%); width: 25%; }
 }
 
 

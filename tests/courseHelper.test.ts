@@ -404,5 +404,22 @@ describe('Ghost Task Prevention & Stream Parser Resilience', () => {
       const gpa = buildGpaSummary(tasks, [{ courseName: 'Calculus I for Engineering', courseCodePattern: /1440133|calculus/i, totalWeight: 100, creditHours: 3, components: [] }]);
       expect(gpa.courses.some(c => c.courseName.includes('Orientation'))).toBe(false);
     });
+
+    it('unwraps outer quotation marks from announcements', async () => {
+      const { sanitizeDoctorAnnouncementText } = await import('../src/core/courseHelper');
+      const input = '"Dear students, Quiz 3 will take place next Wednesday. Regards, Amine"';
+      const clean = sanitizeDoctorAnnouncementText(input);
+      expect(clean).toBe('Dear students, Quiz 3 will take place next Wednesday. Regards, Amine');
+    });
+
+    it('cleans stray mid-sentence quotes glued to punctuation and fixes punctuation spacing', async () => {
+      const { sanitizeDoctorAnnouncementText } = await import('../src/core/courseHelper');
+      const input = 'This is to inform you that Quiz 3 will take place next Wednesday, November 4, 2026 , during our regular lecture time."Quiz 3 covers chapters 5 and 6 .';
+      const clean = sanitizeDoctorAnnouncementText(input);
+      expect(clean).toContain('November 4, 2026, during');
+      expect(clean).toContain('regular lecture time. Quiz 3');
+      expect(clean).toContain('chapters 5 and 6.');
+      expect(clean).not.toContain('time."Quiz');
+    });
   });
 });

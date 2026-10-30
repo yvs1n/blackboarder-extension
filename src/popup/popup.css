@@ -721,45 +721,46 @@ body.is-standalone .header {
   background: #ffffff;
 }
 
-/* Extended Scan Status Banner (slides down smoothly in header) */
+/* Extended Scan Status Banner (floating live notification without layout shift) */
 .header-scan-banner {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.2s ease,
-              margin 0.2s ease,
-              padding 0.2s ease;
-  background: var(--surface-hover);
-  border: 1px solid var(--surface-border);
-  border-radius: 0;
-  padding: 0 10px;
-  margin-bottom: 0;
-  position: relative;
+  position: fixed;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 10000;
+  background: var(--surface);
+  border: 1px solid var(--surface-border-strong, #3f3f46);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
+  border-radius: 0 !important;
+  padding: 8px 12px 10px;
   box-sizing: border-box;
-  width: 100%;
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
 }
 
 .header-scan-banner.is-active {
-  max-height: 40px;
   opacity: 1;
-  padding: 6px 10px 7px;
-  margin-bottom: 8px;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .header-scan-banner.is-success {
-  background: rgba(113, 113, 122, 0.08);
-  border-color: rgba(113, 113, 122, 0.35);
+  background: var(--surface);
+  border-color: var(--surface-border-strong, #3f3f46);
 }
 
 .header-scan-banner.is-info {
-  background: rgba(113, 113, 122, 0.08);
-  border-color: rgba(113, 113, 122, 0.35);
+  background: var(--surface);
+  border-color: var(--surface-border-strong, #3f3f46);
 }
 
 .header-scan-banner.is-warning {
-  background: rgba(113, 113, 122, 0.08);
-  border-color: rgba(113, 113, 122, 0.35);
+  background: var(--surface);
+  border-color: #71717a;
 }
 
 .header-scan-banner .hsb-inner {
@@ -776,7 +777,7 @@ body.is-standalone .header {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
-  color: #71717a;
+  color: var(--text-main);
 }
 
 .header-scan-banner.is-success .hsb-indicator {
@@ -793,7 +794,7 @@ body.is-standalone .header {
 }
 
 .header-scan-banner .hsb-text {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-main);
   white-space: nowrap;
@@ -802,23 +803,41 @@ body.is-standalone .header {
   display: block;
 }
 
+.header-scan-banner .hsb-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 0 !important;
+  opacity: 0.75;
+}
+
+.header-scan-banner .hsb-close:hover {
+  opacity: 1;
+  color: var(--text-main);
+}
+
 .header-scan-banner .hsb-progress-bar {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 2.5px;
+  background: rgba(113, 113, 122, 0.2);
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 0 !important;
 }
 
 .header-scan-banner .hsb-progress-fill {
   height: 100%;
   width: 35%;
   background: var(--primary);
-  border-radius: 0;
+  border-radius: 0 !important;
   animation: hsb-progress-indeterminate 1.5s infinite ease-in-out;
+  transition: width 0.25s ease;
 }
 
 .header-scan-banner.is-success .hsb-progress-fill {
@@ -2752,26 +2771,90 @@ body.is-standalone .header {
 }
 
 .day-card-announcement {
-  font-size: 10px;
-  color: #475569;
-  background: #f8fafc;
-  border-left: 3px solid #cbd5e1;
-  padding: 4px 7px;
-  border-radius: 0 4px 4px 0;
-  line-height: 1.35;
-  font-style: italic;
-  margin-top: 2px;
-  max-height: 140px;
-  overflow-y: auto;
+  font-size: 11px;
+  color: var(--text-main);
+  background: var(--surface-hover);
+  border-left: 2px solid var(--text-muted);
+  padding: 6px 8px;
+  border-radius: 0 !important;
+  line-height: 1.4;
+  font-style: normal;
+  margin-top: 4px;
   word-break: break-word;
   white-space: pre-line;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.day-card-announcement:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .day-card-announcement:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.day-card-announcement-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 3px;
 }
 
 .day-card-announcement-label {
   font-weight: 700;
   font-style: normal;
-  color: #64748b;
-  margin-right: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-day-card-inspect {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 1px 4px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.85;
+  border-radius: 0 !important;
+}
+
+.btn-day-card-inspect:hover {
+  opacity: 1;
+  color: var(--text-main);
+}
+
+.day-card-announcement.is-clamped .day-card-announcement-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.btn-day-card-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 0 0;
+  margin-top: 2px;
+  cursor: pointer;
+  display: block;
+}
+
+.btn-day-card-toggle:hover {
+  color: var(--text-main);
+  text-decoration: underline;
 }
 
 .day-card-actions {

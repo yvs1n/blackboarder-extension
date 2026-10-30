@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.20",
-  "build": "b5449969eb68",
-  "commit": "bd6dbddd2b45fbea83a263cb33d5fbaa13cbd414",
-  "shortCommit": "bd6dbdd",
-  "timestamp": "2026-10-30T14:08:46.582Z",
-  "message": "build: update generated files for 951f3a1",
+  "version": "1.4.21",
+  "build": "a4a8ebd7f8a8",
+  "commit": "6139b4372b281ff628a1a102accc6e88fdf022ec",
+  "shortCommit": "6139b43",
+  "timestamp": "2026-10-30T17:08:29.133Z",
+  "message": "release: v1.4.20 - firefox background script compatibility, built-in multi-university manifest matches, and AURAK URL fix",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

@@ -381,6 +381,17 @@ export function sanitizeDoctorAnnouncementText(
     }
   }
 
+  // Strip outer quotes (double, single, typographic)
+  text = text.replace(/^["'“‘]+\s*/, '').replace(/\s*["'”’]+$/, '').trim();
+
+  // Normalize stray punctuation artifacts:
+  // 1. Stray mid-sentence quotes immediately after period/comma/exclamation glued to word:
+  // e.g. 'lecture time."Quiz 3' -> 'lecture time. Quiz 3'
+  text = text.replace(/([.!?])["”]\s*([A-Za-z0-9])/g, '$1 $2');
+
+  // 2. Space before punctuation (e.g. 'November 4, 2026 , during' -> 'November 4, 2026, during')
+  text = text.replace(/\s+([,.:;!?])/g, '$1');
+
   // Final cleanup of leading punctuation
   text = text.replace(/^[:\-–—|,\s]+/, '').trim();
 

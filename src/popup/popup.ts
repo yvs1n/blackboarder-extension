@@ -805,18 +805,35 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       ` : ''}
     </div>
 
-    ${(task.description || task.sourceSnippet) && !(task.description || task.sourceSnippet).startsWith('Blackboard Ultra Stream item') ? `
-      <div class="day-card-announcement">
-        <span class="day-card-announcement-label" style="display: inline-flex; align-items: center; gap: 4px;">
-          ${getSvgIcon('message')}
-          <span>Announcement:</span>
-        </span>
-        <span class="day-card-announcement-text">"${escapeHtml(task.description || task.sourceSnippet)}"</span>
-      </div>
-    ` : ''}
+    ${(() => {
+      const rawSnippet = (task.description || task.sourceSnippet || '').trim();
+      if (!rawSnippet || rawSnippet.startsWith('Blackboard Ultra Stream item')) return '';
+      const cleanSnippet = sanitizeDoctorAnnouncementText(rawSnippet, resolved.courseName, resolved.courseCode, task.title);
+      if (!cleanSnippet) return '';
+      const isLong = cleanSnippet.length > 110 || cleanSnippet.includes('\n');
+      return `
+        <div class="day-card-announcement ${isLong ? 'is-clamped' : ''}" data-task-id="${escapeHtml(task.id)}" title="Click to view full announcement">
+          <div class="day-card-announcement-header">
+            <span class="day-card-announcement-label">
+              ${getSvgIcon('message')}
+              <span>Announcement</span>
+            </span>
+            <button type="button" class="btn-day-card-inspect" data-task-id="${escapeHtml(task.id)}" title="Full announcement details">
+              ${getSvgIcon('search', 'mr-1')} Full View
+            </button>
+          </div>
+          <div class="day-card-announcement-body">${escapeHtml(cleanSnippet)}</div>
+          ${isLong ? `
+            <button type="button" class="btn-day-card-toggle" data-task-id="${escapeHtml(task.id)}" aria-expanded="false">
+              <span>Read more ▾</span>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    })()}
 
     ${task.notes ? `
-      <div class="day-card-student-notes" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 4px;">
+      <div class="day-card-student-notes" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 0;">
         <span style="font-size: 10px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;">
           ${getSvgIcon('pencil')}
           <span>Student Notes:</span>
@@ -892,6 +909,28 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
         showToast('Deadline restored');
       }
     );
+  });
+
+  const btnInspect = card.querySelector('.btn-day-card-inspect');
+  btnInspect?.addEventListener('click', e => {
+    e.stopPropagation();
+    openReadingSheet(task);
+  });
+
+  const annBox = card.querySelector('.day-card-announcement');
+  const annToggleBtn = card.querySelector('.btn-day-card-toggle');
+  annToggleBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (annBox) {
+      const clamped = annBox.classList.toggle('is-clamped');
+      annToggleBtn.innerHTML = clamped ? '<span>Read more ▾</span>' : '<span>Show less ▴</span>';
+    }
+  });
+
+  annBox?.addEventListener('click', e => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.btn-day-card-toggle')) return;
+    openReadingSheet(task);
   });
 
   return card;
@@ -3042,11 +3081,9 @@ function renderScanStatus(status: ScanStatus | null) {
     return;
   }
 
-  // When already synced / finished, never leave or show the persistent scan banner
-  hideScanBanner();
-
   // Finished: only show completion state on the button if it just happened (<15s)
   if (age > 15 * 1000) {
+    hideScanBanner();
     resetScanButton();
     return;
   }
@@ -3056,17 +3093,21 @@ function renderScanStatus(status: ScanStatus | null) {
     btnScanTab.disabled = false;
     btnScanTab.style.background = '';
     btnScanTab.innerHTML = `${getSvgIcon('check', 'mr-1')}<span>${added > 0 ? `+${added}` : 'Synced'}</span>`;
+    const doneMsg = status.message || (added > 0 ? `Scan complete · ${added} new deadline${added > 1 ? 's' : ''} added` : 'Scan complete · All deadlines up to date');
+    showScanBanner(doneMsg, 'success', 3500);
     if (added > 0) {
-      showToast(status.message || `+${added} new deadline${added > 1 ? 's' : ''} added`);
       switchView('calendar');
     }
-    scanButtonResetTimer = setTimeout(resetScanButton, 2000);
-  } else {
+    scanButtonResetTimer = setTimeout(resetScanButton, 2200);
+  } else if (status.state === 'error') {
     btnScanTab.disabled = false;
     btnScanTab.style.background = '';
     btnScanTab.innerHTML = `${getSvgIcon('urgent', 'mr-1')}<span>Failed</span>`;
-    showScanBanner(status.message, 'warning', 4000);
+    showScanBanner(status.message || 'Scan could not complete. Try again.', 'warning', 4000);
     scanButtonResetTimer = setTimeout(resetScanButton, 3000);
+  } else {
+    hideScanBanner();
+    resetScanButton();
   }
 }
 
@@ -3152,6 +3193,19 @@ function watchScanEnd(startedAt: number) {
 // Setup Event Listeners
 // ============================================================================
 function setupEvents() {
+  // Live Scan Notification Dismissal
+  document.getElementById('hsb-close')?.addEventListener('click', e => {
+    e.stopPropagation();
+    hideScanBanner();
+  });
+  headerScanBanner?.addEventListener('click', e => {
+    const target = e.target as HTMLElement;
+    if (target.closest('#hsb-close')) return;
+    if (headerScanBanner.classList.contains('is-success') || headerScanBanner.classList.contains('is-warning')) {
+      hideScanBanner();
+    }
+  });
+
   // Top Navigation Tabs
   tabNavCalendar.addEventListener('click', () => switchView('calendar'));
   tabNavDetails.addEventListener('click', () => switchView('details'));
