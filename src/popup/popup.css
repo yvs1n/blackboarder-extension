@@ -1803,23 +1803,32 @@ body.is-standalone .header {
   display: inline-block;
 }
 
-/* Doctor's Announcement Quote Box (Antislop parity with mobile-web) */
+/* Doctor's Announcement Quote Box (Unified with mobile companion) */
 .doctor-quote-box {
   --quote-fade-bg: #f8fafc;
   background: #f8fafc;
   border: 1px solid var(--surface-border);
-  border-left: 3px solid var(--surface-border-strong);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  padding: 7px 10px;
-  margin-top: 3px;
+  border-left: 3.5px solid var(--surface-border-strong);
+  border-radius: 0 !important;
+  padding: 8px 11px;
+  margin-top: 4px;
   transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.doctor-quote-box:hover {
+  background: #f1f5f9;
+}
+
+[data-theme="dark"] .doctor-quote-box:hover {
+  background: #1c1c22;
 }
 
 .quote-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .quote-label {
@@ -1839,10 +1848,11 @@ body.is-standalone .header {
   line-height: 1.45;
   white-space: pre-line;
   word-break: break-word;
+  transition: max-height 0.2s ease;
 }
 
 .quote-body.clamped {
-  max-height: 3.8em;
+  max-height: 4.2em;
   overflow: hidden;
   position: relative;
 }
@@ -1873,7 +1883,8 @@ body.is-standalone .header {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 3px 0 0;
+  padding: 4px 2px 2px;
+  margin-top: 2px;
 }
 
 .btn-toggle-quote:hover {
@@ -1886,16 +1897,16 @@ body.is-standalone .header {
   border: none;
   color: var(--text-muted);
   font-size: 10.5px;
+  font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 2px 4px;
-  border-radius: 4px;
+  transition: color 0.15s ease;
 }
 
 .btn-inspect-quote:hover {
-  background: #e2e8f0;
   color: var(--text-main);
 }
 
@@ -2768,52 +2779,6 @@ body.is-standalone .header {
   padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid var(--surface-border);
-}
-
-.day-card-announcement {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  background: var(--surface-hover);
-  border-left: 2px solid var(--text-muted);
-  padding: 3px 6px;
-  border-radius: 0 !important;
-  line-height: 1.35;
-  margin-top: 2px;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-.day-card-announcement:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-main);
-}
-
-[data-theme="dark"] .day-card-announcement:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-main);
-}
-
-.day-card-announcement-label {
-  font-weight: 700;
-  color: var(--text-main);
-  margin-right: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.day-card-announcement-label svg {
-  width: 11px;
-  height: 11px;
-}
-
-.day-card-announcement-text {
-  color: inherit;
 }
 
 .day-card-actions {

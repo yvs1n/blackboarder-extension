@@ -740,6 +740,41 @@ function closeDayExpandedDrawer() {
   }, 220);
 }
 
+// Renders the doctor's announcement quote box with expand/collapse and inspect modal triggers
+function renderDoctorQuoteHtml(
+  task: DeadlineTask,
+  courseName?: string,
+  courseCode?: string,
+  idPrefix: string = 'quote-body-'
+): string {
+  const rawSnippet = (task.description || task.sourceSnippet || '').trim();
+  if (!rawSnippet || rawSnippet.startsWith('Blackboard Ultra Stream item')) return '';
+  const cleanSnippet = sanitizeDoctorAnnouncementText(rawSnippet, courseName, courseCode, task.title);
+  if (!cleanSnippet) return '';
+  const normalizedText = cleanSnippet.replace(/\n{3,}/g, '\n\n').trim();
+  const isLong = normalizedText.length > 120 || normalizedText.includes('\n');
+  return `
+    <div class="doctor-quote-box" data-task-id="${escapeHtml(task.id)}">
+      <div class="quote-label-row">
+        <div class="quote-label">
+          <span>${getSvgIcon('message', 'mr-1')}</span>
+          <span>Doctor Announcement:</span>
+        </div>
+        <button type="button" class="btn-inspect-quote" data-id="${escapeHtml(task.id)}" data-task-id="${escapeHtml(task.id)}" title="Inspect full announcement">
+          <span>${getSvgIcon('search', 'mr-1')} Full View</span>
+        </button>
+      </div>
+      <div class="quote-body ${isLong ? 'clamped' : 'expanded'}" id="${idPrefix}${escapeHtml(task.id)}">${escapeHtml(normalizedText)}</div>
+      ${isLong ? `
+        <button type="button" class="btn-toggle-quote" data-id="${escapeHtml(task.id)}" data-task-id="${escapeHtml(task.id)}" aria-expanded="false">
+          <span class="quote-toggle-icon">${getSvgIcon('book', 'mr-1')}</span>
+          <span class="quote-toggle-text">Read Full Announcement ▾</span>
+        </button>
+      ` : ''}
+    </div>
+  `;
+}
+
 // Create a summary card for a day event: Task Name, Subject (in permanent color), and Time
 function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   const isCompleted = task.status === 'completed';
@@ -805,22 +840,7 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       ` : ''}
     </div>
 
-    ${(() => {
-      const rawSnippet = (task.description || task.sourceSnippet || '').trim();
-      if (!rawSnippet || rawSnippet.startsWith('Blackboard Ultra Stream item')) return '';
-      const cleanSnippet = sanitizeDoctorAnnouncementText(rawSnippet, resolved.courseName, resolved.courseCode, task.title);
-      if (!cleanSnippet) return '';
-      const compactText = cleanSnippet.replace(/\s+/g, ' ').trim();
-      return `
-        <div class="day-card-announcement" data-task-id="${escapeHtml(task.id)}" title="Click to view full announcement">
-          <span class="day-card-announcement-label" style="display: inline-flex; align-items: center; gap: 3px;">
-            ${getSvgIcon('message')}
-            <span>Announcement:</span>
-          </span>
-          <span class="day-card-announcement-text">${escapeHtml(compactText)}</span>
-        </div>
-      `;
-    })()}
+    ${renderDoctorQuoteHtml(task, resolved.courseName, resolved.courseCode, 'quote-body-day-')}
 
     ${task.notes ? `
       <div class="day-card-student-notes" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 0;">
@@ -901,8 +921,33 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
     );
   });
 
-  card.querySelector('.day-card-announcement')?.addEventListener('click', e => {
+  // Inspect quote click
+  card.querySelector('.btn-inspect-quote')?.addEventListener('click', (e) => {
     e.stopPropagation();
+    openReadingSheet(task);
+  });
+
+  // Toggle quote expansion
+  card.querySelector('.btn-toggle-quote')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const body = card.querySelector('.quote-body');
+    const btn = card.querySelector('.btn-toggle-quote') as HTMLElement;
+    if (!body || !btn) return;
+    const isClamped = body.classList.contains('clamped');
+    if (isClamped) {
+      body.classList.remove('clamped');
+      body.classList.add('expanded');
+      btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Show Less ▴</span>`;
+    } else {
+      body.classList.remove('expanded');
+      body.classList.add('clamped');
+      btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Read Full Announcement ▾</span>`;
+    }
+  });
+
+  // Quote box click opens reading sheet
+  card.querySelector('.doctor-quote-box')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('.btn-toggle-quote, .btn-inspect-quote')) return;
     openReadingSheet(task);
   });
 
@@ -2029,31 +2074,7 @@ function renderTasks() {
     }
 
     // Clean Doctor's announcement quote with expand/collapse toggle
-    let doctorQuoteHtml = '';
-    const snippet = (task.description || task.sourceSnippet || '').trim();
-    if (snippet && !snippet.startsWith('Blackboard Ultra Stream item')) {
-      const isLong = snippet.length > 110 || snippet.includes('\n');
-      doctorQuoteHtml = `
-        <div class="doctor-quote-box">
-          <div class="quote-label-row">
-            <div class="quote-label">
-              <span>${getSvgIcon('message', 'mr-1')}</span>
-              <span>DOCTOR ANNOUNCEMENT:</span>
-            </div>
-            <button type="button" class="btn-inspect-quote" data-id="${escapeHtml(task.id)}" title="Inspect full announcement">
-              <span>${getSvgIcon('search', 'mr-1')} Full View</span>
-            </button>
-          </div>
-          <div class="quote-body ${isLong ? 'clamped' : 'expanded'}" id="quote-body-${escapeHtml(task.id)}">${escapeHtml(snippet)}</div>
-          ${isLong ? `
-            <button type="button" class="btn-toggle-quote" data-id="${escapeHtml(task.id)}" aria-expanded="false">
-              <span class="quote-toggle-icon">${getSvgIcon('book', 'mr-1')}</span>
-              <span class="quote-toggle-text">Read Full Announcement ▾</span>
-            </button>
-          ` : ''}
-        </div>
-      `;
-    }
+    const doctorQuoteHtml = renderDoctorQuoteHtml(task, resolved.courseName, resolved.courseCode, 'quote-body-');
 
     // Student Personal Notes
     let studentNotesHtml = '';
@@ -2169,6 +2190,12 @@ function renderTasks() {
         body.classList.add('clamped');
         btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Read Full Announcement ▾</span>`;
       }
+    });
+
+    // Quote box click opens full reading sheet
+    card.querySelector('.doctor-quote-box')?.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('.btn-toggle-quote, .btn-inspect-quote')) return;
+      openReadingSheet(task);
     });
 
     // Room pill button

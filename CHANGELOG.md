@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.23] - 2026-10-30
+
+### Fixed
+
+- **Unified announcement layout across mobile and extension:** Unified the doctor announcement display across the calendar day view, deadlines list, and mobile companion into the standard `doctor-quote-box`. Features the "Doctor Announcement:" label, "Full View" inspector button with reading modal sheet, clamped 3-4 line preview with gentle gradient fade, and inline "Read Full Announcement ▾" / "Show Less ▴" toggle, eliminating the oversized blank vertical gaps while preventing the snippet from feeling too small or squished.
+
 ## [1.4.22] - 2026-10-30
 
 ### Fixed
