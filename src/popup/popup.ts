@@ -5207,10 +5207,13 @@ function initSessionBanner() {
     });
   } catch {}
   open?.addEventListener('click', () => {
+    const cached = getCachedProfile();
+    const uni = profileUniversity(cached);
+    const bbUrl = uni.blackboardUrl || 'https://elearning.sharjah.ac.ae/ultra/stream';
     try {
-      chrome.tabs.create({ url: 'https://elearning.sharjah.ac.ae/ultra/stream' });
+      chrome.tabs.create({ url: bbUrl });
     } catch {
-      window.open('https://elearning.sharjah.ac.ae/ultra/stream', '_blank', 'noopener');
+      window.open(bbUrl, '_blank', 'noopener');
     }
   });
 }

@@ -1429,7 +1429,7 @@ function isBlackboardSite(): boolean {
   if (host.includes('blackboard.com') || host.includes('blackboard.sharjah.ac.ae') || host.includes('elearning.sharjah.ac.ae')) {
     return true;
   }
-  if (host.includes('blackboard')) {
+  if (host.includes('blackboard') || host.startsWith('learn.') || host.startsWith('ilearn.') || host.startsWith('elearning.')) {
     return true;
   }
   // Any university's Blackboard Learn: its pages live under /ultra/ or /webapps/

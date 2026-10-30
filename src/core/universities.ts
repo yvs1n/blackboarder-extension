@@ -119,6 +119,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     domains: ['uaeu.ac.ae'],
     gradeScale: HALF_STEP_SCALE,
     lowestPass: 'D',
+    blackboardUrl: 'https://learn.uaeu.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {
@@ -128,6 +129,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     domains: ['adu.ac.ae'],
     gradeScale: HALF_STEP_SCALE,
     lowestPass: 'D',
+    blackboardUrl: 'https://blackboard.adu.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {
@@ -137,6 +139,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     domains: ['zu.ac.ae'],
     gradeScale: PLUS_MINUS_SCALE,
     lowestPass: 'D',
+    blackboardUrl: 'https://learn.zu.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {
@@ -147,6 +150,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     gradeScale: PLUS_MINUS_SCALE,
     cutoffsFromSyllabus: true,
     lowestPass: 'D',
+    blackboardUrl: 'https://blackboard.aud.edu/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {
@@ -158,6 +162,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     gradeScale: PLUS_MINUS_SCALE.filter(g => g.letter !== 'D+'),
     cutoffsFromSyllabus: true,
     lowestPass: 'C-',
+    blackboardUrl: 'https://ilearn.aus.edu/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {
@@ -167,6 +172,7 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     domains: ['aurak.ac.ae'],
     gradeScale: AURAK_SCALE,
     lowestPass: 'D',
+    blackboardUrl: 'https://blackboard.aurak.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {

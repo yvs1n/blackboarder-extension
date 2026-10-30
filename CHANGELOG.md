@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.19] - 2026-10-30
+
+### Added
+
+- **Multi-university Blackboard URL routing:** Configured accurate Blackboard Ultra portal endpoints for all presets (UAEU, ADU, ZU, AUD, AUS, AURAK). Clicking "Open Blackboard" in the extension header banner or session notifications dynamically routes to the student's chosen university instead of defaulting to UOS.
+- **Mozilla Firefox WebExtension support:** Added browser_specific_settings.gecko with an explicit extension ID and minimum version compatibility, and updated installation guide and browser detection to support Firefox (about:addons).
+- **Smooth hero university animation:** The landing page preview smoothly fades in and glides between universities and host domain links next to Blackboarder with GPU accelerated CSS transitions.
+- **Crisp SVG iconography:** Replaced all emojis across the landing page and companion app with clean, accessible vector SVGs.
+
 ## [1.4.18] - 2026-10-30
 
 ### Added
