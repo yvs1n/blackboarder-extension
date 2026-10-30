@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.28] - 2026-10-31
+
+### Fixed
+
+- **Course legend overflow indicators and reliable navigation arrows:** Resolved an issue where horizontal scroll navigation buttons on the course legend bar could remain hidden when courses overflowed. Upgraded both the extension and companion with multi-stage rAF checks, cascading timeouts, `MutationObserver`, and pointer hover listeners to ensure arrows reliably display when content overflows. Added subtle inset border indicators on overflow edges to visually cue additional offscreen courses.
+- **Dedicated PWA Updates section:** Clarified the Updates settings card in the mobile companion web app to explicitly state that it checks for updates to the Web Companion (PWA), ensuring clarity between PWA updates and extension updates while preserving user data.
+- **Unified companion notification alerts:** Consolidated notifications into a single master "Push Alerts" toggle on the companion app, removing the redundant "Reminders While Closed" toggle row from view while automatically managing background push subscriptions and permissions in one step.
+- **Calendar classes integration on extension:** Fixed "Show My Classes" on the Chrome extension popup. Scheduled class occurrences now display directly on the calendar month grid day cells when enabled. Eliminated an early exit in `renderSelectedDay` that hid the selected day container when deadline tasks were zero, preserved the schedule setup guidance box, and included `showClassesInCalendar` in the settings form save handler.
+
 ## [1.4.27] - 2026-10-31
 
 ### Fixed

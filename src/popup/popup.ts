@@ -10,7 +10,7 @@ import { pickNewerList } from '../utils/syncMerge';
 import { initUniversitySettings, getCachedProfile } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { quickLinkPreset } from '../core/universities';
-import { classesOnDay, todaysClassesHtml } from '../core/classSchedule';
+import { classesOnDay, todaysClassesHtml, formatClock, type ClassOccurrence } from '../core/classSchedule';
 import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt, safeSetLocalStorage } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
@@ -509,13 +509,20 @@ function renderCalendar() {
 
   const todayKey = formatDateKey(new Date());
   const fragment = document.createDocumentFragment();
+  const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
+  const getDayClasses = (d: Date): ClassOccurrence[] => {
+    if (!showClasses) return [];
+    return classesOnDay(currentUserCourses, d).filter(o =>
+      matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter)
+    );
+  };
 
   // 1. Previous Month Leading Days
   for (let i = offset - 1; i >= 0; i--) {
     const dayNum = prevMonthDays - i;
     const prevDate = new Date(calendarYear, calendarMonth - 1, dayNum);
     const dateKey = formatDateKey(prevDate);
-    const dayEl = createDayCell(dayNum, dateKey, true, tasksByDate.get(dateKey) || []);
+    const dayEl = createDayCell(dayNum, dateKey, true, tasksByDate.get(dateKey) || [], false, false, getDayClasses(prevDate));
     fragment.appendChild(dayEl);
   }
 
@@ -524,7 +531,7 @@ function renderCalendar() {
     const currDate = new Date(calendarYear, calendarMonth, d);
     const dateKey = formatDateKey(currDate);
     const dayTasks = tasksByDate.get(dateKey) || [];
-    const dayEl = createDayCell(d, dateKey, false, dayTasks, dateKey === todayKey, dateKey === selectedDateStr);
+    const dayEl = createDayCell(d, dateKey, false, dayTasks, dateKey === todayKey, dateKey === selectedDateStr, getDayClasses(currDate));
     fragment.appendChild(dayEl);
   }
 
@@ -534,7 +541,7 @@ function renderCalendar() {
   for (let n = 1; n <= remaining; n++) {
     const nextDate = new Date(calendarYear, calendarMonth + 1, n);
     const dateKey = formatDateKey(nextDate);
-    const dayEl = createDayCell(n, dateKey, true, tasksByDate.get(dateKey) || []);
+    const dayEl = createDayCell(n, dateKey, true, tasksByDate.get(dateKey) || [], false, false, getDayClasses(nextDate));
     fragment.appendChild(dayEl);
   }
 
@@ -563,7 +570,8 @@ function createDayCell(
   isOtherMonth: boolean,
   tasks: DeadlineTask[],
   isToday: boolean = false,
-  isSelected: boolean = false
+  isSelected: boolean = false,
+  classes: ClassOccurrence[] = []
 ): HTMLDivElement {
   const cell = document.createElement('div');
   cell.className = 'cal-day';
@@ -599,10 +607,6 @@ function createDayCell(
     const chip = document.createElement('div');
     chip.className = 'cal-event-chip';
 
-    // The user requested:
-    // 1. NO square brackets in the title!
-    // 2. The title should be the exact same title present in task/title section (task.title).
-    // 3. Gray out and completed styling if completed.
     if (isCompleted) {
       chip.classList.add('is-completed');
       chip.style.removeProperty('background-color');
@@ -626,10 +630,33 @@ function createDayCell(
     chipsContainer.appendChild(chip);
   });
 
-  if (tasks.length > maxVisibleChips) {
+  // Render class chips when slots are available
+  const remainingSlots = maxVisibleChips - visibleTasks.length;
+  if (remainingSlots > 0 && classes.length > 0) {
+    const visibleClasses = classes.slice(0, remainingSlots);
+    visibleClasses.forEach(c => {
+      const chip = document.createElement('div');
+      chip.className = 'cal-event-chip is-class';
+      const courseHex = c.colorHex || getCourseHex(c.courseName);
+      chip.style.backgroundColor = 'var(--surface-hover)';
+      chip.style.borderLeftColor = courseHex;
+      chip.style.borderLeftWidth = '3px';
+      chip.style.borderLeftStyle = 'solid';
+      chip.innerHTML = `${getSvgIcon('clock')} <span>${escapeHtml(c.courseName)}</span>`;
+      chip.title = `Class: ${c.courseName} (${formatClock(c.start)} - ${formatClock(c.end)})${c.room ? ' in ' + c.room : ''} - Click to expand day view`;
+      chip.addEventListener('click', e => {
+        e.stopPropagation();
+        selectDay(dateKey, true);
+      });
+      chipsContainer.appendChild(chip);
+    });
+  }
+
+  const totalEvents = tasks.length + classes.length;
+  if (totalEvents > maxVisibleChips) {
     const more = document.createElement('span');
     more.className = 'cal-event-more';
-    more.textContent = `+${tasks.length - maxVisibleChips}`;
+    more.textContent = `+${totalEvents - maxVisibleChips}`;
     more.addEventListener('click', e => {
       e.stopPropagation();
       selectDay(dateKey, true);
@@ -711,16 +738,11 @@ function openDayExpandedDrawer(dateKey: string) {
       const classes = classesOnDay(currentUserCourses, dateObj)
         .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter));
       const hasSchedule = currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
-      if (classes.length === 0 && !hasSchedule) {
-        classesBox.innerHTML = '';
-        classesBox.style.display = 'none';
-      } else {
-        classesBox.style.display = '';
-        classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
-          isToday: formatDateKey(now) === dateKey,
-          hasSchedule
-        });
-      }
+      classesBox.style.display = '';
+      classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+        isToday: formatDateKey(now) === dateKey,
+        hasSchedule
+      });
     }
   }
 
@@ -996,10 +1018,12 @@ function renderSelectedDay() {
   const filterLabel = selectedCourseFilter ? ` <span style="font-weight: 500; font-size: 11px; color: var(--text-muted);">&bull; ${escapeHtml(selectedCourseFilter)}</span>` : '';
   selectedDayTitle.innerHTML = `${getSvgIcon('calendar', 'mr-1')} <span>Deadlines for ${escapeHtml(formattedHeader)}${filterLabel}</span>`;
 
+  const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
+  const hasCourses = currentUserCourses.length > 0;
   const emptyGuide = document.getElementById('calendar-empty-guide');
   const dayContainer = document.getElementById('selected-day-container');
   if (emptyGuide && dayContainer) {
-    if (currentTasks.length === 0) {
+    if (currentTasks.length === 0 && !hasCourses) {
       emptyGuide.style.display = 'block';
       dayContainer.style.display = 'none';
       const openBbBtn = document.getElementById('btn-empty-guide-open-bb');
@@ -1025,7 +1049,6 @@ function renderSelectedDay() {
 
   // That day's classes, from the courses' meeting times
   const classesBox = document.getElementById('selected-day-classes');
-  const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
   if (classesBox) classesBox.hidden = !showClasses;
   if (classesBox && !showClasses) classesBox.innerHTML = '';
   if (classesBox && showClasses) {
@@ -1033,16 +1056,11 @@ function renderSelectedDay() {
     const classes = classesOnDay(currentUserCourses, dateObj)
       .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter));
     const hasSchedule = currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
-    if (classes.length === 0 && !hasSchedule) {
-      classesBox.style.display = 'none';
-      classesBox.innerHTML = '';
-    } else {
-      classesBox.style.display = '';
-      classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
-        isToday: formatDateKey(now) === selectedDateStr,
-        hasSchedule
-      });
-    }
+    classesBox.style.display = '';
+    classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+      isToday: formatDateKey(now) === selectedDateStr,
+      hasSchedule
+    });
   }
 
   const tasksOnDate = currentTasks.filter(task => {
@@ -1128,6 +1146,10 @@ function renderLegend() {
     legendChipsContainer.appendChild(chip);
   });
   requestAnimationFrame(updateLegendScrollArrows);
+  setTimeout(updateLegendScrollArrows, 50);
+  setTimeout(updateLegendScrollArrows, 150);
+  setTimeout(updateLegendScrollArrows, 350);
+  setTimeout(updateLegendScrollArrows, 700);
 }
 
 let _legendScrollRaf = 0;
@@ -1137,21 +1159,20 @@ function updateLegendScrollArrows() {
     _legendScrollRaf = 0;
     const btnLeft = document.getElementById('legend-scroll-left');
     const btnRight = document.getElementById('legend-scroll-right');
+    const bar = document.getElementById('course-legend-panel');
     if (!legendChipsContainer || !btnLeft || !btnRight) return;
     const maxScroll = legendChipsContainer.scrollWidth - legendChipsContainer.clientWidth;
-    if (maxScroll > 1) {
-      const left = legendChipsContainer.scrollLeft;
-      const showLeft = left > 2;
-      const showRight = left < maxScroll - 2;
-      if (btnLeft.style.display !== (showLeft ? 'inline-flex' : 'none')) {
-        btnLeft.style.display = showLeft ? 'inline-flex' : 'none';
-      }
-      if (btnRight.style.display !== (showRight ? 'inline-flex' : 'none')) {
-        btnRight.style.display = showRight ? 'inline-flex' : 'none';
-      }
-    } else {
-      if (btnLeft.style.display !== 'none') btnLeft.style.display = 'none';
-      if (btnRight.style.display !== 'none') btnRight.style.display = 'none';
+    const showLeft = maxScroll > 1 && legendChipsContainer.scrollLeft > 2;
+    const showRight = maxScroll > 1 && legendChipsContainer.scrollLeft < maxScroll - 2;
+
+    btnLeft.style.display = showLeft ? 'inline-flex' : 'none';
+    btnRight.style.display = showRight ? 'inline-flex' : 'none';
+    btnLeft.setAttribute('aria-hidden', String(!showLeft));
+    btnRight.setAttribute('aria-hidden', String(!showRight));
+
+    if (bar) {
+      bar.classList.toggle('has-overflow-left', showLeft);
+      bar.classList.toggle('has-overflow-right', showRight);
     }
   });
 }
@@ -1159,6 +1180,7 @@ function updateLegendScrollArrows() {
 function initLegendScroll() {
   const btnLeft = document.getElementById('legend-scroll-left');
   const btnRight = document.getElementById('legend-scroll-right');
+  const bar = document.getElementById('course-legend-panel');
   if (!legendChipsContainer) return;
 
   btnLeft?.addEventListener('click', () => {
@@ -1172,6 +1194,9 @@ function initLegendScroll() {
   });
 
   legendChipsContainer.addEventListener('scroll', updateLegendScrollArrows, { passive: true });
+
+  bar?.addEventListener('pointerenter', updateLegendScrollArrows);
+  bar?.addEventListener('mouseenter', updateLegendScrollArrows);
 
   legendChipsContainer.addEventListener('wheel', (e) => {
     if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) {
@@ -1194,6 +1219,11 @@ function initLegendScroll() {
     if (legendChipsContainer.parentElement) {
       ro.observe(legendChipsContainer.parentElement);
     }
+  }
+
+  if (typeof MutationObserver !== 'undefined') {
+    const mo = new MutationObserver(() => updateLegendScrollArrows());
+    mo.observe(legendChipsContainer, { childList: true, subtree: true });
   }
 
   if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
@@ -3979,7 +4009,8 @@ function setupEvents() {
       autoSyncOnScan: syncOnScan,
       syncKey,
       theme: selectedTheme,
-      blackboardDarkMode: bbDark
+      blackboardDarkMode: bbDark,
+      showClassesInCalendar: (document.getElementById('setting-show-classes') as HTMLInputElement)?.checked ?? true
     });
 
     await setBlackboardDarkMode(bbDark);

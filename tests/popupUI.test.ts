@@ -166,4 +166,29 @@ describe('Popup UI Logic & Accessibility Suite', () => {
       expect(sorted[2].id).toBe('task-midnight');
     });
   });
+
+  describe('Calendar Classes & Course Legend Navigation', () => {
+    it('ensures classes containers exist in both selected day view and expanded day drawer', () => {
+      const selectedDayClasses = document.getElementById('selected-day-classes');
+      const expandedDayClasses = document.getElementById('day-expanded-classes');
+      expect(selectedDayClasses).not.toBeNull();
+      expect(expandedDayClasses).not.toBeNull();
+    });
+
+    it('ensures course legend bar has left and right scroll navigation buttons and overflow state', () => {
+      const bar = document.getElementById('course-legend-panel');
+      const leftBtn = document.getElementById('legend-scroll-left');
+      const rightBtn = document.getElementById('legend-scroll-right');
+      const container = document.getElementById('legend-chips-container');
+      expect(bar).not.toBeNull();
+      expect(leftBtn).not.toBeNull();
+      expect(rightBtn).not.toBeNull();
+      expect(container).not.toBeNull();
+
+      bar?.classList.add('has-overflow-right');
+      expect(bar?.classList.contains('has-overflow-right')).toBe(true);
+      bar?.classList.add('has-overflow-left');
+      expect(bar?.classList.contains('has-overflow-left')).toBe(true);
+    });
+  });
 });

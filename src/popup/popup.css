@@ -1185,6 +1185,20 @@ body.is-standalone .header {
   opacity: 1;
 }
 
+.cal-event-chip.is-class {
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  border-left-width: 3px !important;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.cal-event-chip.is-class .ui-icon {
+  width: 9px;
+  height: 9px;
+  color: var(--text-muted);
+}
+
 .cal-event-more {
   font-size: 8.5px;
   font-weight: 700;
@@ -1236,8 +1250,8 @@ body.is-standalone .header {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 22px;
+  width: 22px;
+  height: 24px;
   flex-shrink: 0;
   background: var(--surface-hover);
   border: 1px solid var(--surface-border);
@@ -1261,14 +1275,26 @@ body.is-standalone .header {
 }
 
 [data-theme="dark"] .legend-scroll-btn {
-  background: #24242b;
-  border-color: #3f3f4c;
+  background: var(--surface-hover);
+  border-color: var(--surface-border);
   color: var(--text-main);
 }
 
 [data-theme="dark"] .legend-scroll-btn:hover {
-  background: #2c2c34;
+  background: var(--surface-border);
   border-color: var(--surface-border-strong);
+}
+
+.course-legend-bar.has-overflow-right {
+  box-shadow: inset -4px 0 0 0 var(--surface-border-strong, rgba(128, 128, 128, 0.4));
+}
+
+.course-legend-bar.has-overflow-left {
+  box-shadow: inset 4px 0 0 0 var(--surface-border-strong, rgba(128, 128, 128, 0.4));
+}
+
+.course-legend-bar.has-overflow-left.has-overflow-right {
+  box-shadow: inset 4px 0 0 0 var(--surface-border-strong, rgba(128, 128, 128, 0.4)), inset -4px 0 0 0 var(--surface-border-strong, rgba(128, 128, 128, 0.4));
 }
 
 .legend-chip {
