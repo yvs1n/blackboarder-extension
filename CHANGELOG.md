@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.26] - 2026-10-31
+
+### Fixed
+
+- **Companion app initialization restored:** Resolved a syntax issue and temporal dead zone reference in `mobile-web/companion/app.js` that prevented the companion web app from booting. Added automatic JavaScript syntax verification into `scripts/lint-check.js` so syntax regressions are caught before build.
+- **Sync key regeneration and automatic old cloud self-destruction:** Fixed sync key regeneration in Settings > Sync. Clicking Regenerate now permanently wipes and self-destructs the previous cloud data bucket from Firebase Realtime Database, saves the fresh key across local storage, persistent backups, and Chrome cloud sync, immediately initializes the new cloud folder with current local tasks, and updates the pairing QR code and link. Verified that Delete My Online Data completely wipes cloud data and assigns a clean key.
+- **Dynamic course filter bar arrows via ResizeObserver:** Filter navigation chevron buttons now use a `ResizeObserver` and font readiness listener on both the extension and companion, guaranteeing overflow arrows appear instantly upon initial render, dynamic course changes, or window resizes.
+- **Refined doctor announcement compact layout:** Compacted vertical padding in `doctor-quote-box`, set italic styling for quotes, and ensured quotation mark framing across both extension and companion without unnecessary whitespace.
+
 ## [1.4.25] - 2026-10-31
 
 ### Fixed

@@ -42,6 +42,26 @@ try {
   fail('TypeScript compiler reported errors', [err.stdout?.toString() || err.message]);
 }
 
+// JavaScript syntax checks
+if (HAS_WEB) {
+  const jsFilesToCheck = [
+    'mobile-web/companion/app.js',
+    'mobile-web/companion/sw.js',
+    'mobile-web/_worker.js'
+  ];
+  for (const relPath of jsFilesToCheck) {
+    const fullPath = path.join(ROOT, relPath);
+    if (fs.existsSync(fullPath)) {
+      try {
+        execSync('node --check "' + fullPath + '"', { cwd: ROOT, stdio: 'pipe' });
+        pass(relPath + ' syntax is valid');
+      } catch (err) {
+        fail(relPath + ' has JavaScript syntax errors', [err.stderr?.toString() || err.message]);
+      }
+    }
+  }
+}
+
 // 2. Swiss Grid 0px border-radius check
 console.log('\n--- Checking Swiss Grid 0px Compliance ---');
 const popupCss = fs.readFileSync(path.join(ROOT, 'src/popup/popup.css'), 'utf8');

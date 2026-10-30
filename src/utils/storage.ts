@@ -86,7 +86,7 @@ function canUseLocalStorage(): boolean {
   }
 }
 
-function safeGetLocalStorage(key: string): string | null {
+export function safeGetLocalStorage(key: string): string | null {
   try {
     if (canUseLocalStorage()) {
       return localStorage.getItem(key);
@@ -97,7 +97,7 @@ function safeGetLocalStorage(key: string): string | null {
   return memoryStorage.get(key) || null;
 }
 
-function safeSetLocalStorage(key: string, value: string): void {
+export function safeSetLocalStorage(key: string, value: string): void {
   try {
     if (canUseLocalStorage()) {
       localStorage.setItem(key, value);

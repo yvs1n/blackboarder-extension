@@ -11,7 +11,7 @@ import { initUniversitySettings, getCachedProfile } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { quickLinkPreset } from '../core/universities';
 import { classesOnDay, todaysClassesHtml } from '../core/classSchedule';
-import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt } from '../utils/storage';
+import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt, safeSetLocalStorage } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
 import { resolveAiEndpoint, normalizeAiBaseUrl, testAiEndpoint, IFM_MODEL } from '../engine/aiProviders';
@@ -754,6 +754,9 @@ function renderDoctorQuoteHtml(
   if (!cleanSnippet) return '';
   const normalizedText = cleanSnippet.replace(/\n{3,}/g, '\n\n').trim();
   const isLong = normalizedText.length > 120 || normalizedText.includes('\n');
+  const quoted = normalizedText.startsWith('"') && normalizedText.endsWith('"')
+    ? escapeHtml(normalizedText)
+    : `"${escapeHtml(normalizedText)}"`;
   return `
     <div class="doctor-quote-box" data-task-id="${escapeHtml(task.id)}">
       <div class="quote-label-row">
@@ -765,7 +768,7 @@ function renderDoctorQuoteHtml(
           <span>${getSvgIcon('search', 'mr-1')} Full View</span>
         </button>
       </div>
-      <div class="quote-body ${isLong ? 'clamped' : 'expanded'}" id="${idPrefix}${escapeHtml(task.id)}">${escapeHtml(normalizedText)}</div>
+      <div class="quote-body ${isLong ? 'clamped' : 'expanded'}" id="${idPrefix}${escapeHtml(task.id)}">${quoted}</div>
       ${isLong ? `
         <button type="button" class="btn-toggle-quote" data-id="${escapeHtml(task.id)}" data-task-id="${escapeHtml(task.id)}" aria-expanded="false">
           <span class="quote-toggle-icon">${getSvgIcon('book', 'mr-1')}</span>
@@ -1111,10 +1114,10 @@ function updateLegendScrollArrows() {
     const btnRight = document.getElementById('legend-scroll-right');
     if (!legendChipsContainer || !btnLeft || !btnRight) return;
     const maxScroll = legendChipsContainer.scrollWidth - legendChipsContainer.clientWidth;
-    if (maxScroll > 2) {
+    if (maxScroll > 1) {
       const left = legendChipsContainer.scrollLeft;
-      const showLeft = left > 4;
-      const showRight = left < maxScroll - 4;
+      const showLeft = left > 2;
+      const showRight = left < maxScroll - 2;
       if (btnLeft.style.display !== (showLeft ? 'inline-flex' : 'none')) {
         btnLeft.style.display = showLeft ? 'inline-flex' : 'none';
       }
@@ -1158,6 +1161,19 @@ function initLegendScroll() {
   }, { passive: false });
 
   window.addEventListener('resize', updateLegendScrollArrows);
+
+  // ResizeObserver guarantees arrows update when container width, fonts, or tabs change
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => updateLegendScrollArrows());
+    ro.observe(legendChipsContainer);
+    if (legendChipsContainer.parentElement) {
+      ro.observe(legendChipsContainer.parentElement);
+    }
+  }
+
+  if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(updateLegendScrollArrows).catch(() => {});
+  }
 }
 
 // ============================================================================
@@ -4011,14 +4027,69 @@ function setupEvents() {
     }
   });
 
-  // Regenerate Sync Key
-  btnRegenSyncKey?.addEventListener('click', () => {
-    const input = document.getElementById('setting-sync-key') as HTMLInputElement;
+  // Regenerate Sync Key & automatically self-destruct old key
+  btnRegenSyncKey?.addEventListener('click', async () => {
+    const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+    const oldSettings = await getSettings();
+    const oldKey = (oldSettings.syncKey || '').trim();
     const newKey = generateUniqueSyncKey();
+
+    btnRegenSyncKey.setAttribute('disabled', 'true');
+    showToast('Regenerating sync key & self-destructing old cloud data...');
+
+    // 1. Permanently delete old cloud bucket from Firebase if it exists
+    if (oldKey && oldKey !== newKey && /^[A-Za-z0-9_-]{8,64}$/.test(oldKey)) {
+      try {
+        await deleteSyncDataFromFirebase(oldKey);
+      } catch (err) {
+        console.warn('[Sync] Failed to delete old key from Firebase:', err);
+      }
+    }
+
+    // 2. Immediately save new key across local, sync, and persistent storage
+    await saveSettings({ syncKey: newKey });
+    safeSetLocalStorage('bbs_persistent_sync_key', newKey);
+    safeSetLocalStorage('bbs_sync_key', newKey);
+
     if (input) {
       input.value = newKey;
-      showToast(`Generated new Sync Key: ${newKey}. Click Save Settings to apply.`);
     }
+
+    // 3. Immediately push current local data to initialize the new cloud bucket
+    try {
+      const [tasks, tombstones, coursesUpdatedAt, linksUpdatedAt] = await Promise.all([
+        getTasks(),
+        getLocalTombstones(),
+        getCoursesUpdatedAt(),
+        getQuickLinksUpdatedAt()
+      ]);
+      await pushTasksToFirebase(
+        tasks,
+        'Chrome Extension (Key Reset)',
+        newKey,
+        currentQuickLinks,
+        tombstones,
+        currentUserCourses,
+        coursesUpdatedAt || undefined,
+        linksUpdatedAt || undefined
+      );
+    } catch (err) {
+      console.warn('[Sync] Failed to initialize new cloud bucket:', err);
+    }
+
+    // 4. Update pairing QR code & link if open
+    void refreshAiKeyLock(true);
+    try {
+      const aiPass = await ensureAiPass();
+      const pairUrl = pairingLink(COMPANION_URL, newKey, aiPass);
+      const qrHolder = document.getElementById('pairing-qr-code');
+      if (qrHolder && !qrHolder.closest('#pairing-qr-panel')?.hasAttribute('hidden')) {
+        qrHolder.innerHTML = qrSvg(pairUrl, { label: 'Phone pairing QR code' });
+      }
+    } catch {}
+
+    btnRegenSyncKey.removeAttribute('disabled');
+    showToast(`New Sync Key active: ${newKey}. Previous cloud data permanently self-destructed.`);
   });
 
   // Recovery file: the sync key is the only way back to the online copy if this browser's data is lost
@@ -4070,12 +4141,28 @@ function setupEvents() {
     disarmDeleteCloud();
     btnDeleteCloud.disabled = true;
     const settings = await getSettings();
-    const result = await deleteSyncDataFromFirebase(settings.syncKey || '');
+    const oldKey = (settings.syncKey || '').trim();
+    const result = await deleteSyncDataFromFirebase(oldKey);
     if (result.success) {
       const newKey = generateUniqueSyncKey();
       await saveSettings({ syncKey: newKey });
+      safeSetLocalStorage('bbs_persistent_sync_key', newKey);
+      safeSetLocalStorage('bbs_sync_key', newKey);
+
       const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
       if (input) input.value = newKey;
+
+      // Update pairing QR code & link
+      void refreshAiKeyLock(true);
+      try {
+        const aiPass = await ensureAiPass();
+        const pairUrl = pairingLink(COMPANION_URL, newKey, aiPass);
+        const qrHolder = document.getElementById('pairing-qr-code');
+        if (qrHolder && !qrHolder.closest('#pairing-qr-panel')?.hasAttribute('hidden')) {
+          qrHolder.innerHTML = qrSvg(pairUrl, { label: 'Phone pairing QR code' });
+        }
+      } catch {}
+
       showToast('Online data deleted. You have a new sync key.');
     }
     if (deleteCloudStatus) {
