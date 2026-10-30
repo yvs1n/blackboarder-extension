@@ -2444,7 +2444,16 @@ function refreshAllViews() {
   });
 }
 
+function updateBrandBadge(): void {
+  const badge = document.querySelector<HTMLElement>('.brand-badge');
+  if (!badge) return;
+  const cached = getCachedProfile();
+  const uni = profileUniversity(cached);
+  badge.textContent = uni.shortName || 'UOS';
+}
+
 function renderAllViewsNow() {
+  updateBrandBadge();
   updateStats(currentTasks);
   updateCourseFilterOptions(currentTasks);
   renderQuickLinksBar();
@@ -3700,6 +3709,8 @@ function setupEvents() {
   const settingShowClasses = document.getElementById('setting-show-classes') as HTMLInputElement | null;
   settingShowClasses?.addEventListener('change', async () => {
     await saveSettings({ showClassesInCalendar: settingShowClasses.checked });
+    dirtyViews.add('calendar');
+    renderCalendar();
     renderSelectedDay();
     showToast(settingShowClasses.checked ? 'Classes shown in the calendar' : 'Classes hidden from the calendar');
   });
@@ -3718,6 +3729,9 @@ function setupEvents() {
   const settingBadgeNotif = document.getElementById('setting-badge-notif') as HTMLInputElement | null;
   settingBadgeNotif?.addEventListener('change', async () => {
     await saveSettings({ badgeNotification: settingBadgeNotif.checked });
+    try {
+      chrome.runtime?.sendMessage?.({ type: 'UPDATE_BADGE' });
+    } catch {}
     showToast(settingBadgeNotif.checked ? 'Toolbar badge active' : 'Toolbar badge disabled');
   });
 

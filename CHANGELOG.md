@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.18] - 2026-10-30
+
+### Added
+
+- **Companion PWA onboarding and guide:** Added interactive walkthrough on the companion web app guiding users to install as a PWA on iOS (Share > Add to Home Screen) and Android (Install app prompt), with automatic welcome on first visit.
+- **Browser-detected extension installation links:** Extension installation guide now detects whether the student is on Chrome, Edge, Brave, Opera, or Vivaldi and tailors the exact internal address (e.g. edge://extensions) with a one-click copy and launch button.
+- **Dynamic university badges:** Popup header and companion header badges dynamically update to reflect the student's chosen university (UOS, UAEU, ADU, ZU, AUS, AUD, AURAK, Other) on setup or change.
+- **Interactive hero preview on landing page:** Hero mockup calendar dynamically computes the current real-world month and dates with sample course deadlines, mockup tabs are aligned on a single row, and university badge cycles across all supported universities.
+
+### Fixed
+
+- **Toolbar badge setting and reminder isolation:** Fixed extension icon badge toggle to immediately clear the badge when turned off, and decoupled background deadline desktop alerts from the toolbar badge counter.
+- **Show My Classes instant view refresh:** Toggling "Show My Classes" in Calendar Settings now immediately marks dirty views and refreshes both calendar grid and day class schedules.
+
 ## [1.4.17] - 2026-10-30
 
 ### Performance

@@ -207,7 +207,16 @@ async function syncDeadlinesToMobileServer(isMidnight: boolean = false) {
 // Update extension icon badge
 async function updateExtensionBadge() {
   try {
-    const data = await chrome.storage.local.get(['bbs_tasks']) as { bbs_tasks?: DeadlineTask[] };
+    const data = await chrome.storage.local.get(['bbs_tasks', 'bbs_settings']) as {
+      bbs_tasks?: DeadlineTask[];
+      bbs_settings?: UserSettings;
+    };
+    const settings = data.bbs_settings || DEFAULT_SETTINGS;
+    if (settings.badgeNotification === false) {
+      await chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+
     const tasks: DeadlineTask[] = data.bbs_tasks || [];
 
     const now = Date.now();
@@ -241,10 +250,11 @@ async function checkUpcomingDeadlines() {
     const settings: UserSettings = data.bbs_settings || DEFAULT_SETTINGS;
     const notifiedMap: Record<string, number> = data.bbs_notified || {};
 
-    if (!settings.badgeNotification) return;
+    const reminderHours = typeof settings.reminderHoursBefore === 'number' ? settings.reminderHoursBefore : 24;
+    if (reminderHours <= 0) return;
 
     const now = Date.now();
-    const alertThresholdMs = settings.reminderHoursBefore * 3600 * 1000;
+    const alertThresholdMs = reminderHours * 3600 * 1000;
 
     for (const task of tasks) {
       if (task.status !== 'pending') continue;
@@ -375,9 +385,10 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     getUserCourses().then(() => scheduleClassReminder()).catch(() => {});
   }
   if (areaName === 'local' && changes.bbs_settings) {
-    const before = (changes.bbs_settings.oldValue as Partial<UserSettings> | undefined)?.classReminderMinutes;
-    const after = (changes.bbs_settings.newValue as Partial<UserSettings> | undefined)?.classReminderMinutes;
-    if (before !== after) scheduleClassReminder();
+    const before = changes.bbs_settings.oldValue as Partial<UserSettings> | undefined;
+    const after = changes.bbs_settings.newValue as Partial<UserSettings> | undefined;
+    if (before?.classReminderMinutes !== after?.classReminderMinutes) scheduleClassReminder();
+    if (before?.badgeNotification !== after?.badgeNotification) updateExtensionBadge().catch(() => {});
   }
   if (areaName === 'local' && changes[EXTRA_SITES_KEY]) {
     registerExtraSiteScripts().catch(() => {});

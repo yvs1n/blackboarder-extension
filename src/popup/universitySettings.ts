@@ -119,6 +119,11 @@ async function addSite(input: string, hooks: UniversitySettingsHooks) {
 }
 
 function refresh() {
+  const badge = document.querySelector<HTMLElement>('.brand-badge');
+  if (badge) {
+    const uni = profileUniversity(cached);
+    badge.textContent = uni.shortName || 'UOS';
+  }
   fillUniversitySelect(document.getElementById('setting-university') as HTMLSelectElement | null, cached);
   fillUniversitySelect(document.getElementById('wt-university') as HTMLSelectElement | null, cached);
   renderScaleEditor(cached);

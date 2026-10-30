@@ -433,7 +433,7 @@ function syncAllComponents(version) {
   if (fs.existsSync(landingPath)) {
     let landingHtml = readText(landingPath);
     const updated = landingHtml
-      .replace(/<span>Blackboarder v[0-9.]+<\/span>/g, `<span>Blackboarder v${version}</span>`)
+      .replace(/<span[^>]*>Blackboarder v[0-9.]+<\/span>/g, `<span>Blackboarder v${version}</span>`)
       .replace(/"softwareVersion": "[0-9.]+"/, `"softwareVersion": "${version}"`);
     if (writeIfChanged(landingPath, updated)) {
       console.log(`  ✓ Synced mobile-web/index.html (landing page) to v${version}`);
