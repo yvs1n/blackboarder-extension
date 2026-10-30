@@ -699,6 +699,31 @@ function openDayExpandedDrawer(dateKey: string) {
     ? '1 Deadline Scheduled'
     : `${tasksOnDate.length} Deadlines Scheduled`;
 
+  const classesBox = document.getElementById('day-expanded-classes');
+  const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
+  if (classesBox) {
+    classesBox.hidden = !showClasses;
+    if (!showClasses) {
+      classesBox.innerHTML = '';
+      classesBox.style.display = 'none';
+    } else {
+      const now = new Date();
+      const classes = classesOnDay(currentUserCourses, dateObj)
+        .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, selectedCourseFilter));
+      const hasSchedule = currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
+      if (classes.length === 0 && !hasSchedule) {
+        classesBox.innerHTML = '';
+        classesBox.style.display = 'none';
+      } else {
+        classesBox.style.display = '';
+        classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+          isToday: formatDateKey(now) === dateKey,
+          hasSchedule
+        });
+      }
+    }
+  }
+
   dayDrawerBody.innerHTML = '';
 
   if (tasksOnDate.length === 0) {
@@ -3845,6 +3870,9 @@ function setupEvents() {
     dirtyViews.add('calendar');
     renderCalendar();
     renderSelectedDay();
+    if (dayExpandedDrawer && !dayExpandedDrawer.classList.contains('hidden') && dayExpandedDrawer.classList.contains('open')) {
+      openDayExpandedDrawer(selectedDateStr);
+    }
     showToast(settingShowClasses.checked ? 'Classes shown in the calendar' : 'Classes hidden from the calendar');
   });
   const settingClassReminder = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;

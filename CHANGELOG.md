@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.27] - 2026-10-31
+
+### Fixed
+
+- **Show My Classes support across mobile views and day drawers:** Resolved an issue where toggling Settings > Calendar > "Show My Classes" had no visible effect on phones and tablets. Integrated `#day-sheet-classes` into the companion's slide-up drawer and `#up-next-classes` into the Up Next agenda card, and added `#day-expanded-classes` to the extension popup's expanded drawer. Daily class meeting times, rooms, and live course indicators now display directly above deadlines when enabled, and instantly update or hide when toggled.
+
 ## [1.4.26] - 2026-10-31
 
 ### Fixed

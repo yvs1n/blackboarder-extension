@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.26",
-  "build": "2a1d78dcd301",
-  "commit": "f2f09606e913ce6b678925f17df142c19cc1d637",
-  "shortCommit": "f2f0960",
-  "timestamp": "2026-10-30T21:18:31.983Z",
-  "message": "perf: optimize popup scrolling fluidity and harden cross-platform sync key (v1.4.25)",
+  "version": "1.4.27",
+  "build": "3255543ba1c8",
+  "commit": "af2c001ad3cfc9eded8ef2a9697c43e7e3f6a6a9",
+  "shortCommit": "af2c001",
+  "timestamp": "2026-10-30T21:43:56.333Z",
+  "message": "merge: sync remote build artifacts",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
