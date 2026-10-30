@@ -810,24 +810,14 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       if (!rawSnippet || rawSnippet.startsWith('Blackboard Ultra Stream item')) return '';
       const cleanSnippet = sanitizeDoctorAnnouncementText(rawSnippet, resolved.courseName, resolved.courseCode, task.title);
       if (!cleanSnippet) return '';
-      const isLong = cleanSnippet.length > 110 || cleanSnippet.includes('\n');
+      const compactText = cleanSnippet.replace(/\s+/g, ' ').trim();
       return `
-        <div class="day-card-announcement ${isLong ? 'is-clamped' : ''}" data-task-id="${escapeHtml(task.id)}" title="Click to view full announcement">
-          <div class="day-card-announcement-header">
-            <span class="day-card-announcement-label">
-              ${getSvgIcon('message')}
-              <span>Announcement</span>
-            </span>
-            <button type="button" class="btn-day-card-inspect" data-task-id="${escapeHtml(task.id)}" title="Full announcement details">
-              ${getSvgIcon('search', 'mr-1')} Full View
-            </button>
-          </div>
-          <div class="day-card-announcement-body">${escapeHtml(cleanSnippet)}</div>
-          ${isLong ? `
-            <button type="button" class="btn-day-card-toggle" data-task-id="${escapeHtml(task.id)}" aria-expanded="false">
-              <span>Read more ▾</span>
-            </button>
-          ` : ''}
+        <div class="day-card-announcement" data-task-id="${escapeHtml(task.id)}" title="Click to view full announcement">
+          <span class="day-card-announcement-label" style="display: inline-flex; align-items: center; gap: 3px;">
+            ${getSvgIcon('message')}
+            <span>Announcement:</span>
+          </span>
+          <span class="day-card-announcement-text">${escapeHtml(compactText)}</span>
         </div>
       `;
     })()}
@@ -911,25 +901,8 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
     );
   });
 
-  const btnInspect = card.querySelector('.btn-day-card-inspect');
-  btnInspect?.addEventListener('click', e => {
+  card.querySelector('.day-card-announcement')?.addEventListener('click', e => {
     e.stopPropagation();
-    openReadingSheet(task);
-  });
-
-  const annBox = card.querySelector('.day-card-announcement');
-  const annToggleBtn = card.querySelector('.btn-day-card-toggle');
-  annToggleBtn?.addEventListener('click', e => {
-    e.stopPropagation();
-    if (annBox) {
-      const clamped = annBox.classList.toggle('is-clamped');
-      annToggleBtn.innerHTML = clamped ? '<span>Read more ▾</span>' : '<span>Show less ▴</span>';
-    }
-  });
-
-  annBox?.addEventListener('click', e => {
-    const target = e.target as HTMLElement;
-    if (target.closest('.btn-day-card-toggle')) return;
     openReadingSheet(task);
   });
 

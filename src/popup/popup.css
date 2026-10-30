@@ -2771,90 +2771,49 @@ body.is-standalone .header {
 }
 
 .day-card-announcement {
-  font-size: 11px;
-  color: var(--text-main);
+  font-size: 10.5px;
+  color: var(--text-muted);
   background: var(--surface-hover);
   border-left: 2px solid var(--text-muted);
-  padding: 6px 8px;
+  padding: 3px 6px;
   border-radius: 0 !important;
-  line-height: 1.4;
-  font-style: normal;
-  margin-top: 4px;
-  word-break: break-word;
-  white-space: pre-line;
+  line-height: 1.35;
+  margin-top: 2px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .day-card-announcement:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
 }
 
 [data-theme="dark"] .day-card-announcement:hover {
   background: rgba(255, 255, 255, 0.06);
-}
-
-.day-card-announcement-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 3px;
+  color: var(--text-main);
 }
 
 .day-card-announcement-label {
   font-weight: 700;
-  font-style: normal;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  color: var(--text-main);
+  margin-right: 4px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
-.btn-day-card-inspect {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 1px 4px;
-  display: inline-flex;
-  align-items: center;
-  opacity: 0.85;
-  border-radius: 0 !important;
+.day-card-announcement-label svg {
+  width: 11px;
+  height: 11px;
 }
 
-.btn-day-card-inspect:hover {
-  opacity: 1;
-  color: var(--text-main);
-}
-
-.day-card-announcement.is-clamped .day-card-announcement-body {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.btn-day-card-toggle {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 0 0;
-  margin-top: 2px;
-  cursor: pointer;
-  display: block;
-}
-
-.btn-day-card-toggle:hover {
-  color: var(--text-main);
-  text-decoration: underline;
+.day-card-announcement-text {
+  color: inherit;
 }
 
 .day-card-actions {

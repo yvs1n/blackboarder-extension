@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.22] - 2026-10-30
+
+### Fixed
+
+- **Compact announcement snippet layout:** Streamlined the announcement display in Day View cards back to a tight, compact format. Replaced the separate header row and toggle button bar with an inline "Announcement:" label and continuous whitespace-normalized text, clamped cleanly to 2 lines without wasting vertical space on blank greeting lines. Clicking the compact announcement box opens the full-screen reading modal sheet.
+
 ## [1.4.21] - 2026-10-30
 
 ### Fixed
