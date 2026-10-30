@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.17] - 2026-10-30
+
+### Performance
+
+- **Lazy view rendering and dirty tab tracking.** Popup views and mobile companion sections now only render when active, eliminating unnecessary background layout and DOM creation across hidden tabs.
+- **Batched DOM insertions with DocumentFragment.** Calendar grid generation, selected day deadlines, and task card lists now batch elements in DocumentFragment containers, reducing reflows to a single atomic DOM insertion per view.
+- **In-place task toggling.** Marking tasks done or pending updates card classes and status badges in place without wiping the full DOM list when viewing all deadlines.
+- **Debounced storage persistence and cloud sync.** Local storage and cloud network syncs are debounced by 150ms during rapid task updates to eliminate IPC stalls and UI jank.
+- **GPU-composited transitions.** Modal dialogs, expanded day drawers, and cards now animate via translate3d and targeted CSS properties with will-change compositing.
+
 ## [1.4.16] - 2026-10-30
 
 ### Added

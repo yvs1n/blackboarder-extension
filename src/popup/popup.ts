@@ -286,6 +286,8 @@ function parsePickedCourse(value: string): { name: string; code: string } {
 // View Navigation
 // ============================================================================
 type AppView = 'calendar' | 'details' | 'courses' | 'add' | 'settings';
+let currentActiveView: AppView = 'calendar';
+const dirtyViews = new Set<AppView>(['calendar', 'details', 'courses', 'settings']);
 
 // Unfinished work survives closing the popup (src/popup/popupDraft.ts). Off until the saved draft
 // has been restored on open, so the start-up calendar view does not wipe it.
@@ -352,19 +354,31 @@ function switchView(view: AppView) {
   tabNavDetails.classList.remove('active');
   tabNavCourses.classList.remove('active');
 
+  currentActiveView = view;
+
   if (view === 'calendar') {
     viewCalendar.classList.add('active');
     tabNavCalendar.classList.add('active');
-    renderCalendar();
-    renderSelectedDay();
+    if (dirtyViews.has('calendar')) {
+      renderCalendar();
+      renderSelectedDay();
+      dirtyViews.delete('calendar');
+    }
   } else if (view === 'details') {
     viewDetails.classList.add('active');
     tabNavDetails.classList.add('active');
-    renderTasks();
+    if (dirtyViews.has('details')) {
+      renderTasks();
+      dirtyViews.delete('details');
+    }
   } else if (view === 'courses') {
     viewCourses.classList.add('active');
     tabNavCourses.classList.add('active');
-    renderUserCoursesManager();
+    if (dirtyViews.has('courses')) {
+      renderGradeTracker(currentTasks);
+      renderUserCoursesManager();
+      dirtyViews.delete('courses');
+    }
   } else if (view === 'add') {
     viewAdd.classList.add('active');
     updateAddRoomVisibility();
@@ -373,6 +387,7 @@ function switchView(view: AppView) {
     loadSettingsForm();
     renderUserCoursesManager();
     renderQuickLinksManager();
+    dirtyViews.delete('settings');
   }
   rememberDraft();
 }
@@ -392,9 +407,13 @@ function showSettingsPage(page: string, focusTab = false) {
     panel.hidden = panel.id !== `settings-page-${page}`;
   });
   rememberDraft();
-  // A long page may have been scrolled; bring the tab strip back into view.
+  // A long page may have been scrolled; bring the tab strip back into view without synchronous reflow.
   const nav = document.querySelector<HTMLElement>('.settings-nav');
-  if (nav && nav.getBoundingClientRect().top < 0) nav.scrollIntoView({ block: 'start' });
+  if (nav) {
+    requestAnimationFrame(() => {
+      if (nav.getBoundingClientRect().top < 0) nav.scrollIntoView({ block: 'start' });
+    });
+  }
 }
 
 function initSettingsNav() {
@@ -488,6 +507,7 @@ function renderCalendar() {
   const prevMonthDays = new Date(calendarYear, calendarMonth, 0).getDate();
 
   const todayKey = formatDateKey(new Date());
+  const fragment = document.createDocumentFragment();
 
   // 1. Previous Month Leading Days
   for (let i = offset - 1; i >= 0; i--) {
@@ -495,7 +515,7 @@ function renderCalendar() {
     const prevDate = new Date(calendarYear, calendarMonth - 1, dayNum);
     const dateKey = formatDateKey(prevDate);
     const dayEl = createDayCell(dayNum, dateKey, true, tasksByDate.get(dateKey) || []);
-    calendarGrid.appendChild(dayEl);
+    fragment.appendChild(dayEl);
   }
 
   // 2. Current Month Days
@@ -504,18 +524,20 @@ function renderCalendar() {
     const dateKey = formatDateKey(currDate);
     const dayTasks = tasksByDate.get(dateKey) || [];
     const dayEl = createDayCell(d, dateKey, false, dayTasks, dateKey === todayKey, dateKey === selectedDateStr);
-    calendarGrid.appendChild(dayEl);
+    fragment.appendChild(dayEl);
   }
 
   // 3. Next Month Trailing Days (fill 42 total slots or end of week)
-  const totalSlots = calendarGrid.children.length;
+  const totalSlots = fragment.children.length;
   const remaining = (7 - (totalSlots % 7)) % 7;
   for (let n = 1; n <= remaining; n++) {
     const nextDate = new Date(calendarYear, calendarMonth + 1, n);
     const dateKey = formatDateKey(nextDate);
     const dayEl = createDayCell(n, dateKey, true, tasksByDate.get(dateKey) || []);
-    calendarGrid.appendChild(dayEl);
+    fragment.appendChild(dayEl);
   }
+
+  calendarGrid.appendChild(fragment);
 
   // Lock the row count (4 rows like Feb 2027, 5 rows like Oct 2026, or 6 rows like Nov 2026) so the
   // calendar grid divides its fixed height evenly and stays the exact same height and width in every month.
@@ -956,10 +978,12 @@ function renderSelectedDay() {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   tasksOnDate.forEach(task => {
     const card = createDaySummaryCard(task);
-    selectedDayList.appendChild(card);
+    fragment.appendChild(card);
   });
+  selectedDayList.appendChild(fragment);
 }
 
 
@@ -1945,6 +1969,8 @@ function renderTasks() {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
+
   filtered.forEach(task => {
     const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
     const isCompleted = task.status === 'completed';
@@ -2157,7 +2183,26 @@ function renderTasks() {
       const prevStatus = task.status;
       const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
       currentTasks = applyTaskUpdateLocal(task.id, { status: nextStatus });
-      refreshAllViews();
+
+      // Immediate in-place visual feedback on the card
+      const nowCompleted = nextStatus === 'completed';
+      card.classList.toggle('status-completed', nowCompleted);
+      card.classList.toggle('is-completed', nowCompleted);
+
+      if (currentFilterStatus === 'all') {
+        const toggleBtn = card.querySelector('.btn-card-toggle');
+        if (toggleBtn) {
+          toggleBtn.innerHTML = nowCompleted
+            ? `${getSvgIcon('refresh', 'mr-1')} <span class="btn-responsive-label">Mark Pending</span>`
+            : `${getSvgIcon('check', 'mr-1')} <span class="btn-responsive-label">Mark Done</span>`;
+        }
+        updateStats(currentTasks);
+        dirtyViews.add('calendar');
+        dirtyViews.add('courses');
+      } else {
+        refreshAllViews();
+      }
+
       syncTasksToCloud(currentTasks, 'Status Change');
       showToast(
         nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending',
@@ -2174,8 +2219,9 @@ function renderTasks() {
     card.querySelector('.status-checkbox-btn')?.addEventListener('click', handleToggleDone);
     card.querySelector('.btn-card-toggle')?.addEventListener('click', handleToggleDone);
 
-    taskListEl.appendChild(card);
+    fragment.appendChild(card);
   });
+  taskListEl.appendChild(fragment);
 }
 
 // ============================================================================
@@ -2392,33 +2438,69 @@ let refreshScheduled = false;
 function refreshAllViews() {
   if (refreshScheduled) return;
   refreshScheduled = true;
-  // Let the browser paint any toast/UI feedback added in this task before the heavy re-render
   requestAnimationFrame(() => {
-    setTimeout(() => {
-      refreshScheduled = false;
-      renderAllViewsNow();
-    }, 0);
+    refreshScheduled = false;
+    renderAllViewsNow();
   });
 }
 
 function renderAllViewsNow() {
   updateStats(currentTasks);
   updateCourseFilterOptions(currentTasks);
-  renderGradeTracker(currentTasks);
-  renderCalendar();
-  renderSelectedDay();
   renderQuickLinksBar();
-  renderTasks();
+
+  if (currentActiveView === 'calendar') {
+    renderCalendar();
+    renderSelectedDay();
+  } else if (currentActiveView === 'details') {
+    renderTasks();
+  } else if (currentActiveView === 'courses') {
+    renderGradeTracker(currentTasks);
+    renderUserCoursesManager();
+  } else if (currentActiveView === 'settings') {
+    renderUserCoursesManager();
+  }
+
+  // Mark non-active views dirty so they re-render on navigation
+  (['calendar', 'details', 'courses', 'settings'] as AppView[]).forEach(v => {
+    if (v !== currentActiveView) {
+      dirtyViews.add(v);
+    }
+  });
+
   if (dayExpandedDrawer && dayExpandedDrawer.classList.contains('open')) {
     openDayExpandedDrawer(selectedDateStr);
   }
 }
 
-// Optimistic UI: in-memory state is the source of truth, storage writes are queued in order
+// Optimistic UI: in-memory state is the source of truth, storage writes are debounced
 let persistChain: Promise<void> = Promise.resolve();
-function persistTasksInBackground(tasks: DeadlineTask[]): Promise<void> {
-  persistChain = persistChain.then(() => saveTasksMergingLatest(tasks)).then(() => {}).catch(() => {});
-  return persistChain;
+let persistDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingTasksToPersist: DeadlineTask[] | null = null;
+
+function persistTasksInBackground(tasks: DeadlineTask[], immediate = false): Promise<void> {
+  pendingTasksToPersist = tasks;
+  if (persistDebounceTimer) {
+    clearTimeout(persistDebounceTimer);
+    persistDebounceTimer = null;
+  }
+  if (immediate) {
+    const toSave = pendingTasksToPersist;
+    pendingTasksToPersist = null;
+    persistChain = persistChain.then(() => saveTasksMergingLatest(toSave)).then(() => {}).catch(() => {});
+    return persistChain;
+  }
+  return new Promise<void>(resolve => {
+    persistDebounceTimer = setTimeout(() => {
+      if (pendingTasksToPersist) {
+        const toSave = pendingTasksToPersist;
+        pendingTasksToPersist = null;
+        persistChain = persistChain.then(() => saveTasksMergingLatest(toSave)).then(() => {}).catch(() => {}).finally(resolve);
+      } else {
+        resolve();
+      }
+    }, 150);
+  });
 }
 
 function applyTaskUpdateLocal(taskId: string, updates: Partial<DeadlineTask>): DeadlineTask[] {
@@ -2496,9 +2578,28 @@ async function getLocalTombstones(): Promise<Record<string, string>> {
 
 /**
  * Automatically pushes deadlines to Firebase Realtime Database and Sync Server.
+ * Debounces rapid successive updates (e.g. status toggles) to prevent network stalls.
  */
-function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Extension Update') {
-  (async () => {
+let cloudSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingCloudSyncAction = 'Extension Update';
+
+function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Extension Update', immediate = false) {
+  pendingCloudSyncAction = actionDescription;
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
+  }
+  if (immediate) {
+    executeCloudSync(tasks, actionDescription);
+    return;
+  }
+  cloudSyncTimer = setTimeout(() => {
+    executeCloudSync(tasks, pendingCloudSyncAction);
+  }, 150);
+}
+
+async function executeCloudSync(tasks: DeadlineTask[], actionDescription: string) {
+  try {
     await Promise.all([persistChain, tombstoneChain]);
     // Merge in anything the phone changed since the last pull before overwriting the cloud copy
     const pulled = await pullTasksFromFirebaseIfNewer();
@@ -2516,7 +2617,9 @@ function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Ex
       channel.postMessage({ type: 'TASKS_UPDATED', timestamp: Date.now() });
       channel.close();
     } catch {}
-  })().catch(err => console.warn('[Cloud Sync error]:', err));
+  } catch (err) {
+    console.warn('[Cloud Sync error]:', err);
+  }
 }
 
 /**
@@ -2742,7 +2845,7 @@ async function handleRestoreJson(file: File) {
     }
 
     refreshAllViews();
-    syncTasksToCloud(currentTasks, 'Restored Backup');
+    syncTasksToCloud(currentTasks, 'Restored Backup', true);
     const msg = restoredCourseCount > 0
       ? `Successfully restored ${restoredTaskCount} deadlines and ${restoredCourseCount} courses!`
       : `Successfully restored ${restoredTaskCount} deadlines!`;

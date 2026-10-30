@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.16",
-  "build": "5ff4b599d41c",
-  "commit": "e22b80bbea78c0feb4428fb6db0acb87ad5e4437",
-  "shortCommit": "e22b80b",
-  "timestamp": "2026-10-30T09:13:43.839Z",
-  "message": "build: update generated files for 67d44bf",
+  "version": "1.4.17",
+  "build": "e451f57f96aa",
+  "commit": "aa8f1e8ab84e7584f512b6a8bfc6047cad3a09d5",
+  "shortCommit": "aa8f1e8",
+  "timestamp": "2026-10-30T12:13:10.599Z",
+  "message": "feat: unified backup and restore in Settings (v1.4.16)",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
