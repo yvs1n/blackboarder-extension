@@ -364,6 +364,7 @@ function switchView(view: AppView) {
       renderSelectedDay();
       dirtyViews.delete('calendar');
     }
+    requestAnimationFrame(updateLegendScrollArrows);
   } else if (view === 'details') {
     viewDetails.classList.add('active');
     tabNavDetails.classList.add('active');
@@ -1053,6 +1054,7 @@ function renderLegend() {
   if (activeLegend.length === 0) {
     legendChipsContainer.innerHTML = '';
     if (legendPanel) legendPanel.style.display = 'none';
+    updateLegendScrollArrows();
     return;
   }
 
@@ -1096,6 +1098,54 @@ function renderLegend() {
       renderSelectedDay();
     });
     legendChipsContainer.appendChild(chip);
+  });
+  requestAnimationFrame(updateLegendScrollArrows);
+}
+
+function updateLegendScrollArrows() {
+  const btnLeft = document.getElementById('legend-scroll-left');
+  const btnRight = document.getElementById('legend-scroll-right');
+  if (!legendChipsContainer || !btnLeft || !btnRight) return;
+  const maxScroll = legendChipsContainer.scrollWidth - legendChipsContainer.clientWidth;
+  if (maxScroll > 2) {
+    const left = legendChipsContainer.scrollLeft;
+    btnLeft.style.display = left > 4 ? 'inline-flex' : 'none';
+    btnRight.style.display = left < maxScroll - 4 ? 'inline-flex' : 'none';
+  } else {
+    btnLeft.style.display = 'none';
+    btnRight.style.display = 'none';
+  }
+}
+
+function initLegendScroll() {
+  const btnLeft = document.getElementById('legend-scroll-left');
+  const btnRight = document.getElementById('legend-scroll-right');
+  if (!legendChipsContainer) return;
+
+  btnLeft?.addEventListener('click', () => {
+    legendChipsContainer.scrollBy({ left: -140, behavior: 'smooth' });
+    setTimeout(updateLegendScrollArrows, 200);
+  });
+
+  btnRight?.addEventListener('click', () => {
+    legendChipsContainer.scrollBy({ left: 140, behavior: 'smooth' });
+    setTimeout(updateLegendScrollArrows, 200);
+  });
+
+  legendChipsContainer.addEventListener('scroll', () => {
+    updateLegendScrollArrows();
+  }, { passive: true });
+
+  legendChipsContainer.addEventListener('wheel', (e) => {
+    if (e.deltaY !== 0 && legendChipsContainer.scrollWidth > legendChipsContainer.clientWidth) {
+      e.preventDefault();
+      legendChipsContainer.scrollLeft += e.deltaY;
+      updateLegendScrollArrows();
+    }
+  }, { passive: false });
+
+  window.addEventListener('resize', () => {
+    updateLegendScrollArrows();
   });
 }
 
@@ -3193,6 +3243,8 @@ function watchScanEnd(startedAt: number) {
 // Setup Event Listeners
 // ============================================================================
 function setupEvents() {
+  initLegendScroll();
+
   // Live Scan Notification Dismissal
   document.getElementById('hsb-close')?.addEventListener('click', e => {
     e.stopPropagation();

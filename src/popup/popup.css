@@ -1202,18 +1202,13 @@ body.is-standalone .header {
   margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 4px 6px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.course-legend-bar::-webkit-scrollbar {
-  display: none;
+  position: relative;
+  overflow: hidden;
 }
 
 .legend-chips-container {
@@ -1221,6 +1216,56 @@ body.is-standalone .header {
   align-items: center;
   gap: 6px;
   flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  flex: 1;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.legend-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+.legend-scroll-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  flex-shrink: 0;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  z-index: 2;
+  user-select: none;
+}
+
+.legend-scroll-btn:hover {
+  background: var(--surface-border);
+  border-color: var(--surface-border-strong);
+}
+
+.legend-scroll-btn .ui-icon {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme="dark"] .legend-scroll-btn {
+  background: #24242b;
+  border-color: #3f3f4c;
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .legend-scroll-btn:hover {
+  background: #2c2c34;
+  border-color: var(--surface-border-strong);
 }
 
 .legend-chip {

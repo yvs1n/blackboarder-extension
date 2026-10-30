@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.24] - 2026-10-30
+
+### Added
+
+- **Course filter bar scroll navigation and overflow indicators:** Added interactive left and right navigation chevron buttons to the course legend filter bar across both the Chrome extension popup and the mobile companion app. The right arrow appears dynamically whenever active course chips exceed the visible width, guiding users that more courses are available, and clicking either arrow smoothly scrolls horizontally by 140px. The left arrow appears once scrolled away from the origin and hides at the start. Also enabled horizontal mouse-wheel scrolling across the chip containers for fluid desktop navigation.
+
 ## [1.4.23] - 2026-10-30
 
 ### Fixed

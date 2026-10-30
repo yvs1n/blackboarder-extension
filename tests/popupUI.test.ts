@@ -76,6 +76,15 @@ describe('Popup UI Logic & Accessibility Suite', () => {
       expect(drawer?.getAttribute('aria-modal')).toBe('true');
       expect(drawer?.getAttribute('aria-labelledby')).toBe('day-drawer-title');
     });
+
+    it('ensures course legend scroll navigation buttons have descriptive aria-labels', () => {
+      const leftBtn = document.getElementById('legend-scroll-left');
+      const rightBtn = document.getElementById('legend-scroll-right');
+      expect(leftBtn).not.toBeNull();
+      expect(rightBtn).not.toBeNull();
+      expect(leftBtn?.getAttribute('aria-label')).toBe('Scroll courses left');
+      expect(rightBtn?.getAttribute('aria-label')).toBe('Scroll courses right');
+    });
   });
 
   describe('Keyboard Navigation & Escape Key Dismissal', () => {

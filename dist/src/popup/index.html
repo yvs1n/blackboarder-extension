@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-DrO-w_xp.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-D-7K5ttK.css">
+  <script type="module" crossorigin src="../../assets/popup-Cy_meqTu.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-1fBYW25T.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -304,7 +304,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.23</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.24</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -331,9 +331,15 @@
   <main id="view-calendar" class="view-panel active">
     <!-- Course Colors Legend & Quick Filter Bar -->
     <div class="course-legend-bar" id="course-legend-panel">
+      <button type="button" class="legend-scroll-btn legend-scroll-left" id="legend-scroll-left" aria-label="Scroll courses left" title="Scroll left" style="display: none;">
+        <svg class="ui-icon"><use href="#icon-chevron-left"></use></svg>
+      </button>
       <div class="legend-chips-container" id="legend-chips-container">
         <!-- Rendered from the student's courses with interactive chips -->
       </div>
+      <button type="button" class="legend-scroll-btn legend-scroll-right" id="legend-scroll-right" aria-label="Scroll courses right" title="Scroll right" style="display: none;">
+        <svg class="ui-icon"><use href="#icon-chevron-right"></use></svg>
+      </button>
     </div>
 
     <!-- Month Navigation -->
@@ -1040,7 +1046,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.23</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.24</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
