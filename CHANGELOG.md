@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.25] - 2026-10-31
+
+### Fixed
+
+- **Lightweight popup performance and fluid scrolling:** Removed GPU-heavy backdrop filters and broad transitions across the extension popup, eliminating compositor stalls and sluggishness. Course legend chips now use hardware-accelerated momentum scrolling with rAF-throttled indicator updates and smart wheel translation, keeping mouse-wheel and trackpad gestures silky smooth without animation hitches. Deferred offscreen course manager DOM generation until the Courses tab is navigated to.
+- **Robust sync key parsing and instant linking:** Enhanced sync key normalization across both the extension and companion web app (`extractSyncKey` and `readPairingInput`). Users can paste raw keys, lowercase strings, or complete pairing URLs into either app, automatically extracting the sanitized sync key and AI pass and immediately pulling fresh cloud deadlines into view.
+
 ## [1.4.24] - 2026-10-30
 
 ### Added

@@ -16,12 +16,36 @@ export const FIREBASE_DB_URL = FIREBASE_CONFIG.databaseURL;
 export const NO_SYNC_KEY_MESSAGE = 'No sync key is set. Pair this device in Settings > Sync first.';
 
 /**
+ * Normalizes a sync key or pairing link into a valid clean sync key string.
+ * Supports direct keys ("BBS-ABC..."), lowercase ("bbs-abc..."), or full pairing URLs.
+ */
+export function extractSyncKey(raw?: string): string {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  if (text.includes('://') || text.startsWith('//') || text.startsWith('?') || text.startsWith('#') || text.includes('/')) {
+    try {
+      let urlStr = text;
+      if (text.startsWith('?') || text.startsWith('#')) {
+        urlStr = `https://blackboarder.pages.dev/${text}`;
+      } else if (!text.includes('://') && !text.startsWith('//')) {
+        urlStr = `https://${text}`;
+      }
+      const url = new URL(urlStr, 'https://blackboarder.pages.dev');
+      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+      const key = url.searchParams.get('key') || url.searchParams.get('sync') || url.searchParams.get('code') || hashParams.get('key') || hashParams.get('sync') || hashParams.get('code') || '';
+      if (key) return key.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    } catch {}
+  }
+  return text.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+/**
  * The Firebase data URL for a sync key: /users/{key}/data.json. Characters a key cannot hold are
  * removed first; what is left must be a valid key (the database.rules.json rule), else null.
  * There is no fallback to the database root: every read and write stays inside users/{syncKey}.
  */
 export function getFirebaseDataUrl(syncKey?: string): string | null {
-  const cleanKey = (syncKey || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  const cleanKey = extractSyncKey(syncKey);
   return /^[A-Za-z0-9_-]{8,64}$/.test(cleanKey) ? `${FIREBASE_DB_URL}/users/${cleanKey}/data.json` : null;
 }
 

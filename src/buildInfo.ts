@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.24",
-  "build": "c1237d1acfeb",
-  "commit": "489798ca1e13d726e2e368fc32f1bb3d2a370aa4",
-  "shortCommit": "489798c",
-  "timestamp": "2026-10-30T19:56:37.425Z",
-  "message": "release: v1.4.23 - unify doctor announcement quote layout across mobile and extension",
+  "version": "1.4.25",
+  "build": "1efe1d8eb6f6",
+  "commit": "0470a92ebff430890bbc93e5fafe77bec38852ec",
+  "shortCommit": "0470a92",
+  "timestamp": "2026-10-30T20:38:04.717Z",
+  "message": "feat: add course filter scroll navigation arrows in calendar bar (v1.4.24)",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

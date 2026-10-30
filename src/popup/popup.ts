@@ -22,7 +22,7 @@ import { parseCourseDetails, sanitizeDoctorAnnouncementText, resolveCourseInfo, 
 import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
 import { resolveTaskWeight, getAllSyllabi } from '../core/syllabusWeights';
 import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, getAllCourseSchedules } from '../core/courseSchedule';
-import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
+import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase, extractSyncKey } from '../utils/firebaseSync';
 import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks } from '../utils/cloudSanitize';
 import { getProfile, saveProfile } from '../utils/profile';
 import { filterCleanUserCourses } from '../core/courseFilter';
@@ -1102,19 +1102,30 @@ function renderLegend() {
   requestAnimationFrame(updateLegendScrollArrows);
 }
 
+let _legendScrollRaf = 0;
 function updateLegendScrollArrows() {
-  const btnLeft = document.getElementById('legend-scroll-left');
-  const btnRight = document.getElementById('legend-scroll-right');
-  if (!legendChipsContainer || !btnLeft || !btnRight) return;
-  const maxScroll = legendChipsContainer.scrollWidth - legendChipsContainer.clientWidth;
-  if (maxScroll > 2) {
-    const left = legendChipsContainer.scrollLeft;
-    btnLeft.style.display = left > 4 ? 'inline-flex' : 'none';
-    btnRight.style.display = left < maxScroll - 4 ? 'inline-flex' : 'none';
-  } else {
-    btnLeft.style.display = 'none';
-    btnRight.style.display = 'none';
-  }
+  if (_legendScrollRaf) return;
+  _legendScrollRaf = requestAnimationFrame(() => {
+    _legendScrollRaf = 0;
+    const btnLeft = document.getElementById('legend-scroll-left');
+    const btnRight = document.getElementById('legend-scroll-right');
+    if (!legendChipsContainer || !btnLeft || !btnRight) return;
+    const maxScroll = legendChipsContainer.scrollWidth - legendChipsContainer.clientWidth;
+    if (maxScroll > 2) {
+      const left = legendChipsContainer.scrollLeft;
+      const showLeft = left > 4;
+      const showRight = left < maxScroll - 4;
+      if (btnLeft.style.display !== (showLeft ? 'inline-flex' : 'none')) {
+        btnLeft.style.display = showLeft ? 'inline-flex' : 'none';
+      }
+      if (btnRight.style.display !== (showRight ? 'inline-flex' : 'none')) {
+        btnRight.style.display = showRight ? 'inline-flex' : 'none';
+      }
+    } else {
+      if (btnLeft.style.display !== 'none') btnLeft.style.display = 'none';
+      if (btnRight.style.display !== 'none') btnRight.style.display = 'none';
+    }
+  });
 }
 
 function initLegendScroll() {
@@ -1132,21 +1143,21 @@ function initLegendScroll() {
     setTimeout(updateLegendScrollArrows, 200);
   });
 
-  legendChipsContainer.addEventListener('scroll', () => {
-    updateLegendScrollArrows();
-  }, { passive: true });
+  legendChipsContainer.addEventListener('scroll', updateLegendScrollArrows, { passive: true });
 
   legendChipsContainer.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) {
+      updateLegendScrollArrows();
+      return;
+    }
     if (e.deltaY !== 0 && legendChipsContainer.scrollWidth > legendChipsContainer.clientWidth) {
       e.preventDefault();
-      legendChipsContainer.scrollLeft += e.deltaY;
+      legendChipsContainer.scrollBy({ left: e.deltaY, behavior: 'auto' });
       updateLegendScrollArrows();
     }
   }, { passive: false });
 
-  window.addEventListener('resize', () => {
-    updateLegendScrollArrows();
-  });
+  window.addEventListener('resize', updateLegendScrollArrows);
 }
 
 // ============================================================================
@@ -3868,11 +3879,18 @@ function setupEvents() {
 
   const settingSyncKeyInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
   settingSyncKeyInput?.addEventListener('change', async () => {
-    const newKey = settingSyncKeyInput.value.trim().toUpperCase();
+    const rawVal = settingSyncKeyInput.value;
+    const newKey = extractSyncKey(rawVal);
     if (newKey) {
+      settingSyncKeyInput.value = newKey;
+      const prevSettings = await getSettings();
       await saveSettings({ syncKey: newKey });
       showToast(`Sync Key saved: ${newKey}`);
       void refreshAiKeyLock(true);
+      if (newKey !== prevSettings.syncKey) {
+        await pullTasksFromFirebaseIfNewer();
+        refreshAllViews();
+      }
     }
   });
 
@@ -3889,8 +3907,10 @@ function setupEvents() {
     const syncMidnight = (document.getElementById('setting-sync-midnight') as HTMLInputElement)?.checked ?? true;
     const syncOnScan = (document.getElementById('setting-sync-onscan') as HTMLInputElement)?.checked ?? true;
 
-
-    const syncKey = (document.getElementById('setting-sync-key') as HTMLInputElement)?.value?.trim().toUpperCase() || '';
+    const rawSyncKey = (document.getElementById('setting-sync-key') as HTMLInputElement)?.value || '';
+    const syncKey = extractSyncKey(rawSyncKey);
+    const inputSyncKey = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+    if (inputSyncKey && syncKey) inputSyncKey.value = syncKey;
     const selectedTheme = ((document.getElementById('setting-theme') as HTMLSelectElement)?.value || 'system') as 'light' | 'dark' | 'system';
     const bbDark = (document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement)?.checked ?? true;
 
@@ -3924,6 +3944,7 @@ function setupEvents() {
 
     if (syncKey && syncKey !== prevSyncKey) {
       await pullTasksFromFirebaseIfNewer();
+      refreshAllViews();
     }
 
     applyTheme(selectedTheme);
@@ -5573,7 +5594,6 @@ async function initApp() {
   initGradeTrackerToggle();
   // Load and render user courses synchronously from cache
   currentUserCourses = getCachedCoursesSync();
-  renderUserCoursesManager();
   renderLegend();
 
   // Load and render academic quick links synchronously from cache
