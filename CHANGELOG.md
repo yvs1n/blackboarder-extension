@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.31] - 2026-10-31
+
+### Changed
+
+- **Documentation synchronization and browser parity:** Updated documentation across `AGENTS.md`, `README.md`, `export/extension/`, `docs/INSTALL_EXTENSION.md`, and the landing page (`mobile-web/index.html`) to reflect full cross-browser compatibility across Chrome, Firefox (about:debugging temporary add-ons), Edge, Brave, Opera, and Vivaldi. Documented the newly added `tombstones.ts` and `uiCommon.ts` utility modules in `AGENTS.md`, and aligned mobile companion alerts documentation with the unified master Push Alerts toggle.
+
 ## [1.4.30] - 2026-10-31
 
 ### Changed

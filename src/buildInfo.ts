@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.30",
-  "build": "c90099e63dbd",
-  "commit": "5e5d0077a8601431ee09ee23a5a49dadac145e9f",
-  "shortCommit": "5e5d007",
-  "timestamp": "2026-10-31T13:12:51.956Z",
-  "message": "refactor: synchronize and validate root updater scripts and version.json (v1.4.31)",
+  "version": "1.4.31",
+  "build": "dce1ed21eb84",
+  "commit": "68761bec71d1e959ac4144906f614b6cb3dc8163",
+  "shortCommit": "68761be",
+  "timestamp": "2026-10-31T19:06:19.572Z",
+  "message": "Merge remote-tracking branch 'origin/main'",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

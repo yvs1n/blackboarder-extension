@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.4.30-blue?logo=github&logoColor=white" alt="Version v1.4.30" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.4.31-blue?logo=github&logoColor=white" alt="Version v1.4.31" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
@@ -63,7 +63,7 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 
 ## 🚀 Quick Start & Installation
 
-Works in **Chrome, Edge, Brave, Opera and Vivaldi**.
+Works in **Chrome, Firefox, Edge, Brave, Opera and Vivaldi**.
 
 ### 1. Get the files
 

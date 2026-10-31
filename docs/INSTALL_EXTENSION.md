@@ -1,6 +1,6 @@
 # Installing Blackboarder in Your Browser (60 Seconds)
 
-Blackboarder works with any Chromium browser: **Google Chrome**, **Microsoft Edge**, **Brave**, **Opera**, or **Vivaldi**.
+Blackboarder works with **Google Chrome**, **Mozilla Firefox**, **Microsoft Edge**, **Brave**, **Opera**, or **Vivaldi**.
 
 You do not need to install Node.js, code editors, or developer tools.
 
@@ -24,6 +24,7 @@ Copy and paste the URL matching your browser into your address bar and press Ent
 | Browser | Address Bar URL |
 | :--- | :--- |
 | **Google Chrome** | `chrome://extensions` |
+| **Mozilla Firefox** | `about:debugging#/runtime/this-firefox` |
 | **Microsoft Edge** | `edge://extensions` |
 | **Brave** | `brave://extensions` |
 | **Opera** | `opera://extensions` |
@@ -31,14 +32,13 @@ Copy and paste the URL matching your browser into your address bar and press Ent
 ---
 
 ### Step 3: Enable Developer Mode
-Look in the top-right (or left sidebar in Edge) for the **Developer mode** toggle switch and turn it **ON**.
+In Chromium browsers (Chrome, Edge, Brave, Opera, Vivaldi), look in the top-right (or left sidebar in Edge) for the **Developer mode** toggle switch and turn it **ON**. (Firefox does not require a toggle on the debugging page.)
 
 ---
 
 ### Step 4: Load the Extension
-1. Click the **"Load unpacked"** button in the top toolbar.
-2. In the file picker dialog, select the extracted folder (the folder containing `manifest.json`).
-3. Click **Select Folder**.
+- **Chrome, Edge, Brave, Opera, Vivaldi:** Click the **"Load unpacked"** button in the top toolbar, select the extracted folder (the folder containing `manifest.json`), and click **Select Folder**.
+- **Firefox:** Click **"Load Temporary Add-on..."** and select `manifest.json` inside the extracted folder.
 
 ---
 
