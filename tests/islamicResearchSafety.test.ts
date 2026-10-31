@@ -244,6 +244,7 @@ describe('Islamic Culture Research and Submitted Items Safety', () => {
         status: 'completed',
         weight: 10,
         submissionStatus: 'submitted',
+        sourceSnippet: 'gradebook',
         gradeSourceId: 'gb:_1916865_1'
       }),
       makeTask({

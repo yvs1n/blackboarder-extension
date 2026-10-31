@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.29] - 2026-10-31
+
+### Fixed
+
+- **PWA companion boot and calendar cell rendering:** Fixed an uncaught `ReferenceError: getActiveCourses is not defined` during companion PWA startup in `renderDayCell()`. Correctly referenced `state.userCourses` and hoisted `SHOW_CLASSES_KEY` and `showClassesInCalendar()`. Added a `safeRaf` fallback for robust execution across all mobile web environments.
+- **Calendar classes dynamic updates on mobile:** Wired the companion's "Show My Classes" toggle to immediately re-render the calendar month grid and event chips alongside the selected day and agenda views.
+- **Companion boot regression test suite:** Added `tests/companionBoot.test.ts` to simulate full JSDOM companion boot, verifying zero uncaught exceptions, complete calendar rendering with user courses and class schedules, and robust navigation arrow handling.
+- **Test suite date resilience:** Fixed a date-dependent assertion in `tests/islamicResearchSafety.test.ts` by ensuring test gradebook tasks specify `sourceSnippet: 'gradebook'`, preventing false positive placeholder purges on specific days of the month.
+
 ## [1.4.28] - 2026-10-31
 
 ### Fixed
