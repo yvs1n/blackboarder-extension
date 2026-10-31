@@ -80,10 +80,6 @@ export interface HttpScanOptions {
 
 let httpScanRunning = false;
 
-export function isHttpScanRunning(): boolean {
-  return httpScanRunning;
-}
-
 /**
  * Runs a Blackboard scan directly over HTTP from the service worker using the student's
  * browser cookies, with zero browser tabs. When Blackboard cannot be reached or neither the

@@ -93,12 +93,6 @@ export interface FirebaseSyncPayload {
 
 export { sanitizeCloudTasks };
 
-export interface DeletionTombstone {
-  id: string;
-  deletedAt: string;
-  device?: string;
-}
-
 /**
  * Writes this device's deadlines, courses, quick links and profile to Firebase under the sync key.
  * The write replaces the whole cloud document, so the cloud copy is read first and merged in

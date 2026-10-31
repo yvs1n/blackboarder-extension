@@ -2,6 +2,7 @@ import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, 
 import { universityQuickLinks } from '../core/universities';
 import { isValidTask, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
 import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks, mergeTombstones, sanitizeTaskListMarks } from './taskMerge';
+import { getStorageTombstones, setStorageTombstones } from './tombstones';
 import { purgeSyntheticGradebookTasks } from './gradebook';
 import { setActiveUserCourses } from '../core/userCourses';
 import { resolveTaskWeight } from '../core/syllabusWeights';
@@ -401,10 +402,7 @@ export async function saveTasksMergingLatest(tasks: DeadlineTask[]): Promise<Dea
   let tombstones: Record<string, string> = {};
   try {
     stored = await getTasks();
-    if (isExtensionContextValid()) {
-      const data = await chrome.storage.local.get(['bbs_tombstones']);
-      tombstones = (data?.bbs_tombstones as Record<string, string>) || {};
-    }
+    tombstones = await getStorageTombstones();
   } catch {}
   // Purge the incoming list first: mergeCloudTasks sanitizes silently, so purging only afterwards would never see these ids
   const pre = purgeSyntheticGradebookTasks(tasks);
@@ -415,13 +413,13 @@ export async function saveTasksMergingLatest(tasks: DeadlineTask[]): Promise<Dea
     .map(t => t.id)
     .filter(id => Boolean(id) && !cleaned.some(c => c.id === id));
   const purgedIds = [...pre.purgedIds, ...post.purgedIds, ...dedupedAwayIds];
-  if (purgedIds.length > 0 && isExtensionContextValid()) {
+  if (purgedIds.length > 0) {
     // Tombstone what was purged, as the cloud path does, so the cloud copy cannot bring it back next cycle
     try {
       const nowIso = new Date().toISOString();
       const purged: Record<string, string> = {};
       for (const pid of purgedIds) purged[pid] = nowIso;
-      await chrome.storage.local.set({ bbs_tombstones: mergeTombstones(tombstones, purged) });
+      await setStorageTombstones(mergeTombstones(tombstones, purged));
     } catch {}
   }
   await saveTasks(cleaned);
@@ -472,19 +470,6 @@ export async function addTask(task: DeadlineTask): Promise<DeadlineTask[]> {
   }
   updated = deduplicateTaskList(updated);
   return await saveTasksMergingLatest(updated);
-}
-
-export async function updateTask(taskId: string, updates: Partial<DeadlineTask>): Promise<DeadlineTask[]> {
-  const tasks = await getTasks();
-  const updated = tasks.map(t => (t.id === taskId ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t));
-  return await saveTasksMergingLatest(updated);
-}
-
-export async function deleteTask(taskId: string): Promise<DeadlineTask[]> {
-  const tasks = await getTasks();
-  const updated = tasks.filter(t => t.id !== taskId);
-  await saveTasks(updated);
-  return updated;
 }
 
 export interface ScanCheckpoint {
@@ -881,22 +866,6 @@ export async function getQuickLinksUpdatedAt(): Promise<string | null> {
   return safeGetLocalStorage(STORAGE_KEYS.QUICK_LINKS_UPDATED_AT);
 }
 
-export async function saveCoursesUpdatedAt(timestamp: string): Promise<void> {
-  safeSetLocalStorage(STORAGE_KEYS.COURSES_UPDATED_AT, timestamp);
-  if (isExtensionContextValid()) {
-    try {
-      await new Promise<void>(resolve => {
-        try {
-          chrome.storage.local.set({ [STORAGE_KEYS.COURSES_UPDATED_AT]: timestamp }, () => resolve());
-        } catch {
-          resolve();
-        }
-      });
-    } catch {
-      // Ignore
-    }
-  }
-}
 
 export async function saveUserCourses(courses: UserCourseConfig[], updatedAt?: string): Promise<void> {
   const safeCourses = Array.isArray(courses) ? courses : [];

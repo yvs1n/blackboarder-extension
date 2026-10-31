@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.30] - 2026-10-31
+
+### Changed
+
+- **Dead code removal and cleanup:** Pruned unreferenced helper functions (`isHttpScanRunning` in `httpScanner.ts`, `extractCourseIdFromPage` in `scraper.ts`, `isHomeTaskWithSpecificTime` in `courseSchedule.ts`, `updateTask`, `deleteTask`, and `saveCoursesUpdatedAt` in `storage.ts`) and removed the obsolete `DeletionTombstone` interface from `firebaseSync.ts`.
+- **UI markup optimization:** Removed unreferenced SVG symbol sprites (`icon-schedule`, `icon-flask`, `icon-terminal`, `icon-external-link`, `icon-globe`, `icon-flame`, `icon-target`, `icon-file-text`) and dead hidden form inputs (`#editor-course-id`) from both the extension popup and companion HTML, reducing DOM overhead and HTML payload size.
+- **Build and release synchronization:** Harmonized root `update.bat`, `update.sh`, and `version.json` with their canonical sources in `updater/` and `dist/`. `scripts/build.js` now guarantees byte-identical synchronization on build, `scripts/lint-check.js` strictly validates that root versions and updater scripts match, and `tests/generatedFiles.test.ts` asserts parity across all builds.
+- **Tombstone and UI common logic consolidation:** Centralized deletion tombstone operations into `src/utils/tombstones.ts`, unified common UI utilities (`escapeHtml`, `getSvgIcon`, `getTaskTypeIcon`) in `src/utils/uiCommon.ts`, and exposed them to the mobile companion via `BBCore`, eliminating duplicate implementations between the extension popup and companion PWA.
+
 ## [1.4.29] - 2026-10-31
 
 ### Fixed

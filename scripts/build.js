@@ -545,6 +545,14 @@ async function main() {
   // The root copy is what extensions installed before the dist/version.json check still read
   writeIfChanged(r('version.json'), versionJson);
 
+  // Root update scripts match the canonical updater/ copies
+  if (fs.existsSync(r('updater', 'update.bat'))) {
+    writeIfChanged(r('update.bat'), readText(r('updater', 'update.bat')));
+  }
+  if (fs.existsSync(r('updater', 'update.sh'))) {
+    writeIfChanged(r('update.sh'), readText(r('updater', 'update.sh')));
+  }
+
   if (HAS_WEB && fs.existsSync(r('scripts', 'bundle-worker.js'))) {
     execSync('node scripts/bundle-worker.js', { cwd: ROOT, stdio: 'inherit' });
   }

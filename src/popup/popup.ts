@@ -33,6 +33,8 @@ import { courseImportReviewHtml, readCourseImportReview } from '../core/courseIm
 import { fileToText, type PdfJsLike } from '../core/documentText';
 import { findCoursesInDocument } from '../engine/aiCourseImport';
 import { getActiveCourseLegend, activeCourseHintOptions } from '../core/userCourses';
+import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../utils/uiCommon';
+import { getLocalTombstones, recordLocalTombstone, removeLocalTombstone, awaitTombstonesPersisted } from '../utils/tombstones';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../utils/updateChecker';
 import { POPUP_PORT_NAME, AUTO_UPDATE_STATUS_KEY, type AutoUpdateStatus } from '../background/autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
@@ -446,23 +448,6 @@ function formatDateKey(date: Date): string {
 function formatMonthYear(year: number, month: number): string {
   const date = new Date(year, month, 1);
   return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-}
-
-function getSvgIcon(name: string, extraClass: string = ''): string {
-  const cls = extraClass ? `ui-icon ${extraClass}` : 'ui-icon';
-  return `<svg class="${cls}"><use href="#icon-${name}"></use></svg>`;
-}
-
-function getTaskTypeIcon(type: TaskType): string {
-  switch (type) {
-    case 'quiz': return getSvgIcon('timer');
-    case 'exam': return getSvgIcon('list-check');
-    case 'assignment': return getSvgIcon('notebook-pen');
-    case 'project': return getSvgIcon('presentation');
-    case 'lab': return getSvgIcon('flask-conical');
-    case 'meeting': return getSvgIcon('users');
-    default: return getSvgIcon('pin');
-  }
 }
 
 // ============================================================================
@@ -2712,50 +2697,6 @@ function writeLocalFlag(key: string): Promise<void> {
   });
 }
 
-let tombstoneChain: Promise<void> = Promise.resolve();
-function recordLocalTombstone(taskId: string): Promise<void> {
-  tombstoneChain = tombstoneChain.then(() => writeLocalTombstone(taskId)).catch(() => {});
-  return tombstoneChain;
-}
-
-async function writeLocalTombstone(taskId: string): Promise<void> {
-  try {
-    const raw = await new Promise<any>(resolve => {
-      chrome.storage?.local?.get(['bbs_tombstones'], res => resolve(res?.bbs_tombstones || {}));
-    });
-    const map = (typeof raw === 'object' && raw) ? { ...raw } : {};
-    map[taskId] = new Date().toISOString();
-    await new Promise<void>(resolve => {
-      chrome.storage?.local?.set({ bbs_tombstones: map }, () => resolve());
-    });
-  } catch {}
-}
-
-async function removeLocalTombstone(taskId: string): Promise<void> {
-  try {
-    const raw = await new Promise<any>(resolve => {
-      chrome.storage?.local?.get(['bbs_tombstones'], res => resolve(res?.bbs_tombstones || {}));
-    });
-    if (typeof raw === 'object' && raw && raw[taskId]) {
-      delete raw[taskId];
-      await new Promise<void>(resolve => {
-        chrome.storage?.local?.set({ bbs_tombstones: raw }, () => resolve());
-      });
-    }
-  } catch {}
-}
-
-async function getLocalTombstones(): Promise<Record<string, string>> {
-  try {
-    const raw = await new Promise<any>(resolve => {
-      chrome.storage?.local?.get(['bbs_tombstones'], res => resolve(res?.bbs_tombstones || {}));
-    });
-    return (typeof raw === 'object' && raw) ? raw : {};
-  } catch {
-    return {};
-  }
-}
-
 /**
  * Automatically pushes deadlines to Firebase Realtime Database and Sync Server.
  * Debounces rapid successive updates (e.g. status toggles) to prevent network stalls.
@@ -2780,7 +2721,7 @@ function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Ex
 
 async function executeCloudSync(tasks: DeadlineTask[], actionDescription: string) {
   try {
-    await Promise.all([persistChain, tombstoneChain]);
+    await Promise.all([persistChain, awaitTombstonesPersisted()]);
     // Merge in anything the phone changed since the last pull before overwriting the cloud copy
     const pulled = await pullTasksFromFirebaseIfNewer();
     const toPush = pulled ?? tasks;
@@ -2878,15 +2819,6 @@ async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
     console.warn('[Firebase Sync] Could not pull from cloud:', err);
   }
   return result;
-}
-
-function escapeHtml(text: string): string {
-  return String(text ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 // ============================================================================

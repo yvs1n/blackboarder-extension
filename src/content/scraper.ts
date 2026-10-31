@@ -686,20 +686,6 @@ function startCourseLookup(page: { courses: Map<string, CourseMeta>; skipped: Se
   return { enrolled, courses, resolve };
 }
 
-/**
- * Extracts Blackboard course ID from the URL or DOM if present.
- */
-export function extractCourseIdFromPage(): string | null {
-  const urlMatch = window.location.href.match(/courses\/(_\d+_\d+)/) ||
-                   window.location.href.match(/course_id=(_\d+_\d+)/);
-  if (urlMatch) return urlMatch[1];
-  const el = document.querySelector('[data-course-id]');
-  if (el) {
-    const cid = el.getAttribute('data-course-id');
-    if (cid && cid.startsWith('_')) return cid;
-  }
-  return null;
-}
 
 // Cache for classic Blackboard course announcements to prevent redundant fetches
 const classicCourseAnnouncementsCache = new Map<string, Map<string, { html: string; text: string }>>();

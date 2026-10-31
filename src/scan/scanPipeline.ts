@@ -15,6 +15,7 @@ import { deduplicateTaskList } from '../utils/taskMerge';
 import { applySubmissionUpdates, purgeSyntheticGradebookTasks } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
+import { getStorageTombstones, setStorageTombstones } from '../utils/tombstones';
 import type { ScanSourceOutcomes } from './blackboardApi';
 import { describePartialFailures } from './scanFallback';
 
@@ -58,24 +59,6 @@ export interface ScanPipelineResult {
   pendingCount: number;
 }
 
-function readTombstones(): Promise<Record<string, string>> {
-  return new Promise(resolve => {
-    try {
-      chrome.storage.local.get(['bbs_tombstones'], res => resolve((res?.bbs_tombstones as Record<string, string>) || {}));
-    } catch {
-      resolve({});
-    }
-  });
-}
-
-function saveTombstones(tombstones: Record<string, string>): Promise<void> {
-  return new Promise<void>(resolve => {
-    try {
-      chrome.storage.local.set({ bbs_tombstones: tombstones }, () => resolve());
-    } catch { resolve(); }
-  });
-}
-
 function markTaskType(title: string): TaskType {
   const lowTitle = (title || '').toLowerCase();
   if (/quiz|كويز|اختبار\s*قصير/i.test(lowTitle)) return 'quiz';
@@ -92,7 +75,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
 
   // Stream task ids are deterministic, so a card the student deleted would come back on a full
   // re-scan unless the deletion record is honoured here
-  const tombstones = await readTombstones();
+  const tombstones = await getStorageTombstones();
   const directStreamTasks = input.directTasks
     .filter(t => (fullRescan || !knownDirectIds.has(t.id)) && !tombstones[t.id]);
   const announcements = mergeStreamAndCourseAnnouncements(
@@ -110,7 +93,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
     purgedSyntheticIds.forEach(id => {
       tombstones[id] = new Date().toISOString();
     });
-    await saveTombstones(tombstones);
+    await setStorageTombstones(tombstones);
   }
 
   // Save announcements to storage (merges with existing)

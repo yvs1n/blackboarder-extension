@@ -35,18 +35,6 @@ export function findCourseSchedule(courseNameOrCode: string, extraContext?: stri
   return pickCourseMatch(getActiveScheduleEntries(), combined, entry => entry.matcher, entry => entry.courseName);
 }
 
-/**
- * Checks if the text explicitly states the task is to be done at home or online
- * AND has an explicit time stated by the doctor (e.g. "done at home by 11:59 PM").
- */
-export function isHomeTaskWithSpecificTime(text: string, hasSpecificTime: boolean): boolean {
-  if (!text) return false;
-  const lower = text.toLowerCase();
-
-  const isHomeOrOnline = /(?:done at home|take home|at home|online submission|submit online|blackboard submission|upload to blackboard|تسليم إلكتروني|تسليم الكتروني|حل في المنزل|واجب منزلي)/i.test(lower);
-
-  return isHomeOrOnline && hasSpecificTime;
-}
 
 /**
  * Resolves the task's due date and time using the student's schedule:

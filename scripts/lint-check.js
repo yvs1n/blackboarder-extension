@@ -175,6 +175,44 @@ if (fs.existsSync(distVersionPath)) {
   }
 }
 
+const rootVersionPath = path.join(ROOT, 'version.json');
+if (fs.existsSync(rootVersionPath)) {
+  try {
+    const rootVer = JSON.parse(fs.readFileSync(rootVersionPath, 'utf8')).version;
+    if (rootVer !== pkgVersion) {
+      fail(`version.json version (${rootVer}) does not match package.json (${pkgVersion})`);
+    } else {
+      pass(`version.json matches package.json (v${pkgVersion})`);
+    }
+  } catch (e) {
+    fail('version.json could not be parsed');
+  }
+}
+
+const rootUpdateBat = path.join(ROOT, 'update.bat');
+const updaterUpdateBat = path.join(ROOT, 'updater/update.bat');
+if (fs.existsSync(rootUpdateBat) && fs.existsSync(updaterUpdateBat)) {
+  const rootText = fs.readFileSync(rootUpdateBat, 'utf8').replace(/\r\n?/g, '\n');
+  const updaterText = fs.readFileSync(updaterUpdateBat, 'utf8').replace(/\r\n?/g, '\n');
+  if (rootText !== updaterText) {
+    fail('update.bat in root does not match updater/update.bat');
+  } else {
+    pass('update.bat matches updater/update.bat');
+  }
+}
+
+const rootUpdateSh = path.join(ROOT, 'update.sh');
+const updaterUpdateSh = path.join(ROOT, 'updater/update.sh');
+if (fs.existsSync(rootUpdateSh) && fs.existsSync(updaterUpdateSh)) {
+  const rootText = fs.readFileSync(rootUpdateSh, 'utf8').replace(/\r\n?/g, '\n');
+  const updaterText = fs.readFileSync(updaterUpdateSh, 'utf8').replace(/\r\n?/g, '\n');
+  if (rootText !== updaterText) {
+    fail('update.sh in root does not match updater/update.sh');
+  } else {
+    pass('update.sh matches updater/update.sh');
+  }
+}
+
 const webVersionPath = path.join(ROOT, 'mobile-web/companion/version.json');
 if (fs.existsSync(webVersionPath)) {
   try {
