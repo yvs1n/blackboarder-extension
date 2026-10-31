@@ -6,7 +6,7 @@ import { getProfile, saveProfile, detectUniversityFromHost } from '../utils/prof
 import { profileUniversity } from '../core/studentProfile';
 import { getExtraSites } from '../utils/blackboardSites';
 import { refreshExamSchedule, examRefreshNote } from './examRefresh';
-import { BbFetch, ScanSourceOutcomes, readBlackboardApi } from '../scan/blackboardApi';
+import { BbFetch, ScanSourceOutcomes, readBlackboardApi, isGenericPlaceholderName } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
 import { decideFallback, FallbackReason, SIGN_IN_MESSAGE, UNREACHABLE_MESSAGE } from '../scan/scanFallback';
 import { needsXsrf, readBlackboardXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
@@ -160,13 +160,15 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
       try {
         const currentProf = await getProfile();
         if (currentProf) {
-          if (
-            (api.userProfile.studentName && currentProf.studentName !== api.userProfile.studentName) ||
-            (api.userProfile.studentId && currentProf.studentId !== api.userProfile.studentId)
-          ) {
+          const hasNewName = api.userProfile.studentName &&
+            (currentProf.studentName !== api.userProfile.studentName || isGenericPlaceholderName(currentProf.studentName || ''));
+          const hasNewId = api.userProfile.studentId && currentProf.studentId !== api.userProfile.studentId;
+          if (hasNewName || hasNewId) {
             await saveProfile({
               ...currentProf,
-              studentName: api.userProfile.studentName || currentProf.studentName,
+              studentName: (api.userProfile.studentName && !isGenericPlaceholderName(api.userProfile.studentName))
+                ? api.userProfile.studentName
+                : currentProf.studentName,
               studentId: api.userProfile.studentId || currentProf.studentId,
               studentEmail: api.userProfile.studentEmail || currentProf.studentEmail
             });
@@ -175,7 +177,9 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
           const uniId = (await detectUniversityFromHost(new URL(origin).hostname)) || 'uos';
           await saveProfile({
             universityId: uniId,
-            studentName: api.userProfile.studentName,
+            studentName: (api.userProfile.studentName && !isGenericPlaceholderName(api.userProfile.studentName))
+              ? api.userProfile.studentName
+              : undefined,
             studentId: api.userProfile.studentId,
             studentEmail: api.userProfile.studentEmail
           });

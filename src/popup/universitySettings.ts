@@ -6,6 +6,7 @@
 import type { StudentProfile } from '../types';
 import { UNIVERSITY_PRESETS, getUniversity, normalizeGradeScale, GradeRow } from '../core/universities';
 import { profileUniversity, profileGradeScale } from '../core/studentProfile';
+import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { getProfile, saveProfile, PROFILE_KEY } from '../utils/profile';
 import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/blackboardSites';
 
@@ -222,6 +223,35 @@ export async function initUniversitySettings(hooks: UniversitySettingsHooks): Pr
   });
   document.getElementById('btn-grade-scale-reset')?.addEventListener('click', () => {
     update(hooks, { universityId: profileUniversity(cached).id, source: cached?.source || 'picked' }).catch(() => {});
+  });
+
+  document.getElementById('btn-edit-student-name')?.addEventListener('click', () => {
+    const currentName = cached?.studentName || '';
+    const input = window.prompt('Enter your full name:', currentName);
+    if (input === null) return;
+    const trimmed = input.trim();
+    if (!trimmed || isGenericPlaceholderName(trimmed)) {
+      update(hooks, {
+        universityId: profileUniversity(cached).id,
+        gradeScale: cached?.gradeScale,
+        source: cached?.source || 'picked',
+        studentId: cached?.studentId,
+        studentEmail: cached?.studentEmail,
+        college: cached?.college,
+        major: cached?.major
+      }).catch(() => {});
+      return;
+    }
+    update(hooks, {
+      universityId: profileUniversity(cached).id,
+      gradeScale: cached?.gradeScale,
+      source: cached?.source || 'picked',
+      studentName: trimmed,
+      studentId: cached?.studentId,
+      studentEmail: cached?.studentEmail,
+      college: cached?.college,
+      major: cached?.major
+    }).catch(() => {});
   });
 
   const urlInput = document.getElementById('setting-blackboard-url') as HTMLInputElement | null;

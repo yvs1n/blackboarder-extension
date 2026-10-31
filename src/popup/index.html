@@ -274,7 +274,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.33</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.34</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -677,7 +677,10 @@
           </div>
 
           <div class="form-group" id="group-student-identity" style="display: none;">
-            <label class="form-label">Student Profile</label>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <label class="form-label" style="margin-bottom: 0;">Student Profile</label>
+              <button type="button" class="btn-secondary" id="btn-edit-student-name" style="font-size: 10px; padding: 2px 8px;">Edit Name</button>
+            </div>
             <div class="student-identity-banner" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--surface-hover); border: 1px solid var(--surface-border); font-size: 11.5px;">
               <span id="setting-student-name" style="font-weight: 600; color: var(--text-normal);"></span>
               <span id="setting-student-id" style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted); font-size: 11px;"></span>
@@ -1036,7 +1039,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.33</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.34</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { getProfile, saveProfile } from '../utils/profile';
+import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { profileUniversity } from '../core/studentProfile';
 import { ExamRefreshResult, isExamPageUrl } from '../utils/examRefreshNote';
 import {
@@ -103,16 +104,21 @@ async function readViaHttp(page: string): Promise<ExamRefreshResult> {
 
   try {
     const studentInfo = extractStudentFromExamHtml(bodyText);
-    if (studentInfo?.studentId || studentInfo?.studentName) {
+    if (studentInfo?.studentId || (studentInfo?.studentName && !isGenericPlaceholderName(studentInfo.studentName))) {
       const currentProf = await getProfile();
       if (currentProf) {
-        if (
-          (studentInfo.studentId && currentProf.studentId !== studentInfo.studentId) ||
-          (studentInfo.studentName && currentProf.studentName !== studentInfo.studentName)
-        ) {
+        const hasNewName = !!(studentInfo.studentName &&
+          !isGenericPlaceholderName(studentInfo.studentName) &&
+          (currentProf.studentName !== studentInfo.studentName || isGenericPlaceholderName(currentProf.studentName || '')));
+        const hasNewId = !!(studentInfo.studentId && currentProf.studentId !== studentInfo.studentId);
+        const hasNewCollege = !!(studentInfo.college && currentProf.college !== studentInfo.college);
+        const hasNewMajor = !!(studentInfo.major && currentProf.major !== studentInfo.major);
+        if (hasNewName || hasNewId || hasNewCollege || hasNewMajor) {
           await saveProfile({
             ...currentProf,
-            studentName: studentInfo.studentName || currentProf.studentName,
+            studentName: (studentInfo.studentName && !isGenericPlaceholderName(studentInfo.studentName))
+              ? studentInfo.studentName
+              : currentProf.studentName,
             studentId: studentInfo.studentId || currentProf.studentId,
             college: studentInfo.college || currentProf.college,
             major: studentInfo.major || currentProf.major

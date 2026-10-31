@@ -10,6 +10,7 @@ import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
 import { startStudentProfileBadge } from './studentProfileBadge';
+import { extractStudentFromBlackboardPage } from './studentProfileExtractor';
 import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
 import { GET_BLACKBOARD_XSRF, needsXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
 import { ScanGate, ScanRun } from './scanGate';
@@ -22,6 +23,7 @@ import {
   CourseMeta,
   fetchCourseAnnouncements,
   fetchEnrolledCourses,
+  isGenericPlaceholderName,
   isOrientationOrSandboxCourse,
   mergeCourseMaps,
   readBlackboardApi
@@ -849,21 +851,23 @@ function saveSessionStatus(expired: boolean): void {
   }
 }
 
-/** Saves student profile identity extracted from Blackboard session or exam page. */
-async function saveStudentProfileIfFound(info?: { studentName?: string; studentId?: string; studentEmail?: string; college?: string; major?: string } | null): Promise<void> {
+/** Saves student profile identity extracted from Blackboard session, DOM, or exam page. */
+export async function saveStudentProfileIfFound(info?: { studentName?: string; studentId?: string; studentEmail?: string; college?: string; major?: string } | null): Promise<void> {
   if (!info || (!info.studentName && !info.studentId)) return;
+  const nameToUse = (info.studentName && !isGenericPlaceholderName(info.studentName)) ? info.studentName.trim() : undefined;
   try {
     const current = await getProfile();
     if (current) {
-      if (
-        (info.studentName && current.studentName !== info.studentName) ||
-        (info.studentId && current.studentId !== info.studentId) ||
-        (info.college && current.college !== info.college) ||
-        (info.major && current.major !== info.major)
-      ) {
+      const hasNewName = !!(nameToUse && (current.studentName !== nameToUse || isGenericPlaceholderName(current.studentName || '')));
+      const hasNewId = !!(info.studentId && current.studentId !== info.studentId);
+      const hasNewCollege = !!(info.college && current.college !== info.college);
+      const hasNewMajor = !!(info.major && current.major !== info.major);
+      const hasNewEmail = !!(info.studentEmail && current.studentEmail !== info.studentEmail);
+
+      if (hasNewName || hasNewId || hasNewCollege || hasNewMajor || hasNewEmail) {
         await saveProfile({
           ...current,
-          studentName: info.studentName || current.studentName,
+          studentName: nameToUse || current.studentName,
           studentId: info.studentId || current.studentId,
           studentEmail: info.studentEmail || current.studentEmail,
           college: info.college || current.college,
@@ -874,7 +878,7 @@ async function saveStudentProfileIfFound(info?: { studentName?: string; studentI
       const uniId = (await detectUniversityFromHost(window.location.hostname)) || 'uos';
       await saveProfile({
         universityId: uniId,
-        studentName: info.studentName,
+        studentName: nameToUse,
         studentId: info.studentId,
         studentEmail: info.studentEmail,
         college: info.college,
@@ -1400,7 +1404,17 @@ async function runBlackboardScan(run: ScanRun) {
       } catch {}
       logCourseAnnouncementRead(domAnnouncements.length, api.courseAnnouncements.length, api.courseIds, sources.announcements.failedCourseIds);
     }
-    saveStudentProfileIfFound(api.userProfile);
+    const domProfile = extractStudentFromBlackboardPage(document);
+    const combinedProfile = api.userProfile
+      ? {
+          ...domProfile,
+          ...api.userProfile,
+          studentName: (api.userProfile.studentName && !isGenericPlaceholderName(api.userProfile.studentName))
+            ? api.userProfile.studentName
+            : (domProfile?.studentName || api.userProfile.studentName)
+        }
+      : domProfile;
+    saveStudentProfileIfFound(combinedProfile);
 
     // 3. Full course bodies replace cut-short page cards of the same course only; an open side drawer replaces its card
     const tabAnnouncements = mergeStreamAndCourseAnnouncements(domAnnouncements, api.courseAnnouncements, scrapeOpenDrawerAnnouncement());
@@ -1573,6 +1587,14 @@ function init() {
 
     // Student identity profile badge on the Activity stream
     startStudentProfileBadge();
+
+    // Discover student name and identity from page DOM
+    const initialDomStudent = extractStudentFromBlackboardPage(document);
+    if (initialDomStudent) saveStudentProfileIfFound(initialDomStudent);
+    setTimeout(() => {
+      const laterDomStudent = extractStudentFromBlackboardPage(document);
+      if (laterDomStudent) saveStudentProfileIfFound(laterDomStudent);
+    }, 2500);
   }
 
   // Keyboard shortcut listener: Alt+B (or Option+Shift+B on Mac) to open popup

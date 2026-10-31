@@ -540,7 +540,11 @@ export interface ExtractedStudentInfo {
 /** Extracts student profile information (ID, name, college, major) from a Banner Student Exam Schedule DOM. */
 export function extractStudentFromExamDoc(root: Document | Element): ExtractedStudentInfo | null {
   const result: ExtractedStudentInfo = {};
-  const isHeaderKeyword = (txt: string) => /^(?:student\s*id|id\s*number|رقم\s*الطالب|student\s*name|اسم\s*الطالب|college|الكلية|major|التخصص)\s*[:：]?$/i.test(txt.trim());
+  const isHeaderKeyword = (txt: string) => {
+    const t = (txt || '').trim().toLowerCase();
+    if (!t) return false;
+    return t.replace(/student\s*id|id\s*number|رقم\s*الطالب|student\s*name|اسم\s*الطالب|college|الكلية|major|التخصص|[\s/()_:\-：]/gi, '').length === 0;
+  };
 
   const tables = Array.from(root.querySelectorAll('table'));
   for (const table of tables) {
@@ -596,7 +600,11 @@ export function extractStudentFromExamDoc(root: Document | Element): ExtractedSt
 export function extractStudentFromExamHtml(html: string): ExtractedStudentInfo | null {
   if (!html) return null;
   const result: ExtractedStudentInfo = {};
-  const isHeaderKeyword = (txt: string) => /^(?:student\s*id|id\s*number|رقم\s*الطالب|student\s*name|اسم\s*الطالب|college|الكلية|major|التخصص)\s*[:：]?$/i.test(txt.trim());
+  const isHeaderKeyword = (txt: string) => {
+    const t = (txt || '').trim().toLowerCase();
+    if (!t) return false;
+    return t.replace(/student\s*id|id\s*number|رقم\s*الطالب|student\s*name|اسم\s*الطالب|college|الكلية|major|التخصص|[\s/()_:\-：]/gi, '').length === 0;
+  };
 
   const tableMatches = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
   for (const tableHtml of tableMatches) {

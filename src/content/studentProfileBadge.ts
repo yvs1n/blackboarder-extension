@@ -1,8 +1,10 @@
-import { getProfile } from '../utils/profile';
+import { getProfile, saveProfile } from '../utils/profile';
 import { profileUniversity, profileGradeScale } from '../core/studentProfile';
 import { getUserCourses, getTasks, isExtensionContextValid } from '../utils/storage';
 import { buildGpaSummary } from '../utils/gpa';
 import { getAllSyllabi } from '../core/syllabusWeights';
+import { isGenericPlaceholderName } from '../scan/blackboardApi';
+import { extractStudentFromBlackboardPage } from './studentProfileExtractor';
 
 const BADGE_ID = 'bbs-student-profile-badge';
 
@@ -39,7 +41,16 @@ export async function startStudentProfileBadge(): Promise<void> {
     const syllabi = getAllSyllabi();
     const gpaSummary = buildGpaSummary(tasks, syllabi, profileGradeScale(profile));
 
-    const name = profile.studentName || 'Student';
+    let studentName = profile.studentName;
+    if (!studentName || isGenericPlaceholderName(studentName)) {
+      const pageStudent = extractStudentFromBlackboardPage(document);
+      if (pageStudent?.studentName) {
+        studentName = pageStudent.studentName;
+        saveProfile({ ...profile, studentName: pageStudent.studentName }).catch(() => {});
+      }
+    }
+
+    const name = studentName || 'Student';
     const id = profile.studentId ? `ID: ${profile.studentId}` : '';
     const universityName = uni.shortName !== 'Other' ? uni.name : 'University';
     const courseCount = courses.length > 0 ? `${courses.length} Course${courses.length > 1 ? 's' : ''}` : '';

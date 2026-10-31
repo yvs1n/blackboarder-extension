@@ -1,7 +1,9 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { sanitizeProfile, newerProfile } from '../src/core/studentProfile';
 import { extractStudentFromExamHtml } from '../src/core/examSchedule';
-import { fetchSession } from '../src/scan/blackboardApi';
+import { fetchSession, extractUserName, isGenericPlaceholderName } from '../src/scan/blackboardApi';
+import { extractStudentFromBlackboardPage } from '../src/content/studentProfileExtractor';
 import { StudentProfile } from '../src/types';
 
 describe('studentProfile identity fields', () => {
@@ -133,5 +135,149 @@ describe('Blackboard API fetchSession student extraction', () => {
     const mockFetch = async () => { throw abortErr; };
 
     await expect(fetchSession(mockFetch as any)).rejects.toThrow('Aborted');
+  });
+
+  it('queries fallback public user endpoint when /users/me omits student name', async () => {
+    const mockFetch = async (url: string) => {
+      if (url === '/learn/api/v1/users/me') {
+        return new Response(JSON.stringify({
+          id: '_99999_1',
+          userName: 'u21100999'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === '/learn/api/public/v1/users/me') {
+        return new Response(JSON.stringify({
+          id: '_99999_1',
+          name: {
+            given: 'Rashid',
+            family: 'Al-Ketbi'
+          },
+          contact: {
+            email: 'rashid@sharjah.ac.ae'
+          }
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('Not found', { status: 404 });
+    };
+
+    const session = await fetchSession(mockFetch as any);
+    expect(session.state).toBe('ok');
+    expect(session.studentName).toBe('Rashid Al-Ketbi');
+    expect(session.studentId).toBe('u21100999');
+    expect(session.studentEmail).toBe('rashid@sharjah.ac.ae');
+  });
+});
+
+describe('extractUserName and placeholder rejection', () => {
+  it('extracts various formatted name structures and rejects placeholders', () => {
+    expect(extractUserName({ displayName: 'Fatima Al-Ali' })).toBe('Fatima Al-Ali');
+    expect(extractUserName({ formattedName: 'Omar Hassan' })).toBe('Omar Hassan');
+    expect(extractUserName({ fullName: 'Salem Al-Zaabi' })).toBe('Salem Al-Zaabi');
+    expect(extractUserName({ name: { given: 'Hamad', family: 'Sultan' } })).toBe('Hamad Sultan');
+    expect(extractUserName({ givenName: 'Mariam', familyName: 'Khalid' })).toBe('Mariam Khalid');
+    expect(extractUserName({ user: { displayName: 'Noura Salem' } })).toBe('Noura Salem');
+
+    expect(isGenericPlaceholderName('Student')).toBe(true);
+    expect(isGenericPlaceholderName('student')).toBe(true);
+    expect(isGenericPlaceholderName('User')).toBe(true);
+    expect(isGenericPlaceholderName('طالب')).toBe(true);
+    expect(isGenericPlaceholderName('unknown')).toBe(true);
+    expect(isGenericPlaceholderName('Student Name')).toBe(true);
+    expect(isGenericPlaceholderName('اسم الطالب')).toBe(true);
+    expect(isGenericPlaceholderName('Rashid Al-Ketbi')).toBe(false);
+
+    expect(extractUserName({ name: 'Student' })).toBeUndefined();
+    expect(extractUserName({ displayName: 'طالب' })).toBeUndefined();
+  });
+});
+
+describe('extractStudentFromBlackboardPage DOM extraction', () => {
+  it('extracts student name from Ultra avatar alt text', () => {
+    const doc = document.implementation.createHTMLDocument('bb');
+    doc.body.innerHTML = `
+      <div class="user-info">
+        <img class="bb-avatar" alt="Profile photo of Saeed Al-Mehairi" src="/avatar.jpg" />
+      </div>
+    `;
+    const res = extractStudentFromBlackboardPage(doc);
+    expect(res).not.toBeNull();
+    expect(res?.studentName).toBe('Saeed Al-Mehairi');
+  });
+
+  it('extracts student name from Arabic Ultra avatar alt text', () => {
+    const doc = document.implementation.createHTMLDocument('bb');
+    doc.body.innerHTML = `
+      <div class="user-info">
+        <img class="bb-avatar" alt="صورة الملف الشخصي لـ خولة راشد" src="/avatar.jpg" />
+      </div>
+    `;
+    const res = extractStudentFromBlackboardPage(doc);
+    expect(res).not.toBeNull();
+    expect(res?.studentName).toBe('خولة راشد');
+  });
+
+  it('extracts student name from Ultra base navigation profile link', () => {
+    const doc = document.implementation.createHTMLDocument('bb');
+    doc.body.innerHTML = `
+      <nav class="base-navigation">
+        <a href="/ultra/profile" class="base-navigation-button">
+          <span class="profile-name">Zayed Al-Mansouri</span>
+        </a>
+      </nav>
+    `;
+    const res = extractStudentFromBlackboardPage(doc);
+    expect(res).not.toBeNull();
+    expect(res?.studentName).toBe('Zayed Al-Mansouri');
+  });
+
+  it('extracts student name from Classic Blackboard global nav', () => {
+    const doc = document.implementation.createHTMLDocument('bb');
+    doc.body.innerHTML = `
+      <header>
+        <span id="global-nav-link">Aisha Al-Suwaidi</span>
+      </header>
+    `;
+    const res = extractStudentFromBlackboardPage(doc);
+    expect(res).not.toBeNull();
+    expect(res?.studentName).toBe('Aisha Al-Suwaidi');
+  });
+
+  it('ignores generic placeholder names in DOM', () => {
+    const doc = document.implementation.createHTMLDocument('bb');
+    doc.body.innerHTML = `
+      <div class="user-info">
+        <img class="bb-avatar" alt="Profile photo of Student" src="/avatar.jpg" />
+      </div>
+    `;
+    const res = extractStudentFromBlackboardPage(doc);
+    expect(res).toBeNull();
+  });
+});
+
+describe('bilingual Banner exam schedule extraction', () => {
+  it('extracts student info from bilingual UOS Banner headers', () => {
+    const html = `
+      <table class="datadisplaytable">
+        <tr>
+          <th>Student ID / رقم الطالب</th>
+          <td>U21100777</td>
+          <th>Student Name / اسم الطالب</th>
+          <td>Mayed Al-Qasimi</td>
+        </tr>
+        <tr>
+          <th>College / الكلية</th>
+          <td>College of Computing and Informatics</td>
+          <th>Major / التخصص</th>
+          <td>Information Technology</td>
+        </tr>
+      </table>
+    `;
+
+    const profile = extractStudentFromExamHtml(html);
+    expect(profile).not.toBeNull();
+    expect(profile?.studentId).toBe('U21100777');
+    expect(profile?.studentName).toBe('Mayed Al-Qasimi');
+    expect(profile?.college).toBe('College of Computing and Informatics');
+    expect(profile?.major).toBe('Information Technology');
   });
 });

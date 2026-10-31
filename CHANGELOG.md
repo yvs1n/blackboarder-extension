@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.34] - 2026-11-01
+
+### Fixed
+
+- **Student full name discovery across Blackboard Ultra:** Resolved an issue where student identity accurately displayed institutional IDs but reverted to the generic placeholder "Student". Added multi-layer student name resolution across Blackboard public REST APIs (`/learn/api/public/v1/users/me` and `/learn/api/public/v1/users/{id}`), Ultra activity stream user payloads (`sv_extras.sx_users`), and direct page DOM extraction (`img.bb-avatar[alt]`, base navigation profile links, and classic navigation).
+- **Bilingual Banner exam schedule header parsing:** Fixed regex matching for bilingual UOS Banner headers (e.g. `Student Name / اسم الطالب`, `College / الكلية`, `Major / التخصص`) using stripped keyword matching, preventing failure to extract names from bilingual institutional records.
+- **Generic placeholder rejection and cloud profile merging:** Filtered out generic placeholder values ("Student", "User", "طالب", "مستخدم", "unknown") across profile sanitization and sync merging (`newerProfile`), ensuring real discovered student names reliably supersede generic placeholders.
+- **Manual student name editing in Settings:** Added an "Edit Name" button to the Student Profile identity banner in both the extension popup and mobile companion app, allowing students to set or refine their display name.
+
 ## [1.4.33] - 2026-11-01
 
 ### Added

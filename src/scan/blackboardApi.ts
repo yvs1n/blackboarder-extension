@@ -121,6 +121,67 @@ export async function fetchAllPages(fetchFn: BbFetch, path: string, maxExtraPage
   return { ok: true, results };
 }
 
+export function isGenericPlaceholderName(name: string): boolean {
+  const lower = (name || '').trim().toLowerCase();
+  return !lower || lower === 'student' || lower === 'user' || lower === 'طالب' || lower === 'مستخدم' || lower === 'unknown' || lower === 'student name' || lower === 'اسم الطالب';
+}
+
+/** Extracts a human-readable student full name from any Blackboard user object. */
+export function extractUserName(obj: any): string | undefined {
+  if (!obj || typeof obj !== 'object') return undefined;
+
+  // 1. Direct formatted name properties
+  for (const prop of ['displayName', 'formattedName', 'fullName', 'display_name']) {
+    if (typeof obj[prop] === 'string' && obj[prop].trim()) {
+      const val = obj[prop].trim();
+      if (!isGenericPlaceholderName(val)) return val;
+    }
+  }
+
+  // 2. obj.name (string or structured object)
+  const n = obj.name;
+  if (typeof n === 'string' && n.trim()) {
+    const val = n.trim();
+    if (!isGenericPlaceholderName(val)) return val;
+  } else if (n && typeof n === 'object') {
+    if (typeof n.display === 'string' && n.display.trim()) {
+      const val = n.display.trim();
+      if (!isGenericPlaceholderName(val)) return val;
+    }
+    const parts = [n.given, n.middle, n.family]
+      .filter(p => typeof p === 'string' && p.trim())
+      .map(p => p.trim());
+    if (parts.length > 0) {
+      const val = parts.join(' ');
+      if (!isGenericPlaceholderName(val)) return val;
+    }
+  }
+
+  // 3. Root given/family properties
+  const given = obj.givenName || obj.firstName;
+  const family = obj.familyName || obj.lastName;
+  if (given || family) {
+    const parts = [given, obj.middleName, family]
+      .filter(p => typeof p === 'string' && p.trim())
+      .map(p => p.trim());
+    if (parts.length > 0) {
+      const val = parts.join(' ');
+      if (!isGenericPlaceholderName(val)) return val;
+    }
+  }
+
+  // 4. Nested user or actor object
+  if (obj.user && typeof obj.user === 'object') {
+    const nested = extractUserName(obj.user);
+    if (nested) return nested;
+  }
+  if (obj.actor && typeof obj.actor === 'object') {
+    const nested = extractUserName(obj.actor);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
 export interface SessionInfo {
   state: SessionState;
   userId: string;
@@ -148,26 +209,55 @@ export async function fetchSession(fetchFn: BbFetch): Promise<SessionInfo> {
     const data = await res.json();
     const id = data?.id;
     if (typeof id === 'string' && id) {
-      let studentName: string | undefined;
-      const n = data.name;
-      if (n && typeof n === 'object') {
-        if (typeof n.display === 'string' && n.display.trim()) {
-          studentName = n.display.trim();
-        } else {
-          const parts = [n.given, n.family].filter(p => typeof p === 'string' && p.trim()).map(p => p.trim());
-          if (parts.length > 0) studentName = parts.join(' ');
+      let studentName: string | undefined = extractUserName(data);
+      let studentId: string | undefined;
+      let studentEmail: string | undefined;
+
+      const extractIdentifiers = (obj: any) => {
+        if (!obj || typeof obj !== 'object') return;
+        if (!studentId) {
+          if (typeof obj.studentId === 'string' && obj.studentId.trim()) {
+            studentId = obj.studentId.trim();
+          } else if (typeof obj.userName === 'string' && obj.userName.trim()) {
+            studentId = obj.userName.trim();
+          } else if (typeof obj.externalId === 'string' && obj.externalId.trim()) {
+            studentId = obj.externalId.trim();
+          }
+        }
+        if (!studentEmail) {
+          if (obj.contact && typeof obj.contact.email === 'string' && obj.contact.email.trim()) {
+            studentEmail = obj.contact.email.trim();
+          } else if (typeof obj.email === 'string' && obj.email.trim()) {
+            studentEmail = obj.email.trim();
+          }
+        }
+      };
+
+      extractIdentifiers(data);
+
+      // If student name wasn't in /learn/api/v1/users/me, query the public REST API endpoints
+      if (!studentName) {
+        for (const path of [
+          '/learn/api/public/v1/users/me',
+          `/learn/api/public/v1/users/${encodeURIComponent(id)}`,
+          `/learn/api/v1/users/${encodeURIComponent(id)}`
+        ]) {
+          try {
+            const pubRes = await fetchFn(path);
+            if (pubRes.ok) {
+              const pubData = await pubRes.json().catch(() => null);
+              if (pubData) {
+                studentName = extractUserName(pubData);
+                extractIdentifiers(pubData);
+                if (studentName) break;
+              }
+            }
+          } catch (e) {
+            if ((e as any)?.name === 'AbortError') throw e;
+          }
         }
       }
-      let studentId: string | undefined;
-      if (typeof data.studentId === 'string' && data.studentId.trim()) {
-        studentId = data.studentId.trim();
-      } else if (typeof data.userName === 'string' && data.userName.trim()) {
-        studentId = data.userName.trim();
-      }
-      let studentEmail: string | undefined;
-      if (data.contact && typeof data.contact.email === 'string' && data.contact.email.trim()) {
-        studentEmail = data.contact.email.trim();
-      }
+
       return { state: 'ok', userId: id, studentName, studentId, studentEmail, status: res.status };
     }
   } catch {}
@@ -260,14 +350,23 @@ export async function fetchUltraStream(
   fetchFn: BbFetch,
   courses: Map<string, CourseMeta>,
   origin: string
-): Promise<ApiResult<{ directTasks: DeadlineTask[]; announcements: Announcement[]; submissionUpdates: TaskSubmissionUpdate[] }>> {
+): Promise<ApiResult<{ directTasks: DeadlineTask[]; announcements: Announcement[]; submissionUpdates: TaskSubmissionUpdate[]; users?: Map<string, string> }>> {
   const res = await readJson(fetchFn, ULTRA_STREAM_PATH, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: ULTRA_STREAM_BODY
   });
   if (!res.ok) return res;
-  return { ok: true, ...parseUltraStreamEntries(res.data, addStreamCourses(res.data, courses), origin) };
+  const users = new Map<string, string>();
+  if (Array.isArray(res.data?.sv_extras?.sx_users)) {
+    for (const u of res.data.sv_extras.sx_users) {
+      if (typeof u?.id === 'string' && u.id) {
+        const name = extractUserName(u);
+        if (name) users.set(u.id, name);
+      }
+    }
+  }
+  return { ok: true, users, ...parseUltraStreamEntries(res.data, addStreamCourses(res.data, courses), origin) };
 }
 
 /**
@@ -440,10 +539,15 @@ export async function readBlackboardApi(fetchFn: BbFetch, options: ReadBlackboar
     }
   });
 
+  let studentName = session.studentName;
+  if (!studentName && stream.ok && stream.users && session.userId && stream.users.has(session.userId)) {
+    studentName = stream.users.get(session.userId);
+  }
+
   return {
     userId: session.userId,
-    userProfile: session.studentName || session.studentId ? {
-      studentName: session.studentName,
+    userProfile: studentName || session.studentId ? {
+      studentName,
       studentId: session.studentId,
       studentEmail: session.studentEmail
     } : undefined,

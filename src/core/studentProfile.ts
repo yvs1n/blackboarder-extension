@@ -1,5 +1,6 @@
 import type { StudentProfile } from '../types';
 import { DEFAULT_UNIVERSITY_ID, getUniversity, normalizeGradeScale, GradeRow, UniversityPreset, UNIVERSITY_PRESETS } from './universities';
+import { isGenericPlaceholderName } from '../scan/blackboardApi';
 
 /** A profile read from storage or the cloud, cleaned; null when it is not usable. */
 export function sanitizeProfile(raw: unknown): StudentProfile | null {
@@ -9,7 +10,9 @@ export function sanitizeProfile(raw: unknown): StudentProfile | null {
   if (!UNIVERSITY_PRESETS.some(u => u.id === id)) return null;
   const updatedAt = typeof r.updatedAt === 'string' && !isNaN(Date.parse(r.updatedAt)) ? r.updatedAt : new Date(0).toISOString();
   const profile: StudentProfile = { universityId: id, updatedAt };
-  if (typeof r.studentName === 'string' && r.studentName.trim()) profile.studentName = r.studentName.trim();
+  if (typeof r.studentName === 'string' && r.studentName.trim() && !isGenericPlaceholderName(r.studentName.trim())) {
+    profile.studentName = r.studentName.trim();
+  }
   if (typeof r.studentId === 'string' && r.studentId.trim()) profile.studentId = r.studentId.trim();
   if (typeof r.studentEmail === 'string' && r.studentEmail.trim()) profile.studentEmail = r.studentEmail.trim();
   if (typeof r.major === 'string' && r.major.trim()) profile.major = r.major.trim();
@@ -26,9 +29,14 @@ export function newerProfile(a: StudentProfile | null | undefined, b: StudentPro
   if (!b) return a;
   const newer = Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a;
   const older = newer === b ? a : b;
+  const chooseName = (n?: string, o?: string) => {
+    if (n && !isGenericPlaceholderName(n)) return n;
+    if (o && !isGenericPlaceholderName(o)) return o;
+    return n || o;
+  };
   return {
     ...newer,
-    studentName: newer.studentName || older.studentName,
+    studentName: chooseName(newer.studentName, older.studentName),
     studentId: newer.studentId || older.studentId,
     studentEmail: newer.studentEmail || older.studentEmail,
     major: newer.major || older.major,
