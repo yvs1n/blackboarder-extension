@@ -7,7 +7,7 @@ import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusPr
 import { buildGpaSummary } from '../utils/gpa';
 import { gradesHtml, gradesBadgeText } from '../utils/grades';
 import { pickNewerList } from '../utils/syncMerge';
-import { initUniversitySettings, getCachedProfile } from './universitySettings';
+import { initUniversitySettings, getCachedProfile, renderStudentIdentity } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { quickLinkPreset } from '../core/universities';
 import { classesOnDay, todaysClassesHtml, formatClock, type ClassOccurrence } from '../core/classSchedule';
@@ -172,7 +172,10 @@ function hideScanBanner() {
   spinner?.classList.remove('is-spinning');
 }
 
+let scanCancelledByUser = false;
+
 function stopActiveScan() {
+  scanCancelledByUser = true;
   hideScanBanner();
   resetScanButton();
   if (scanButtonResetTimer) {
@@ -1983,8 +1986,9 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
   // Grades card: the projected GPA, then each course's grade with its marks under it
   const gradesBadge = document.getElementById('grades-tracker-badge');
   const gradesBody = document.getElementById('grades-tracker-breakdown');
+  const profile = getCachedProfile();
+  renderStudentIdentity(profile);
   if (gradesBadge && gradesBody) {
-    const profile = getCachedProfile();
     const scale = profileGradeScale(profile);
     const uni = profileUniversity(profile);
     const syllabi = getAllSyllabi();
@@ -3144,8 +3148,9 @@ function resetScanButton() {
  * and whenever the status changes, so reopening the popup mid-scan shows the progress again.
  */
 function renderScanStatus(status: ScanStatus | null) {
-  if (!status) {
+  if (!status || scanCancelledByUser || status.message === 'Scan cancelled.') {
     hideScanBanner();
+    resetScanButton();
     return;
   }
   const age = Date.now() - new Date(status.updatedAt).getTime();
@@ -3202,6 +3207,7 @@ function renderScanStatus(status: ScanStatus | null) {
  * the scan keeps going if the popup closes; progress comes back through renderScanStatus().
  */
 async function scanActiveTab(fullRescan: boolean = false) {
+  scanCancelledByUser = false;
   if (scanButtonResetTimer) {
     clearTimeout(scanButtonResetTimer);
     scanButtonResetTimer = null;
@@ -3228,6 +3234,11 @@ async function scanActiveTab(fullRescan: boolean = false) {
   const startedAt = Date.now();
   chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
     void chrome.runtime.lastError;
+    if (scanCancelledByUser || res?.message === 'Scan cancelled.') {
+      resetScanButton();
+      hideScanBanner();
+      return;
+    }
     if (res && !res.ok && res.message) {
       fail(res.message);
       return;
@@ -3251,15 +3262,16 @@ async function scanActiveTab(fullRescan: boolean = false) {
  */
 function watchScanEnd(startedAt: number) {
   const check = () => {
-    if (!btnScanTab.disabled || scanButtonResetTimer) return;
+    if (scanCancelledByUser || !btnScanTab.disabled || scanButtonResetTimer) return;
     chrome.runtime.sendMessage({ type: 'PING_HTTP_SCANNER' }, async res => {
+      if (scanCancelledByUser) return;
       const lost = Boolean(chrome.runtime.lastError) || !res?.ok;
       if (!lost && res.scanning) {
         setTimeout(check, 1500);
         return;
       }
       const status = await getScanStatus().catch(() => null);
-      if (!btnScanTab.disabled || scanButtonResetTimer) return;
+      if (scanCancelledByUser || !btnScanTab.disabled || scanButtonResetTimer) return;
       if (status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt) {
         renderScanStatus(status);
         await refreshDataInBackground();
@@ -3284,10 +3296,10 @@ function setupEvents() {
   // Live Scan Notification Dismissal / Cancellation
   document.getElementById('hsb-close')?.addEventListener('click', e => {
     e.stopPropagation();
-    const isActive = headerScanBanner?.classList.contains('is-active') &&
+    const isScanRunning = btnScanTab.disabled || (headerScanBanner?.classList.contains('is-active') &&
       !headerScanBanner?.classList.contains('is-success') &&
-      !headerScanBanner?.classList.contains('is-warning');
-    if (isActive) {
+      !headerScanBanner?.classList.contains('is-warning'));
+    if (isScanRunning) {
       stopActiveScan();
     } else {
       hideScanBanner();

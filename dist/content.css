@@ -333,3 +333,147 @@ html.bbs-dark-active .bbs-first-visit-callout {
   cursor: pointer;
   padding: 2px 4px;
 }
+
+/* Student Academic Profile Badge (Blackboard Ultra Stream) */
+.bbs-profile-badge-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  color: #18181b;
+  border: 1px solid #e4e4e7;
+  border-radius: 0 !important;
+  padding: 10px 14px;
+  margin: 12px 0 10px 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+html.bbs-dark-active .bbs-profile-badge-card {
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+  border-color: #27272a !important;
+}
+
+.bbs-profile-badge-card .bbs-pbc-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bbs-profile-badge-card .bbs-pbc-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #18181b;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 0 !important;
+  flex: none;
+}
+
+html.bbs-dark-active .bbs-profile-badge-card .bbs-pbc-avatar {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+}
+
+.bbs-profile-badge-card .bbs-pbc-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bbs-profile-badge-card .bbs-pbc-row-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bbs-profile-badge-card .bbs-pbc-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: inherit;
+  white-space: nowrap;
+}
+
+.bbs-profile-badge-card .bbs-pbc-id {
+  font-size: 11px;
+  font-weight: 600;
+  background: #f4f4f5;
+  color: #52525b;
+  padding: 1px 6px;
+  border: 1px solid #e4e4e7;
+  border-radius: 0 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html.bbs-dark-active .bbs-profile-badge-card .bbs-pbc-id {
+  background: #27272a !important;
+  color: #a1a1aa !important;
+  border-color: #3f3f46 !important;
+}
+
+.bbs-profile-badge-card .bbs-pbc-row-secondary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #71717a;
+  margin-top: 1px;
+}
+
+html.bbs-dark-active .bbs-profile-badge-card .bbs-pbc-row-secondary {
+  color: #a1a1aa !important;
+}
+
+.bbs-profile-badge-card .bbs-pbc-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.bbs-profile-badge-card .bbs-pbc-stat-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: #f4f4f5;
+  color: #27272a;
+  border: 1px solid #e4e4e7;
+  border-radius: 0 !important;
+  white-space: nowrap;
+}
+
+html.bbs-dark-active .bbs-profile-badge-card .bbs-pbc-stat-chip {
+  background: #27272a !important;
+  color: #f4f4f5 !important;
+  border-color: #3f3f46 !important;
+}
+
+.bbs-profile-badge-card .bbs-pbc-action {
+  font-size: 11px;
+  font-weight: 600;
+  background: #18181b;
+  color: #ffffff;
+  border: 1px solid #18181b;
+  border-radius: 0 !important;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.bbs-profile-badge-card .bbs-pbc-action:hover {
+  opacity: 0.85;
+}
+
+html.bbs-dark-active .bbs-profile-badge-card .bbs-pbc-action {
+  background: #f4f4f5 !important;
+  color: #18181b !important;
+  border-color: #f4f4f5 !important;
+}

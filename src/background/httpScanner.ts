@@ -2,7 +2,7 @@ import { getSettings, getLastScanCheckpoint, getUserCourses, autoRegisterDiscove
 import { GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
 import { discoveredCoursesWithColors } from '../content/courseColorPainter';
 import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
-import { getProfile } from '../utils/profile';
+import { getProfile, saveProfile, detectUniversityFromHost } from '../utils/profile';
 import { profileUniversity } from '../core/studentProfile';
 import { getExtraSites } from '../utils/blackboardSites';
 import { refreshExamSchedule, examRefreshNote } from './examRefresh';
@@ -154,6 +154,34 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
 
     // New courses take the colour Blackboard gives them (courses already set up keep theirs)
     await autoRegisterDiscoveredCourses(await discoveredCoursesWithColors(getJson)).catch(() => {});
+
+    // Save student profile identity extracted from Blackboard session
+    if (api.userProfile?.studentName || api.userProfile?.studentId) {
+      try {
+        const currentProf = await getProfile();
+        if (currentProf) {
+          if (
+            (api.userProfile.studentName && currentProf.studentName !== api.userProfile.studentName) ||
+            (api.userProfile.studentId && currentProf.studentId !== api.userProfile.studentId)
+          ) {
+            await saveProfile({
+              ...currentProf,
+              studentName: api.userProfile.studentName || currentProf.studentName,
+              studentId: api.userProfile.studentId || currentProf.studentId,
+              studentEmail: api.userProfile.studentEmail || currentProf.studentEmail
+            });
+          }
+        } else {
+          const uniId = (await detectUniversityFromHost(new URL(origin).hostname)) || 'uos';
+          await saveProfile({
+            universityId: uniId,
+            studentName: api.userProfile.studentName,
+            studentId: api.userProfile.studentId,
+            studentEmail: api.userProfile.studentEmail
+          });
+        }
+      } catch {}
+    }
 
     // What each gradebook held on the last scan, kept on this device only, to explain a missing mark
     try {

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.33] - 2026-11-01
+
+### Added
+
+- **Liquid glass Scriptable iOS widgets with dynamic course colors:** Redesigned Scriptable iOS home-screen widgets (`widgets/blackboarder-widget.js` and `mobile-web/companion/widget.js`) with an obsidian multi-stop liquid glass aesthetic, translucent frosted panels with hairline glass borders, vibrant dynamic course color accent pills, and course tags. Maximized the large widget display to showcase up to 8 active deadlines with adaptive vertical spacing. Added student name and institutional ID to the widget header.
+- **Student identity and academic profile discovery:** Automatic extraction of student name, ID number, student email, college, and major from Blackboard REST API (`/learn/api/v1/users/me`) and Banner Student Exam Schedule (`StudentExamPage`). Displays an in-page academic identity badge (`#bbs-student-profile-badge`) directly on Blackboard Ultra stream, in the extension popup Courses tab, in the companion mobile web app schedule view, and in Settings. Seamlessly persists and merges student identity across Firebase cloud sync.
+- **Enhanced scan cancellation and enlarged tap target:** Clicking the close button (`✕`) on the scan progress banner ("Reading Blackboard...") cancels active scans instantly across background HTTP and tab scanners while aborting in-flight network requests. Enlarged the click/tap hit target to 26px by 26px for effortless dismissal. Prevents cancelled scans from popping up extraneous post-cancellation status banners or warning error notices, immediately resetting the banner and scan button cleanly to idle.
+
 ## [1.4.32] - 2026-10-31
 
 ### Added

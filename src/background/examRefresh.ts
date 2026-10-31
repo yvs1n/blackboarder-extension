@@ -1,11 +1,12 @@
-import { getProfile } from '../utils/profile';
+import { getProfile, saveProfile } from '../utils/profile';
 import { profileUniversity } from '../core/studentProfile';
 import { ExamRefreshResult, isExamPageUrl } from '../utils/examRefreshNote';
 import {
   scrapeExamScheduleFromHtml,
   extractExamScheduleRowsFromJson,
   rowsToExamTasks,
-  mergeExamScheduleTasks
+  mergeExamScheduleTasks,
+  extractStudentFromExamHtml
 } from '../core/examSchedule';
 import { getTasks, getUserCourses, autoRegisterDiscoveredCourses, saveTasksMergingLatest } from '../utils/storage';
 import { deduplicateTaskList } from '../utils/taskMerge';
@@ -99,6 +100,27 @@ async function readViaHttp(page: string): Promise<ExamRefreshResult> {
 
   const bodyText = await res.text();
   await getUserCourses().catch(() => {});
+
+  try {
+    const studentInfo = extractStudentFromExamHtml(bodyText);
+    if (studentInfo?.studentId || studentInfo?.studentName) {
+      const currentProf = await getProfile();
+      if (currentProf) {
+        if (
+          (studentInfo.studentId && currentProf.studentId !== studentInfo.studentId) ||
+          (studentInfo.studentName && currentProf.studentName !== studentInfo.studentName)
+        ) {
+          await saveProfile({
+            ...currentProf,
+            studentName: studentInfo.studentName || currentProf.studentName,
+            studentId: studentInfo.studentId || currentProf.studentId,
+            college: studentInfo.college || currentProf.college,
+            major: studentInfo.major || currentProf.major
+          });
+        }
+      }
+    }
+  } catch {}
 
   let examTasks = scrapeExamScheduleFromHtml(bodyText);
   if (examTasks.length === 0) {

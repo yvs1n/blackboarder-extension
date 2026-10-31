@@ -51,6 +51,16 @@ export interface UserCourseConfig {
  */
 export interface StudentProfile {
   universityId: string;
+  /** The student's full or preferred name extracted from Blackboard */
+  studentName?: string;
+  /** The student's institutional ID (e.g. U000xxxxx or userName) */
+  studentId?: string;
+  /** Institutional email if available */
+  studentEmail?: string;
+  /** Academic major if extracted from exam page or profile */
+  major?: string;
+  /** Academic college if extracted from exam page or profile */
+  college?: string;
   /** The student's own scale; replaces the university's when set */
   gradeScale?: { letter: string; min: number; points: number }[];
   /** 'picked' in onboarding or Settings, 'detected' from the Blackboard address */

@@ -133,6 +133,40 @@ function refresh() {
       ? 'Found from your Blackboard address. Change it if it is wrong.'
       : cached ? '' : 'Not set yet. Pick yours, or scan any Blackboard page and it is filled in.';
   }
+  renderStudentIdentity(cached);
+}
+
+export function renderStudentIdentity(profile: StudentProfile | null): void {
+  const group = document.getElementById('group-student-identity');
+  const nameEl = document.getElementById('setting-student-name');
+  const idEl = document.getElementById('setting-student-id');
+  if (profile && (profile.studentName || profile.studentId)) {
+    if (group) group.style.display = 'block';
+    if (nameEl) nameEl.textContent = profile.studentName || 'Student';
+    if (idEl) idEl.textContent = profile.studentId ? `ID: ${profile.studentId}` : '';
+  } else {
+    if (group) group.style.display = 'none';
+  }
+
+  const card = document.getElementById('student-profile-card');
+  const cName = document.getElementById('student-profile-name');
+  const cId = document.getElementById('student-profile-id');
+  const cUni = document.getElementById('student-profile-uni');
+  const cAvatar = document.getElementById('student-profile-avatar');
+  if (card && profile && (profile.studentName || profile.studentId)) {
+    card.style.display = 'flex';
+    const name = profile.studentName || 'Student';
+    if (cName) cName.textContent = name;
+    if (cId) cId.textContent = profile.studentId ? `ID: ${profile.studentId}` : '';
+    if (cUni) {
+      const uni = profileUniversity(profile);
+      const sub = [uni.shortName !== 'Other' ? uni.name : 'University', profile.major].filter(Boolean).join(' • ');
+      cUni.textContent = sub;
+    }
+    if (cAvatar) cAvatar.textContent = name.charAt(0).toUpperCase();
+  } else if (card) {
+    card.style.display = 'none';
+  }
 }
 
 async function update(hooks: UniversitySettingsHooks, next: Omit<StudentProfile, 'updatedAt'>) {

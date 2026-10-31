@@ -9,11 +9,12 @@ import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
+import { startStudentProfileBadge } from './studentProfileBadge';
 import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
 import { GET_BLACKBOARD_XSRF, needsXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
 import { ScanGate, ScanRun } from './scanGate';
-import { detectUniversityFromHost } from '../utils/profile';
-import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks } from '../core/examSchedule';
+import { detectUniversityFromHost, getProfile, saveProfile } from '../utils/profile';
+import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks, extractStudentFromExamDoc } from '../core/examSchedule';
 import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
 import {
   ApiResult,
@@ -848,6 +849,41 @@ function saveSessionStatus(expired: boolean): void {
   }
 }
 
+/** Saves student profile identity extracted from Blackboard session or exam page. */
+async function saveStudentProfileIfFound(info?: { studentName?: string; studentId?: string; studentEmail?: string; college?: string; major?: string } | null): Promise<void> {
+  if (!info || (!info.studentName && !info.studentId)) return;
+  try {
+    const current = await getProfile();
+    if (current) {
+      if (
+        (info.studentName && current.studentName !== info.studentName) ||
+        (info.studentId && current.studentId !== info.studentId) ||
+        (info.college && current.college !== info.college) ||
+        (info.major && current.major !== info.major)
+      ) {
+        await saveProfile({
+          ...current,
+          studentName: info.studentName || current.studentName,
+          studentId: info.studentId || current.studentId,
+          studentEmail: info.studentEmail || current.studentEmail,
+          college: info.college || current.college,
+          major: info.major || current.major
+        });
+      }
+    } else {
+      const uniId = (await detectUniversityFromHost(window.location.hostname)) || 'uos';
+      await saveProfile({
+        universityId: uniId,
+        studentName: info.studentName,
+        studentId: info.studentId,
+        studentEmail: info.studentEmail,
+        college: info.college,
+        major: info.major
+      });
+    }
+  } catch {}
+}
+
 /** What the last gradebook read found, for the scan message and the console line. */
 let lastGradebookRead = { signedIn: false, expired: false, courses: 0, coursesRead: 0, skipped: [] as string[] };
 
@@ -1215,6 +1251,7 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
   }
 
   const existingTasks = await getTasks();
+  saveStudentProfileIfFound(extractStudentFromExamDoc(document));
   const { tasks: mergedTasks, addedCount, updatedCount } = mergeExamScheduleTasks(existingTasks, examTasks, tombstones);
   const finalTasks = deduplicateTaskList(mergedTasks).filter(isValidTask);
 
@@ -1363,6 +1400,7 @@ async function runBlackboardScan(run: ScanRun) {
       } catch {}
       logCourseAnnouncementRead(domAnnouncements.length, api.courseAnnouncements.length, api.courseIds, sources.announcements.failedCourseIds);
     }
+    saveStudentProfileIfFound(api.userProfile);
 
     // 3. Full course bodies replace cut-short page cards of the same course only; an open side drawer replaces its card
     const tabAnnouncements = mergeStreamAndCourseAnnouncements(domAnnouncements, api.courseAnnouncements, scrapeOpenDrawerAnnouncement());
@@ -1515,7 +1553,7 @@ function init() {
       }
 
       // If scanPage() ran in this tab and already showed the completion toast, don't show a second duplicate toast!
-      if (lastTabScanToastAt >= scanStartedAt) {
+      if (lastTabScanToastAt >= scanStartedAt || res?.message === 'Scan cancelled.') {
         return;
       }
 
@@ -1532,6 +1570,9 @@ function init() {
 
     // Course and type filter bar on the Activity page
     startActivityFilter(getBlackboardJson);
+
+    // Student identity profile badge on the Activity stream
+    startStudentProfileBadge();
   }
 
   // Keyboard shortcut listener: Alt+B (or Option+Shift+B on Mac) to open popup

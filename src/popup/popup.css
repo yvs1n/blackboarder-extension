@@ -809,12 +809,19 @@ body.is-standalone .header {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 4px 6px;
+  min-width: 26px;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
   border-radius: 0 !important;
   opacity: 0.75;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .header-scan-banner .hsb-close:hover {
@@ -5044,3 +5051,14 @@ h1, h2, h3 {
 .setting-desc { display: block; margin-top: 3px; font-size: 10.5px; line-height: 1.4; color: var(--text-muted); }
 .setting-desc:empty { display: none; }
 .ci-keep, .import-ai-row input { accent-color: var(--text-main); }
+
+/* Student Academic Profile Identity (Popup & Courses Tab) */
+.student-profile-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); margin-bottom: 10px; }
+.student-profile-avatar { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--primary); color: var(--bg); font-weight: 700; font-size: 13px; flex: none; }
+[data-theme="dark"] .student-profile-avatar { background: var(--primary-hover); color: var(--bg); }
+.student-profile-info { display: flex; flex-direction: column; min-width: 0; }
+.student-profile-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.student-profile-name { font-size: 12px; font-weight: 700; color: var(--text-main); }
+.student-profile-id { font-size: 10.5px; font-weight: 600; background: var(--surface-hover); color: var(--text-muted); padding: 1px 5px; border: 1px solid var(--surface-border); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.student-profile-uni { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+.student-identity-banner { display: flex; align-items: center; justify-content: space-between; }

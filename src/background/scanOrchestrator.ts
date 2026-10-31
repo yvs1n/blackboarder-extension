@@ -325,7 +325,10 @@ export function createScanOrchestrator(deps: OrchestratorDeps): ScanOrchestrator
     },
     isRunning: () => gate.running,
     async abortScan(): Promise<void> {
-      if (!gate.running) return;
+      if (!gate.running) {
+        await deps.setScanStatus({ state: 'done', message: 'Scan cancelled.', newCount: 0 }).catch(() => {});
+        return;
+      }
       gate.abort();
       if (currentOpenedTab !== null) {
         await deps.tabs.remove(currentOpenedTab).catch(() => {});

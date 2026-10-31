@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blackboarder</title>
-  <script type="module" crossorigin src="../../assets/popup-CjwU3BGT.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-DfshhXGx.css">
+  <script type="module" crossorigin src="../../assets/popup-C6pgoAxA.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-CCf7LZRn.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -275,7 +275,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.32</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.33</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -463,6 +463,18 @@
   <!-- VIEW 3: Add Task Manually -->
   <!-- VIEW: Courses (same tab as the phone app's Courses) -->
   <section id="view-courses" class="view-panel">
+      <!-- Student Academic Profile Identity Card -->
+      <div class="student-profile-card" id="student-profile-card" style="display: none;">
+        <div class="student-profile-avatar" id="student-profile-avatar" aria-hidden="true">S</div>
+        <div class="student-profile-info">
+          <div class="student-profile-name-row">
+            <span class="student-profile-name" id="student-profile-name"></span>
+            <span class="student-profile-id" id="student-profile-id"></span>
+          </div>
+          <div class="student-profile-uni" id="student-profile-uni"></div>
+        </div>
+      </div>
+
       <!-- Grades: projected GPA, each course's grade so far and every mark under it (same card as the phone app) -->
       <div class="grade-tracker-widget course-summary-card" id="grades-tracker">
         <button type="button" class="grade-tracker-header" id="grades-tracker-toggle-btn" aria-expanded="false" aria-controls="grades-tracker-breakdown">
@@ -663,6 +675,14 @@
             <label class="form-label" for="setting-university">University</label>
             <select id="setting-university" class="form-select"></select>
             <span class="setting-desc" id="university-detect-note"></span>
+          </div>
+
+          <div class="form-group" id="group-student-identity" style="display: none;">
+            <label class="form-label">Student Profile</label>
+            <div class="student-identity-banner" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--surface-hover); border: 1px solid var(--surface-border); font-size: 11.5px;">
+              <span id="setting-student-name" style="font-weight: 600; color: var(--text-normal);"></span>
+              <span id="setting-student-id" style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted); font-size: 11px;"></span>
+            </div>
           </div>
 
           <div class="form-group">
@@ -1017,7 +1037,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.32</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.33</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

@@ -121,12 +121,23 @@ export async function fetchAllPages(fetchFn: BbFetch, path: string, maxExtraPage
   return { ok: true, results };
 }
 
-/** users/me: ok with the user id, expired (signed out), or unreachable (network error or an answer that is neither). */
-export async function fetchSession(fetchFn: BbFetch): Promise<{ state: SessionState; userId: string; status?: number; error?: string }> {
+export interface SessionInfo {
+  state: SessionState;
+  userId: string;
+  studentName?: string;
+  studentId?: string;
+  studentEmail?: string;
+  status?: number;
+  error?: string;
+}
+
+/** users/me: ok with the user id and student info, expired (signed out), or unreachable (network error or an answer that is neither). */
+export async function fetchSession(fetchFn: BbFetch): Promise<SessionInfo> {
   let res: Response;
   try {
     res = await fetchFn('/learn/api/v1/users/me');
   } catch (err) {
+    if ((err as any)?.name === 'AbortError') throw err;
     return { state: 'unreachable', userId: '', error: `network: ${String((err as any)?.message || err)}` };
   }
   if (isSessionExpiredResponse(res.status, res.headers?.get('content-type') ?? null)) {
@@ -134,8 +145,31 @@ export async function fetchSession(fetchFn: BbFetch): Promise<{ state: SessionSt
   }
   if (!res.ok) return { state: 'unreachable', userId: '', status: res.status, error: `HTTP ${res.status}` };
   try {
-    const id = (await res.json())?.id;
-    if (typeof id === 'string' && id) return { state: 'ok', userId: id, status: res.status };
+    const data = await res.json();
+    const id = data?.id;
+    if (typeof id === 'string' && id) {
+      let studentName: string | undefined;
+      const n = data.name;
+      if (n && typeof n === 'object') {
+        if (typeof n.display === 'string' && n.display.trim()) {
+          studentName = n.display.trim();
+        } else {
+          const parts = [n.given, n.family].filter(p => typeof p === 'string' && p.trim()).map(p => p.trim());
+          if (parts.length > 0) studentName = parts.join(' ');
+        }
+      }
+      let studentId: string | undefined;
+      if (typeof data.studentId === 'string' && data.studentId.trim()) {
+        studentId = data.studentId.trim();
+      } else if (typeof data.userName === 'string' && data.userName.trim()) {
+        studentId = data.userName.trim();
+      }
+      let studentEmail: string | undefined;
+      if (data.contact && typeof data.contact.email === 'string' && data.contact.email.trim()) {
+        studentEmail = data.contact.email.trim();
+      }
+      return { state: 'ok', userId: id, studentName, studentId, studentEmail, status: res.status };
+    }
   } catch {}
   return { state: 'unreachable', userId: '', status: res.status, error: 'no user id' };
 }
@@ -303,6 +337,11 @@ export function mergeCourseMaps(
 
 export interface BlackboardApiRead {
   userId: string;
+  userProfile?: {
+    studentName?: string;
+    studentId?: string;
+    studentEmail?: string;
+  };
   sources: ScanSourceOutcomes;
   /** Course id to name and code: the enrolment list, then names found on the page. */
   courses: Map<string, CourseMeta>;
@@ -403,6 +442,11 @@ export async function readBlackboardApi(fetchFn: BbFetch, options: ReadBlackboar
 
   return {
     userId: session.userId,
+    userProfile: session.studentName || session.studentId ? {
+      studentName: session.studentName,
+      studentId: session.studentId,
+      studentEmail: session.studentEmail
+    } : undefined,
     sources,
     courses,
     courseIds,

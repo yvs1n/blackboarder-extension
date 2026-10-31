@@ -530,6 +530,136 @@ export function scrapeExamScheduleFromHtml(html: string, nowIso: string = new Da
   return rowsToExamTasks(extractExamScheduleRowsFromHtml(html), nowIso);
 }
 
+export interface ExtractedStudentInfo {
+  studentName?: string;
+  studentId?: string;
+  college?: string;
+  major?: string;
+}
+
+/** Extracts student profile information (ID, name, college, major) from a Banner Student Exam Schedule DOM. */
+export function extractStudentFromExamDoc(root: Document | Element): ExtractedStudentInfo | null {
+  const result: ExtractedStudentInfo = {};
+  const isHeaderKeyword = (txt: string) => /^(?:student\s*id|id\s*number|رقم\s*الطالب|student\s*name|اسم\s*الطالب|college|الكلية|major|التخصص)\s*[:：]?$/i.test(txt.trim());
+
+  const tables = Array.from(root.querySelectorAll('table'));
+  for (const table of tables) {
+    const trs = Array.from(table.querySelectorAll('tr'));
+    if (trs.length === 0) continue;
+
+    const row0 = trs[0];
+    const row0Ths = Array.from(row0.querySelectorAll('th'));
+    const row0Tds = Array.from(row0.querySelectorAll('td'));
+
+    // 1) Column-header table: row 0 has only <th> (no <td>) with multiple header keywords
+    if (trs.length >= 2 && row0Tds.length === 0 && row0Ths.length >= 2) {
+      let idIdx = -1, nameIdx = -1, colIdx = -1, majIdx = -1;
+      row0Ths.forEach((th, idx) => {
+        const h = (th.textContent || '').trim().toLowerCase();
+        if (/student\s*id|id\s*number|رقم\s*الطالب/i.test(h)) idIdx = idx;
+        else if (/student\s*name|اسم\s*الطالب/i.test(h)) nameIdx = idx;
+        else if (/college|الكلية/i.test(h)) colIdx = idx;
+        else if (/major|التخصص/i.test(h)) majIdx = idx;
+      });
+      const dataCells = Array.from(trs[1].querySelectorAll('th, td')).map(c => (c.textContent || '').trim());
+      if (idIdx !== -1 && dataCells[idIdx]) result.studentId = dataCells[idIdx];
+      if (nameIdx !== -1 && dataCells[nameIdx]) result.studentName = dataCells[nameIdx];
+      if (colIdx !== -1 && dataCells[colIdx]) result.college = dataCells[colIdx];
+      if (majIdx !== -1 && dataCells[majIdx]) result.major = dataCells[majIdx];
+      if (result.studentId || result.studentName) return result;
+    }
+
+    // 2) Key-value pairs across rows
+    for (const tr of trs) {
+      const cells = Array.from(tr.querySelectorAll('th, td')).map(c => (c.textContent || '').trim());
+      for (let i = 0; i < cells.length - 1; i++) {
+        const label = cells[i].toLowerCase();
+        const val = cells[i + 1];
+        if (!val || isHeaderKeyword(val)) continue;
+        if (/student\s*id|id\s*number|رقم\s*الطالب/i.test(label) && !result.studentId) {
+          result.studentId = val;
+        } else if (/student\s*name|اسم\s*الطالب/i.test(label) && !result.studentName) {
+          result.studentName = val;
+        } else if (/college|الكلية/i.test(label) && !result.college) {
+          result.college = val;
+        } else if (/major|التخصص/i.test(label) && !result.major) {
+          result.major = val;
+        }
+      }
+    }
+    if (result.studentId || result.studentName) return result;
+  }
+  return result.studentId || result.studentName ? result : null;
+}
+
+/** Extracts student profile information (ID, name, college, major) from raw Banner Student Exam Schedule HTML. */
+export function extractStudentFromExamHtml(html: string): ExtractedStudentInfo | null {
+  if (!html) return null;
+  const result: ExtractedStudentInfo = {};
+  const isHeaderKeyword = (txt: string) => /^(?:student\s*id|id\s*number|رقم\s*الطالب|student\s*name|اسم\s*الطالب|college|الكلية|major|التخصص)\s*[:：]?$/i.test(txt.trim());
+
+  const tableMatches = html.match(/<table\b[\s\S]*?<\/table>/gi) || [];
+  for (const tableHtml of tableMatches) {
+    const trMatches = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+    if (trMatches.length === 0) continue;
+
+    const headerTr = trMatches[0] || '';
+    const hasTdsInRow0 = /<td\b/i.test(headerTr);
+    const thsInRow0 = headerTr.match(/<th\b[^>]*>([\s\S]*?)<\/th>/gi) || [];
+
+    // 1) Column-header table: row 0 has only <th> (no <td>) with multiple header keywords
+    if (trMatches.length >= 2 && !hasTdsInRow0 && thsInRow0.length >= 2) {
+      const ths = thsInRow0.map(c => c.replace(/<[^>]+>/g, '').trim());
+      let idIdx = -1, nameIdx = -1, colIdx = -1, majIdx = -1;
+      ths.forEach((c, idx) => {
+        const h = c.toLowerCase();
+        if (/student\s*id|id\s*number|رقم\s*الطالب/i.test(h)) idIdx = idx;
+        else if (/student\s*name|اسم\s*الطالب/i.test(h)) nameIdx = idx;
+        else if (/college|الكلية/i.test(h)) colIdx = idx;
+        else if (/major|التخصص/i.test(h)) majIdx = idx;
+      });
+      const dataTr = trMatches[1] || '';
+      const tds = (dataTr.match(/<(?:th|td)\b[^>]*>([\s\S]*?)<\/(?:th|td)>/gi) || [])
+        .map(c => c.replace(/<[^>]+>/g, '').trim());
+      if (idIdx !== -1 && tds[idIdx]) result.studentId = tds[idIdx];
+      if (nameIdx !== -1 && tds[nameIdx]) result.studentName = tds[nameIdx];
+      if (colIdx !== -1 && tds[colIdx]) result.college = tds[colIdx];
+      if (majIdx !== -1 && tds[majIdx]) result.major = tds[majIdx];
+      if (result.studentId || result.studentName) return result;
+    }
+
+    // 2) Key-value pairs per row
+    for (const trHtml of trMatches) {
+      const cells = (trHtml.match(/<(?:th|td)\b[^>]*>([\s\S]*?)<\/(?:th|td)>/gi) || [])
+        .map(c => c.replace(/<[^>]+>/g, '').trim());
+      for (let i = 0; i < cells.length - 1; i++) {
+        const label = cells[i].toLowerCase();
+        const val = cells[i + 1];
+        if (!val || isHeaderKeyword(val)) continue;
+        if (/student\s*id|id\s*number|رقم\s*الطالب/i.test(label) && !result.studentId) {
+          result.studentId = val;
+        } else if (/student\s*name|اسم\s*الطالب/i.test(label) && !result.studentName) {
+          result.studentName = val;
+        } else if (/college|الكلية/i.test(label) && !result.college) {
+          result.college = val;
+        } else if (/major|التخصص/i.test(label) && !result.major) {
+          result.major = val;
+        }
+      }
+    }
+    if (result.studentId || result.studentName) return result;
+  }
+
+  const idMatch = html.match(/(?:Student\s*ID|رقم\s*الطالب)\s*[:：]?\s*<[^>]*>?\s*([Uu0-9]{6,12})/i);
+  if (idMatch) result.studentId = idMatch[1].trim();
+  const nameMatch = html.match(/(?:Student\s*Name|اسم\s*الطالب)\s*[:：]?\s*<[^>]*>?\s*([^<\n\r]{2,50})/i);
+  if (nameMatch) {
+    const clean = nameMatch[1].replace(/<[^>]+>/g, '').trim();
+    if (clean && !clean.toLowerCase().includes('student')) result.studentName = clean;
+  }
+  return result.studentId || result.studentName ? result : null;
+}
+
 /**
  * True when the current URL or DOM is a Banner Student Exam Schedule page.
  */
