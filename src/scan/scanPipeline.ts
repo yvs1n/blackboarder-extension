@@ -48,6 +48,7 @@ export interface ScanPipelineInput {
   fullRescan: boolean;
   /** Read each time progress is written, since a quiet scan can become visible while it runs. */
   isInteractive: () => boolean;
+  signal?: AbortSignal;
 }
 
 export interface ScanPipelineResult {
@@ -69,6 +70,9 @@ function markTaskType(title: string): TaskType {
 }
 
 export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPipelineResult> {
+  if (input.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
   const { fullRescan, checkpoint } = input;
   const knownDirectIds = new Set(checkpoint.processedDirectTaskIds);
   const knownAnnIds = new Set(checkpoint.processedAnnouncementIds);
@@ -238,6 +242,10 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
 
   // Correct weights and rooms saved by older rules (tasks the student edited are left alone)
   repairTaskWeightsAndRooms(finalTasks);
+
+  if (input.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
 
   // Auto-register any new courses found in scanned tasks or discovered courses
   await autoRegisterDiscoveredCourses([...finalTasks, ...(input.discoveredCourses || [])]).catch(() => {});

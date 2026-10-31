@@ -81,4 +81,26 @@ describe('ScanGate', () => {
     await Promise.all([a, b]);
     expect(count).toBe(1);
   });
+
+  it('abort() cancels the active scan signal and resets running', async () => {
+    const gate = deferred();
+    let receivedSignal: AbortSignal | undefined;
+    const scanGate = new ScanGate({
+      scan: async run => {
+        receivedSignal = run.signal;
+        await gate.promise;
+      }
+    });
+
+    const promise = scanGate.run(true);
+    expect(scanGate.running).toBe(true);
+    expect(receivedSignal?.aborted).toBe(false);
+
+    scanGate.abort();
+    expect(scanGate.running).toBe(false);
+    expect(receivedSignal?.aborted).toBe(true);
+
+    gate.resolve();
+    await promise;
+  });
 });

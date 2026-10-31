@@ -92,6 +92,7 @@ export async function readJson(fetchFn: BbFetch, path: string, init?: RequestIni
   try {
     res = await fetchFn(path, init);
   } catch (err) {
+    if ((err as any)?.name === 'AbortError') throw err;
     return failure(`network: ${String((err as any)?.message || err)}`);
   }
   if (!res.ok) return failure(`HTTP ${res.status}`, res.status);
@@ -321,6 +322,7 @@ export interface ReadBlackboardOptions {
   pageSkipped?: Set<string>;
   /** An enrolment read already started by the caller, so it is not made twice. */
   enrolled?: Promise<ApiResult<{ courses: Map<string, CourseMeta>; skipped: Set<string> }>>;
+  signal?: AbortSignal;
 }
 
 /**
@@ -347,9 +349,11 @@ export async function readBlackboardApi(fetchFn: BbFetch, options: ReadBlackboar
     skippedGrades: []
   };
 
+  if (options.signal?.aborted) return empty;
+
   const session = await fetchSession(fetchFn);
   sources.session = session.state;
-  if (session.state !== 'ok') return empty;
+  if (session.state !== 'ok' || options.signal?.aborted) return empty;
 
   const enrolled = await (options.enrolled || fetchEnrolledCourses(fetchFn)).catch(err => failure(String(err)));
   sources.courses = enrolled.ok
@@ -357,6 +361,8 @@ export async function readBlackboardApi(fetchFn: BbFetch, options: ReadBlackboar
     : { ok: false, count: 0, status: enrolled.status, error: enrolled.error };
   const courses = mergeCourseMaps(enrolled, options.pageCourses, options.pageSkipped);
   const courseIds = Array.from(courses.keys());
+
+  if (options.signal?.aborted) return empty;
 
   const skippedGrades: string[] = [];
   const [stream, annLists, gradebooks] = await Promise.all([

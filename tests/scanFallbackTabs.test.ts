@@ -199,6 +199,62 @@ describe('scan orchestration: HTTP first, then the tab scanner', () => {
     expect((h.deps.runHttp as any).mock.calls[0][0].run.interactive).toBe(true);
     expect(orch.isRunning()).toBe(false);
   });
+
+  it('abortScan() cancels a running scan, closes opened fallback tab, and updates scan status', async () => {
+    let tabScanStarted!: () => void;
+    const tabScanReached = new Promise<void>(r => { tabScanStarted = r; });
+    const h = harness({
+      tabScan: () => {
+        tabScanStarted();
+        return new Promise(() => {});
+      }
+    });
+    const orch = createScanOrchestrator(h.deps);
+    const scanPromise = orch.requestScan({ interactive: true });
+
+    await tabScanReached;
+
+    expect(orch.isRunning()).toBe(true);
+    expect(h.created.length).toBeGreaterThan(0);
+
+    await orch.abortScan();
+
+    expect(orch.isRunning()).toBe(false);
+    expect(h.getStatus()?.message).toBe('Scan cancelled.');
+    expect(h.removed).toContain(100);
+
+    const res = await scanPromise;
+    expect(res.ok).toBe(false);
+    expect(res.message).toBe('Scan cancelled.');
+  });
+
+  it('abortScan() cancels a running HTTP scan immediately', async () => {
+    let httpStarted!: () => void;
+    const httpReached = new Promise<void>(r => { httpStarted = r; });
+    const h = harness();
+    (h.deps.runHttp as any).mockImplementation(({ signal }: { signal?: AbortSignal }) => {
+      httpStarted();
+      return new Promise<ScanResult>((resolve) => {
+        if (signal?.aborted) resolve({ ok: false, message: 'Scan cancelled.', via: 'http' });
+        signal?.addEventListener('abort', () => resolve({ ok: false, message: 'Scan cancelled.', via: 'http' }));
+      });
+    });
+    const orch = createScanOrchestrator(h.deps);
+    const scanPromise = orch.requestScan({ interactive: true });
+
+    await httpReached;
+    expect(orch.isRunning()).toBe(true);
+
+    await orch.abortScan();
+
+    expect(orch.isRunning()).toBe(false);
+    expect(h.getStatus()?.message).toBe('Scan cancelled.');
+    expect(h.created).toHaveLength(0);
+
+    const res = await scanPromise;
+    expect(res.ok).toBe(false);
+    expect(res.message).toBe('Scan cancelled.');
+  });
 });
 
 describe('sign-in page detection for the opened tab', () => {

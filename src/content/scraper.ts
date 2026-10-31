@@ -1041,6 +1041,13 @@ function showSidekickToast(
 
   document.getElementById('bbs-toast-close')?.addEventListener('click', () => {
     toast?.classList.remove('bbs-toast-visible');
+    if (inProgress) {
+      if (isExtensionContextValid()) {
+        chrome.runtime.sendMessage({ type: 'ABORT_SCAN' }).catch(() => {});
+      }
+      scanGate.abort();
+      setScanStatus({ state: 'done', message: 'Scan cancelled.', newCount: 0 }).catch(() => {});
+    }
   });
 
   document.getElementById('bbs-toast-view')?.addEventListener('click', () => {
@@ -1327,15 +1334,18 @@ async function runBlackboardScan(run: ScanRun) {
 
     // 2. The HTTP sources the service worker scanner reads too (session, courses, stream,
     // course announcements, gradebooks), in parallel with the page's announcement cards
+    if (run.signal?.aborted) return;
     const [api, domAnnouncements] = await Promise.all([
       readBlackboardApi(tabFetch, {
         origin: window.location.origin,
         pageCourses: page.courses,
         pageSkipped: page.skipped,
-        enrolled: lookup.enrolled
+        enrolled: lookup.enrolled,
+        signal: run.signal
       }),
       scrapeAnnouncements(fullRescan ? undefined : knownAnnIds, fullRescan ? undefined : knownKeys, lookup.resolve)
     ]);
+    if (run.signal?.aborted) return;
     const { sources } = api;
     lastGradebookRead = {
       signedIn: sources.session === 'ok',
@@ -1362,6 +1372,7 @@ async function runBlackboardScan(run: ScanRun) {
 
     // 4. Extract, put marks on tasks, save and checkpoint: the same steps as the service worker scan.
     // Marks: stream cards + stream API, then the gradebook (it has every mark, so it goes last and wins)
+    if (run.signal?.aborted) return;
     const result = await runScanPipeline({
       streamAnnouncements: api.stream.announcements,
       courseAnnouncements: tabAnnouncements,
@@ -1377,8 +1388,10 @@ async function runBlackboardScan(run: ScanRun) {
       sources: lastGradebookRead.signedIn ? sources : undefined,
       checkpoint,
       fullRescan,
-      isInteractive: () => run.interactive
+      isInteractive: () => run.interactive,
+      signal: run.signal
     });
+    if (run.signal?.aborted) return;
     lastTabScanResult = { ok: true, newCount: result.newCount, message: result.message };
 
     // Automatically push newly scanned tasks & courses to Firebase / sync server
@@ -1595,6 +1608,13 @@ function init() {
           return true;
         } else if (message.type === 'PING_SCANNER') {
           sendResponse({ ok: true, scanning: scanGate.running, loginPage: isSignInPage() });
+          return false;
+        } else if (message.type === 'ABORT_TAB_SCAN') {
+          scanGate.abort();
+          const toast = document.getElementById('bbs-toast');
+          toast?.classList.remove('bbs-toast-visible');
+          lastTabScanResult = { ok: false, newCount: 0, message: 'Scan cancelled.' };
+          sendResponse({ ok: true });
           return false;
         } else if (message.type === 'RUN_TAB_SCAN') {
           // Sent by the service worker when Blackboard did not answer over HTTP: scan this page

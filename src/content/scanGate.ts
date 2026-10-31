@@ -13,6 +13,8 @@ export interface ScanRun {
   fullRescan: boolean;
   /** Set once a final (done or error) status was written for this run. */
   reported: boolean;
+  /** Signal that fires when the user cancels the scan. */
+  signal?: AbortSignal;
 }
 
 export interface ScanGateHooks {
@@ -25,12 +27,19 @@ export interface ScanGateHooks {
 }
 
 export class ScanGate {
-  private active: { run: ScanRun; done: Promise<void> } | null = null;
+  private active: { run: ScanRun; done: Promise<void>; controller: AbortController } | null = null;
 
   constructor(private hooks: ScanGateHooks) {}
 
   get running(): boolean {
     return this.active !== null;
+  }
+
+  abort(): void {
+    if (this.active) {
+      this.active.controller.abort();
+      this.active = null;
+    }
   }
 
   async run(interactive: boolean = false, fullRescan: boolean = false): Promise<void> {
@@ -48,18 +57,21 @@ export class ScanGate {
       return current.done;
     }
 
-    const run: ScanRun = { interactive, fullRescan, reported: false };
+    const controller = new AbortController();
+    const run: ScanRun = { interactive, fullRescan, reported: false, signal: controller.signal };
     const done = (async () => {
       try {
         await this.hooks.scan(run);
       } finally {
-        this.active = null;
-        if (run.interactive && !run.reported) {
+        if (this.active?.run === run) {
+          this.active = null;
+        }
+        if (run.interactive && !run.reported && !run.signal?.aborted) {
           await this.hooks.onUnreported?.(run);
         }
       }
     })();
-    this.active = { run, done };
+    this.active = { run, done, controller };
     return done;
   }
 }

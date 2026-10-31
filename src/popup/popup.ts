@@ -11,7 +11,7 @@ import { initUniversitySettings, getCachedProfile } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { quickLinkPreset } from '../core/universities';
 import { classesOnDay, todaysClassesHtml, formatClock, type ClassOccurrence } from '../core/classSchedule';
-import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt, safeSetLocalStorage } from '../utils/storage';
+import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, setScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt, safeSetLocalStorage } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
 import { resolveAiEndpoint, normalizeAiBaseUrl, testAiEndpoint, IFM_MODEL } from '../engine/aiProviders';
@@ -115,6 +115,7 @@ const headerScanBanner = document.getElementById('header-scan-banner') as HTMLDi
 const hsbIcon = document.getElementById('hsb-icon') as SVGElement | null;
 const hsbText = document.getElementById('hsb-text') as HTMLSpanElement | null;
 let scanBannerTimer: any = null;
+let scanButtonResetTimer: ReturnType<typeof setTimeout> | null = null;
 
 function showScanBanner(
   text: string,
@@ -125,6 +126,12 @@ function showScanBanner(
   if (scanBannerTimer) {
     clearTimeout(scanBannerTimer);
     scanBannerTimer = null;
+  }
+
+  const closeBtn = document.getElementById('hsb-close');
+  if (closeBtn) {
+    closeBtn.title = type === 'active' ? 'Cancel scan' : 'Dismiss';
+    closeBtn.setAttribute('aria-label', type === 'active' ? 'Cancel scan' : 'Dismiss notification');
   }
 
   hsbText.textContent = text;
@@ -163,6 +170,23 @@ function hideScanBanner() {
   headerScanBanner.classList.remove('is-active');
   const spinner = headerScanBanner.querySelector('.hsb-spinner');
   spinner?.classList.remove('is-spinning');
+}
+
+function stopActiveScan() {
+  hideScanBanner();
+  resetScanButton();
+  if (scanButtonResetTimer) {
+    clearTimeout(scanButtonResetTimer);
+    scanButtonResetTimer = null;
+  }
+  try {
+    if (chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ type: 'ABORT_SCAN' }, () => {
+        void chrome.runtime.lastError;
+      });
+    }
+  } catch {}
+  setScanStatus({ state: 'done', message: 'Scan cancelled.', newCount: 0 }).catch(() => {});
 }
 
 // Theme Management
@@ -3115,8 +3139,6 @@ function resetScanButton() {
   btnScanTab.innerHTML = `${getSvgIcon('bolt', 'mr-1')}<span>Scan</span>`;
 }
 
-let scanButtonResetTimer: ReturnType<typeof setTimeout> | null = null;
-
 /**
  * Shows a scan status saved by the scan running in the Blackboard tab. Called on popup open
  * and whenever the status changes, so reopening the popup mid-scan shows the progress again.
@@ -3259,10 +3281,17 @@ function watchScanEnd(startedAt: number) {
 function setupEvents() {
   initLegendScroll();
 
-  // Live Scan Notification Dismissal
+  // Live Scan Notification Dismissal / Cancellation
   document.getElementById('hsb-close')?.addEventListener('click', e => {
     e.stopPropagation();
-    hideScanBanner();
+    const isActive = headerScanBanner?.classList.contains('is-active') &&
+      !headerScanBanner?.classList.contains('is-success') &&
+      !headerScanBanner?.classList.contains('is-warning');
+    if (isActive) {
+      stopActiveScan();
+    } else {
+      hideScanBanner();
+    }
   });
   headerScanBanner?.addEventListener('click', e => {
     const target = e.target as HTMLElement;

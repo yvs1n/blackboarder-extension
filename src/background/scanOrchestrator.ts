@@ -120,9 +120,10 @@ export async function findOpenBlackboardTab(deps: OrchestratorDeps, origin: stri
   return null;
 }
 
-async function waitForLoad(deps: OrchestratorDeps, tabId: number): Promise<Tab | null> {
+async function waitForLoad(deps: OrchestratorDeps, tabId: number, signal?: AbortSignal): Promise<Tab | null> {
   const until = deps.now() + deps.loadTimeoutMs;
   while (deps.now() < until) {
+    if (signal?.aborted) return null;
     let tab: Tab;
     try {
       tab = await deps.tabs.get(tabId);
@@ -143,10 +144,19 @@ async function scanInTab(deps: OrchestratorDeps, tabId: number, run: ScanRun, st
   const timeout = new Promise<'timeout'>(resolve => {
     timer = setTimeout(() => resolve('timeout'), deps.scanTimeoutMs);
   });
+  const abortPromise = new Promise<'aborted'>(resolve => {
+    if (run.signal?.aborted) resolve('aborted');
+    else run.signal?.addEventListener('abort', () => resolve('aborted'), { once: true });
+  });
   const reply = deps.tabs.sendMessage(tabId, { type: 'RUN_TAB_SCAN', fullRescan: run.fullRescan, interactive: run.interactive })
     .catch(() => null);
-  const res = await Promise.race([reply, timeout]);
+  const res = await Promise.race([reply, timeout, abortPromise]);
   if (timer) clearTimeout(timer);
+
+  if (res === 'aborted') {
+    deps.tabs.sendMessage(tabId, { type: 'ABORT_TAB_SCAN' }).catch(() => {});
+    return { kind: 'failed', error: 'Scan cancelled.' };
+  }
 
   if (res && res !== 'timeout' && res.ok !== undefined) {
     return { kind: 'result', result: { ok: Boolean(res.ok), newCount: res.newCount || 0, message: res.message, via: 'tab' } };
@@ -160,19 +170,39 @@ async function scanInTab(deps: OrchestratorDeps, tabId: number, run: ScanRun, st
 }
 
 /** The tab half of the fallback: pick or open a tab, scan there, close it if it was opened here. */
-export async function runTabFallback(deps: OrchestratorDeps, run: ScanRun, req: ScanRequest): Promise<TabOutcome> {
+export async function runTabFallback(
+  deps: OrchestratorDeps,
+  run: ScanRun,
+  req: ScanRequest,
+  onTabOpened?: (tabId: number | null) => void,
+  onScanningTab?: (tabId: number | null) => void
+): Promise<TabOutcome> {
   const startedAt = deps.now();
   const origin = await deps.resolveOrigin();
+
+  if (run.signal?.aborted) return { kind: 'failed', error: 'Scan cancelled.' };
 
   if (typeof req.senderTabId === 'number') {
     const res = await ping(deps, req.senderTabId);
     if (!res) return { kind: 'failed', error: 'This Blackboard tab is not connected. Refresh it and try again.' };
     if (res.loginPage) return { kind: 'expired' };
-    return scanInTab(deps, req.senderTabId, run, startedAt);
+    onScanningTab?.(req.senderTabId);
+    try {
+      return await scanInTab(deps, req.senderTabId, run, startedAt);
+    } finally {
+      onScanningTab?.(null);
+    }
   }
 
   const open = await findOpenBlackboardTab(deps, origin);
-  if (open !== null) return scanInTab(deps, open, run, startedAt);
+  if (open !== null) {
+    onScanningTab?.(open);
+    try {
+      return await scanInTab(deps, open, run, startedAt);
+    } finally {
+      onScanningTab?.(null);
+    }
+  }
   if (req.auto) return { kind: 'failed', error: 'No Blackboard tab is open.' };
 
   let opened: number | null = null;
@@ -180,16 +210,20 @@ export async function runTabFallback(deps: OrchestratorDeps, run: ScanRun, req: 
     const tab = await deps.tabs.create({ url: `${origin}/ultra/stream`, active: false });
     if (typeof tab.id !== 'number') return { kind: 'failed', error: 'Could not open a Blackboard tab.' };
     opened = tab.id;
-    const loaded = await waitForLoad(deps, opened);
-    if (!loaded) return { kind: 'failed', error: 'Blackboard did not load in time.' };
+    onTabOpened?.(opened);
+    const loaded = await waitForLoad(deps, opened, run.signal);
+    if (!loaded) return { kind: 'failed', error: run.signal?.aborted ? 'Scan cancelled.' : 'Blackboard did not load in time.' };
     if (isLoginUrl(loaded.url, origin)) return { kind: 'expired' };
     const res = await pingOrInject(deps, opened);
-    if (!res) return { kind: 'failed', error: 'The scanner did not start in the Blackboard tab.' };
+    if (!res) return { kind: 'failed', error: run.signal?.aborted ? 'Scan cancelled.' : 'The scanner did not start in the Blackboard tab.' };
     if (res.loginPage) return { kind: 'expired' };
+    onScanningTab?.(opened);
     return await scanInTab(deps, opened, run, startedAt);
   } catch (err) {
     return { kind: 'failed', error: String((err as any)?.message || err) };
   } finally {
+    onScanningTab?.(null);
+    onTabOpened?.(null);
     if (opened !== null) await deps.tabs.remove(opened).catch(() => {});
   }
 }
@@ -197,14 +231,17 @@ export async function runTabFallback(deps: OrchestratorDeps, run: ScanRun, req: 
 export interface ScanOrchestrator {
   requestScan(req: ScanRequest): Promise<ScanResult>;
   isRunning(): boolean;
+  abortScan(): Promise<void>;
 }
 
 export function createScanOrchestrator(deps: OrchestratorDeps): ScanOrchestrator {
   let current: ScanRequest = {};
   let lastResult: ScanResult = { ok: true, message: 'Scan finished.' };
+  let currentOpenedTab: number | null = null;
+  let currentScanningTab: number | null = null;
 
   const finish = async (run: ScanRun, startedAt: number, result: ScanResult) => {
-    if (!run.interactive) return;
+    if (!run.interactive || run.signal?.aborted) return;
     const status = await deps.getScanStatus().catch(() => null);
     const written = status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt;
     if (!written) {
@@ -218,7 +255,11 @@ export function createScanOrchestrator(deps: OrchestratorDeps): ScanOrchestrator
   const scan = async (run: ScanRun): Promise<void> => {
     const req = current;
     await deps.stampScanStarted();
-    const http = await deps.runHttp({ fullRescan: run.fullRescan, refreshExam: !req.auto, run, onSync: req.onSync });
+    const http = await deps.runHttp({ fullRescan: run.fullRescan, refreshExam: !req.auto, run, onSync: req.onSync, signal: run.signal });
+    if (run.signal?.aborted) {
+      lastResult = { ok: false, message: 'Scan cancelled.', via: 'http' };
+      return;
+    }
     if (!http.needsFallback) {
       lastResult = http;
       return;
@@ -228,7 +269,21 @@ export function createScanOrchestrator(deps: OrchestratorDeps): ScanOrchestrator
     if (run.interactive) {
       await deps.setScanStatus({ state: 'running', message: 'Blackboard did not answer directly. Scanning in a Blackboard tab...' });
     }
-    const outcome = await runTabFallback(deps, run, req);
+    if (run.signal?.aborted) {
+      lastResult = { ok: false, message: 'Scan cancelled.', via: 'tab' };
+      return;
+    }
+    const outcome = await runTabFallback(
+      deps,
+      run,
+      req,
+      id => { currentOpenedTab = id; },
+      id => { currentScanningTab = id; }
+    );
+    if (run.signal?.aborted) {
+      lastResult = { ok: false, message: 'Scan cancelled.', via: 'tab' };
+      return;
+    }
     let result: ScanResult;
     if (outcome.kind === 'result') {
       result = { ...outcome.result, sources: http.sources, fallbackReason: http.fallbackReason };
@@ -268,7 +323,21 @@ export function createScanOrchestrator(deps: OrchestratorDeps): ScanOrchestrator
       }
       return lastResult;
     },
-    isRunning: () => gate.running
+    isRunning: () => gate.running,
+    async abortScan(): Promise<void> {
+      if (!gate.running) return;
+      gate.abort();
+      if (currentOpenedTab !== null) {
+        await deps.tabs.remove(currentOpenedTab).catch(() => {});
+        currentOpenedTab = null;
+      }
+      if (currentScanningTab !== null) {
+        deps.tabs.sendMessage(currentScanningTab, { type: 'ABORT_TAB_SCAN' }).catch(() => {});
+        currentScanningTab = null;
+      }
+      await deps.setScanStatus({ state: 'done', message: 'Scan cancelled.', newCount: 0 });
+      lastResult = { ok: false, message: 'Scan cancelled.' };
+    }
   };
 }
 

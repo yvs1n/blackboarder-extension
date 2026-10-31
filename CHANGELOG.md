@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.32] - 2026-10-31
+
+### Added
+
+- **Cancellable live scan notification bar:** Clicking the close button (`✕`) on the floating scan notification banner while a scan is in progress immediately aborts the scan. Supports aborting background HTTP scanning and tab fallback scanning across all pipeline stages, cancels in-flight network requests, prevents partial or corrupted task saves, closes any background scanner tab opened by the orchestrator, sends an abort signal to content script scrapers, and immediately resets the popup scan status and button. Clicking the close button on completed or warning banner states continues to dismiss the notification.
+
 ## [1.4.31] - 2026-10-31
 
 ### Changed

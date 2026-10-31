@@ -508,6 +508,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true, scanning: scanOrchestrator().isRunning() });
     return false;
   }
+  if (message.type === 'ABORT_SCAN') {
+    scanOrchestrator().abortScan()
+      .then(() => sendResponse({ ok: true }))
+      .catch(err => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
   if (message.type === 'OPEN_POPUP') {
     chrome.action.openPopup?.().catch(() => {});
     sendResponse({ ok: true });

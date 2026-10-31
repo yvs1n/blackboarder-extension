@@ -30,13 +30,20 @@ export async function resolveBlackboardOrigin(): Promise<string> {
  * fetch() for a Blackboard path from the service worker: the university origin, with the
  * student's cookies, and the XSRF token on POSTs (read once per scan).
  */
-export function serviceWorkerFetch(origin: string, readXsrf: (origin: string) => Promise<string | null> = readBlackboardXsrf): BbFetch {
+export function serviceWorkerFetch(
+  origin: string,
+  readXsrf: (origin: string) => Promise<string | null> = readBlackboardXsrf,
+  signal?: AbortSignal
+): BbFetch {
   const headers: Record<string, string> = {
     Accept: 'application/json, text/plain, */*',
     'X-Requested-With': 'XMLHttpRequest'
   };
   let xsrf: Promise<string | null> | null = null;
   return async (path: string, init?: RequestInit) => {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     const extra: Record<string, string> = {};
     if (needsXsrf(init)) {
       xsrf ??= readXsrf(origin);
@@ -45,6 +52,7 @@ export function serviceWorkerFetch(origin: string, readXsrf: (origin: string) =>
     }
     return fetch(new URL(path, origin).href, {
       ...init,
+      signal: init?.signal || signal,
       credentials: 'include',
       headers: { ...headers, ...extra, ...(init?.headers as Record<string, string> || {}) }
     });
@@ -76,6 +84,7 @@ export interface HttpScanOptions {
   refreshExam?: boolean;
   run?: ScanRunState;
   onSync?: () => Promise<any>;
+  signal?: AbortSignal;
 }
 
 let httpScanRunning = false;
@@ -88,6 +97,9 @@ let httpScanRunning = false;
 export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Promise<ScanResult> {
   const fullRescan = Boolean(options.fullRescan);
   const run: ScanRunState = options.run || { interactive: true, reported: false };
+  if (options.signal?.aborted) {
+    return { ok: false, message: 'Scan cancelled.', via: 'http' };
+  }
   if (httpScanRunning) {
     return { ok: true, message: 'Scan already in progress.', via: 'http' };
   }
@@ -107,15 +119,21 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
 
     await getUserCourses().catch(() => {});
     const origin = await resolveBlackboardOrigin();
-    const httpFetch = serviceWorkerFetch(origin);
+    const httpFetch = serviceWorkerFetch(origin, readBlackboardXsrf, options.signal);
     const getJson = async (path: string) => {
       const res = await httpFetch(path);
       if (!res.ok) throw new Error(`Blackboard ${res.status}`);
       return res.json();
     };
 
-    const api = await readBlackboardApi(httpFetch, { origin });
+    const api = await readBlackboardApi(httpFetch, { origin, signal: options.signal });
     const { sources } = api;
+
+    if (options.signal?.aborted) {
+      console.info('[HTTP Scanner] Scan cancelled by user.');
+      await status({ state: 'done', message: 'Scan cancelled.' });
+      return { ok: false, message: 'Scan cancelled.', via: 'http' };
+    }
 
     // Tell the popup whether the session is alive, so it can show a banner when it is not
     if (sources.session !== 'unreachable') {
@@ -142,6 +160,12 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
       await chrome.storage.local.set({ [GRADEBOOK_REPORT_KEY]: { readAt: new Date().toISOString(), rows: api.gradebookReport } });
     } catch {}
 
+    if (options.signal?.aborted) {
+      console.info('[HTTP Scanner] Scan cancelled by user.');
+      await status({ state: 'done', message: 'Scan cancelled.' });
+      return { ok: false, message: 'Scan cancelled.', via: 'http' };
+    }
+
     const result = await runScanPipeline({
       streamAnnouncements: api.stream.announcements,
       courseAnnouncements: api.courseAnnouncements,
@@ -151,27 +175,46 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
       sources,
       checkpoint: fullRescan ? emptyCheckpoint() : await getLastScanCheckpoint(),
       fullRescan,
-      isInteractive: () => run.interactive
+      isInteractive: () => run.interactive,
+      signal: options.signal
     });
+
+    if (options.signal?.aborted) {
+      console.info('[HTTP Scanner] Scan cancelled by user.');
+      await status({ state: 'done', message: 'Scan cancelled.' });
+      return { ok: false, message: 'Scan cancelled.', via: 'http' };
+    }
 
     let finalMessage = result.message;
     let finalNewCount = result.newCount;
-    if (options.refreshExam) {
+    if (options.refreshExam && !options.signal?.aborted) {
       await status({ state: 'running', message: `${result.message} Reading your exam schedule...` });
       const examRes = await refreshExamSchedule(fullRescan).catch(() => null);
+      if (options.signal?.aborted) {
+        return { ok: false, message: 'Scan cancelled.', via: 'http' };
+      }
       finalNewCount += examRes?.state === 'read' ? examRes.added || 0 : 0;
       finalMessage += examRefreshNote(examRes);
+    }
+
+    if (options.signal?.aborted) {
+      return { ok: false, message: 'Scan cancelled.', via: 'http' };
     }
 
     await status({ state: 'done', message: finalMessage, newCount: finalNewCount });
 
     const settings = await getSettings();
-    if (settings.autoSyncOnScan !== false && options.onSync) {
+    if (settings.autoSyncOnScan !== false && options.onSync && !options.signal?.aborted) {
       await options.onSync().catch(() => {});
     }
 
     return { ok: true, newCount: finalNewCount, message: finalMessage, sources, via: 'http' };
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.name === 'AbortError' || options.signal?.aborted) {
+      console.info('[HTTP Scanner] Scan cancelled by user.');
+      await status({ state: 'done', message: 'Scan cancelled.' });
+      return { ok: false, message: 'Scan cancelled.', via: 'http' };
+    }
     console.error('[HTTP Scanner] Error during HTTP scan:', err);
     await status({ state: 'error', message: UNREACHABLE_MESSAGE });
     return { ok: false, message: UNREACHABLE_MESSAGE, via: 'http' };

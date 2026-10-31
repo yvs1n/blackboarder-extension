@@ -191,4 +191,22 @@ describe('Popup UI Logic & Accessibility Suite', () => {
       expect(bar?.classList.contains('has-overflow-left')).toBe(true);
     });
   });
+
+  describe('Floating Live Scan Notification Banner', () => {
+    it('provides scan banner element with cancel/dismiss button and progress bar', () => {
+      const banner = document.getElementById('header-scan-banner');
+      const closeBtn = document.getElementById('hsb-close');
+      const textEl = document.getElementById('hsb-text');
+      const iconEl = document.getElementById('hsb-icon');
+      const progressEl = banner?.querySelector('.hsb-progress-bar');
+
+      expect(banner).not.toBeNull();
+      expect(closeBtn).not.toBeNull();
+      expect(textEl).not.toBeNull();
+      expect(iconEl).not.toBeNull();
+      expect(progressEl).not.toBeNull();
+      expect(banner?.getAttribute('aria-live')).toBe('polite');
+      expect(closeBtn?.getAttribute('aria-label')).toBe('Dismiss notification');
+    });
+  });
 });
