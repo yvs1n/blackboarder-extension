@@ -3435,10 +3435,18 @@ function setupEvents() {
     });
   });
 
-  // Search input
+  // Search input: debounce rapid typing (100ms) to keep UI responsive and butter-smooth; clear immediately if empty
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   searchInput.addEventListener('input', e => {
     currentSearchQuery = (e.target as HTMLInputElement).value;
-    renderTasks();
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    if (!currentSearchQuery.trim()) {
+      renderTasks();
+    } else {
+      searchDebounceTimer = setTimeout(() => {
+        renderTasks();
+      }, 100);
+    }
   });
 
   // Course select filter

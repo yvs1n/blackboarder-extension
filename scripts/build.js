@@ -162,7 +162,7 @@ async function buildWebCore(viteDefines) {
     build: {
       outDir: 'mobile-web/companion',
       emptyOutDir: false,
-      minify: false,
+      minify: true,
       lib: {
         entry: r('src/mobile/core.ts'),
         name: 'BBCoreBundle',

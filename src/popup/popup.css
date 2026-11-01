@@ -1694,8 +1694,14 @@ body.is-standalone .header {
   flex-direction: column;
   gap: 7px;
   position: relative;
-  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
   border-left-width: 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 88px;
+}
+
+.task-card:active {
+  transform: scale(0.995);
 }
 
 .task-card:hover {
@@ -2308,11 +2314,17 @@ body.is-standalone .header {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
+}
+
+.btn-primary:active,
+.btn-secondary:active,
+.btn-outline-action:active {
+  transform: scale(0.98);
 }
 
 .btn-secondary {
@@ -2328,7 +2340,7 @@ body.is-standalone .header {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-secondary:hover {

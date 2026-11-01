@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.39] - 2026-11-01
+
+### Added
+
+- **Critical typography font preloading:** Added `<link rel="preload">` for Inter and Inter Tight WOFF2 web fonts in the companion web app and extension popup, streaming font binaries in parallel with CSS parsing and eliminating Flash of Invisible Text (FOIT).
+- **Tactile micro-interaction feedback:** Added subtle scale transforms (`:active { transform: scale(0.98); }`) on primary buttons, secondary actions, and filter chips for instantaneous tactile feedback.
+
+### Changed
+
+- **Minified companion core bundle:** Enabled production minification for `mobile-web/companion/core.js` in the build script, reducing file size from 261.4 KB to 144.2 KB (a 45% reduction) and speeding up JavaScript execution on mobile devices.
+- **Virtualized rendering with content-visibility:** Applied `content-visibility: auto` and `contain-intrinsic-size` to deadline task cards and up-next agenda items, allowing the browser rendering engine to skip layout and painting for offscreen cards.
+- **Debounced search filtering:** Wrapped search input filtering in a 100ms debounce in both the Chrome extension popup and companion web app, eliminating main-thread layout thrashing during rapid keystrokes.
+- **Stale-while-revalidate service worker caching:** Upgraded service worker caching strategy for companion code (`app.js`, `core.js`, `styles.css`) from network-first to cache-first with background revalidation, enabling instant (< 15ms) cold app launches.
+
 ## [1.4.38] - 2026-11-01
 
 ### Added
