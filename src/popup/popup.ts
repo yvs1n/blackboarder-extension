@@ -5710,8 +5710,22 @@ function initExtensionUpdateSystem() {
       if (statusDesc) statusDesc.textContent = 'Checking GitHub for a newer version...';
     }
     const status = await askBackground('RUN_AUTO_UPDATE');
-    if (status) render(status, manual);
-    else if (manual) showToast('Could not check for updates right now.');
+    if (status) {
+      render(status, manual);
+      if (manual) {
+        if (status.state === 'update-available') {
+          if (status.helperInstalled) {
+            applyUpdateNow(btnCheckManual);
+          } else {
+            showToast('New version available! Run update.bat or download ZIP.');
+          }
+        } else if (status.state === 'up-to-date') {
+          showToast(`Blackboarder is up to date (${BUILD_INFO.build})!`);
+        }
+      }
+    } else if (manual) {
+      showToast('Could not check for updates right now.');
+    }
   };
 
   const restart = () => chrome.runtime.reload();
@@ -5736,7 +5750,11 @@ function initExtensionUpdateSystem() {
     if (btn) {
       btn.removeAttribute('disabled');
       const span = btn.querySelector('span');
-      if (span) span.textContent = btn.id === 'btn-ext-apply-update' ? 'Update now' : 'Update Now';
+      if (span) {
+        if (btn.id === 'btn-check-ext-update') span.textContent = 'Check for Updates';
+        else if (btn.id === 'btn-ext-apply-update') span.textContent = 'Update now';
+        else span.textContent = 'Update Now';
+      }
     }
     if (res?.ok && res.status) {
       render(res.status, true);

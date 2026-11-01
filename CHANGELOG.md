@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.42] - 2026-11-01
+
+### Changed
+
+- **Instant update download on manual check:** The manual "Check for Updates" button in the extension now checks GitHub via HTTP and, when an update is available with the updater helper installed, immediately downloads and installs the release automatically. Displays active progress feedback and transitions to the restart action once installed.
+- **High-contrast mobile toggle switches:** Ported full dark-mode and light-mode toggle switch contrast styling from the extension to the mobile companion. In dark mode, OFF state uses a distinct slate charcoal track with a white slider knob, while ON state renders a bright white track with an inverted dark knob for unmistakable active visibility on mobile OLED screens.
+- **Integrated Edit Name and Edit Scale actions:** Restructured the Student Profile and Grading Scale settings cards across both apps. Replaced the cramped floating buttons on the label line with dedicated form labels, placing the `Edit Name` and `Edit Scale` action buttons cleanly inside the summary banner cards with balanced vertical centering and strict 0px Swiss Grid alignment.
+
 ## [1.4.41] - 2026-11-01
 
 ### Changed
