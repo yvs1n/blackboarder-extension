@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.41] - 2026-11-01
+
+### Changed
+
+- **Redesigned Sync Key layout:** Moved `Copy Key` and `New Key` into a balanced, symmetrical two-column action grid directly beneath a full-width monospace key display. This gives the 30-character sync key ample breathing room without character squeezing or horizontal scrolling, and replaces the misaligned floating links with twin tactile buttons with icons.
+- **Settings spatial walkthrough and Swiss 0px alignment:** Conducted a comprehensive layout audit across the Chrome extension and mobile companion settings. Removed legacy inline border-radius styles in both apps to strictly enforce Swiss Grid 0px purity, balanced vertical spacing between auto-sync toggles, and made the mobile companion Scan QR button a prominent, full-width touch target.
+
 ## [1.4.40] - 2026-11-01
 
 ### Added

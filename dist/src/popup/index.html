@@ -6,7 +6,7 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-BFPcXv9e.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-DaWNvF0M.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-BcOuhkGu.css">
 </head>
 <body>
@@ -277,7 +277,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.40</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.41</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -744,7 +744,7 @@
           </div>
 
           <!-- Blackboard Ultra Native Dark Mode Toggle -->
-          <div class="setting-toggle-row" style="margin-bottom: 12px; padding: 10px 12px; background: var(--surface-hover); border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
+          <div class="setting-toggle-row" style="margin-bottom: 12px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
             <div class="toggle-info">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span class="setting-title" style="font-weight: 600;">Blackboard Web Dark Mode</span>
@@ -769,7 +769,7 @@
 
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Keyboard Shortcut</label>
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-sm);">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
               <div style="display: flex; align-items: center; gap: 6px;">
                 <svg class="ui-icon" style="color: var(--text-muted); width: 14px; height: 14px;"><use href="#icon-terminal"></use></svg>
                 <span style="font-size: 12px; color: var(--text-main); font-weight: 500;">Open Blackboarder</span>
@@ -810,18 +810,21 @@
 
           <!-- Personal Sync Key Prominent Box -->
           <div class="settings-panel-box" style="margin-bottom: 10px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 0;">Personal Sync Key</label>
-              <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+            <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 6px; display: block;">Personal Sync Key</label>
+            <div style="position: relative; width: 100%;">
+              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" readonly style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100%; box-sizing: border-box; cursor: default; padding: 7px 10px; font-size: 11.5px;">
+            </div>
+            <div class="sync-key-btn-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+              <button type="button" id="btn-copy-sync-key" class="btn-secondary" style="font-size: 11.5px; padding: 7px 10px; justify-content: center; display: inline-flex; align-items: center; gap: 5px; width: 100%; box-sizing: border-box;" title="Copy sync key">
                 <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
                 <span>Copy Key</span>
               </button>
+              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="font-size: 11.5px; padding: 7px 10px; justify-content: center; display: inline-flex; align-items: center; gap: 5px; width: 100%; box-sizing: border-box;" title="Generate new random key">
+                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-refresh"></use></svg>
+                <span>New Key</span>
+              </button>
             </div>
-            <div style="display: flex; gap: 6px;">
-              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" readonly style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1; cursor: default;">
-              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;" title="Generate new random key">New Key</button>
-            </div>
-            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 4px;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
+            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 6px; line-height: 1.4;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
           </div>
 
           <!-- Action Buttons -->
@@ -862,13 +865,13 @@
             <div id="sync-status-msg" style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px;"></div>
           </div>
 
-          <div class="form-group" style="margin-top: 10px;">
+          <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
             <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
               <input type="checkbox" id="setting-sync-midnight" checked>
               <span>Auto-sync every day at 12:00 AM midnight</span>
             </label>
           </div>
-          <div class="form-group" style="margin-top: 2px;">
+          <div class="form-group" style="margin-top: 8px; margin-bottom: 0;">
             <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; cursor: pointer;">
               <input type="checkbox" id="setting-sync-onscan" checked>
               <span>Auto-push to mobile after scanning Blackboard</span>
@@ -1046,7 +1049,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.40</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.41</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1435,7 +1438,7 @@
         </div>
 
         <!-- Add / Edit Link Form (Collapsible) -->
-        <form id="form-quick-link" style="display: none; background: var(--surface-hover); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px;">
+        <form id="form-quick-link" style="display: none; background: var(--surface-hover); border: 1px solid var(--surface-border); padding: 12px; margin-bottom: 14px;">
           <input type="hidden" id="ql-edit-id" value="">
           <div class="form-group" style="margin-bottom: 8px;">
             <label class="form-label" for="ql-title" style="font-size: 11px; font-weight: 600;">Link Title</label>
@@ -1460,10 +1463,10 @@
           <div style="margin-bottom: 10px;">
             <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 4px;">Quick Fill Presets:</span>
             <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-              <button type="button" class="btn-preset-ql" data-preset="attendance" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Attendance</button>
-              <button type="button" class="btn-preset-ql" data-preset="study_plan" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Study Plan</button>
-              <button type="button" class="btn-preset-ql" data-preset="marks" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Marks</button>
-              <button type="button" class="btn-preset-ql" data-preset="portal" style="font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Blackboard</button>
+              <button type="button" class="btn-preset-ql" data-preset="attendance" style="font-size: 10px; padding: 3px 8px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Attendance</button>
+              <button type="button" class="btn-preset-ql" data-preset="study_plan" style="font-size: 10px; padding: 3px 8px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Study Plan</button>
+              <button type="button" class="btn-preset-ql" data-preset="marks" style="font-size: 10px; padding: 3px 8px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Marks</button>
+              <button type="button" class="btn-preset-ql" data-preset="portal" style="font-size: 10px; padding: 3px 8px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Blackboard</button>
             </div>
           </div>
 
@@ -1520,7 +1523,7 @@
             <div class="form-group">
               <label class="form-label" for="editor-color-hex">Color Theme</label>
               <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="color" id="editor-color-picker" value="#2563eb" style="width: 28px; height: 28px; padding: 0; border: none; border-radius: 4px; cursor: pointer; background: transparent;">
+                <input type="color" id="editor-color-picker" value="#2563eb" style="width: 28px; height: 28px; padding: 0; border: none; cursor: pointer; background: transparent;">
                 <input type="text" id="editor-color-hex" class="form-input" placeholder="#2563eb" pattern="^#([A-Fa-f0-9]{6})$" required style="font-family: monospace; font-size: 11px;">
               </div>
             </div>
@@ -1531,14 +1534,14 @@
             <label class="form-label" style="font-size: 10.5px;">Preset Palette Swatches</label>
             <div class="color-swatches-grid" id="editor-color-swatches" style="display: flex; gap: 6px; flex-wrap: wrap;">
               <!-- 8 presets populated dynamically or statically -->
-              <button type="button" class="swatch-btn" data-color="#dc2626" style="width: 22px; height: 22px; border-radius: 4px; background: #dc2626; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Red"></button>
-              <button type="button" class="swatch-btn" data-color="#4b99d2" style="width: 22px; height: 22px; border-radius: 4px; background: #4b99d2; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Sky Blue"></button>
-              <button type="button" class="swatch-btn" data-color="#489160" style="width: 22px; height: 22px; border-radius: 4px; background: #489160; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Green"></button>
-              <button type="button" class="swatch-btn" data-color="#7c7c7c" style="width: 22px; height: 22px; border-radius: 4px; background: #7c7c7c; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Gray"></button>
-              <button type="button" class="swatch-btn" data-color="#525252" style="width: 22px; height: 22px; border-radius: 4px; background: #525252; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Charcoal"></button>
-              <button type="button" class="swatch-btn" data-color="#7c3aed" style="width: 22px; height: 22px; border-radius: 4px; background: #7c3aed; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Purple"></button>
-              <button type="button" class="swatch-btn" data-color="#d97706" style="width: 22px; height: 22px; border-radius: 4px; background: #d97706; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Amber"></button>
-              <button type="button" class="swatch-btn" data-color="#2563eb" style="width: 22px; height: 22px; border-radius: 4px; background: #2563eb; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Blue"></button>
+              <button type="button" class="swatch-btn" data-color="#dc2626" style="width: 22px; height: 22px; background: #dc2626; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Red"></button>
+              <button type="button" class="swatch-btn" data-color="#4b99d2" style="width: 22px; height: 22px; background: #4b99d2; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Sky Blue"></button>
+              <button type="button" class="swatch-btn" data-color="#489160" style="width: 22px; height: 22px; background: #489160; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Green"></button>
+              <button type="button" class="swatch-btn" data-color="#7c7c7c" style="width: 22px; height: 22px; background: #7c7c7c; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Gray"></button>
+              <button type="button" class="swatch-btn" data-color="#525252" style="width: 22px; height: 22px; background: #525252; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Charcoal"></button>
+              <button type="button" class="swatch-btn" data-color="#7c3aed" style="width: 22px; height: 22px; background: #7c3aed; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Purple"></button>
+              <button type="button" class="swatch-btn" data-color="#d97706" style="width: 22px; height: 22px; background: #d97706; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Amber"></button>
+              <button type="button" class="swatch-btn" data-color="#2563eb" style="width: 22px; height: 22px; background: #2563eb; border: 1px solid rgba(0,0,0,0.15); cursor: pointer;" title="Blue"></button>
             </div>
           </div>
 
@@ -1574,7 +1577,7 @@
             </div>
 
             <!-- Quick Syllabus Paste Helper (<details>) -->
-            <details class="syllabus-paste-helper" style="background: var(--surface-hover); border: 1px dashed var(--surface-border); border-radius: var(--radius-sm); padding: 6px 8px; margin-bottom: 8px;">
+            <details class="syllabus-paste-helper" style="background: var(--surface-hover); border: 1px dashed var(--surface-border); padding: 6px 8px; margin-bottom: 8px;">
               <summary style="font-size: 10.5px; font-weight: 600; cursor: pointer; color: var(--text-main);">
                 Quick Syllabus Text Paste (Auto-Parse)
               </summary>
