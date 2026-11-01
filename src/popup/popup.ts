@@ -22,7 +22,7 @@ import { parseCourseDetails, sanitizeDoctorAnnouncementText, resolveCourseInfo, 
 import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
 import { resolveTaskWeight, getAllSyllabi } from '../core/syllabusWeights';
 import { findCourseSchedule, resolveTaskTimeWithSchedule, resolveTaskRoom, getAllCourseSchedules } from '../core/courseSchedule';
-import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase, extractSyncKey } from '../utils/firebaseSync';
+import { pushTasksToFirebase, fetchTasksFromFirebase, deleteSyncDataFromFirebase } from '../utils/firebaseSync';
 import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks } from '../utils/cloudSanitize';
 import { getProfile, saveProfile } from '../utils/profile';
 import { filterCleanUserCourses } from '../core/courseFilter';
@@ -3945,62 +3945,6 @@ function setupEvents() {
     showToast(settingAutoScan.checked ? 'Auto-scan on' : 'Auto-scan off');
   });
 
-  const settingSyncKeyInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
-  const btnCustomSyncKey = document.getElementById('btn-custom-sync-key');
-  btnCustomSyncKey?.addEventListener('click', () => {
-    if (settingSyncKeyInput) {
-      settingSyncKeyInput.removeAttribute('readonly');
-      settingSyncKeyInput.style.cursor = 'text';
-      settingSyncKeyInput.focus();
-      settingSyncKeyInput.select();
-      showToast('Type custom key or paste recovery key, then press Enter.');
-    }
-  });
-
-  settingSyncKeyInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      settingSyncKeyInput.dispatchEvent(new Event('change'));
-    }
-  });
-  settingSyncKeyInput?.addEventListener('change', async () => {
-    const rawVal = settingSyncKeyInput.value;
-    const newKey = extractSyncKey(rawVal);
-    const prevSettings = await getSettings();
-    if (newKey) {
-      if (newKey !== prevSettings.syncKey) {
-        // Prevent accidental collisions with existing accounts on the cloud
-        showToast('Checking key availability...');
-        const checkRes = await fetchTasksFromFirebase(newKey);
-        if (checkRes.success && checkRes.lastSync && (checkRes.tasks.length > 0 || checkRes.courses?.length || checkRes.profile)) {
-          const confirmRestore = confirm(
-            `This Sync Key already exists online (${checkRes.tasks.length} deadlines found).\n\nIf this is your own recovery key, click OK to restore your account on this device.\n\nIf you were choosing a custom key, click Cancel to choose a unique key and prevent data clashes.`
-          );
-          if (!confirmRestore) {
-            settingSyncKeyInput.value = prevSettings.syncKey || '';
-            settingSyncKeyInput.setAttribute('readonly', 'true');
-            settingSyncKeyInput.style.cursor = 'default';
-            return;
-          }
-        }
-      }
-      settingSyncKeyInput.value = newKey;
-      settingSyncKeyInput.setAttribute('readonly', 'true');
-      settingSyncKeyInput.style.cursor = 'default';
-      await saveSettings({ syncKey: newKey });
-      showToast(`Sync Key active: ${newKey}`);
-      void refreshAiKeyLock(true);
-      if (newKey !== prevSettings.syncKey) {
-        await pullTasksFromFirebaseIfNewer();
-        refreshAllViews();
-      }
-    } else {
-      settingSyncKeyInput.value = prevSettings.syncKey || '';
-      settingSyncKeyInput.setAttribute('readonly', 'true');
-      settingSyncKeyInput.style.cursor = 'default';
-    }
-  });
-
   // Settings Form Submit
   formSettings.addEventListener('submit', async e => {
     e.preventDefault();
@@ -4014,30 +3958,9 @@ function setupEvents() {
     const syncMidnight = (document.getElementById('setting-sync-midnight') as HTMLInputElement)?.checked ?? true;
     const syncOnScan = (document.getElementById('setting-sync-onscan') as HTMLInputElement)?.checked ?? true;
 
-    const rawSyncKey = (document.getElementById('setting-sync-key') as HTMLInputElement)?.value || '';
-    let syncKey = extractSyncKey(rawSyncKey);
-    const inputSyncKey = document.getElementById('setting-sync-key') as HTMLInputElement | null;
     const prevSettings = await getSettings();
-    const prevSyncKey = prevSettings.syncKey;
-
-    if (syncKey && syncKey !== prevSyncKey) {
-      const checkRes = await fetchTasksFromFirebase(syncKey);
-      if (checkRes.success && checkRes.lastSync && (checkRes.tasks.length > 0 || checkRes.courses?.length || checkRes.profile)) {
-        const confirmRestore = confirm(
-          `This Sync Key already exists online (${checkRes.tasks.length} deadlines found).\n\nIf this is your own recovery key, click OK to restore your account on this device.\n\nIf you were choosing a custom key, click Cancel to choose a unique key and prevent data clashes.`
-        );
-        if (!confirmRestore) {
-          syncKey = prevSyncKey || '';
-          if (inputSyncKey) inputSyncKey.value = syncKey;
-          return;
-        }
-      }
-    }
-    if (inputSyncKey) {
-      if (syncKey) inputSyncKey.value = syncKey;
-      inputSyncKey.setAttribute('readonly', 'true');
-      inputSyncKey.style.cursor = 'default';
-    }
+    const prevSyncKey = prevSettings.syncKey || '';
+    const syncKey = prevSyncKey;
     const selectedTheme = ((document.getElementById('setting-theme') as HTMLSelectElement)?.value || 'system') as 'light' | 'dark' | 'system';
     const bbDark = (document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement)?.checked ?? true;
 
@@ -4136,14 +4059,46 @@ function setupEvents() {
     }
   });
 
-  // Regenerate Sync Key & automatically self-destruct old key
-  btnRegenSyncKey?.addEventListener('click', async () => {
+  // Regenerate Sync Key confirmation modal & optional data backup export
+  const regenModal = document.getElementById('modal-regen-key-confirm');
+  const btnCloseRegenModal = document.getElementById('btn-close-regen-modal');
+  const btnCancelRegenKey = document.getElementById('btn-cancel-regen-key');
+  const btnRegenExportBackup = document.getElementById('btn-regen-export-backup');
+  const btnConfirmRegenKey = document.getElementById('btn-confirm-regen-key') as HTMLButtonElement | null;
+
+  const closeRegenModal = () => {
+    if (regenModal) {
+      regenModal.style.display = 'none';
+      regenModal.classList.add('hidden');
+    }
+  };
+
+  btnRegenSyncKey?.addEventListener('click', () => {
+    if (regenModal) {
+      regenModal.style.display = 'flex';
+      regenModal.classList.remove('hidden');
+    }
+  });
+
+  btnCloseRegenModal?.addEventListener('click', closeRegenModal);
+  btnCancelRegenKey?.addEventListener('click', closeRegenModal);
+  regenModal?.addEventListener('click', (e) => {
+    if (e.target === regenModal) {
+      closeRegenModal();
+    }
+  });
+
+  btnRegenExportBackup?.addEventListener('click', async () => {
+    await exportJsonBackup();
+  });
+
+  btnConfirmRegenKey?.addEventListener('click', async () => {
     const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
     const oldSettings = await getSettings();
     const oldKey = (oldSettings.syncKey || '').trim();
     const newKey = generateUniqueSyncKey();
 
-    btnRegenSyncKey.setAttribute('disabled', 'true');
+    btnConfirmRegenKey.setAttribute('disabled', 'true');
     showToast('Regenerating sync key & self-destructing old cloud data...');
 
     // 1. Permanently delete old cloud bucket from Firebase if it exists
@@ -4197,7 +4152,8 @@ function setupEvents() {
       }
     } catch {}
 
-    btnRegenSyncKey.removeAttribute('disabled');
+    btnConfirmRegenKey.removeAttribute('disabled');
+    closeRegenModal();
     showToast(`New Sync Key active: ${newKey}. Previous cloud data permanently self-destructed.`);
   });
 
@@ -4217,7 +4173,7 @@ function setupEvents() {
       'This key is the only way back to your online deadlines if you lose the data in this browser.',
       'Anyone who has it can see your deadlines, so keep the file private.',
       '',
-      'To restore: install Blackboarder, open Settings > Sync, paste the key into Personal Sync Key and save.',
+      'To restore: use Settings > Data > Restore JSON, or pair your phone with the key below.',
       'To open it on a phone: ' + COMPANION_URL + '?key=' + encodeURIComponent(key)
     ];
     const url = URL.createObjectURL(new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/plain' }));
@@ -5090,6 +5046,11 @@ function setupStorageAndSyncListeners() {
       if (roomPicker && !roomPicker.classList.contains('hidden') && roomPicker.style.display !== 'none') {
         roomPicker.style.display = 'none';
         roomPicker.classList.add('hidden');
+      }
+      const regenModal = document.getElementById('modal-regen-key-confirm');
+      if (regenModal && !regenModal.classList.contains('hidden') && regenModal.style.display !== 'none') {
+        regenModal.style.display = 'none';
+        regenModal.classList.add('hidden');
       }
       const drawer = document.getElementById('day-expanded-drawer');
       if (drawer && !drawer.classList.contains('hidden')) {

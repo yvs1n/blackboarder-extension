@@ -274,7 +274,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.37</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.38</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -805,16 +805,10 @@
           <div class="settings-panel-box" style="margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 0;">Personal Sync Key</label>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <button type="button" id="btn-custom-sync-key" style="font-size: 11px; color: var(--text-muted); background: none; border: none; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 3px;" title="Enter custom key or restore from backup">
-                  <svg class="ui-icon" style="width: 11px; height: 11px;"><use href="#icon-pencil"></use></svg>
-                  <span>Custom / Restore</span>
-                </button>
-                <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-                  <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
-                  <span>Copy Key</span>
-                </button>
-              </div>
+              <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
+                <span>Copy Key</span>
+              </button>
             </div>
             <div style="display: flex; gap: 6px;">
               <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" readonly style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1; cursor: default;">
@@ -1045,7 +1039,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.37</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.38</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1674,6 +1668,37 @@
               Import Courses JSON
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Generate New Sync Key Confirmation & Data Backup -->
+  <div id="modal-regen-key-confirm" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="regen-key-modal-title">
+    <div class="modal-dialog" style="max-width: 380px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="ui-icon" style="width: 18px; height: 18px; color: var(--amber);"><use href="#icon-urgent"></use></svg>
+          <h3 id="regen-key-modal-title" class="modal-title">Generate New Sync Key?</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-regen-modal" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 4px 0 12px; font-size: 12px; line-height: 1.5; color: var(--text-main);">
+        <p style="margin-bottom: 10px;">
+          Generating a new sync key permanently deletes your current cloud bucket and disconnects paired phones and calendar feeds until re-paired.
+        </p>
+        <p style="margin-bottom: 0; color: var(--text-muted); font-size: 11px;">
+          If you want to keep a safe copy of your deadlines, courses, and settings, export your backup file before proceeding.
+        </p>
+      </div>
+      <div style="border-top: 1px solid var(--surface-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+        <button type="button" class="btn-outline-action" id="btn-regen-export-backup" style="justify-content: center; width: 100%;">
+          <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+          <span>Export Data First (.json)</span>
+        </button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;">
+          <button type="button" class="btn-secondary" id="btn-cancel-regen-key" style="justify-content: center;">Cancel</button>
+          <button type="button" class="btn-danger" id="btn-confirm-regen-key" style="justify-content: center;">New Key</button>
         </div>
       </div>
     </div>

@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.37",
-  "build": "1f09c1a14c55",
-  "commit": "4d4c419f26560129f02ee526688a2de841031935",
-  "shortCommit": "4d4c419",
-  "timestamp": "2026-11-01T16:31:20.870Z",
-  "message": "feat: mobile post-pairing setup, deleted sync key unpairing, and widget student ID",
+  "version": "1.4.38",
+  "build": "93e1032f5620",
+  "commit": "dbe5910334c2ef312209b9e51afd2a5dee2cc3e8",
+  "shortCommit": "dbe5910",
+  "timestamp": "2026-11-01T16:47:04.259Z",
+  "message": "feat: lock sync key field to readonly, add custom key clash detection, and untrack windows lockscreen widget",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

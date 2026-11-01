@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.38] - 2026-11-01
+
+### Added
+
+- **New sync key confirmation and backup export modal:** Replaced instant key regeneration on "New Key" with a confirmation modal (`#modal-regen-key-confirm`). It informs students that generating a new key unlinks paired devices and deletes the old cloud bucket, and provides a direct "Export Data First (.json)" action to download a complete backup of courses, deadlines, syllabi, and settings before creating a new key.
+
+### Changed
+
+- **Strict read-only sync key protection:** Reverted custom sync key manual input and character editing in the extension. The Personal Sync Key field remains strictly read-only to guarantee high-entropy 130-bit keys and eliminate risk of cloud data collisions or overwrites.
+
 ## [1.4.37] - 2026-11-01
 
 ### Changed

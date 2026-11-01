@@ -77,7 +77,13 @@ describe('Sync keys', () => {
   it('still fit the limits the server and database rules enforce', () => {
     const key = generateUniqueSyncKey();
     expect(key.length).toBeLessThanOrEqual(64);
-    expect(fs.readFileSync('src/popup/index.html', 'utf8')).toMatch(/id="setting-sync-key"[^>]*maxlength="64"/);
+    const popupHtml = fs.readFileSync('src/popup/index.html', 'utf8');
+    expect(popupHtml).toMatch(/id="setting-sync-key"[^>]*maxlength="64"/);
+    expect(popupHtml).toMatch(/id="setting-sync-key"[^>]*readonly/);
+    expect(popupHtml).toContain('id="modal-regen-key-confirm"');
+    expect(popupHtml).toContain('id="btn-regen-export-backup"');
+    expect(popupHtml).toContain('id="btn-confirm-regen-key"');
+    expect(popupHtml).not.toContain('id="btn-custom-sync-key"');
   });
 });
 
