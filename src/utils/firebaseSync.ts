@@ -197,6 +197,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   courses?: UserCourseConfig[];
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
+  profile?: StudentProfile;
   scanRequest?: CloudScanRequest;
 }> {
   const targetUrl = getFirebaseDataUrl(syncKey);
@@ -234,6 +235,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
         courses,
         coursesUpdatedAt: data?.coursesUpdatedAt,
         tombstones: decodeCloudKeys(data?.tombstones),
+        profile: data?.profile,
         scanRequest: sanitizeScanRequest(data?.scanRequest)
       };
     }
@@ -248,6 +250,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       courses,
       coursesUpdatedAt: data.coursesUpdatedAt,
       tombstones: decodeCloudKeys(data.tombstones),
+      profile: data.profile,
       scanRequest: sanitizeScanRequest(data.scanRequest)
     };
   } catch (err: any) {

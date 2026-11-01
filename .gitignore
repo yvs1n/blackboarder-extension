@@ -46,3 +46,6 @@ preview/
 preview2/
 .agents/
 PROJECT.md
+
+# Private experimental widgets
+widgets/windows-lockscreen/

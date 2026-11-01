@@ -274,7 +274,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.36</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.37</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -805,13 +805,19 @@
           <div class="settings-panel-box" style="margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <label class="form-label" for="setting-sync-key" style="font-weight: 700; margin-bottom: 0;">Personal Sync Key</label>
-              <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
-                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
-                <span>Copy Key</span>
-              </button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" id="btn-custom-sync-key" style="font-size: 11px; color: var(--text-muted); background: none; border: none; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 3px;" title="Enter custom key or restore from backup">
+                  <svg class="ui-icon" style="width: 11px; height: 11px;"><use href="#icon-pencil"></use></svg>
+                  <span>Custom / Restore</span>
+                </button>
+                <button type="button" id="btn-copy-sync-key" style="font-size: 11px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                  <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
+                  <span>Copy Key</span>
+                </button>
+              </div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1;">
+              <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" readonly style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex: 1; cursor: default;">
               <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="padding: 6px 10px; font-size: 11px; white-space: nowrap;" title="Generate new random key">New Key</button>
             </div>
             <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 4px;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
@@ -1039,7 +1045,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.36</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.37</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

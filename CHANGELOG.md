@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.37] - 2026-11-01
+
+### Changed
+
+- **Sync key collision prevention and read-only input safety:** Locked the personal Sync Key input in the extension Settings (`#setting-sync-key`) to read-only by default to prevent accidental character edits, typos, and weak manual keys. Added a dedicated "Custom / Restore" action that unlocks the field for entering custom keys or pasting recovery files.
+- **Cloud account collision detection:** Before saving any custom or manually entered Sync Key, the extension checks Firebase Realtime Database for existing records. If an account is already found on the cloud, an explicit confirmation prompt intercepts the action to prevent accidentally clashing with or overwriting another student's data.
+- **Untrack experimental Windows wallpaper widget:** Removed `widgets/windows-lockscreen/` from git tracking and added it to `.gitignore` so experimental local lock screen scripts are preserved locally without being exposed publicly on GitHub.
+
 ## [1.4.36] - 2026-11-01
 
 ### Added

@@ -3946,6 +3946,17 @@ function setupEvents() {
   });
 
   const settingSyncKeyInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+  const btnCustomSyncKey = document.getElementById('btn-custom-sync-key');
+  btnCustomSyncKey?.addEventListener('click', () => {
+    if (settingSyncKeyInput) {
+      settingSyncKeyInput.removeAttribute('readonly');
+      settingSyncKeyInput.style.cursor = 'text';
+      settingSyncKeyInput.focus();
+      settingSyncKeyInput.select();
+      showToast('Type custom key or paste recovery key, then press Enter.');
+    }
+  });
+
   settingSyncKeyInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -3955,16 +3966,38 @@ function setupEvents() {
   settingSyncKeyInput?.addEventListener('change', async () => {
     const rawVal = settingSyncKeyInput.value;
     const newKey = extractSyncKey(rawVal);
+    const prevSettings = await getSettings();
     if (newKey) {
+      if (newKey !== prevSettings.syncKey) {
+        // Prevent accidental collisions with existing accounts on the cloud
+        showToast('Checking key availability...');
+        const checkRes = await fetchTasksFromFirebase(newKey);
+        if (checkRes.success && checkRes.lastSync && (checkRes.tasks.length > 0 || checkRes.courses?.length || checkRes.profile)) {
+          const confirmRestore = confirm(
+            `This Sync Key already exists online (${checkRes.tasks.length} deadlines found).\n\nIf this is your own recovery key, click OK to restore your account on this device.\n\nIf you were choosing a custom key, click Cancel to choose a unique key and prevent data clashes.`
+          );
+          if (!confirmRestore) {
+            settingSyncKeyInput.value = prevSettings.syncKey || '';
+            settingSyncKeyInput.setAttribute('readonly', 'true');
+            settingSyncKeyInput.style.cursor = 'default';
+            return;
+          }
+        }
+      }
       settingSyncKeyInput.value = newKey;
-      const prevSettings = await getSettings();
+      settingSyncKeyInput.setAttribute('readonly', 'true');
+      settingSyncKeyInput.style.cursor = 'default';
       await saveSettings({ syncKey: newKey });
-      showToast(`Sync Key saved: ${newKey}`);
+      showToast(`Sync Key active: ${newKey}`);
       void refreshAiKeyLock(true);
       if (newKey !== prevSettings.syncKey) {
         await pullTasksFromFirebaseIfNewer();
         refreshAllViews();
       }
+    } else {
+      settingSyncKeyInput.value = prevSettings.syncKey || '';
+      settingSyncKeyInput.setAttribute('readonly', 'true');
+      settingSyncKeyInput.style.cursor = 'default';
     }
   });
 
@@ -3982,14 +4015,31 @@ function setupEvents() {
     const syncOnScan = (document.getElementById('setting-sync-onscan') as HTMLInputElement)?.checked ?? true;
 
     const rawSyncKey = (document.getElementById('setting-sync-key') as HTMLInputElement)?.value || '';
-    const syncKey = extractSyncKey(rawSyncKey);
+    let syncKey = extractSyncKey(rawSyncKey);
     const inputSyncKey = document.getElementById('setting-sync-key') as HTMLInputElement | null;
-    if (inputSyncKey && syncKey) inputSyncKey.value = syncKey;
-    const selectedTheme = ((document.getElementById('setting-theme') as HTMLSelectElement)?.value || 'system') as 'light' | 'dark' | 'system';
-    const bbDark = (document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement)?.checked ?? true;
-
     const prevSettings = await getSettings();
     const prevSyncKey = prevSettings.syncKey;
+
+    if (syncKey && syncKey !== prevSyncKey) {
+      const checkRes = await fetchTasksFromFirebase(syncKey);
+      if (checkRes.success && checkRes.lastSync && (checkRes.tasks.length > 0 || checkRes.courses?.length || checkRes.profile)) {
+        const confirmRestore = confirm(
+          `This Sync Key already exists online (${checkRes.tasks.length} deadlines found).\n\nIf this is your own recovery key, click OK to restore your account on this device.\n\nIf you were choosing a custom key, click Cancel to choose a unique key and prevent data clashes.`
+        );
+        if (!confirmRestore) {
+          syncKey = prevSyncKey || '';
+          if (inputSyncKey) inputSyncKey.value = syncKey;
+          return;
+        }
+      }
+    }
+    if (inputSyncKey) {
+      if (syncKey) inputSyncKey.value = syncKey;
+      inputSyncKey.setAttribute('readonly', 'true');
+      inputSyncKey.style.cursor = 'default';
+    }
+    const selectedTheme = ((document.getElementById('setting-theme') as HTMLSelectElement)?.value || 'system') as 'light' | 'dark' | 'system';
+    const bbDark = (document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement)?.checked ?? true;
 
     const aiProvider = selectedAiProvider();
     const customBase = normalizeAiBaseUrl((document.getElementById('setting-ai-base-url') as HTMLInputElement | null)?.value);
