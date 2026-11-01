@@ -20,7 +20,13 @@ EXT_DIR="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 if [ ! -f "$EXT_DIR/manifest.json" ] && [ -f "$EXT_DIR/dist/manifest.json" ]; then EXT_DIR="$EXT_DIR/dist"; fi
 HELPER_VERSION=1
 
-is_dev_checkout() { [ -e "$EXT_DIR/../.git" ]; }
+get_repo_dir() {
+  if [ -e "$EXT_DIR/.git" ]; then echo "$EXT_DIR"; return; fi
+  if [ -e "$EXT_DIR/../.git" ]; then echo "$EXT_DIR/.."; return; fi
+  echo "$EXT_DIR"
+}
+
+is_dev_checkout() { [ -e "$EXT_DIR/.git" ] || [ -e "$EXT_DIR/../.git" ]; }
 
 json_build() { sed -n 's/.*"build": *"\([^"]*\)".*/\1/p' "$1" 2>/dev/null | head -n 1; }
 json_files() { sed -n '/"files": *\[/,/\]/p' "$1" 2>/dev/null | grep -o '"[^"]*"' | tr -d '"' | grep -v '^files$' || true; }
@@ -32,7 +38,8 @@ json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n'; }
 git_skip() { echo "{\"ok\":false,\"code\":\"dev-checkout\",\"error\":\"$1\"}"; }
 
 update_git_checkout() {
-  local repo="$EXT_DIR/.." before branch changed=false
+  local repo before branch changed=false
+  repo="$(get_repo_dir)"
   command -v git >/dev/null 2>&1 || { git_skip "This folder is a git clone, but git was not found. Run git pull yourself."; return; }
   branch="$(git -C "$repo" rev-parse --abbrev-ref HEAD 2>/dev/null)"
   [ "$branch" = "main" ] || { git_skip "The git clone is on branch $branch, not main, so it was not updated."; return; }

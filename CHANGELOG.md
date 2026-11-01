@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.36] - 2026-11-01
+
+### Added
+
+- **Mobile post-pairing setup onboarding modal:** Added an interactive setup modal (`#modal-pairing-setup`) that opens immediately after a student pairs their mobile device via QR code scanning, pairing URL, or manual sync key entry. Allows instant configuration of "Show Classes in Calendar", push deadline reminder alerts with advance timing, 1-click subscription buttons for Apple Calendar and Google Calendar feeds, and 1-tap Scriptable iOS widget script copying.
+- **Widget student ID display:** Updated the Scriptable iOS widget (`widgets/blackboarder-widget.js` and `mobile-web/companion/widget.js`) to display the student ID directly in the header bar (`Blackboarder • <ID>`) instead of their full name.
+
+### Fixed
+
+- **Automatic unpairing on deleted cloud sync keys:** When a student regenerates their sync key or deletes their online data, any connected secondary device (extension or mobile companion) automatically detects the deleted key during sync and unpairs cleanly, preventing resurrecting deleted buckets or syncing stale tasks.
+- **Immediate cloud data download on new sync key:** Entering a new sync key in the extension popup or companion app immediately triggers an automatic cloud fetch and pull to download all deadlines, courses, quick links, and student profile data.
+- **Updater script directory resolution:** Hardened `updater/blackboarder-updater.ps1` and `updater/blackboarder-updater.sh` git repository resolution to accurately detect root and `dist/` execution environments, ensuring seamless automatic updates via git pull.
+
 ## [1.4.35] - 2026-11-01
 
 ### Fixed

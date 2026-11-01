@@ -188,6 +188,7 @@ export async function pushTasksToFirebase(
 export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   success: boolean;
   tasks: DeadlineTask[];
+  deleted?: boolean;
   lastSync?: string;
   device?: string;
   error?: string;
@@ -209,7 +210,16 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       return { success: false, tasks: [], error: `HTTP ${res.status}` };
     }
 
-    const data: FirebaseSyncPayload = await res.json();
+    const data: FirebaseSyncPayload | null = await res.json();
+    if (data === null || (data as any)?.deleted === true) {
+      return {
+        success: false,
+        tasks: [],
+        deleted: true,
+        error: 'Sync key has been deleted or unlinked.'
+      };
+    }
+
     await mergeCloudProfile(data?.profile).catch(() => false);
     const quickLinks = sanitizeCloudQuickLinks(data?.quickLinks);
     const courses = sanitizeCloudCourses(data?.courses);

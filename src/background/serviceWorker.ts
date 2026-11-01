@@ -92,6 +92,13 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
     };
     const syncKey = settingsData.bbs_settings?.syncKey;
     const res = await fetchTasksFromFirebase(syncKey);
+    if (res.deleted && syncKey) {
+      console.info('[Background Sync] Cloud sync key was deleted. Unpairing extension...');
+      const updatedSettings = { ...(settingsData.bbs_settings || {}), syncKey: '' };
+      await chrome.storage.local.set({ bbs_settings: updatedSettings });
+      await chrome.storage.sync?.set?.({ bbs_settings: updatedSettings }).catch(() => {});
+      return false;
+    }
     if (!res.success || !Array.isArray(res.tasks)) {
       return false;
     }

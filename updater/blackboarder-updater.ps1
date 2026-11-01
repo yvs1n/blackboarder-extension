@@ -29,9 +29,19 @@ if (-not (Test-Path -LiteralPath (Join-Path $ScriptParent 'manifest.json')) -and
 }
 $HelperVersion = 1
 
+function Get-RepoDir {
+  if (Test-Path -LiteralPath (Join-Path $ExtDir '.git')) { return $ExtDir }
+  $parent = Split-Path -Parent $ExtDir
+  if ($parent -and (Test-Path -LiteralPath (Join-Path $parent '.git'))) { return $parent }
+  return $ExtDir
+}
+
 function Test-DevCheckout {
   # A folder inside a git clone is updated with git pull + npm run build, not by replacing files
-  return Test-Path -LiteralPath (Join-Path (Split-Path -Parent $ExtDir) '.git')
+  if (Test-Path -LiteralPath (Join-Path $ExtDir '.git')) { return $true }
+  $parent = Split-Path -Parent $ExtDir
+  if ($parent -and (Test-Path -LiteralPath (Join-Path $parent '.git'))) { return $true }
+  return $false
 }
 
 function Read-VersionFile([string]$file) {
@@ -41,7 +51,7 @@ function Read-VersionFile([string]$file) {
 
 function Get-GitText([string[]]$gitArgs) {
   # Output never reaches stdout, which carries the native messages
-  return ((& git -C (Split-Path -Parent $ExtDir) @gitArgs 2>$null) | Out-String).Trim()
+  return ((& git -C (Get-RepoDir) @gitArgs 2>$null) | Out-String).Trim()
 }
 
 function Update-GitCheckout {
@@ -54,7 +64,8 @@ function Update-GitCheckout {
   if ($branch -ne 'main') { return & $skip "The git clone is on branch '$branch', not main, so it was not updated." }
   if (Get-GitText @('status', '--porcelain', '--untracked-files=no')) { return & $skip 'The git clone has uncommitted changes, so it was not updated. Commit or stash them, then run git pull.' }
   $before = Get-GitText @('rev-parse', 'HEAD')
-  & git -C (Split-Path -Parent $ExtDir) pull --ff-only --quiet origin main 2>$null | Out-Null
+  $repoDir = Get-RepoDir
+  & git -C $repoDir pull --ff-only --quiet origin main 2>$null | Out-Null
   if ($LASTEXITCODE -ne 0) { return & $skip 'git pull --ff-only failed (the clone has commits GitHub does not). Run git pull yourself.' }
   $info = Read-VersionFile (Join-Path $ExtDir 'version.json')
   return @{ ok = $true; changed = ($before -ne (Get-GitText @('rev-parse', 'HEAD'))); build = $(if ($info) { $info.build } else { $null }) }

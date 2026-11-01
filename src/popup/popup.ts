@@ -2780,6 +2780,17 @@ async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
   try {
     const settings = await getSettings();
     const res = await fetchTasksFromFirebase(settings.syncKey);
+    if (res.deleted && settings.syncKey) {
+      console.warn('[Firebase Sync] Sync key was deleted on another device. Unpairing...');
+      await saveSettings({ syncKey: '' });
+      safeSetLocalStorage('bbs_persistent_sync_key', '');
+      safeSetLocalStorage('bbs_sync_key', '');
+      const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+      if (input) input.value = '';
+      showToast('Your Sync Key was deleted on another device. This device has been unpaired.');
+      refreshAllViews();
+      return null;
+    }
     if (res.success && Array.isArray(res.tasks)) {
       const localTombs = await getLocalTombstones();
       const tombstones = mergeTombstones(localTombs, res.tombstones || {});
@@ -3110,7 +3121,17 @@ async function loadSettingsForm() {
   // Check Firebase cloud status
   const fbBadge = document.getElementById('firebase-status-badge');
   if (fbBadge) {
-    fetchTasksFromFirebase(settings.syncKey).then(res => {
+    fetchTasksFromFirebase(settings.syncKey).then(async res => {
+      if (res.deleted && settings.syncKey) {
+        await saveSettings({ syncKey: '' });
+        safeSetLocalStorage('bbs_persistent_sync_key', '');
+        safeSetLocalStorage('bbs_sync_key', '');
+        const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+        if (input) input.value = '';
+        showToast('Your Sync Key was deleted on another device. This device has been unpaired.');
+        refreshAllViews();
+        return;
+      }
       fbBadge.classList.toggle('is-warn', !res.success);
       if (res.success) {
         fbBadge.innerHTML = `
@@ -3925,6 +3946,12 @@ function setupEvents() {
   });
 
   const settingSyncKeyInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+  settingSyncKeyInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      settingSyncKeyInput.dispatchEvent(new Event('change'));
+    }
+  });
   settingSyncKeyInput?.addEventListener('change', async () => {
     const rawVal = settingSyncKeyInput.value;
     const newKey = extractSyncKey(rawVal);
@@ -4183,6 +4210,28 @@ function setupEvents() {
 
       const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
       if (input) input.value = newKey;
+
+      // Immediately push current local data to initialize the new cloud bucket
+      try {
+        const [tasks, tombstones, coursesUpdatedAt, linksUpdatedAt] = await Promise.all([
+          getTasks(),
+          getLocalTombstones(),
+          getCoursesUpdatedAt(),
+          getQuickLinksUpdatedAt()
+        ]);
+        await pushTasksToFirebase(
+          tasks,
+          'Chrome Extension (Reset Data)',
+          newKey,
+          currentQuickLinks,
+          tombstones,
+          currentUserCourses,
+          coursesUpdatedAt || undefined,
+          linksUpdatedAt || undefined
+        );
+      } catch (err) {
+        console.warn('[Sync] Failed to initialize new cloud bucket after delete:', err);
+      }
 
       // Update pairing QR code & link
       void refreshAiKeyLock(true);

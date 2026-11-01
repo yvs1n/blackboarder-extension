@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.35",
-  "build": "f6e71d649cbf",
-  "commit": "7d1603feb3ea0e8f4efcd21a0e4ab1c5b259cf23",
-  "shortCommit": "7d1603f",
-  "timestamp": "2026-11-01T08:38:59.610Z",
-  "message": "fix: extract student full name across Blackboard Ultra and Banner exam schedule",
+  "version": "1.4.36",
+  "build": "204fc2139f34",
+  "commit": "91f1e5ed75bcdf3ec5cfc1a35d03bafa0cbd90e7",
+  "shortCommit": "91f1e5e",
+  "timestamp": "2026-11-01T16:04:12.559Z",
+  "message": "build: update generated files for a006b05",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
