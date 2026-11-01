@@ -4,6 +4,7 @@ import { sanitizeProfile, newerProfile } from '../src/core/studentProfile';
 import { extractStudentFromExamHtml } from '../src/core/examSchedule';
 import { fetchSession, extractUserName, isGenericPlaceholderName } from '../src/scan/blackboardApi';
 import { extractStudentFromBlackboardPage } from '../src/content/studentProfileExtractor';
+import { cleanDuplicateCards, removeAllBadgeCards, BADGE_ID } from '../src/content/studentProfileBadge';
 import { StudentProfile } from '../src/types';
 
 describe('studentProfile identity fields', () => {
@@ -279,5 +280,39 @@ describe('bilingual Banner exam schedule extraction', () => {
     expect(profile?.studentName).toBe('Mayed Al-Qasimi');
     expect(profile?.college).toBe('College of Computing and Informatics');
     expect(profile?.major).toBe('Information Technology');
+  });
+});
+
+describe('studentProfileBadge deduplication', () => {
+  it('cleans up duplicate badges and preserves exactly one card', () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div id="${BADGE_ID}" class="bbs-profile-badge-card" data-idx="1">Badge 1</div>
+        <div id="${BADGE_ID}" class="bbs-profile-badge-card" data-idx="2">Badge 2</div>
+        <div class="bbs-profile-badge-card" data-idx="3">Badge 3</div>
+        <div class="activity-stream"></div>
+      </div>
+    `;
+
+    expect(document.querySelectorAll('.bbs-profile-badge-card').length).toBe(3);
+
+    const retained = cleanDuplicateCards();
+    expect(retained).not.toBeNull();
+    expect(retained?.getAttribute('data-idx')).toBe('1');
+    expect(document.querySelectorAll('.bbs-profile-badge-card').length).toBe(1);
+    expect(document.querySelectorAll(`#${BADGE_ID}`).length).toBe(1);
+  });
+
+  it('removeAllBadgeCards clears all cards from DOM', () => {
+    document.body.innerHTML = `
+      <div id="container">
+        <div id="${BADGE_ID}" class="bbs-profile-badge-card">Badge 1</div>
+        <div class="bbs-profile-badge-card">Badge 2</div>
+      </div>
+    `;
+
+    expect(document.querySelectorAll('.bbs-profile-badge-card').length).toBe(2);
+    removeAllBadgeCards();
+    expect(document.querySelectorAll('.bbs-profile-badge-card').length).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "blackboarder",
-  "version": "1.4.34",
+  "version": "1.4.35",
   "description": "Blackboarder: Smart Academic Companion and Deadline Intelligence for Blackboard Learn",
   "type": "module",
   "scripts": {

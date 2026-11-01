@@ -6,10 +6,36 @@ import { getAllSyllabi } from '../core/syllabusWeights';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { extractStudentFromBlackboardPage } from './studentProfileExtractor';
 
-const BADGE_ID = 'bbs-student-profile-badge';
+export const BADGE_ID = 'bbs-student-profile-badge';
 
 export function isStreamPage(pathname = window.location.pathname): boolean {
   return /^\/ultra\/stream\/?$/i.test(pathname);
+}
+
+/** Removes all extra badge cards from the DOM, returning the single remaining card (or null). */
+export function cleanDuplicateCards(): HTMLElement | null {
+  const cards = Array.from(document.querySelectorAll<HTMLElement>(`#${BADGE_ID}, .bbs-profile-badge-card`));
+  if (cards.length === 0) return null;
+  for (let i = 1; i < cards.length; i++) {
+    cards[i].remove();
+  }
+  return cards[0];
+}
+
+/** Removes all student profile badge cards from the DOM. */
+export function removeAllBadgeCards(): void {
+  const cards = document.querySelectorAll<HTMLElement>(`#${BADGE_ID}, .bbs-profile-badge-card`);
+  cards.forEach(c => c.remove());
+}
+
+let started = false;
+let isRendering = false;
+let renderQueued = false;
+
+export function resetStudentProfileBadgeForTesting(): void {
+  started = false;
+  isRendering = false;
+  renderQueued = false;
 }
 
 /**
@@ -17,12 +43,12 @@ export function isStreamPage(pathname = window.location.pathname): boolean {
  * Displays the student's name, ID number, university, enrolled courses, and projected GPA.
  */
 export async function startStudentProfileBadge(): Promise<void> {
-  if (!isExtensionContextValid()) return;
+  if (started || !isExtensionContextValid()) return;
+  started = true;
 
   const render = async () => {
-    const existing = document.getElementById(BADGE_ID);
     if (!isStreamPage()) {
-      existing?.remove();
+      removeAllBadgeCards();
       return;
     }
 
@@ -31,7 +57,7 @@ export async function startStudentProfileBadge(): Promise<void> {
 
     const profile = await getProfile().catch(() => null);
     if (!profile || (!profile.studentName && !profile.studentId)) {
-      existing?.remove();
+      removeAllBadgeCards();
       return;
     }
 
@@ -58,21 +84,31 @@ export async function startStudentProfileBadge(): Promise<void> {
       ? `${gpaSummary.gpa.toFixed(2)} GPA`
       : '';
 
-    let card = existing;
-    if (!card || card.nextElementSibling !== stream && card.nextElementSibling?.id !== 'bbs-activity-filter') {
-      card?.remove();
-      card = document.createElement('div');
-      card.id = BADGE_ID;
-      card.className = 'bbs-profile-badge-card';
-      const ref = document.getElementById('bbs-activity-filter') || stream;
-      ref.parentElement?.insertBefore(card, ref);
+    // Re-verify stream page after asynchronous operations
+    if (!isStreamPage()) {
+      removeAllBadgeCards();
+      return;
+    }
+
+    // Clean up any duplicates that might exist, retaining at most one card
+    const existingCard = cleanDuplicateCards();
+    const ref = document.getElementById('bbs-activity-filter') || stream;
+
+    let targetCard = existingCard;
+    if (!targetCard) {
+      targetCard = document.createElement('div');
+      targetCard.id = BADGE_ID;
+      targetCard.className = 'bbs-profile-badge-card';
+      ref.parentElement?.insertBefore(targetCard, ref);
+    } else if (targetCard.nextElementSibling !== ref) {
+      ref.parentElement?.insertBefore(targetCard, ref);
     }
 
     const signature = JSON.stringify([name, id, universityName, courseCount, gpaDisplay]);
-    if (card.dataset.sig === signature) return;
-    card.dataset.sig = signature;
+    if (targetCard.dataset.sig === signature) return;
+    targetCard.dataset.sig = signature;
 
-    card.innerHTML = `
+    targetCard.innerHTML = `
       <div class="bbs-pbc-main">
         <div class="bbs-pbc-avatar" aria-hidden="true">${escapeHtml(name.charAt(0).toUpperCase())}</div>
         <div class="bbs-pbc-details">
@@ -93,7 +129,7 @@ export async function startStudentProfileBadge(): Promise<void> {
       </div>
     `;
 
-    card.querySelector('#bbs-pbc-open-btn')?.addEventListener('click', () => {
+    targetCard.querySelector('#bbs-pbc-open-btn')?.addEventListener('click', () => {
       try {
         if (isExtensionContextValid()) {
           chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }).catch(() => {});
@@ -102,16 +138,41 @@ export async function startStudentProfileBadge(): Promise<void> {
     });
   };
 
-  await render().catch(() => {});
+  const requestRender = () => {
+    if (isRendering) {
+      renderQueued = true;
+      return;
+    }
+    isRendering = true;
+    renderQueued = false;
+
+    render()
+      .catch(() => {})
+      .finally(() => {
+        isRendering = false;
+        if (renderQueued) {
+          renderQueued = false;
+          requestRender();
+        }
+      });
+  };
+
+  requestRender();
 
   // Observe navigation changes on Blackboard Ultra SPA
-  const observer = new MutationObserver(() => {
-    if (isStreamPage()) {
-      if (!document.getElementById(BADGE_ID)) {
-        render().catch(() => {});
-      }
-    } else {
-      document.getElementById(BADGE_ID)?.remove();
+  const observer = new MutationObserver(muts => {
+    if (!isStreamPage()) {
+      removeAllBadgeCards();
+      return;
+    }
+    // Ignore mutations triggered within the badge card itself or activity filter
+    if (muts.every(m => (m.target as Element).closest?.(`#${BADGE_ID}, .bbs-profile-badge-card, #bbs-activity-filter`))) {
+      return;
+    }
+
+    cleanDuplicateCards();
+    if (!document.getElementById(BADGE_ID)) {
+      requestRender();
     }
   });
 

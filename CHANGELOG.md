@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.35] - 2026-11-01
+
+### Fixed
+
+- **Prevent multiple student profile badges in Blackboard Ultra Activity Stream:** Resolved a race condition where DOM mutations occurring during asynchronous profile and course data loading triggered concurrent render calls before badge insertion, resulting in multiple stacked duplicate badges. Added an asynchronous execution mutex and render queue, implemented automatic duplicate card detection and cleanup (`cleanDuplicateCards`), and added a lifecycle singleton guard to prevent duplicate mutation observers.
+
 ## [1.4.34] - 2026-11-01
 
 ### Fixed
