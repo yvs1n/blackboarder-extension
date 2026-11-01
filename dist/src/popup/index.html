@@ -6,8 +6,8 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-Blkmu5Yr.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-Cw4iZaaa.css">
+  <script type="module" crossorigin src="../../assets/popup-BFPcXv9e.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-BcOuhkGu.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -277,7 +277,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.39</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.40</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -286,6 +286,10 @@
       <p class="eub-desc" id="eub-desc">A new version is available. Your data stays intact.</p>
     </div>
     <div class="eub-actions">
+      <button type="button" class="btn-eub-primary" id="btn-ext-apply-update" style="display: none;">
+        <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+        <span>Update now</span>
+      </button>
       <button type="button" class="btn-eub-primary" id="btn-ext-download-update">
         <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
         <span>Download Update (.zip)</span>
@@ -1042,7 +1046,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.39</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.40</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1054,6 +1058,10 @@
           </p>
 
           <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+            <button type="button" class="btn-primary" id="btn-apply-update-settings" style="font-size: 11.5px; padding: 7px 10px; justify-content: center; display: none;">
+              <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
+              <span>Update Now</span>
+            </button>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
               <button type="button" class="btn-primary" id="btn-check-ext-update" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
                 <svg class="ui-icon mr-1"><use href="#icon-refresh"></use></svg>

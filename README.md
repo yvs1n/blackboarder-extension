@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.4.39-blue?logo=github&logoColor=white" alt="Version v1.4.39" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.4.40-blue?logo=github&logoColor=white" alt="Version v1.4.40" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
@@ -53,11 +53,15 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Quick links.** Your own one-tap links to marks, attendance, your study plan or anything else, synced to the phone. A new install starts with none, since every student's links are different; UOS students get the UOS links filled in when the university is set.
 - **Reminders before deadlines.** The phone app reminds you a set time before each deadline, again shortly before, and when it is due (timings in Settings > Alerts).
 - **Privacy tools.** Delete everything stored online under your sync key from Settings > Data, download a recovery file for your key, and see a banner when your Blackboard session has ended.
-- **Private sync.** Every install gets its own sync key (`BBS-` plus 26 random characters). Changes on the laptop show up on the phone and the other way round.
+- **Private sync and data safety.** Every install gets its own sync key (`BBS-` plus 26 random characters). The sync key input is strictly read-only to prevent typing collisions. Generating a new key opens a confirmation modal with an instant Export JSON Backup button so you can save your data before resetting. If a phone connects to an old sync key whose data was deleted, it unpairs cleanly and returns to the pairing screen.
+- **Mobile post-pairing setup.** Pairing your phone via QR code or sync key opens an onboarding setup sheet with immediate toggles for class visibility, push alerts, Apple and Google Calendar subscription links, and widget setup instructions.
+- **Student ID and widgets.** Shows student identity (student ID, GPA, and enrolled courses) in the Courses tab, Blackboard Ultra stream badge, and Scriptable widgets (`Blackboarder • <ID>`).
+- **Live scan cancellation.** Click the close button (`✕`) on the live scan banner to cancel active scans across background HTTP and tab scanners immediately.
+- **Fast, responsive performance.** Smooth hardware-accelerated CSS view transitions, font preloading (`inter.woff2`, `inter-tight.woff2`), virtualized card rendering (`content-visibility: auto`), and debounced search filtering.
 - **Dark mode** for the extension, the phone app, and Blackboard itself.
 - **Activity filter**: a bar on Blackboard's Activity page shows only the courses and kinds of item you pick (Exams & quizzes, Assignments & labs, Grades, Materials, Announcements), and keeps loading older items while a filter is on.
 - **Course colours on Blackboard**: each course keeps the colour you set in Blackboarder on Blackboard too (Activity, calendar, Grades, Messages, the course banner and tabs). New courses start with Blackboard's own colour.
-- **Updates itself from GitHub**, the way a Chrome Web Store extension would (see [Automatic updates](#-automatic-updates)).
+- **Updates from GitHub with one click**, checking GitHub via lightweight HTTP and updating when you click Update now (see [Automatic updates](#-automatic-updates)).
 
 ---
 
@@ -129,7 +133,7 @@ No API key? The built-in parser reads announcements automatically, so everything
 
 ## 🔄 Automatic Updates
 
-Once `update.bat` / `update.sh` has run, the extension checks this repository every 15 minutes. The helper downloads the new build into the extension folder, and the extension restarts once its popup and side panel are closed. **In a git clone** the helper runs `git pull --ff-only` instead, and only when the clone is on `main` with no uncommitted changes, so it never overwrites your work. Otherwise **Settings** shows why it skipped.
+Once `update.bat` / `update.sh` has run, the extension checks this repository every 15 minutes using lightweight HTTP without running background processes. When a new build is detected, an **Update Available** banner appears with an **Update now** button. Clicking it asks the helper to download the new build into the extension folder (or run `git pull --ff-only` in a git clone on `main` without uncommitted edits), and restarts once its popup is closed or when you click **Restart now**. All your tasks, courses, profile, and settings are 100% kept. Otherwise **Settings** shows why it skipped.
 
 Each build is identified by a hash of its files, so a change that does not touch the extension does not update it.
 

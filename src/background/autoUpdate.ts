@@ -138,18 +138,53 @@ async function checkAndInstall(): Promise<AutoUpdateStatus> {
 
   if (!remote) return saveStatus({ ...base, state: 'offline', helperInstalled });
   if (!isRemoteNewer(remote)) return saveStatus({ ...base, ...remoteFields, state: 'up-to-date', helperInstalled });
-  if (!helperInstalled) return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled });
 
-  const reply = await sendToHelper({ type: 'update', build: remote.build });
+  // A newer release is available on GitHub. Present it so the user can trigger the update.
+  return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled });
+}
+
+let runningUpdate: Promise<AutoUpdateStatus> | null = null;
+
+/** Runs the updater helper to pull or download the new version when the user clicks "Update now". */
+export function applyUpdate(): Promise<AutoUpdateStatus> {
+  if (!runningUpdate) {
+    runningUpdate = doApplyUpdate().finally(() => {
+      runningUpdate = null;
+    });
+  }
+  return runningUpdate;
+}
+
+async function doApplyUpdate(): Promise<AutoUpdateStatus> {
+  const base = { installedBuild: BUILD_INFO.build, checkedAt: new Date().toISOString() };
+
+  if (await hasNewFilesOnDisk()) {
+    reloadWhenIdle();
+    return saveStatus({ ...base, state: 'updated', helperInstalled: Boolean(await sendToHelper({ type: 'ping' })) });
+  }
+
+  const remote = await fetchRemoteVersion();
+  const ping = await sendToHelper({ type: 'ping' });
+  const helperInstalled = Boolean(ping?.ok);
+  const remoteFields = remote
+    ? { remoteBuild: remote.build, remoteShortCommit: remote.shortCommit, remoteMessage: remote.message }
+    : {};
+
+  if (!helperInstalled) {
+    return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled: false });
+  }
+
+  const reply = await sendToHelper({ type: 'update', build: remote?.build });
   if (!reply?.ok) {
     const state: AutoUpdateState = reply?.code === 'dev-checkout' ? 'dev-checkout' : 'error';
     return saveStatus({ ...base, ...remoteFields, state, helperInstalled, error: reply?.error || 'The update helper did not answer.' });
   }
+
   if (await hasNewFilesOnDisk()) {
     reloadWhenIdle();
     return saveStatus({ ...base, ...remoteFields, state: 'updated', helperInstalled });
   }
-  // GitHub's download can lag a few minutes behind version.json; the next check picks it up
+
   return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled });
 }
 
@@ -193,6 +228,12 @@ export function initAutoUpdate(): void {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'RUN_AUTO_UPDATE') {
       runAutoUpdate()
+        .then(status => sendResponse({ ok: true, status }))
+        .catch(err => sendResponse({ ok: false, error: String(err) }));
+      return true;
+    }
+    if (message?.type === 'APPLY_UPDATE') {
+      applyUpdate()
         .then(status => sendResponse({ ok: true, status }))
         .catch(err => sendResponse({ ok: false, error: String(err) }));
       return true;

@@ -5542,6 +5542,8 @@ function initExtensionUpdateSystem() {
   const bannerDesc = document.getElementById('eub-desc');
   const btnDismiss = document.getElementById('btn-ext-update-dismiss');
   const btnLater = document.getElementById('btn-ext-update-later');
+  const btnApplyUpdateBanner = document.getElementById('btn-ext-apply-update');
+  const btnApplyUpdateSettings = document.getElementById('btn-apply-update-settings');
   const btnDownloadBanner = document.getElementById('btn-ext-download-update');
   const btnReloadBanner = document.getElementById('btn-ext-reload');
   const btnCheckManual = document.getElementById('btn-check-ext-update');
@@ -5559,7 +5561,7 @@ function initExtensionUpdateSystem() {
     if (subtitle) subtitle.textContent = 'Your browser updates Blackboarder automatically through its extension store.';
     if (statusPill) statusPill.textContent = 'Managed by the store';
     if (statusDesc) statusDesc.textContent = 'Installed version: v' + BUILD_INFO.version + '. New versions arrive on their own, usually within a day of being published.';
-    [btnCheckManual, btnReloadSettings, btnDownloadSettings, btnOpenGithub].forEach(b => {
+    [btnCheckManual, btnReloadSettings, btnDownloadSettings, btnOpenGithub, btnApplyUpdateSettings].forEach(b => {
       const holder = b?.closest('div[style*="display: flex; flex-direction: column"]');
       if (holder) holder.remove();
     });
@@ -5605,15 +5607,16 @@ function initExtensionUpdateSystem() {
     statusPill.className = `settings-pill pill-${color}`;
   };
 
-  const showBanner = (title: string, desc: string, primary: 'download' | 'restart' | 'none', dismissible = true) => {
+  const showBanner = (title: string, desc: string, primary: 'download' | 'restart' | 'update' | 'none', dismissible = true) => {
     if (!updateBanner) return;
     updateBanner.style.display = 'flex';
     if (commitBadge) commitBadge.textContent = shownStatus?.remoteShortCommit || shownStatus?.remoteBuild || 'new';
     if (bannerTitle) bannerTitle.textContent = title;
     if (bannerDesc) bannerDesc.textContent = desc;
+    if (btnApplyUpdateBanner) btnApplyUpdateBanner.style.display = primary === 'update' ? '' : 'none';
     if (btnDownloadBanner) btnDownloadBanner.style.display = primary === 'download' ? '' : 'none';
     if (btnReloadBanner) {
-      btnReloadBanner.style.display = primary === 'none' ? 'none' : '';
+      btnReloadBanner.style.display = (primary === 'none' || primary === 'update') ? 'none' : '';
       // Restarting is the one action left once the files are on disk, so it becomes the main button
       btnReloadBanner.className = primary === 'restart' ? 'btn-eub-primary' : 'btn-eub-secondary';
     }
@@ -5645,6 +5648,8 @@ function initExtensionUpdateSystem() {
     if (banner) showBanner(banner.title, banner.desc, banner.primary, banner.dismissible);
     else hideBanner();
 
+    if (btnApplyUpdateSettings) btnApplyUpdateSettings.style.display = 'none';
+
     switch (status.state) {
       case 'updated':
         setPill('Restart pending', 'blue');
@@ -5653,9 +5658,10 @@ function initExtensionUpdateSystem() {
         break;
       case 'update-available':
         setPill('Update Available', 'orange');
+        if (btnApplyUpdateSettings) btnApplyUpdateSettings.style.display = status.helperInstalled ? '' : 'none';
         if (statusDesc) {
           statusDesc.textContent = status.helperInstalled
-            ? `A new version${remoteNote} is on GitHub and will install with the next check.`
+            ? `A new version${remoteNote} is on GitHub. Click Update Now to download and install. Your data stays intact.`
             : `A new version${remoteNote} is on GitHub. To install it and every future update automatically, ${ENABLE_HINT}.`;
         }
         if (manual) showToast('A new version is available.');
@@ -5710,6 +5716,40 @@ function initExtensionUpdateSystem() {
 
   const restart = () => chrome.runtime.reload();
 
+  const applyUpdateNow = async (btn: HTMLElement | null) => {
+    if (btn) {
+      btn.setAttribute('disabled', 'true');
+      const span = btn.querySelector('span');
+      if (span) span.textContent = 'Updating...';
+    }
+    showToast('Updating Blackboarder... Please wait');
+    const res = await new Promise<{ ok: boolean; status?: AutoUpdateStatus; error?: string }>(resolve => {
+      try {
+        chrome.runtime.sendMessage({ type: 'APPLY_UPDATE' }, r => {
+          if (chrome.runtime.lastError) resolve({ ok: false, error: chrome.runtime.lastError.message });
+          else resolve(r || { ok: false });
+        });
+      } catch (err) {
+        resolve({ ok: false, error: String(err) });
+      }
+    });
+    if (btn) {
+      btn.removeAttribute('disabled');
+      const span = btn.querySelector('span');
+      if (span) span.textContent = btn.id === 'btn-ext-apply-update' ? 'Update now' : 'Update Now';
+    }
+    if (res?.ok && res.status) {
+      render(res.status, true);
+      if (res.status.state === 'updated') {
+        showToast('Update installed! Click Restart now to finish.');
+      }
+    } else {
+      showToast(res?.error || 'Update failed. Check Settings or update manually.');
+    }
+  };
+
+  btnApplyUpdateBanner?.addEventListener('click', () => applyUpdateNow(btnApplyUpdateBanner));
+  btnApplyUpdateSettings?.addEventListener('click', () => applyUpdateNow(btnApplyUpdateSettings));
   btnDownloadBanner?.addEventListener('click', downloadUpdatePackage);
   btnDownloadSettings?.addEventListener('click', downloadUpdatePackage);
   btnOpenGithub?.addEventListener('click', () => openUrl(GITHUB_REPO_URL));

@@ -2251,6 +2251,24 @@ body.is-standalone .header {
 
 .view-panel.active {
   display: block;
+  animation: panelFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes panelFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-panel.active {
+    animation: none !important;
+  }
 }
 
 #view-add, #view-settings {

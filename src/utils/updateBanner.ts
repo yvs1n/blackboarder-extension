@@ -8,8 +8,8 @@ export const ENABLE_UPDATES_HINT = 'run update.bat (Windows) or update.sh (Mac/L
 export interface UpdateBanner {
   title: string;
   desc: string;
-  /** restart: the new files are on disk; download: get the ZIP; none: nothing to click yet */
-  primary: 'restart' | 'download' | 'none';
+  /** restart: the new files are on disk; update: run updater helper; download: get the ZIP; none: nothing to click yet */
+  primary: 'restart' | 'update' | 'download' | 'none';
   /** Whether "Later" hides this banner for this build */
   dismissible: boolean;
 }
@@ -37,8 +37,18 @@ export function describeUpdateBanner(status: AutoUpdateStatus | null | undefined
     case 'update-available':
       if (isDismissed) return null;
       return status.helperInstalled
-        ? { title: 'New version on GitHub', desc: 'It is downloading and will ask you to restart in a few minutes.', primary: 'none', dismissible: true }
-        : { title: 'New version on GitHub', desc: `To update now and turn on automatic updates, ${ENABLE_UPDATES_HINT}. Your data stays intact.`, primary: 'download', dismissible: true };
+        ? {
+            title: 'New version on GitHub',
+            desc: 'A new version is available. Click Update now to install. Your tasks, courses and data stay intact.',
+            primary: 'update',
+            dismissible: true
+          }
+        : {
+            title: 'New version on GitHub',
+            desc: `To update now and turn on one-click updates, ${ENABLE_UPDATES_HINT}. Your data stays intact.`,
+            primary: 'download',
+            dismissible: true
+          };
     case 'dev-checkout':
       if (isDismissed) return null;
       return {

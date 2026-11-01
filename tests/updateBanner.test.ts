@@ -27,9 +27,9 @@ describe('update banner', () => {
     expect(banner?.primary).toBe('none');
   });
 
-  it('offers the ZIP only when the update helper is not set up', () => {
+  it('offers update now when helper is installed, or the ZIP when not set up', () => {
     expect(describeUpdateBanner(status({ state: 'update-available', helperInstalled: false }))?.primary).toBe('download');
-    expect(describeUpdateBanner(status({ state: 'update-available', helperInstalled: true }))?.primary).toBe('none');
+    expect(describeUpdateBanner(status({ state: 'update-available', helperInstalled: true }))?.primary).toBe('update');
   });
 
   it('respects "Later" for a build, but shows the next build again', () => {

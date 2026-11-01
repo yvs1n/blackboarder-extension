@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.40] - 2026-11-01
+
+### Added
+
+- **User-triggered extension updates:** Refined the updater architecture so the background service worker checks GitHub every 15 minutes using lightweight HTTP without running background processes or scripts. When a new build is detected, an Update Available banner appears with an explicit "Update now" button. Clicking it executes the updater helper to pull or download the new build while preserving all local tasks, courses, profile info, and settings.
+- **Hardware-accelerated CSS view transitions:** Added subtle 120-140ms view transitions (`panelFadeIn` and `sectionFadeIn`) with cubic-bezier easing for smooth tab switching across the Chrome extension and companion web app, guarded by `prefers-reduced-motion`.
+
+### Changed
+
+- **Synchronized documentation and landing page:** Updated `README.md`, `AGENTS.md`, `export/extension/README.md`, and `mobile-web/index.html` to document read-only sync key protection, confirmation modal with instant backup export, mobile post-pairing setup onboarding, student ID widget display, live scan cancellation, performance optimizations, and one-click extension updates.
+
 ## [1.4.39] - 2026-11-01
 
 ### Added
