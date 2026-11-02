@@ -276,7 +276,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.42</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.43</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -478,6 +478,19 @@
           </div>
           <div class="student-profile-uni" id="student-profile-uni"></div>
         </div>
+      </div>
+
+      <!-- Semester Journey & Archiving Bar -->
+      <div class="semester-bar" id="semester-bar" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--surface-border);">
+        <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Term:</span>
+          <select id="select-semester-view" class="form-select" style="font-size: 11.5px; padding: 3px 8px; min-height: 26px; flex: 1; min-width: 0;">
+            <option value="active">Current Term (Active)</option>
+          </select>
+        </div>
+        <button type="button" class="btn-secondary" id="btn-open-archive-semester" style="font-size: 10.5px; padding: 3px 8px; min-height: 26px; flex-shrink: 0;" title="Archive current semester courses and marks">
+          + Archive Term
+        </button>
       </div>
 
       <!-- Grades: projected GPA, each course's grade so far and every mark under it (same card as the phone app) -->
@@ -707,6 +720,40 @@
                 <button type="button" class="btn-secondary" id="btn-grade-scale-reset">Use University Scale</button>
               </div>
             </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <details class="setting-details" id="details-academic-baseline" style="font-size: 11.5px;">
+              <summary style="cursor: pointer; color: var(--text-muted); font-size: 11px; padding: 4px 0; user-select: none; font-weight: 600;">
+                Prior Academic Standing &amp; Degree Progress
+              </summary>
+              <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                <p class="setting-desc" style="margin: 0;">
+                  If you joined Blackboarder mid-degree, enter your completed credits and cumulative GPA so your total CGPA stays accurate.
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <div>
+                    <label class="form-label" for="setting-prior-credits" style="font-size: 10.5px;">Prior Completed Credits</label>
+                    <input type="number" id="setting-prior-credits" class="form-input" placeholder="e.g. 45" min="0" max="250" step="0.5" style="font-size: 11.5px;">
+                  </div>
+                  <div>
+                    <label class="form-label" for="setting-prior-gpa" style="font-size: 10.5px;">Starting Cumulative GPA</label>
+                    <input type="number" id="setting-prior-gpa" class="form-input" placeholder="e.g. 3.40" min="0" max="4.0" step="0.01" style="font-size: 11.5px;">
+                  </div>
+                </div>
+                <div>
+                  <label class="form-label" for="setting-target-credits" style="font-size: 10.5px;">Total Degree Requirement (Credits)</label>
+                  <input type="number" id="setting-target-credits" class="form-input" placeholder="e.g. 132" min="30" max="250" step="1" style="font-size: 11.5px;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+                  <button type="button" class="btn-secondary" id="btn-save-academic-baseline" style="font-size: 11px; padding: 4px 12px;">Save Standing</button>
+                </div>
+                <div id="archived-semesters-container" style="margin-top: 8px; border-top: 1px solid var(--surface-border); padding-top: 8px;">
+                  <label class="form-label" style="font-size: 10.5px; margin-bottom: 4px;">Archived Semesters Record</label>
+                  <div id="archived-semesters-list" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                </div>
+              </div>
+            </details>
           </div>
 
           <div class="form-group" style="margin-bottom: 0;">
@@ -1046,7 +1093,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.42</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.43</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1680,6 +1727,56 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Archive Semester -->
+  <div id="modal-archive-semester" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="archive-semester-modal-title">
+    <div class="modal-dialog" style="max-width: 380px;">
+      <div class="modal-header">
+        <h3 id="archive-semester-modal-title" class="modal-title">Archive Current Semester</h3>
+        <button type="button" class="modal-close-btn" id="btn-close-archive-modal" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 12px 14px; font-size: 12px; color: var(--text-main);">
+        <p style="font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px;">
+          Conclude your current semester to permanently record your completed courses, credit hours, and final GPA into your academic journey.
+        </p>
+        <div class="form-group">
+          <label class="form-label" for="archive-semester-name">Semester Name</label>
+          <input type="text" id="archive-semester-name" class="form-input" placeholder="e.g. Fall 2026" maxlength="50" style="font-size: 12px;">
+        </div>
+        <div id="archive-semester-summary" style="padding: 8px 10px; background: var(--surface-hover); border: 1px solid var(--surface-border); margin-bottom: 12px; font-size: 11px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Archive Depth</label>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11.5px;">
+            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+              <input type="radio" name="archive-mode" value="compact" checked style="margin-top: 2px;">
+              <div>
+                <strong>Grades &amp; Transcript Only</strong> (Recommended)
+                <span style="display: block; font-size: 10.5px; color: var(--text-muted);">Saves course grades and credits. Lightweight and keeps cloud sync instant.</span>
+              </div>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+              <input type="radio" name="archive-mode" value="full" style="margin-top: 2px;">
+              <div>
+                <strong>Full Record</strong>
+                <span style="display: block; font-size: 10.5px; color: var(--text-muted);">Includes meeting times, syllabus components, and deadline tasks.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; cursor: pointer;">
+            <input type="checkbox" id="archive-clear-active" checked>
+            <span>Reset active course list and schedule for upcoming term</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--surface-border);">
+        <button type="button" class="btn-secondary" id="btn-cancel-archive-semester" style="min-height: 32px; font-size: 11.5px; padding: 4px 12px;">Cancel</button>
+        <button type="button" class="btn-primary" id="btn-confirm-archive-semester" style="min-height: 32px; font-size: 11.5px; padding: 4px 12px;">Archive Semester</button>
       </div>
     </div>
   </div>

@@ -1,7 +1,8 @@
-import { DeadlineTask, TaskStatus, QuickLink, UserCourseConfig, StudentProfile } from '../types';
+import { DeadlineTask, TaskStatus, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
 import { sanitizeCloudTasks, encodeCloudKeys, decodeCloudKeys, sanitizeCloudQuickLinks, sanitizeCloudCourses, sanitizeScanRequest } from './cloudSanitize';
 import type { CloudScanRequest } from './cloudSanitize';
 import { getProfile, mergeCloudProfile } from './profile';
+import { getStoredSemesters, getStoredSemestersUpdatedAt, mergeCloudSemesters, saveStoredSemesters } from './semestersStorage';
 import { mergeForCloudWrite, readCloudSide } from './syncMerge';
 
 export const FIREBASE_CONFIG = {
@@ -88,6 +89,8 @@ export interface FirebaseSyncPayload {
   quickLinksUpdatedAt?: string;
   tombstones?: Record<string, string>;
   profile?: StudentProfile;
+  semesters?: ArchivedSemester[];
+  semestersUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
 }
 
@@ -116,6 +119,8 @@ export async function pushTasksToFirebase(
   if (!targetUrl) return { success: false, message: NO_SYNC_KEY_MESSAGE };
   try {
     const profile = await getProfile();
+    const semesters = await getStoredSemesters();
+    const semestersUpdatedAt = await getStoredSemestersUpdatedAt();
     for (let attempt = 0; ; attempt++) {
       const cloudRes = await fetch(targetUrl, { cache: 'no-store', headers: { 'X-Firebase-ETag': 'true' } });
       if (!cloudRes || !cloudRes.ok) {
@@ -130,8 +135,14 @@ export async function pushTasksToFirebase(
         coursesUpdatedAt,
         quickLinks,
         quickLinksUpdatedAt,
-        profile
+        profile,
+        semesters,
+        semestersUpdatedAt
       }, cloud);
+
+      if (merged.semestersFromCloud && merged.semesters) {
+        await saveStoredSemesters(merged.semesters, merged.semestersUpdatedAt);
+      }
 
       const lastSync = new Date().toISOString();
       const payload: FirebaseSyncPayload = {
@@ -148,6 +159,8 @@ export async function pushTasksToFirebase(
         tombstones: encodeCloudKeys(merged.tombstones),
         // Every write replaces the whole payload, so the university always travels with it
         profile: merged.profile,
+        semesters: merged.semesters,
+        semestersUpdatedAt: merged.semestersUpdatedAt,
         // And so does the phone's scan request, or the extension would never see it
         scanRequest: merged.scanRequest
       };
@@ -198,6 +211,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
   profile?: StudentProfile;
+  semesters?: ArchivedSemester[];
+  semestersUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
 }> {
   const targetUrl = getFirebaseDataUrl(syncKey);
@@ -222,6 +237,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
     }
 
     await mergeCloudProfile(data?.profile).catch(() => false);
+    await mergeCloudSemesters(data?.semesters, data?.semestersUpdatedAt).catch(() => false);
     const quickLinks = sanitizeCloudQuickLinks(data?.quickLinks);
     const courses = sanitizeCloudCourses(data?.courses);
     if (!data || !Array.isArray(data.tasks)) {
@@ -236,6 +252,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
         coursesUpdatedAt: data?.coursesUpdatedAt,
         tombstones: decodeCloudKeys(data?.tombstones),
         profile: data?.profile,
+        semesters: data?.semesters,
+        semestersUpdatedAt: data?.semestersUpdatedAt,
         scanRequest: sanitizeScanRequest(data?.scanRequest)
       };
     }
@@ -251,6 +269,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       coursesUpdatedAt: data.coursesUpdatedAt,
       tombstones: decodeCloudKeys(data.tombstones),
       profile: data.profile,
+      semesters: data.semesters,
+      semestersUpdatedAt: data.semestersUpdatedAt,
       scanRequest: sanitizeScanRequest(data.scanRequest)
     };
   } catch (err: any) {

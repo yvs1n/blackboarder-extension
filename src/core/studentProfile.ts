@@ -20,6 +20,18 @@ export function sanitizeProfile(raw: unknown): StudentProfile | null {
   const scale = normalizeGradeScale(r.gradeScale);
   if (scale) profile.gradeScale = scale;
   if (r.source === 'picked' || r.source === 'detected') profile.source = r.source;
+  if (typeof r.priorCredits === 'number' && !isNaN(r.priorCredits) && r.priorCredits >= 0 && r.priorCredits <= 300) {
+    profile.priorCredits = Math.round(r.priorCredits * 10) / 10;
+  }
+  if (typeof r.priorGpa === 'number' && !isNaN(r.priorGpa) && r.priorGpa >= 0 && r.priorGpa <= 5.0) {
+    profile.priorGpa = Math.round(r.priorGpa * 100) / 100;
+  }
+  if (typeof r.targetCredits === 'number' && !isNaN(r.targetCredits) && r.targetCredits > 0 && r.targetCredits <= 300) {
+    profile.targetCredits = Math.round(r.targetCredits);
+  }
+  if (typeof r.currentSemesterName === 'string' && r.currentSemesterName.trim()) {
+    profile.currentSemesterName = r.currentSemesterName.trim().slice(0, 50);
+  }
   return profile;
 }
 
@@ -40,7 +52,11 @@ export function newerProfile(a: StudentProfile | null | undefined, b: StudentPro
     studentId: newer.studentId || older.studentId,
     studentEmail: newer.studentEmail || older.studentEmail,
     major: newer.major || older.major,
-    college: newer.college || older.college
+    college: newer.college || older.college,
+    priorCredits: newer.priorCredits !== undefined ? newer.priorCredits : older.priorCredits,
+    priorGpa: newer.priorGpa !== undefined ? newer.priorGpa : older.priorGpa,
+    targetCredits: newer.targetCredits !== undefined ? newer.targetCredits : older.targetCredits,
+    currentSemesterName: newer.currentSemesterName || older.currentSemesterName
   };
 }
 

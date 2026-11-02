@@ -1517,6 +1517,11 @@ function isBlackboardSite(): boolean {
 
 // Initialize on page load
 function init() {
+  if ((window as any).__BBS_SCRAPER_INITIALIZED__) {
+    return;
+  }
+  (window as any).__BBS_SCRAPER_INITIALIZED__ = true;
+
   if (!isBlackboardSite()) {
     return;
   }

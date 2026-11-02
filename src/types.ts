@@ -65,7 +65,57 @@ export interface StudentProfile {
   gradeScale?: { letter: string; min: number; points: number }[];
   /** 'picked' in onboarding or Settings, 'detected' from the Blackboard address */
   source?: 'picked' | 'detected';
+  /** Cumulative credit hours completed prior to tracking in Blackboarder (e.g. 45 credits) */
+  priorCredits?: number;
+  /** Cumulative GPA prior to tracking in Blackboarder (e.g. 3.35) */
+  priorGpa?: number;
+  /** Target degree credit hours required for graduation (e.g. 132 credits) */
+  targetCredits?: number;
+  /** Current active academic semester name (e.g. "Fall 2026") */
+  currentSemesterName?: string;
   updatedAt: string;
+}
+
+export interface ArchivedCourseRecord {
+  code: string;
+  name: string;
+  creditHours: number;
+  grade?: string;
+  points?: number;
+  percent?: number;
+  colorHex?: string;
+}
+
+export interface ArchivedSemester {
+  id: string;
+  name: string;
+  academicYear?: string;
+  archivedAt: string;
+  termGpa?: number;
+  gradedCredits: number;
+  totalCredits: number;
+  courses: ArchivedCourseRecord[];
+  fullCourses?: UserCourseConfig[];
+  fullTasks?: DeadlineTask[];
+}
+
+export interface AcademicBaseline {
+  priorCredits?: number;
+  priorGpa?: number;
+  targetCredits?: number;
+  currentSemesterName?: string;
+}
+
+export interface CumulativeGpaSummary {
+  termGpa?: number;
+  termGradedCredits: number;
+  termTotalCredits: number;
+  cgpa?: number;
+  totalGradedCredits: number;
+  totalCompletedCredits: number;
+  targetCredits?: number;
+  degreeProgressPercent?: number;
+  archivedSemestersCount: number;
 }
 
 export interface FirebaseSyncPayload {
@@ -79,6 +129,8 @@ export interface FirebaseSyncPayload {
   coursesUpdatedAt?: string;
   tombstones?: Record<string, string>;
   profile?: StudentProfile;
+  semesters?: ArchivedSemester[];
+  semestersUpdatedAt?: string;
 }
 
 export interface Announcement {

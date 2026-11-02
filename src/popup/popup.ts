@@ -5,7 +5,10 @@ import { attachCoursePicker, findPickedCourse } from './coursePicker';
 import { buildMarksSummary } from '../utils/marks';
 import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
 import { buildGpaSummary } from '../utils/gpa';
-import { gradesHtml, gradesBadgeText } from '../utils/grades';
+import { gradesHtml, gradesBadgeText, archivedSemesterHtml } from '../utils/grades';
+import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
+import { calculateCgpa, archiveActiveSemester, detectSemesterName } from '../core/semesters';
+import type { ArchivedSemester } from '../types';
 import { pickNewerList } from '../utils/syncMerge';
 import { initUniversitySettings, getCachedProfile, renderStudentIdentity } from './universitySettings';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
@@ -51,6 +54,8 @@ let currentFilterStatus: 'all' | 'pending' | 'completed' = 'pending';
 let currentFilterCourse: string = 'all';
 let currentFilterType: string = 'all';
 let currentSearchQuery: string = '';
+let cachedSemesters: ArchivedSemester[] = [];
+let selectedSemesterViewId: string = 'active';
 
 // Calendar State
 const todayDate = new Date();
@@ -1975,12 +1980,37 @@ async function shareTask(task: DeadlineTask) {
 // ============================================================================
 // Courses tab: Grades (GPA with every mark) and Syllabus Progress
 // ============================================================================
+async function updateSemesterSelector(): Promise<void> {
+  const select = document.getElementById('select-semester-view') as HTMLSelectElement | null;
+  if (!select) return;
+  cachedSemesters = await getStoredSemesters();
+
+  const currentVal = select.value || selectedSemesterViewId || 'active';
+  let html = `<option value="active">Active Semester</option>`;
+  if (cachedSemesters.length > 0) {
+    html += `<optgroup label="Archived Terms">`;
+    for (const sem of cachedSemesters) {
+      const gpaStr = typeof sem.termGpa === 'number' ? ` (${sem.termGpa.toFixed(2)})` : '';
+      html += `<option value="${escapeHtml(sem.id)}">${escapeHtml(sem.name)}${gpaStr}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+  select.innerHTML = html;
+  if (cachedSemesters.some(s => s.id === currentVal) || currentVal === 'active') {
+    select.value = currentVal;
+    selectedSemesterViewId = currentVal;
+  } else {
+    select.value = 'active';
+    selectedSemesterViewId = 'active';
+  }
+}
+
 function renderGradeTracker(tasks: DeadlineTask[]) {
   const gradesCard = document.getElementById('grades-tracker');
   const syllabusCard = document.getElementById('syllabus-tracker');
-  const hasCoursesOrTasks = currentUserCourses.length > 0 || tasks.length > 0;
+  const hasCoursesOrTasks = currentUserCourses.length > 0 || tasks.length > 0 || cachedSemesters.length > 0;
   if (gradesCard) gradesCard.style.display = hasCoursesOrTasks ? '' : 'none';
-  if (syllabusCard) syllabusCard.style.display = hasCoursesOrTasks ? '' : 'none';
+  if (syllabusCard) syllabusCard.style.display = (currentUserCourses.length > 0 || tasks.length > 0) ? '' : 'none';
   if (!hasCoursesOrTasks) return;
 
   // Grades card: the projected GPA, then each course's grade with its marks under it
@@ -1988,18 +2018,36 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
   const gradesBody = document.getElementById('grades-tracker-breakdown');
   const profile = getCachedProfile();
   renderStudentIdentity(profile);
+
+  // If a past archived semester is selected in the dropdown:
+  if (selectedSemesterViewId !== 'active') {
+    const sem = cachedSemesters.find(s => s.id === selectedSemesterViewId);
+    if (sem && gradesBadge && gradesBody) {
+      const scale = profileGradeScale(profile);
+      const uni = profileUniversity(profile);
+      gradesBadge.textContent = typeof sem.termGpa === 'number' ? `Term ${sem.termGpa.toFixed(2)}` : 'Archived';
+      gradesBody.innerHTML = archivedSemesterHtml(sem, {
+        name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
+        scale
+      });
+      if (syllabusCard) syllabusCard.style.display = 'none';
+      return;
+    }
+  }
+
   if (gradesBadge && gradesBody) {
     const scale = profileGradeScale(profile);
     const uni = profileUniversity(profile);
     const syllabi = getAllSyllabi();
     const gpa = buildGpaSummary(tasks, syllabi, scale);
     const marks = buildMarksSummary(tasks, syllabi);
-    gradesBadge.textContent = gradesBadgeText(gpa, marks);
+    const cumulative = calculateCgpa(gpa, cachedSemesters, profile);
+    gradesBadge.textContent = gradesBadgeText(gpa, marks, cumulative);
     gradesBody.innerHTML = gradesHtml(gpa, marks, name => getCourseHex(name), {
       name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
       scale,
       fromSyllabus: !profile?.gradeScale && uni.cutoffsFromSyllabus
-    });
+    }, cumulative);
   }
 
   // Syllabus Progress card
@@ -2015,6 +2063,115 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
 function initGradeTrackerToggle() {
   wireCollapsible('grades-tracker-toggle-btn', 'grades-tracker-breakdown');
   wireCollapsible('syllabus-tracker-toggle-btn', 'syllabus-tracker-breakdown');
+
+  // Semester Selector dropdown
+  const select = document.getElementById('select-semester-view') as HTMLSelectElement | null;
+  select?.addEventListener('change', () => {
+    selectedSemesterViewId = select.value || 'active';
+    renderGradeTracker(currentTasks);
+  });
+
+  // Archive Term Modal
+  const openArchiveBtn = document.getElementById('btn-open-archive-semester');
+  const archiveModal = document.getElementById('modal-archive-semester');
+  const closeArchiveBtn = document.getElementById('btn-close-archive-modal');
+  const cancelArchiveBtn = document.getElementById('btn-cancel-archive-semester');
+  const confirmArchiveBtn = document.getElementById('btn-confirm-archive-semester');
+  const archiveTermInput = document.getElementById('archive-term-name') as HTMLInputElement | null;
+  const archivePreview = document.getElementById('archive-courses-preview');
+
+  openArchiveBtn?.addEventListener('click', () => {
+    if (!archiveModal) return;
+    const detected = detectSemesterName(currentUserCourses);
+    if (archiveTermInput) {
+      archiveTermInput.value = detected || '';
+    }
+    if (archivePreview) {
+      if (currentUserCourses.length === 0) {
+        archivePreview.innerHTML = '<p style="color: var(--text-muted); font-size: 12px; margin: 0;">No active courses configured. Add courses before archiving.</p>';
+      } else {
+        const profile = getCachedProfile();
+        const scale = profileGradeScale(profile);
+        const syllabi = getAllSyllabi();
+        const gpa = buildGpaSummary(currentTasks, syllabi, scale);
+        const gradeMap = new Map((gpa.courses || []).map(cg => [cg.courseName.toLowerCase(), cg]));
+
+        archivePreview.innerHTML = currentUserCourses.map(c => {
+          const cg = gradeMap.get(c.courseName.toLowerCase());
+          const gradeBadge = cg && typeof cg.percent === 'number'
+            ? `<span style="font-weight: 700; color: var(--text-main);">${cg.letter || ''} (${Math.round(cg.percent)}%)</span>`
+            : `<span style="color: var(--text-muted); font-size: 11px;">No grade yet</span>`;
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-light); font-size: 12px;">
+              <span><b>${escapeHtml(c.courseName)}</b> <span style="color: var(--text-muted);">(${c.creditHours || 3} cr)</span></span>
+              <span>${gradeBadge}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+    archiveModal.hidden = false;
+  });
+
+  const closeArchive = () => {
+    if (archiveModal) archiveModal.hidden = true;
+  };
+  closeArchiveBtn?.addEventListener('click', closeArchive);
+  cancelArchiveBtn?.addEventListener('click', closeArchive);
+
+  confirmArchiveBtn?.addEventListener('click', async () => {
+    if (!archiveTermInput) return;
+    const name = archiveTermInput.value.trim() || `Term ${cachedSemesters.length + 1}`;
+    const depthFull = (document.querySelector('input[name="archive-depth"]:checked') as HTMLInputElement)?.value === 'full';
+    const clearActive = (document.getElementById('archive-clear-active') as HTMLInputElement)?.checked;
+
+    const profile = getCachedProfile();
+    const scale = profileGradeScale(profile);
+
+    const sem = archiveActiveSemester({
+      name,
+      courses: currentUserCourses,
+      tasks: currentTasks,
+      scale,
+      mode: depthFull ? 'full' : 'compact'
+    });
+
+    const updated = [sem, ...cachedSemesters.filter(s => s.id !== sem.id)];
+    await saveStoredSemesters(updated);
+    cachedSemesters = updated;
+
+    if (clearActive) {
+      currentUserCourses = [];
+      await saveUserCourses([], new Date().toISOString());
+      currentTasks = currentTasks.filter(t => t.status !== 'completed');
+      await saveTasksMergingLatest(currentTasks);
+      renderUserCoursesManager();
+      renderLegend();
+    }
+
+    closeArchive();
+    await updateSemesterSelector();
+    selectedSemesterViewId = sem.id;
+    if (select) select.value = sem.id;
+
+    renderGradeTracker(currentTasks);
+    showToast(`Semester "${name}" archived successfully!`);
+
+    // Sync to cloud
+    const settings = await getSettings();
+    const tombstones = await getLocalTombstones();
+    const coursesUpdatedAt = await getCoursesUpdatedAt();
+    pushTasksToFirebase(
+      currentTasks,
+      'Archive Semester',
+      settings.syncKey,
+      currentQuickLinks,
+      tombstones,
+      currentUserCourses,
+      coursesUpdatedAt || undefined,
+      (await getQuickLinksUpdatedAt()) || undefined
+    ).catch(() => {});
+  });
 }
 
 /** Opens and closes a Courses tab card; the open state is remembered per card. */
@@ -2837,6 +2994,10 @@ async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
             refreshAllViews();
           }
         }
+      }
+
+      if (res.semesters) {
+        await updateSemesterSelector();
       }
 
       // If this is a brand new or uninitialized syncKey node in Firebase, initialize it
@@ -5837,6 +5998,7 @@ async function initApp() {
   setupEvents();
   initAiExtractModal();
   initGradeTrackerToggle();
+  await updateSemesterSelector();
   // Load and render user courses synchronously from cache
   currentUserCourses = getCachedCoursesSync();
   renderLegend();

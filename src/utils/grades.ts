@@ -1,6 +1,7 @@
 import { describeGradeScale, GradeRow } from '../core/universities';
 import { GpaSummary, UOS_GRADE_SCALE } from './gpa';
 import { MarksSummary, CourseMarks, formatScore } from './marks';
+import type { CumulativeGpaSummary, ArchivedSemester } from '../types';
 
 /**
  * The Grades card: the projected GPA, then each course's grade so far with every mark under it.
@@ -11,10 +12,15 @@ function esc(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
-/** Header badge: "GPA 3.50 · 4 marks", "2 marks · 1 awaiting" or "No marks yet". */
-export function gradesBadgeText(gpa: GpaSummary, marks: MarksSummary): string {
+/** Header badge: "GPA 3.50 · 4 marks", "CGPA 3.65 · Term 3.50", or "No marks yet". */
+export function gradesBadgeText(gpa: GpaSummary, marks: MarksSummary, cumulative?: CumulativeGpaSummary | null): string {
   const parts: string[] = [];
-  if (gpa.gpa !== undefined) parts.push(`GPA ${gpa.gpa.toFixed(2)}`);
+  if (cumulative?.cgpa !== undefined && cumulative.archivedSemestersCount > 0) {
+    parts.push(`CGPA ${cumulative.cgpa.toFixed(2)}`);
+    if (gpa.gpa !== undefined) parts.push(`Term ${gpa.gpa.toFixed(2)}`);
+  } else if (gpa.gpa !== undefined) {
+    parts.push(`GPA ${gpa.gpa.toFixed(2)}`);
+  }
   if (marks.gradedCount) parts.push(`${marks.gradedCount} mark${marks.gradedCount === 1 ? '' : 's'}`);
   if (marks.submittedCount) parts.push(`${marks.submittedCount} awaiting`);
   return parts.length ? parts.join(' · ') : 'No marks yet';
@@ -37,7 +43,8 @@ export function gradesHtml(
   gpa: GpaSummary,
   marks: MarksSummary,
   colorFor: (courseName: string) => string,
-  scaleInfo: { name: string; scale: ReadonlyArray<GradeRow>; fromSyllabus?: boolean } = { name: 'UOS', scale: UOS_GRADE_SCALE }
+  scaleInfo: { name: string; scale: ReadonlyArray<GradeRow>; fromSyllabus?: boolean } = { name: 'UOS', scale: UOS_GRADE_SCALE },
+  cumulative?: CumulativeGpaSummary | null
 ): string {
   if (!gpa.courses.length && !marks.courses.length) {
     return '<div class="marks-empty">No courses yet. Add them below or scan Blackboard.</div>';
@@ -45,9 +52,41 @@ export function gradesHtml(
   const topPoints = Math.max(...scaleInfo.scale.map(g => g.points), 0) || 4;
   const marksByCourse = new Map(marks.courses.map(c => [c.courseName, c]));
 
-  const head = gpa.gpa === undefined
-    ? '<div class="gpa-head"><span class="gpa-value">-</span><span class="gpa-caption">No marks yet. Marks are read from the Blackboard gradebook when you scan, and your GPA appears after the first one.</span></div>'
-    : `<div class="gpa-head"><span class="gpa-value">${gpa.gpa.toFixed(2)}</span><span class="gpa-caption">Projected GPA from marks so far, ${gpa.gradedCredits} of ${gpa.totalCredits} credit hours</span></div>`;
+  const hasHistory = Boolean(
+    cumulative && (
+      cumulative.archivedSemestersCount > 0 ||
+      (cumulative.totalGradedCredits > (gpa.gradedCredits || 0)) ||
+      (cumulative.cgpa !== undefined && gpa.gpa !== undefined && Math.abs(cumulative.cgpa - gpa.gpa) > 0.001)
+    )
+  );
+
+  let head = '';
+  if (hasHistory && cumulative) {
+    const termVal = gpa.gpa === undefined ? '-' : gpa.gpa.toFixed(2);
+    const cgpaVal = cumulative.cgpa === undefined ? '-' : cumulative.cgpa.toFixed(2);
+    const progressRow = cumulative.degreeProgressPercent !== undefined
+      ? `<div class="gpa-progress-wrap" title="${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} degree credits completed" style="grid-column: 1 / -1; margin-top: 6px;">
+           <div class="gpa-progress-track" style="height: 4px; background: var(--surface-border); width: 100%;"><div class="gpa-progress-bar" style="height: 100%; background: var(--primary); width:${cumulative.degreeProgressPercent}%;"></div></div>
+           <span class="gpa-progress-text" style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; display: block;">Degree Progress: ${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} cr completed (${cumulative.degreeProgressPercent}%)</span>
+         </div>`
+      : '';
+
+    head = `<div class="gpa-head gpa-head-dual" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <div class="gpa-stat-box">
+        <span class="gpa-value">${termVal}</span>
+        <span class="gpa-caption">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
+      </div>
+      <div class="gpa-stat-box gpa-stat-cgpa">
+        <span class="gpa-value">${cgpaVal}</span>
+        <span class="gpa-caption">Cumulative CGPA (${cumulative.totalGradedCredits} cr)</span>
+      </div>
+      ${progressRow}
+    </div>`;
+  } else {
+    head = gpa.gpa === undefined
+      ? '<div class="gpa-head"><span class="gpa-value">-</span><span class="gpa-caption">No marks yet. Marks are read from the Blackboard gradebook when you scan, and your GPA appears after the first one.</span></div>'
+      : `<div class="gpa-head"><span class="gpa-value">${gpa.gpa.toFixed(2)}</span><span class="gpa-caption">Projected GPA from marks so far, ${gpa.gradedCredits} of ${gpa.totalCredits} credit hours</span></div>`;
+  }
 
   const courseRows = gpa.courses.map(c => {
     const courseMarks = marksByCourse.get(c.courseName);
@@ -79,4 +118,43 @@ export function gradesHtml(
   const scale = describeGradeScale([...scaleInfo.scale]);
   const cutoffs = scaleInfo.fromSyllabus ? ' Instructors set the percentages, so check your syllabus and edit the scale in Settings if it differs.' : '';
   return `${head}${courseRows.join('')}<div class="gpa-note">${esc(scaleInfo.name)} scale: ${esc(scale)}.${cutoffs} A course grade is your score on what is graded so far. Each letter is worth GPA points (shown under each course), and the GPA averages them by credit hours; set credit hours by editing the course below.</div>`;
+}
+
+/** Renders a read-only view of a concluded archived semester. */
+export function archivedSemesterHtml(
+  semester: ArchivedSemester,
+  scaleInfo: { name: string; scale: ReadonlyArray<GradeRow> } = { name: 'UOS', scale: UOS_GRADE_SCALE }
+): string {
+  const topPoints = Math.max(...scaleInfo.scale.map(g => g.points), 0) || 4;
+  const termVal = semester.termGpa !== undefined ? semester.termGpa.toFixed(2) : '-';
+  const head = `<div class="gpa-head" style="margin-bottom: 10px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; width: 100%;">
+      <div>
+        <span class="gpa-value">${termVal}</span>
+        <span class="gpa-caption">${esc(semester.name)} Term GPA · ${semester.gradedCredits} of ${semester.totalCredits} credits</span>
+      </div>
+      <span class="info-badge blue" style="font-size: 10px; font-weight: 600;">Archived</span>
+    </div>
+  </div>`;
+
+  const rows = (semester.courses || []).map(c => {
+    const letter = c.grade || '-';
+    const points = typeof c.points === 'number' ? `${c.points.toFixed(1)} / ${topPoints.toFixed(1)} pts` : '';
+    const pct = typeof c.percent === 'number' ? `${c.percent}%` : '';
+    const color = c.colorHex || 'var(--text-muted)';
+    return `<div class="marks-course">
+      <div class="marks-course-head">
+        <span class="marks-dot" style="background:${esc(color)}"></span>
+        <span class="marks-course-name">${esc(c.name)}</span>
+        <span class="marks-course-total">${c.creditHours} cr</span>
+        <span class="marks-right">
+          ${pct ? `<span class="marks-pct">${pct}</span>` : ''}
+          <span class="gpa-letter">${esc(letter)}</span>
+        </span>
+      </div>
+      ${points ? `<div class="gpa-detail">${esc(c.code ? `${c.code} · ` : '')}${esc(letter)} = ${points}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return head + (rows || '<div class="marks-empty">No course records in this archived semester.</div>');
 }

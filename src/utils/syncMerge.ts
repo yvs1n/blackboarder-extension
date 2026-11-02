@@ -1,8 +1,9 @@
-import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile } from '../types';
+import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
 import { mergeCloudTasks, mergeTombstones, TombstoneMap } from './taskMerge';
 import { purgeSyntheticGradebookTasks } from './gradebook';
 import { newerProfile, sanitizeProfile } from '../core/studentProfile';
 import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys, sanitizeScanRequest } from './cloudSanitize';
+import { sanitizeSemesters, mergeArchivedSemesters } from '../core/semesters';
 import type { CloudScanRequest } from './cloudSanitize';
 
 /**
@@ -10,7 +11,8 @@ import type { CloudScanRequest } from './cloudSanitize';
  * merges what it has with the copy in the cloud and writes the result. Each part keeps its own rule:
  * - tasks: the newer `updatedAt` wins per task, deletions (tombstones) win unless the task was edited after
  * - courses and quick links: the list with the newer `...UpdatedAt` wins as a whole
- * - profile (university and grading scale): the newer `updatedAt` wins
+ * - profile (university, grading scale, baseline): the newer `updatedAt` wins
+ * - semesters (archived academic history): union merge by semester id; newer archivedAt wins per term
  * - scan request from the phone: the newer `requestedAt` wins; for the same request, done or error beats pending or running
  * Used by the extension (`pushTasksToFirebase`) and the phone app (`pushStateToCloud`, via BBCore).
  */
@@ -23,6 +25,8 @@ export interface SyncSide {
   quickLinks?: QuickLink[];
   quickLinksUpdatedAt?: string | null;
   profile?: StudentProfile | null;
+  semesters?: ArchivedSemester[];
+  semestersUpdatedAt?: string | null;
   scanRequest?: CloudScanRequest | null;
 }
 
@@ -34,10 +38,13 @@ export interface MergedSync {
   quickLinks?: QuickLink[];
   quickLinksUpdatedAt?: string;
   profile?: StudentProfile;
+  semesters?: ArchivedSemester[];
+  semestersUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
-  /** True when the cloud's courses or quick links won, so this device should take them too */
+  /** True when the cloud's courses, quick links or semesters won, so this device should take them too */
   coursesFromCloud: boolean;
   quickLinksFromCloud: boolean;
+  semestersFromCloud: boolean;
 }
 
 const time = (stamp?: string | null) => {
@@ -96,6 +103,8 @@ export function readCloudSide(data: any): SyncSide {
     quickLinks: sanitizeCloudQuickLinks(data.quickLinks),
     quickLinksUpdatedAt: typeof data.quickLinksUpdatedAt === 'string' ? data.quickLinksUpdatedAt : undefined,
     profile: sanitizeProfile(data.profile),
+    semesters: sanitizeSemesters(data.semesters),
+    semestersUpdatedAt: typeof data.semestersUpdatedAt === 'string' ? data.semestersUpdatedAt : undefined,
     scanRequest: sanitizeScanRequest(data.scanRequest)
   };
 }
@@ -121,6 +130,11 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
   const courses = pickNewerList({ items: local.courses, updatedAt: local.coursesUpdatedAt }, { items: c.courses, updatedAt: c.coursesUpdatedAt }, false);
   // Quick links: before they had a stamp, the device writing kept its own list
   const links = pickNewerList({ items: local.quickLinks, updatedAt: local.quickLinksUpdatedAt }, { items: c.quickLinks, updatedAt: c.quickLinksUpdatedAt }, true);
+  // Semesters: union merge so terms archived across different devices are preserved
+  const mergedSemesters = mergeArchivedSemesters(local.semesters, c.semesters);
+  const semPick = pickNewerList({ items: local.semesters, updatedAt: local.semestersUpdatedAt }, { items: c.semesters, updatedAt: c.semestersUpdatedAt }, false);
+  const semestersUpdatedAt = semPick.updatedAt || (mergedSemesters.length > 0 ? (local.semestersUpdatedAt || c.semestersUpdatedAt || new Date().toISOString()) : undefined);
+
   return {
     tasks,
     tombstones,
@@ -129,8 +143,11 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
     quickLinks: links.items,
     quickLinksUpdatedAt: links.updatedAt,
     profile: newerProfile(local.profile, c.profile) || undefined,
+    semesters: mergedSemesters.length > 0 ? mergedSemesters : undefined,
+    semestersUpdatedAt,
     scanRequest: newerScanRequest(local.scanRequest, c.scanRequest),
     coursesFromCloud: courses.fromCloud,
-    quickLinksFromCloud: links.fromCloud
+    quickLinksFromCloud: links.fromCloud,
+    semestersFromCloud: semPick.fromCloud || ((c.semesters?.length ?? 0) > (local.semesters?.length ?? 0))
   };
 }

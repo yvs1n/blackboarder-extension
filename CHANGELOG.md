@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.43] - 2026-11-02
+
+### Added
+
+- **Multi-semester academic journey tracking and Cumulative GPA (CGPA):** Introduced full multi-semester tracking across both the Chrome extension and companion web app (`src/core/semesters.ts`, `BBCore`). Students can snapshot active courses, schedules, and grades into archived terms (`archiveActiveSemester`), choosing compact (grades and credits) or full snapshot (preserves all tasks, deadlines, and marks), and optionally resetting active courses to start fresh for a new semester.
+- **Dual SGPA & CGPA display with degree progress:** Enhanced the Grades card across both apps to display active Term SGPA side-by-side with overall Cumulative CGPA, plus a visual degree progress percentage bar toward total required graduation credits (`gradesHtml`).
+- **Academic baseline and semester manager:** Added an Academic Baseline section under Settings > General > Your University (`#details-academic-baseline`) allowing students to configure prior completed credits, starting cumulative GPA, target degree credits, and review/delete archived term records.
+- **Term history selector:** Added a semester dropdown bar above the Grades card (`#select-semester-view`) allowing students to easily switch between the active semester and read-only snapshots of previous terms (`archivedSemesterHtml`).
+- **Bidirectional cloud semester sync:** Integrated `semesters` and `semestersUpdatedAt` into Firebase sync payloads and `mergeForCloudWrite` with union conflict resolution and isolation to preserve academic records across all paired devices.
+
+### Changed
+
+- **Robust scraper initialization guard:** Added a top-level window guard (`__BBS_SCRAPER_INITIALIZED__`) in `src/content/scraper.ts` to ensure that content scripts re-injected on extension reloads or updates never duplicate event listeners, MutationObservers, or student profile badges.
+
 ## [1.4.42] - 2026-11-01
 
 ### Changed

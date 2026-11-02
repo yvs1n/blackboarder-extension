@@ -8,6 +8,7 @@ import { UNIVERSITY_PRESETS, getUniversity, normalizeGradeScale, GradeRow } from
 import { profileUniversity, profileGradeScale } from '../core/studentProfile';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { getProfile, saveProfile, PROFILE_KEY } from '../utils/profile';
+import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
 import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/blackboardSites';
 
 export interface UniversitySettingsHooks {
@@ -135,6 +136,45 @@ function refresh() {
       : cached ? '' : 'Not set yet. Pick yours, or scan any Blackboard page and it is filled in.';
   }
   renderStudentIdentity(cached);
+  renderAcademicBaseline(cached);
+}
+
+async function renderArchivedSemestersManager() {
+  const container = document.getElementById('archived-semesters-list');
+  if (!container) return;
+  const list = await getStoredSemesters();
+  if (!list.length) {
+    container.innerHTML = '<span style="font-size: 11px; color: var(--text-muted);">No semesters archived yet. Archive at the end of a semester from the Courses tab.</span>';
+    return;
+  }
+  container.innerHTML = list.map(s => {
+    const termGpa = s.termGpa !== undefined ? s.termGpa.toFixed(2) : '-';
+    return `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; background: var(--surface-hover); border: 1px solid var(--surface-border); font-size: 11px;">
+      <div style="min-width: 0; flex: 1;">
+        <span style="font-weight: 600; color: var(--text-main);">${esc(s.name)}</span>
+        <span style="color: var(--text-muted); margin-left: 6px;">${s.gradedCredits} cr · Term GPA ${termGpa}</span>
+      </div>
+      <button type="button" class="btn-xs-manage-links btn-delete-archived-semester" data-sem-id="${esc(s.id)}" style="font-size: 10px; padding: 2px 6px; min-height: 22px; color: var(--text-muted);" title="Delete archived record">Delete</button>
+    </div>`;
+  }).join('');
+}
+
+function renderAcademicBaseline(profile: StudentProfile | null) {
+  const priorCreditsEl = document.getElementById('setting-prior-credits') as HTMLInputElement | null;
+  const priorGpaEl = document.getElementById('setting-prior-gpa') as HTMLInputElement | null;
+  const targetCreditsEl = document.getElementById('setting-target-credits') as HTMLInputElement | null;
+
+  if (priorCreditsEl && document.activeElement !== priorCreditsEl) {
+    priorCreditsEl.value = profile?.priorCredits !== undefined ? String(profile.priorCredits) : '';
+  }
+  if (priorGpaEl && document.activeElement !== priorGpaEl) {
+    priorGpaEl.value = profile?.priorGpa !== undefined ? String(profile.priorGpa) : '';
+  }
+  if (targetCreditsEl && document.activeElement !== targetCreditsEl) {
+    targetCreditsEl.value = profile?.targetCredits !== undefined ? String(profile.targetCredits) : '';
+  }
+
+  renderArchivedSemestersManager();
 }
 
 export function renderStudentIdentity(profile: StudentProfile | null): void {
@@ -269,6 +309,45 @@ export async function initUniversitySettings(hooks: UniversitySettingsHooks): Pr
       try { await chrome.permissions.remove({ origins: [originPattern(origin)] }); } catch {}
     }
     renderSites().catch(() => {});
+  });
+
+  document.getElementById('btn-save-academic-baseline')?.addEventListener('click', () => {
+    const priorCreditsEl = document.getElementById('setting-prior-credits') as HTMLInputElement | null;
+    const priorGpaEl = document.getElementById('setting-prior-gpa') as HTMLInputElement | null;
+    const targetCreditsEl = document.getElementById('setting-target-credits') as HTMLInputElement | null;
+
+    const priorCreditsVal = priorCreditsEl?.value.trim() ? parseFloat(priorCreditsEl.value) : undefined;
+    const priorGpaVal = priorGpaEl?.value.trim() ? parseFloat(priorGpaEl.value) : undefined;
+    const targetCreditsVal = targetCreditsEl?.value.trim() ? parseInt(targetCreditsEl.value, 10) : undefined;
+
+    update(hooks, {
+      universityId: profileUniversity(cached).id,
+      gradeScale: cached?.gradeScale,
+      source: cached?.source || 'picked',
+      studentName: cached?.studentName,
+      studentId: cached?.studentId,
+      studentEmail: cached?.studentEmail,
+      college: cached?.college,
+      major: cached?.major,
+      priorCredits: typeof priorCreditsVal === 'number' && !isNaN(priorCreditsVal) ? priorCreditsVal : undefined,
+      priorGpa: typeof priorGpaVal === 'number' && !isNaN(priorGpaVal) ? priorGpaVal : undefined,
+      targetCredits: typeof targetCreditsVal === 'number' && !isNaN(targetCreditsVal) ? targetCreditsVal : undefined
+    }).then(() => {
+      hooks.toast('Academic baseline saved.');
+    }).catch(() => {});
+  });
+
+  document.getElementById('archived-semesters-list')?.addEventListener('click', async e => {
+    const btn = (e.target as HTMLElement).closest('.btn-delete-archived-semester') as HTMLElement | null;
+    if (!btn || !btn.dataset.semId) return;
+    const semId = btn.dataset.semId;
+    if (!confirm('Are you sure you want to delete this archived semester record?')) return;
+    const current = await getStoredSemesters();
+    const next = current.filter(s => s.id !== semId);
+    await saveStoredSemesters(next);
+    await renderArchivedSemestersManager();
+    hooks.toast('Archived semester removed.');
+    hooks.onProfileChanged(cached, true, profileUniversity(cached).id);
   });
 
   // A scan or a sync can change the profile while the popup is open

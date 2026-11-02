@@ -38,4 +38,25 @@ describe('Grades card (GPA and marks together)', () => {
     expect(gradesBadgeText(gpa, marks)).toBe('GPA 3.00 · 2 marks · 1 awaiting');
     expect(html).not.toMatch(/\u2014/);
   });
+
+  it('renders dual GPA and degree progress when cumulative history exists', () => {
+    const cumulative = {
+      termGpa: 3.00,
+      termGradedCredits: 3,
+      termTotalCredits: 6,
+      cgpa: 3.45,
+      totalGradedCredits: 48,
+      totalCompletedCredits: 48,
+      targetCredits: 130,
+      degreeProgressPercent: 37,
+      archivedSemestersCount: 2
+    };
+
+    const dualHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, cumulative);
+    expect(dualHtml).toContain('Term SGPA');
+    expect(dualHtml).toContain('Cumulative CGPA');
+    expect(dualHtml).toContain('3.45');
+    expect(dualHtml).toContain('37%');
+    expect(gradesBadgeText(gpa, marks, cumulative)).toBe('CGPA 3.45 · Term 3.00 · 2 marks · 1 awaiting');
+  });
 });
