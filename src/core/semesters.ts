@@ -273,7 +273,8 @@ export function detectSemesterName(
     }
 
     // Explicit seasonal names: "Fall 2026", "Spring 2027", "خريف 2026", "ربيع 2027"
-    const termMatch = text.match(/\b(Fall|Spring|Summer|Winter|خريف|ربيع|صيف)\s*(?:Term\s*|Semester\s*)?(\d{4}(?:-\d{4})?)/i);
+    // Rule 2: Never put \b around Arabic text
+    const termMatch = text.match(/(?:^|[^\w\u0600-\u06FF])(Fall|Spring|Summer|Winter|خريف|ربيع|صيف)\s*(?:Term\s*|Semester\s*)?(\d{4}(?:-\d{4})?)/i);
     if (termMatch) {
       const engTerm = /خريف/i.test(termMatch[1]) ? 'Fall' : /ربيع/i.test(termMatch[1]) ? 'Spring' : /صيف/i.test(termMatch[1]) ? 'Summer' : termMatch[1];
       return `${engTerm} ${termMatch[2]}`;
@@ -290,4 +291,179 @@ export function detectSemesterName(
   } else {
     return `Summer ${year}`;
   }
+}
+
+export interface CourseSemesterInfo {
+  termCode?: string;
+  termName: string;
+  sortKey: number;
+}
+
+/**
+ * Extracts semester and term information from course codes, CRNs, or course names.
+ * Supports standard Banner 6-digit term codes (202510, 202610), 4-digit codes (_2510, _2620),
+ * and seasonal Arabic or English terms ("Fall 2025", "Spring 2026", "خريف 2025").
+ */
+export function detectCourseSemesterInfo(course: UserCourseConfig): CourseSemesterInfo {
+  const texts = [course.courseCode, course.crn, course.courseName].filter(Boolean) as string[];
+
+  for (const text of texts) {
+    // 6-digit Banner: 202510, 202610, 202620, etc.
+    const banner6 = text.match(/(?:^|[^0-9])(20\d{2})(10|20|30)(?![0-9])/);
+    if (banner6) {
+      const year = banner6[1];
+      const termCode = banner6[2];
+      const termName = `${termCode === '10' ? 'Fall' : termCode === '20' ? 'Spring' : 'Summer'} ${year}`;
+      const sortKey = Number(year) * 100 + Number(termCode);
+      return { termCode: `${year}${termCode}`, termName, sortKey };
+    }
+
+    // 4-digit Banner: _2510, _2520, _2610, etc.
+    const banner4 = text.match(/(?:^|[^0-9])_?(\d{2})(10|20|30)(?![0-9])/);
+    if (banner4) {
+      const year = String(2000 + Number(banner4[1]));
+      const termCode = banner4[2];
+      const termName = `${termCode === '10' ? 'Fall' : termCode === '20' ? 'Spring' : 'Summer'} ${year}`;
+      const sortKey = Number(year) * 100 + Number(termCode);
+      return { termCode: `${banner4[1]}${termCode}`, termName, sortKey };
+    }
+
+    // Named terms: "Fall 2025", "Spring 2026", "خريف 2025"
+    // Rule 2: Never put \b around Arabic text
+    const named = text.match(/(?:^|[^\w\u0600-\u06FF])(Fall|Spring|Summer|Winter|خريف|ربيع|صيف)\s*(?:Term\s*|Semester\s*)?(\d{4})/i);
+    if (named) {
+      const termStr = named[1];
+      const year = named[2];
+      const isFall = /Fall|خريف/i.test(termStr);
+      const isSpring = /Spring|ربيع/i.test(termStr);
+      const isSummer = /Summer|صيف/i.test(termStr);
+      const termCodeNum = isFall ? 10 : isSpring ? 20 : isSummer ? 30 : 15;
+      const engTerm = isFall ? 'Fall' : isSpring ? 'Spring' : isSummer ? 'Summer' : 'Winter';
+      const termName = `${engTerm} ${year}`;
+      const sortKey = Number(year) * 100 + termCodeNum;
+      return { termName, sortKey };
+    }
+  }
+
+  return { termName: 'Current Term', sortKey: 0 };
+}
+
+export interface SemesterPartition {
+  termName: string;
+  termCode?: string;
+  sortKey: number;
+  courses: UserCourseConfig[];
+  tasks: DeadlineTask[];
+}
+
+/**
+ * Groups active courses and tasks into distinct semester partitions, sorted newest first.
+ */
+export function partitionCoursesBySemester(
+  courses: UserCourseConfig[],
+  tasks: DeadlineTask[] = []
+): SemesterPartition[] {
+  if (!courses.length) return [];
+
+  const map = new Map<number, SemesterPartition>();
+
+  for (const c of courses) {
+    const info = detectCourseSemesterInfo(c);
+    let p = map.get(info.sortKey);
+    if (!p) {
+      p = {
+        termName: info.termName,
+        termCode: info.termCode,
+        sortKey: info.sortKey,
+        courses: [],
+        tasks: []
+      };
+      map.set(info.sortKey, p);
+    }
+    p.courses.push(c);
+  }
+
+  // Associate tasks with partitions based on course name or code match
+  for (const t of tasks) {
+    const tCourseName = (t.courseName || '').toLowerCase();
+    const tCourseCode = (t.courseCode || '').toLowerCase();
+
+    for (const p of map.values()) {
+      const hasCourse = p.courses.some(c => {
+        const cName = (c.courseName || '').toLowerCase();
+        const cCode = (c.courseCode || '').toLowerCase();
+        return (cName && tCourseName && (cName === tCourseName || tCourseName.includes(cName) || cName.includes(tCourseName)))
+          || (cCode && tCourseCode && (cCode === tCourseCode || tCourseCode.includes(cCode) || cCode.includes(tCourseCode)));
+      });
+
+      if (hasCourse) {
+        p.tasks.push(t);
+        break;
+      }
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.sortKey - a.sortKey);
+}
+
+export interface AutoPartitionResult {
+  activeCourses: UserCourseConfig[];
+  activeTasks: DeadlineTask[];
+  archivedSemesters: ArchivedSemester[];
+  partitionedCoursesCount: number;
+  archivedSemestersCreated: number;
+}
+
+/**
+ * When courses from multiple semesters are detected (e.g. Year 1 courses alongside Year 2 courses on Blackboard),
+ * automatically keeps the latest term as active and archives older completed terms into ArchivedSemesters.
+ */
+export function autoPartitionPastSemesters(params: {
+  courses: UserCourseConfig[];
+  tasks: DeadlineTask[];
+  scale?: ReadonlyArray<GradeRow>;
+  existingSemesters?: ArchivedSemester[];
+  mode?: 'compact' | 'full';
+}): AutoPartitionResult {
+  const partitions = partitionCoursesBySemester(params.courses, params.tasks);
+  const existing = sanitizeSemesters(params.existingSemesters);
+
+  if (partitions.length <= 1) {
+    return {
+      activeCourses: params.courses,
+      activeTasks: params.tasks,
+      archivedSemesters: existing,
+      partitionedCoursesCount: 0,
+      archivedSemestersCreated: 0
+    };
+  }
+
+  // The first partition (highest sortKey) is the latest active semester
+  const activePartition = partitions[0];
+  const olderPartitions = partitions.slice(1);
+
+  const newArchivedSemesters: ArchivedSemester[] = [];
+  let partitionedCoursesCount = 0;
+
+  for (const p of olderPartitions) {
+    partitionedCoursesCount += p.courses.length;
+    const archived = archiveActiveSemester({
+      name: p.termName,
+      courses: p.courses,
+      tasks: p.tasks,
+      scale: params.scale || [],
+      mode: params.mode || 'full'
+    });
+    newArchivedSemesters.push(archived);
+  }
+
+  const mergedSemesters = mergeArchivedSemesters(existing, newArchivedSemesters);
+
+  return {
+    activeCourses: activePartition.courses,
+    activeTasks: activePartition.tasks,
+    archivedSemesters: mergedSemesters,
+    partitionedCoursesCount,
+    archivedSemestersCreated: newArchivedSemesters.length
+  };
 }

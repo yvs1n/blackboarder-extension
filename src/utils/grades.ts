@@ -1,7 +1,8 @@
 import { describeGradeScale, GradeRow } from '../core/universities';
 import { GpaSummary, UOS_GRADE_SCALE } from './gpa';
 import { MarksSummary, CourseMarks, formatScore } from './marks';
-import type { CumulativeGpaSummary, ArchivedSemester } from '../types';
+import type { CumulativeGpaSummary, ArchivedSemester, DeadlineTask } from '../types';
+import { calculateCourseTargetAnalysis, CourseTargetAnalysis } from '../core/targetGpa';
 
 /**
  * The Grades card: the projected GPA, then each course's grade so far with every mark under it.
@@ -39,12 +40,65 @@ function markRowsHtml(course: CourseMarks | undefined): string {
   }).join('');
 }
 
+function targetSectionHtml(analysis: CourseTargetAnalysis, selectedLetter?: string): string {
+  if (analysis.remainingWeight <= 0) {
+    return `<div class="gpa-target-wrap"><div class="gpa-target-desc" style="color: var(--text-muted); font-size: 10.5px;">All course assessment weight is 100% graded.</div></div>`;
+  }
+
+  const validTargets = analysis.targets.filter(t => !t.unattainable);
+  const activeTarget = (selectedLetter ? analysis.targets.find(t => t.letter === selectedLetter) : null)
+    || analysis.targets.find(t => t.letter === 'A' && !t.unattainable)
+    || validTargets[0]
+    || analysis.targets[0];
+
+  const pills = analysis.targets.slice(0, 5).map(t => {
+    const isSel = activeTarget && t.letter === activeTarget.letter;
+    const isUnattainable = t.unattainable;
+    const isGuaranteed = t.guaranteed;
+    const title = isUnattainable
+      ? `Unattainable (max possible ${analysis.maxPossiblePercent}%)`
+      : isGuaranteed
+      ? `Guaranteed (already earned ${analysis.earnedWeight}%)`
+      : `Need ${t.requiredPercent}% on remaining ${analysis.remainingWeight}% weight`;
+    const cls = ['target-chip', isSel ? 'is-active' : '', isUnattainable ? 'is-unattainable' : '', isGuaranteed ? 'is-guaranteed' : ''].filter(Boolean).join(' ');
+    return `<button type="button" class="${cls}" data-course="${esc(analysis.courseName)}" data-letter="${esc(t.letter)}" title="${esc(title)}">${esc(t.letter)}</button>`;
+  }).join('');
+
+  let targetDesc = '';
+  if (!activeTarget) {
+    targetDesc = `<span class="target-desc-dim">No target available</span>`;
+  } else if (activeTarget.guaranteed) {
+    targetDesc = `<span class="target-desc-highlight" style="color: #059669; font-weight: 600;">Grade ${esc(activeTarget.letter)} guaranteed</span> (${analysis.earnedWeight}% earned &ge; ${activeTarget.minPercent}% cutoff)`;
+  } else if (activeTarget.unattainable) {
+    targetDesc = `<span class="target-desc-dim" style="color: var(--text-muted);">Grade ${esc(activeTarget.letter)} unattainable (max possible is ${analysis.maxPossiblePercent}%)</span>`;
+  } else {
+    const upcoming = (activeTarget.upcomingTasks || []).map(u => {
+      return `${esc(u.title)}: ${u.targetScore}/${u.maxScore}`;
+    }).slice(0, 2).join(' · ');
+
+    const breakdownText = upcoming ? ` · ${upcoming}` : '';
+    targetDesc = `Target <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${esc(activeTarget.letter)}</strong> (${activeTarget.minPercent}%): Need <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${activeTarget.requiredPercent}%</strong> on remaining ${analysis.remainingWeight}% weight${breakdownText}`;
+  }
+
+  return `<div class="gpa-target-wrap" data-course="${esc(analysis.courseName)}">
+    <div class="gpa-target-header">
+      <span class="gpa-target-label">Target Grade</span>
+      <div class="gpa-target-chips">${pills}</div>
+    </div>
+    <div class="gpa-target-desc">${targetDesc}</div>
+  </div>`;
+}
+
 export function gradesHtml(
   gpa: GpaSummary,
   marks: MarksSummary,
   colorFor: (courseName: string) => string,
   scaleInfo: { name: string; scale: ReadonlyArray<GradeRow>; fromSyllabus?: boolean } = { name: 'UOS', scale: UOS_GRADE_SCALE },
-  cumulative?: CumulativeGpaSummary | null
+  cumulative?: CumulativeGpaSummary | null,
+  options?: {
+    tasks?: DeadlineTask[];
+    selectedTargets?: Record<string, string>;
+  }
 ): string {
   if (!gpa.courses.length && !marks.courses.length) {
     return '<div class="marks-empty">No courses yet. Add them below or scan Blackboard.</div>';
@@ -99,9 +153,11 @@ export function gradesHtml(
     const drops = c.components.filter(k => k.dropped.length).map(k =>
       `<div class="gpa-detail">${esc(k.name)}${k.rule ? ` (${esc(k.rule)})` : ''}: not counted ${k.dropped.map(d => `${esc(d.title)} ${d.percent}%`).join(', ')}</div>`
     ).join('');
+    const targetAnalysis = calculateCourseTargetAnalysis(c, options?.tasks || [], scaleInfo.scale);
+    const targetHtml = targetSectionHtml(targetAnalysis, options?.selectedTargets?.[c.courseName]);
     return `<div class="marks-course">
       <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span><span class="marks-course-total">${c.creditHours} cr</span><span class="marks-right">${right}</span></div>
-      ${detail}${drops}${markRowsHtml(courseMarks)}
+      ${detail}${drops}${markRowsHtml(courseMarks)}${targetHtml}
     </div>`;
   });
 

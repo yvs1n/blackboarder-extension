@@ -5,7 +5,10 @@ import {
   mergeArchivedSemesters,
   calculateCgpa,
   archiveActiveSemester,
-  detectSemesterName
+  detectSemesterName,
+  detectCourseSemesterInfo,
+  partitionCoursesBySemester,
+  autoPartitionPastSemesters
 } from '../src/core/semesters';
 import { getStoredSemesters, saveStoredSemesters, mergeCloudSemesters } from '../src/utils/semestersStorage';
 import { UOS_GRADE_SCALE } from '../src/utils/gpa';
@@ -300,6 +303,114 @@ describe('Semester Term Detection', () => {
     expect(detectSemesterName([], [], oct)).toBe('Fall 2026');
     const mar = new Date('2027-03-10');
     expect(detectSemesterName([], [], mar)).toBe('Spring 2027');
+  });
+});
+
+describe('Multi-Semester Course Partitioning & Separation', () => {
+  it('detects semester info from course codes and terms correctly', () => {
+    // 6-digit Banner code
+    const c1 = { courseCode: '0401101_202610', courseName: 'Calculus I' } as UserCourseConfig;
+    expect(detectCourseSemesterInfo(c1)).toEqual({
+      termCode: '202610',
+      termName: 'Fall 2026',
+      sortKey: 202610
+    });
+
+    // 4-digit Banner code (e.g. UOS format _2510)
+    const c2 = { courseCode: '1440133_21_2510', courseName: 'Programming I' } as UserCourseConfig;
+    expect(detectCourseSemesterInfo(c2)).toEqual({
+      termCode: '2510',
+      termName: 'Fall 2025',
+      sortKey: 202510
+    });
+
+    // Arabic seasonal term
+    const c3 = { courseName: 'تاريخ الإمارات (خريف 2025)' } as UserCourseConfig;
+    expect(detectCourseSemesterInfo(c3)).toEqual({
+      termName: 'Fall 2025',
+      sortKey: 202510
+    });
+  });
+
+  it('partitions Year 1 and Year 2 courses into distinct semester buckets', () => {
+    const courses: UserCourseConfig[] = [
+      { courseName: 'Calculus I', courseCode: 'MATH101_2510', creditHours: 3 } as UserCourseConfig, // Year 1 Fall 2025
+      { courseName: 'Physics I', courseCode: 'PHYS101_2520', creditHours: 4 } as UserCourseConfig,   // Year 1 Spring 2026
+      { courseName: 'Data Structures', courseCode: 'CS201_2610', creditHours: 3 } as UserCourseConfig, // Year 2 Fall 2026
+      { courseName: 'Algorithms', courseCode: 'CS202_2610', creditHours: 3 } as UserCourseConfig      // Year 2 Fall 2026
+    ];
+
+    const tasks: DeadlineTask[] = [
+      { id: 't1', courseName: 'Calculus I', title: 'Midterm', dueDate: '2025-10-15', status: 'completed' } as DeadlineTask,
+      { id: 't2', courseName: 'Data Structures', title: 'Assignment 1', dueDate: '2026-10-05', status: 'pending' } as DeadlineTask
+    ];
+
+    const partitions = partitionCoursesBySemester(courses, tasks);
+    expect(partitions).toHaveLength(3);
+
+    // Sorted descending (newest first)
+    expect(partitions[0].termName).toBe('Fall 2026');
+    expect(partitions[0].courses).toHaveLength(2);
+    expect(partitions[0].tasks).toHaveLength(1);
+    expect(partitions[0].tasks[0].id).toBe('t2');
+
+    expect(partitions[1].termName).toBe('Spring 2025');
+    expect(partitions[1].courses).toHaveLength(1);
+
+    expect(partitions[2].termName).toBe('Fall 2025');
+    expect(partitions[2].courses).toHaveLength(1);
+    expect(partitions[2].tasks).toHaveLength(1);
+    expect(partitions[2].tasks[0].id).toBe('t1');
+  });
+
+  it('autoPartitions past semesters, leaving current term active and archiving completed years', () => {
+    const courses: UserCourseConfig[] = [
+      { courseName: 'Calculus I', courseCode: 'MATH101_2510', creditHours: 3 } as UserCourseConfig, // Year 1 Fall 2025
+      { courseName: 'Physics I', courseCode: 'PHYS101_2520', creditHours: 4 } as UserCourseConfig,   // Year 1 Spring 2026
+      { courseName: 'Data Structures', courseCode: 'CS201_2610', creditHours: 3 } as UserCourseConfig // Year 2 Fall 2026
+    ];
+
+    const tasks: DeadlineTask[] = [
+      {
+        id: 't_past',
+        courseName: 'Calculus I',
+        title: 'Final Exam',
+        status: 'completed',
+        weight: 40,
+        score: 38,
+        maxScore: 40
+      } as DeadlineTask,
+      {
+        id: 't_active',
+        courseName: 'Data Structures',
+        title: 'Project 1',
+        status: 'pending',
+        weight: 20
+      } as DeadlineTask
+    ];
+
+    const result = autoPartitionPastSemesters({
+      courses,
+      tasks,
+      scale: UOS_GRADE_SCALE
+    });
+
+    expect(result.partitionedCoursesCount).toBe(2);
+    expect(result.archivedSemestersCreated).toBe(2);
+
+    // Active courses must contain only Year 2 Fall 2026
+    expect(result.activeCourses).toHaveLength(1);
+    expect(result.activeCourses[0].courseName).toBe('Data Structures');
+
+    // Active tasks must contain only active tasks
+    expect(result.activeTasks).toHaveLength(1);
+    expect(result.activeTasks[0].id).toBe('t_active');
+
+    // Archived semesters must contain Fall 2025 and Spring 2026
+    expect(result.archivedSemesters).toHaveLength(2);
+    const fall25 = result.archivedSemesters.find((s: any) => s.name === 'Fall 2025');
+    expect(fall25).toBeDefined();
+    expect(fall25!.courses[0].name).toBe('Calculus I');
   });
 });
 

@@ -4991,6 +4991,19 @@ h1, h2, h3 {
 .gpa-detail { font-size: 10.5px; color: var(--text-muted); padding-left: 14px; }
 .gpa-note { font-size: 10px; color: var(--text-muted); padding: 6px 2px 0; border-top: 1px solid var(--surface-border); }
 
+/* GPA Target Grade & Exam Score Calculator */
+.gpa-target-wrap { margin-top: 6px; padding: 6px 8px; background: var(--surface-hover); border: 1px solid var(--surface-border); }
+.gpa-target-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.gpa-target-label { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.gpa-target-chips { display: flex; gap: 3px; }
+.target-chip { border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-muted); font-size: 10px; font-weight: 700; padding: 1px 5px; cursor: pointer; border-radius: 0 !important; font-family: inherit; }
+.target-chip:hover { color: var(--text-main); border-color: var(--text-main); }
+.target-chip.is-active { background: var(--text-main); color: var(--bg); border-color: var(--text-main); }
+.target-chip.is-unattainable { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+.target-chip.is-guaranteed { border-color: var(--text-main); font-weight: 800; }
+.gpa-target-desc { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
+.target-highlight { color: var(--text-main); font-weight: 700; }
+
 /* Courses tab: Grades and Syllabus Progress cards (same markup in both apps) */
 .grade-tracker-widget.course-summary-card { background: var(--surface); border: 1px solid var(--surface-border); padding: 0; margin: 0 0 10px; box-shadow: none; }
 .course-summary-card .grade-tracker-header { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: transparent; border: 0; color: var(--text-main); font: inherit; text-align: left; cursor: pointer; }

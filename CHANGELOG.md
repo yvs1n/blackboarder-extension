@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.44] - 2026-11-02
+
+### Added
+
+- **Target GPA & upcoming exam score calculator:** Added an exact exam score planner (`src/core/targetGpa.ts`, `BBCore`) that calculates the exact percentage and raw marks required on remaining course assessments to achieve each letter grade on the university's grading scale ($S_{\text{req}} = \frac{\text{Target} - S_{\text{earned}}}{W_{\text{remaining}}} \times 100$). Integrates interactive target grade selector pills directly into active course grade cards in both the extension and mobile companion, instantly computing score cutoffs on upcoming pending assessments (e.g. Final Exam: 91.7/100).
+- **Multi-semester course partitioning and automatic separation:** Implemented automated semester detection and partitioning (`partitionCoursesBySemester`, `autoPartitionPastSemesters` in `src/core/semesters.ts`, `BBCore`). When a student in Year 2 has courses from Year 1 on Blackboard (which Blackboard returns in a single flat enrolled list), Blackboarder automatically detects Banner term codes (e.g. `_2510`, `_2520` vs `_2610`) and seasonal terms ("Fall 2025", "Spring 2026"), isolating the newest term as active courses and providing an instant "Organize Terms" action to cleanly archive past completed years into transcript records.
+
 ## [1.4.43] - 2026-11-02
 
 ### Added

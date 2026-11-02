@@ -59,4 +59,16 @@ describe('Grades card (GPA and marks together)', () => {
     expect(dualHtml).toContain('37%');
     expect(gradesBadgeText(gpa, marks, cumulative)).toBe('CGPA 3.45 · Term 3.00 · 2 marks · 1 awaiting');
   });
+
+  it('renders target grade requirements and exam score targets', () => {
+    const upcomingTasks = [
+      task({ title: 'Final Exam', courseName: 'Physics 1', weight: 50, maxScore: 100, status: 'pending' })
+    ] as any;
+    const htmlWithTargets = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, null, {
+      tasks: upcomingTasks
+    });
+    expect(htmlWithTargets).toContain('Target Grade');
+    expect(htmlWithTargets).toContain('target-chip');
+    expect(htmlWithTargets).toContain('Final Exam');
+  });
 });

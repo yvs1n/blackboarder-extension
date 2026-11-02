@@ -7,7 +7,7 @@ import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusPr
 import { buildGpaSummary } from '../utils/gpa';
 import { gradesHtml, gradesBadgeText, archivedSemesterHtml } from '../utils/grades';
 import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
-import { calculateCgpa, archiveActiveSemester, detectSemesterName } from '../core/semesters';
+import { calculateCgpa, archiveActiveSemester, detectSemesterName, partitionCoursesBySemester, autoPartitionPastSemesters } from '../core/semesters';
 import type { ArchivedSemester } from '../types';
 import { pickNewerList } from '../utils/syncMerge';
 import { initUniversitySettings, getCachedProfile, renderStudentIdentity } from './universitySettings';
@@ -1985,6 +1985,17 @@ async function updateSemesterSelector(): Promise<void> {
   if (!select) return;
   cachedSemesters = await getStoredSemesters();
 
+  const autoPartitionBtn = document.getElementById('btn-auto-partition-semesters') as HTMLButtonElement | null;
+  if (autoPartitionBtn) {
+    const partitions = partitionCoursesBySemester(currentUserCourses, currentTasks);
+    if (partitions.length > 1) {
+      autoPartitionBtn.style.display = 'inline-flex';
+      autoPartitionBtn.textContent = `Organize Terms (${partitions.length})`;
+    } else {
+      autoPartitionBtn.style.display = 'none';
+    }
+  }
+
   const currentVal = select.value || selectedSemesterViewId || 'active';
   let html = `<option value="active">Active Semester</option>`;
   if (cachedSemesters.length > 0) {
@@ -2004,6 +2015,8 @@ async function updateSemesterSelector(): Promise<void> {
     selectedSemesterViewId = 'active';
   }
 }
+
+const selectedTargetGrades = new Map<string, string>();
 
 function renderGradeTracker(tasks: DeadlineTask[]) {
   const gradesCard = document.getElementById('grades-tracker');
@@ -2047,7 +2060,10 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
       name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
       scale,
       fromSyllabus: !profile?.gradeScale && uni.cutoffsFromSyllabus
-    }, cumulative);
+    }, cumulative, {
+      tasks,
+      selectedTargets: Object.fromEntries(selectedTargetGrades)
+    });
   }
 
   // Syllabus Progress card
@@ -2063,6 +2079,43 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
 function initGradeTrackerToggle() {
   wireCollapsible('grades-tracker-toggle-btn', 'grades-tracker-breakdown');
   wireCollapsible('syllabus-tracker-toggle-btn', 'syllabus-tracker-breakdown');
+
+  const gradesBody = document.getElementById('grades-tracker-breakdown');
+  gradesBody?.addEventListener('click', (e) => {
+    const chip = (e.target as HTMLElement).closest('.target-chip') as HTMLElement | null;
+    if (!chip) return;
+    const course = chip.getAttribute('data-course');
+    const letter = chip.getAttribute('data-letter');
+    if (course && letter) {
+      selectedTargetGrades.set(course, letter);
+      renderGradeTracker(currentTasks);
+    }
+  });
+
+  const autoPartitionBtn = document.getElementById('btn-auto-partition-semesters');
+  autoPartitionBtn?.addEventListener('click', async () => {
+    const profile = getCachedProfile();
+    const scale = profileGradeScale(profile);
+    const res = autoPartitionPastSemesters({
+      courses: currentUserCourses,
+      tasks: currentTasks,
+      scale,
+      existingSemesters: cachedSemesters,
+      mode: 'full'
+    });
+    if (res.partitionedCoursesCount > 0) {
+      currentUserCourses = res.activeCourses;
+      currentTasks = res.activeTasks;
+      cachedSemesters = res.archivedSemesters;
+      await saveUserCourses(currentUserCourses);
+      await saveTasksMergingLatest(currentTasks);
+      await saveStoredSemesters(cachedSemesters);
+      await updateSemesterSelector();
+      renderGradeTracker(currentTasks);
+      renderUserCoursesManager();
+      renderTasks();
+    }
+  });
 
   // Semester Selector dropdown
   const select = document.getElementById('select-semester-view') as HTMLSelectElement | null;

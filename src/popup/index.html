@@ -276,7 +276,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.4.43</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.4.44</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -488,9 +488,14 @@
             <option value="active">Current Term (Active)</option>
           </select>
         </div>
-        <button type="button" class="btn-secondary" id="btn-open-archive-semester" style="font-size: 10.5px; padding: 3px 8px; min-height: 26px; flex-shrink: 0;" title="Archive current semester courses and marks">
-          + Archive Term
-        </button>
+        <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
+          <button type="button" class="btn-secondary" id="btn-auto-partition-semesters" style="display: none; font-size: 10.5px; padding: 3px 8px; min-height: 26px; flex-shrink: 0;" title="Separate older semester courses into past terms">
+            Organize Terms
+          </button>
+          <button type="button" class="btn-secondary" id="btn-open-archive-semester" style="font-size: 10.5px; padding: 3px 8px; min-height: 26px; flex-shrink: 0;" title="Archive current semester courses and marks">
+            + Archive Term
+          </button>
+        </div>
       </div>
 
       <!-- Grades: projected GPA, each course's grade so far and every mark under it (same card as the phone app) -->
@@ -1093,7 +1098,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.43</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.4.44</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
