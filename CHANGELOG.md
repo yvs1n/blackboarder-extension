@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.48] - 2026-11-02
+
+### Changed
+
+- **Compact Current Term Grades Layout:** Removed bulky nested outer settings card wrapper around course marks, reduced row padding and whitespace, and eliminated left indentation to restore the dense, scannable layout from the Courses tab.
+- **Balanced Dual-Column GPA Overview:** Restructured top stat cards into symmetrical, equal-height Current Standing vs Academic Goal blocks. Cumulative and Projected CGPA are displayed conditionally only when differing from Term SGPA to eliminate confusing duplicate numbers, while target chips and custom inputs are organized in a dedicated full-width goal bar below the cards.
+- **Explicit Percentage Display for Predicted Grades:** Displayed predicted grades explicitly as percentages in course card headers, status lines, target selection chips, and upcoming assessment score targets.
+
 ## [1.4.47] - 2026-11-02
 
 ### Added

@@ -78,6 +78,8 @@ export function gradesHtml(
 
   // Calculate Projected Cumulative CGPA
   let projectedCgpaText = '';
+  let projCgpaVal: number | null = null;
+  let projTotalCred = 0;
   if (trajectoryPlan) {
     const plannedTermGpa = trajectoryPlan.plannedGpa;
     const termCredits = gpa.totalCredits > 0 ? gpa.totalCredits : 15;
@@ -86,11 +88,13 @@ export function gradesHtml(
       const priorWeighted = (cumulative.cgpa || 0) * (cumulative.totalGradedCredits || 0);
       const activeWeighted = (gpa.gpa || 0) * (gpa.gradedCredits || 0);
       const priorPoints = Math.max(0, priorWeighted - activeWeighted);
-      const projTotalCred = priorCredits + termCredits;
+      projTotalCred = priorCredits + termCredits;
       const projTotalPts = priorPoints + (plannedTermGpa * termCredits);
-      const projCgpa = projTotalCred > 0 ? (projTotalPts / projTotalCred) : plannedTermGpa;
-      projectedCgpaText = `Projected CGPA: <strong class="marks-gpa-cgpa-val">${projCgpa.toFixed(2)}</strong> (${projTotalCred} cr)`;
+      projCgpaVal = projTotalCred > 0 ? (projTotalPts / projTotalCred) : plannedTermGpa;
+      projectedCgpaText = `Projected CGPA: <strong class="marks-gpa-cgpa-val">${projCgpaVal.toFixed(2)}</strong> (${projTotalCred} cr)`;
     } else {
+      projTotalCred = termCredits;
+      projCgpaVal = plannedTermGpa;
       projectedCgpaText = `Projected CGPA: <strong class="marks-gpa-cgpa-val">${plannedTermGpa.toFixed(2)}</strong> (${termCredits} cr)`;
     }
   }
@@ -99,7 +103,7 @@ export function gradesHtml(
   let targetExplanation = '';
   if (trajectoryPlan) {
     if (!trajectoryPlan.possible) {
-      targetExplanation = `<div class="target-plan-unattainable">
+      targetExplanation = `<div class="target-plan-unattainable" style="margin-top: 6px;">
         <span class="target-unattainable-title">Target ${targetGpaVal.toFixed(2)} is mathematically unattainable</span>
         <span class="target-unattainable-sub">Highest achievable Term SGPA is <strong>${trajectoryPlan.maxPossibleGpa.toFixed(2)}</strong>.</span>
         <button type="button" class="btn-xs-manage-links btn-set-max-gpa" data-max-gpa="${trajectoryPlan.maxPossibleGpa.toFixed(2)}">Set to Max (${trajectoryPlan.maxPossibleGpa.toFixed(2)})</button>
@@ -107,71 +111,75 @@ export function gradesHtml(
     } else if (Math.abs(trajectoryPlan.plannedGpa - targetGpaVal) >= 0.005) {
       const diff = trajectoryPlan.plannedGpa - targetGpaVal;
       const sign = diff >= 0 ? '+' : '';
-      targetExplanation = `<div class="target-rounding-note">
+      targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
         <span class="target-rounding-title">Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} SGPA</strong> (${sign}${diff.toFixed(2)})</span>
         <span class="target-rounding-sub">University grades round to discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.</span>
-      </div>`;
-    } else {
-      targetExplanation = `<div class="target-rounding-note">
-        <span class="target-rounding-title">Exact target matched: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} SGPA</strong></span>
       </div>`;
     }
   }
 
-  // SECTION 1: Dual-Column GPA Overview
+  // SECTION 1: Dual-Column GPA Overview (Clean, balanced & symmetrical)
   const termVal = gpa.gpa === undefined ? '-' : gpa.gpa.toFixed(2);
   const cgpaVal = (cumulative?.cgpa !== undefined) ? cumulative.cgpa.toFixed(2) : '-';
   const totalGradedCreds = cumulative?.totalGradedCredits || gpa.gradedCredits || 0;
 
+  const hasDiffCgpa = Boolean(
+    cumulative &&
+    cumulative.cgpa !== undefined &&
+    gpa.gpa !== undefined &&
+    Math.abs(cumulative.cgpa - gpa.gpa) > 0.001
+  );
+
   const progressRow = (cumulative && cumulative.degreeProgressPercent !== undefined)
-    ? `<div class="gpa-progress-wrap" title="${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} degree credits completed" style="grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
-         <div class="gpa-progress-track" style="height: 5px; background: var(--surface-border); width: 100%; border-radius: 0;"><div class="gpa-progress-bar" style="height: 100%; background: var(--primary); width:${cumulative.degreeProgressPercent}%;"></div></div>
-         <span class="gpa-progress-text" style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; display: block;">Degree Progress: ${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} cr completed (${cumulative.degreeProgressPercent}%)</span>
+    ? `<div class="gpa-progress-wrap" title="${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} degree credits completed" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--surface-border);">
+         <div class="gpa-progress-track" style="height: 4px; background: var(--surface-border); width: 100%; border-radius: 0;"><div class="gpa-progress-bar" style="height: 100%; background: var(--primary); width:${cumulative.degreeProgressPercent}%;"></div></div>
+         <span class="gpa-progress-text" style="font-size: 10px; color: var(--text-muted); margin-top: 3px; display: block;">Degree Progress: ${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} cr completed (${cumulative.degreeProgressPercent}%)</span>
        </div>`
     : '';
 
-  const targetBoxHtml = trajectoryPlan ? `
-    <div class="marks-gpa-col gpa-stat-target" style="padding: 10px 12px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-        <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Academic Goal</span>
-        <div style="display: flex; align-items: center; gap: 3px;">
-          <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.50" style="padding: 1px 5px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-          <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.75" style="padding: 1px 5px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
-          <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="4.00" style="padding: 1px 5px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
-          <input type="number" id="input-target-term-gpa" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetGpaVal.toFixed(2)}" style="width: 52px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
-        </div>
-      </div>
-      <div style="display: flex; align-items: baseline; gap: 8px;">
-        <span class="marks-gpa-big is-target" style="font-size: 26px; font-weight: 800; color: var(--primary);">${trajectoryPlan.plannedGpa.toFixed(2)}</span>
-        <span style="font-size: 11px; color: var(--text-muted);">Target SGPA (Plan)</span>
-      </div>
-      <div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
-        ${projectedCgpaText}
-      </div>
-      ${targetExplanation}
-    </div>
-  ` : '';
-
   const gpaOverviewHtml = `
-    <div class="marks-gpa-overview" style="margin-bottom: 12px;">
+    <div class="marks-gpa-overview" style="margin-bottom: 8px;">
       <div class="gpa-head-dual" style="display: grid; grid-template-columns: ${trajectoryPlan ? '1fr 1fr' : '1fr'}; gap: 8px;">
-        <div class="marks-gpa-col gpa-stat-current" style="padding: 10px 12px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column;">
-          <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 6px;">Current Standing</span>
+        <div class="marks-gpa-col gpa-stat-current" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
+          <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Current Standing</span>
           <div style="display: flex; align-items: baseline; gap: 8px;">
-            <span class="marks-gpa-big" style="font-size: 26px; font-weight: 800; color: var(--text-main);">${termVal}</span>
+            <span class="marks-gpa-big" style="font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1;">${termVal}</span>
             <span style="font-size: 11px; color: var(--text-muted);">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
           </div>
-          <div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 3px;">
-            Cumulative CGPA: <strong class="marks-gpa-cgpa-val">${cgpaVal}</strong> (${totalGradedCreds} cr)
+          ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">Cumulative CGPA: <strong class="marks-gpa-cgpa-val">${cgpaVal}</strong> (${totalGradedCreds} cr)</div>` : ''}
+        </div>
+
+        ${trajectoryPlan ? `
+        <div class="marks-gpa-col gpa-stat-target" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
+          <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Academic Goal</span>
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span class="marks-gpa-big is-target" style="font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1;">${trajectoryPlan.plannedGpa.toFixed(2)}</span>
+            <span style="font-size: 11px; color: var(--text-muted);">Planned SGPA</span>
+          </div>
+          ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">${projectedCgpaText}</div>` : ''}
+        </div>
+        ` : ''}
+      </div>
+
+      ${trajectoryPlan ? `
+      <div class="marks-gpa-goal-bar" style="margin-top: 6px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--surface-border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 11px; font-weight: 700; color: var(--text-main);">Target Term SGPA:</span>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.50" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+            <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.75" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
+            <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="4.00" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+            <input type="number" id="input-target-term-gpa" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetGpaVal.toFixed(2)}" style="width: 52px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
           </div>
         </div>
-        ${targetBoxHtml}
-        ${progressRow}
+        ${targetExplanation}
       </div>
+      ` : ''}
+      ${progressRow}
     </div>
   `;
 
-  // SECTION 2: Current Term Course Grades
+  // SECTION 2: Current Term Course Grades (Clean & compact, matching Courses tab layout)
   const courseRows = gpa.courses.map(c => {
     const courseMarks = marksByCourse.get(c.courseName);
     marksByCourse.delete(c.courseName);
@@ -200,24 +208,18 @@ export function gradesHtml(
   }
 
   const currentGradesCard = `
-    <div class="settings-card marks-card-section" id="marks-card-current-grades" style="margin-bottom: 12px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 0;">
-      <div class="settings-card-header" style="padding: 10px 12px; border-bottom: 1px solid var(--surface-border); display: flex; align-items: center; justify-content: space-between;">
-        <div class="settings-icon-title" style="display: flex; align-items: center; gap: 8px;">
-          <span class="card-icon" style="color: var(--primary);"><svg class="ui-icon"><use href="#icon-star"></use></svg></span>
-          <div>
-            <h3 class="settings-card-title" style="font-size: 12px; font-weight: 700; margin: 0; color: var(--text-main);">Current Term Grades</h3>
-            <p class="settings-card-subtitle" style="font-size: 10px; color: var(--text-muted); margin: 2px 0 0;">Course scores and gradebook marks recorded so far</p>
-          </div>
-        </div>
-        <span class="settings-pill pill-blue" style="font-size: 10px; font-weight: 600; padding: 2px 8px; border: 1px solid var(--surface-border); background: var(--surface-hover);">${marks.gradedCount} Graded · ${gpa.courses.length} Courses</span>
+    <div class="marks-section-wrap" id="marks-card-current-grades" style="margin-top: 10px; margin-bottom: 8px;">
+      <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Current Term Grades</span>
+        <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${marks.gradedCount} Graded · ${gpa.courses.length} Courses</span>
       </div>
-      <div class="settings-card-body" style="padding: 8px 12px;">
+      <div class="marks-courses-list" style="display: flex; flex-direction: column; gap: 4px;">
         ${courseRows.join('')}
       </div>
     </div>
   `;
 
-  // SECTION 3: Target Grade Breakdown & Trajectory Planner
+  // SECTION 3: Target Grade Breakdown & Trajectory Planner (Predicted Grade as Percentage)
   let targetBreakdownCard = '';
   if (trajectoryPlan && trajectoryPlan.courses.length > 0) {
     const targetCardsHtml = trajectoryPlan.courses.map(pc => {
@@ -235,7 +237,7 @@ export function gradesHtml(
         || validTargets[0]
         || targetAnalysis.targets[0];
 
-      // Interactive target selector chips
+      // Interactive target selector chips with percentage cutoffs
       const pills = targetAnalysis.targets.slice(0, 5).map(t => {
         const isSel = activeTarget && t.letter === activeTarget.letter;
         const isUnattainable = t.unattainable;
@@ -244,24 +246,24 @@ export function gradesHtml(
           ? `Unattainable (max possible ${targetAnalysis.maxPossiblePercent}%)`
           : isGuaranteed
           ? `Guaranteed (already earned ${targetAnalysis.earnedWeight}%)`
-          : `Need ${t.requiredPercent}% on remaining ${targetAnalysis.remainingWeight}% weight`;
+          : `Need ${t.requiredPercent}% on remaining ${targetAnalysis.remainingWeight}% weight to earn ${t.letter} (${t.minPercent}%)`;
         const cls = ['target-chip', isSel ? 'is-active' : '', isUnattainable ? 'is-unattainable' : '', isGuaranteed ? 'is-guaranteed' : ''].filter(Boolean).join(' ');
-        return `<button type="button" class="${cls}" data-course="${esc(pc.courseName)}" data-letter="${esc(t.letter)}" title="${esc(title)}">${esc(t.letter)}</button>`;
+        return `<button type="button" class="${cls}" data-course="${esc(pc.courseName)}" data-letter="${esc(t.letter)}" title="${esc(title)}">${esc(t.letter)} <span style="font-size: 9px; opacity: 0.85;">${t.minPercent}%</span></button>`;
       }).join('');
 
-      // Status text
+      // Status text showing predicted grade as percentage
       let targetDesc = '';
       if (!activeTarget) {
         targetDesc = `<span class="target-desc-dim">No target available</span>`;
       } else if (activeTarget.guaranteed) {
-        targetDesc = `<span class="target-desc-highlight" style="color: var(--text-main); font-weight: 700;">Grade ${esc(activeTarget.letter)} guaranteed</span> (${targetAnalysis.earnedWeight}% earned &ge; ${activeTarget.minPercent}% cutoff)`;
+        targetDesc = `<span class="target-desc-highlight" style="color: var(--text-main); font-weight: 700;">Grade ${activeTarget.minPercent}% (${esc(activeTarget.letter)}) guaranteed</span> (${targetAnalysis.earnedWeight}% earned &ge; ${activeTarget.minPercent}% cutoff)`;
       } else if (activeTarget.unattainable) {
-        targetDesc = `<span class="target-desc-dim" style="color: var(--text-muted);">Grade ${esc(activeTarget.letter)} unattainable (max possible is ${targetAnalysis.maxPossiblePercent}%)</span>`;
+        targetDesc = `<span class="target-desc-dim" style="color: var(--text-muted);">Grade ${activeTarget.minPercent}% (${esc(activeTarget.letter)}) unattainable (max possible is ${targetAnalysis.maxPossiblePercent}%)</span>`;
       } else {
         const reqDisplay = (activeTarget.letter === pc.targetLetter && pc.displayRange)
           ? pc.displayRange
           : `${activeTarget.requiredPercent}%`;
-        targetDesc = `Target <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${esc(activeTarget.letter)}</strong> (${activeTarget.minPercent}% cutoff): Need <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${reqDisplay}</strong> on remaining ${targetAnalysis.remainingWeight}% weight.`;
+        targetDesc = `Predicted Grade: <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${activeTarget.minPercent}% (${esc(activeTarget.letter)})</strong>. Need <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${reqDisplay}</strong> on remaining ${targetAnalysis.remainingWeight}% weight.`;
       }
 
       // Visual Trajectory Bar
@@ -270,12 +272,12 @@ export function gradesHtml(
         const earnedW = Math.min(100, Math.max(0, targetAnalysis.earnedWeight));
         const neededW = Math.max(0, Math.min(100 - earnedW, activeTarget.minPercent - earnedW));
         trajectoryBarHtml = `
-          <div class="trajectory-graph-wrap" style="margin-top: 6px; padding: 4px 6px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
-            <div class="trajectory-bar-track" style="position: relative; height: 6px; background: var(--surface-border); width: 100%; border-radius: 0;">
+          <div class="trajectory-graph-wrap" style="margin-top: 5px; padding: 4px 6px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
+            <div class="trajectory-bar-track" style="position: relative; height: 5px; background: var(--surface-border); width: 100%; border-radius: 0;">
               <div class="trajectory-bar-earned" style="position: absolute; left: 0; top: 0; bottom: 0; width: ${earnedW}%; background: var(--primary);" title="Earned: ${earnedW}%"></div>
               ${neededW > 0 ? `<div class="trajectory-bar-needed" style="position: absolute; left: ${earnedW}%; top: 0; bottom: 0; width: ${neededW}%; background: var(--text-muted); opacity: 0.65;" title="Needed to reach ${activeTarget.minPercent}% cutoff"></div>` : ''}
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); margin-top: 4px; font-weight: 500;">
+            <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); margin-top: 3px; font-weight: 500;">
               <span>Earned: <strong style="color: var(--text-main);">${earnedW}%</strong></span>
               <span>Cutoff: <strong style="color: var(--text-main);">${activeTarget.minPercent}% (${esc(activeTarget.letter)})</strong></span>
               <span>Max: <strong style="color: var(--text-main);">${targetAnalysis.maxPossiblePercent}%</strong></span>
@@ -284,7 +286,7 @@ export function gradesHtml(
         `;
       }
 
-      // Upcoming Tasks list
+      // Upcoming Tasks list showing target scores as percentages
       const upcomingTasks = (activeTarget.upcomingTasks && activeTarget.upcomingTasks.length > 0)
         ? activeTarget.upcomingTasks
         : pc.upcomingTasks;
@@ -292,34 +294,35 @@ export function gradesHtml(
       let upcomingTasksHtml = '';
       if (upcomingTasks && upcomingTasks.length > 0) {
         const rows = upcomingTasks.map(u => {
-          const scoreDisplay = u.displayRange ? u.displayRange : `${u.targetScore}/${u.maxScore}`;
+          const scorePercent = u.displayRange || `${Math.round(u.targetScore / u.maxScore * 100)}%`;
+          const scoreRaw = `${u.targetScore}/${u.maxScore}`;
           return `
-            <div class="target-task-item" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; padding: 3px 0; border-top: 1px solid var(--surface-border);">
+            <div class="target-task-item" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; padding: 2px 0; border-top: 1px solid var(--surface-border);">
               <span class="target-task-name" style="display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1;">
                 <svg class="ui-icon" style="width: 12px; height: 12px; color: var(--text-muted); flex-shrink: 0;"><use href="#icon-pencil"></use></svg>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${esc(u.title)}${u.weight ? ` <span style="color: var(--text-muted); font-size: 10px;">(${u.weight}%)</span>` : ''}</span>
               </span>
-              <span class="target-task-score" style="font-weight: 700; color: var(--text-main); font-size: 11px; flex-shrink: 0;">Score ${scoreDisplay}</span>
+              <span class="target-task-score" style="font-weight: 700; color: var(--text-main); font-size: 11px; flex-shrink: 0;">Score ${scorePercent} <span style="font-size: 10px; font-weight: normal; color: var(--text-muted);">(${scoreRaw})</span></span>
             </div>
           `;
         }).join('');
 
         upcomingTasksHtml = `
-          <div class="target-task-list" style="margin-top: 6px; display: flex; flex-direction: column;">
+          <div class="target-task-list" style="margin-top: 5px; display: flex; flex-direction: column;">
             ${rows}
           </div>
         `;
       } else if (targetAnalysis.remainingWeight > 0) {
         upcomingTasksHtml = `
-          <div style="font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic;">
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; font-style: italic;">
             No upcoming dues announced yet. Scoring required on remaining ${targetAnalysis.remainingWeight}% assessment weight.
           </div>
         `;
       }
 
       return `
-        <div class="target-course-card" data-course="${esc(pc.courseName)}" style="padding: 10px 12px; background: var(--surface); border: 1px solid var(--surface-border); margin-bottom: 8px;">
-          <div class="target-course-header" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+        <div class="target-course-card" data-course="${esc(pc.courseName)}" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); margin-bottom: 6px;">
+          <div class="target-course-header" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
               <span class="marks-dot" style="background:${esc(colorFor(pc.courseName))};"></span>
               <strong style="font-size: 12px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${esc(pc.courseName)}</strong>
@@ -327,16 +330,16 @@ export function gradesHtml(
             </div>
             <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
               <span class="target-trend-pill" data-trend="${pc.trend.direction}" style="font-size: 10px; font-weight: 600; padding: 1px 6px; border: 1px solid var(--surface-border); background: var(--surface-hover); color: var(--text-muted);" title="Momentum based on recent marks">${esc(pc.trend.label)}</span>
-              <span class="info-badge blue" style="font-size: 10.5px; font-weight: 700;">Target ${esc(activeTarget.letter)} (${activeTarget.minPercent}%)</span>
+              <span class="info-badge blue" style="font-size: 10.5px; font-weight: 700;">Predicted: ${activeTarget.minPercent}% (${esc(activeTarget.letter)})</span>
             </div>
           </div>
           ${trajectoryBarHtml}
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4;">
+          <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.35;">
             ${targetDesc}
           </div>
           ${upcomingTasksHtml}
-          <div class="gpa-target-wrap" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--surface-border);">
-            <span class="gpa-target-label" style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Target Grade:</span>
+          <div class="gpa-target-wrap" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--surface-border);">
+            <span class="gpa-target-label" style="font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Predicted Goal:</span>
             <div class="gpa-target-chips" style="display: flex; gap: 3px;">
               ${pills}
             </div>
@@ -346,18 +349,12 @@ export function gradesHtml(
     }).join('');
 
     targetBreakdownCard = `
-      <div class="settings-card marks-card-section" id="marks-card-target-breakdown" style="margin-bottom: 12px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 0;">
-        <div class="settings-card-header" style="padding: 10px 12px; border-bottom: 1px solid var(--surface-border); display: flex; align-items: center; justify-content: space-between;">
-          <div class="settings-icon-title" style="display: flex; align-items: center; gap: 8px;">
-            <span class="card-icon" style="color: var(--primary);"><svg class="ui-icon"><use href="#icon-list-check"></use></svg></span>
-            <div>
-              <h3 class="settings-card-title" style="font-size: 12px; font-weight: 700; margin: 0; color: var(--text-main);">Target Grade Breakdown</h3>
-              <p class="settings-card-subtitle" style="font-size: 10px; color: var(--text-muted); margin: 2px 0 0;">Trajectory-weighted score targets for upcoming dues</p>
-            </div>
-          </div>
-          <span class="settings-pill pill-blue" style="font-size: 10px; font-weight: 600; padding: 2px 8px; border: 1px solid var(--surface-border); background: var(--surface-hover);">${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</span>
+      <div class="marks-section-wrap" id="marks-card-target-breakdown" style="margin-top: 10px; margin-bottom: 8px;">
+        <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
+          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Target Grade Breakdown</span>
+          <span class="info-badge blue" style="font-size: 10px; font-weight: 700;">${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</span>
         </div>
-        <div class="settings-card-body" style="padding: 8px 12px;">
+        <div class="marks-targets-list" style="display: flex; flex-direction: column; gap: 4px;">
           ${targetCardsHtml}
         </div>
       </div>
@@ -414,18 +411,12 @@ export function archivedSemesterHtml(
   }).join('');
 
   const currentGradesCard = `
-    <div class="settings-card marks-card-section" style="margin-bottom: 12px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 0;">
-      <div class="settings-card-header" style="padding: 10px 12px; border-bottom: 1px solid var(--surface-border); display: flex; align-items: center; justify-content: space-between;">
-        <div class="settings-icon-title" style="display: flex; align-items: center; gap: 8px;">
-          <span class="card-icon" style="color: var(--primary);"><svg class="ui-icon"><use href="#icon-book"></use></svg></span>
-          <div>
-            <h3 class="settings-card-title" style="font-size: 12px; font-weight: 700; margin: 0; color: var(--text-main);">Archived Term Courses</h3>
-            <p class="settings-card-subtitle" style="font-size: 10px; color: var(--text-muted); margin: 2px 0 0;">Final grades recorded for ${esc(semester.name)}</p>
-          </div>
-        </div>
-        <span class="settings-pill pill-blue" style="font-size: 10px; font-weight: 600; padding: 2px 8px; border: 1px solid var(--surface-border); background: var(--surface-hover);">${semester.courses?.length || 0} Courses</span>
+    <div class="marks-section-wrap" style="margin-top: 10px; margin-bottom: 8px;">
+      <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Archived Term Courses</span>
+        <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${semester.courses?.length || 0} Courses</span>
       </div>
-      <div class="settings-card-body" style="padding: 8px 12px;">
+      <div class="marks-courses-list" style="display: flex; flex-direction: column; gap: 4px;">
         ${rows || '<div class="marks-empty">No course records in this archived semester.</div>'}
       </div>
     </div>
