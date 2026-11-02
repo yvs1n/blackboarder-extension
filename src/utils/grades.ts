@@ -56,6 +56,7 @@ export function gradesHtml(
     targetGpaMode?: 'cgpa' | 'term';
     showGuide?: boolean;
     courseCodes?: Map<string, string>;
+    openTargetBreakdown?: boolean;
   }
 ): string {
   if (!gpa.courses.length && !marks.courses.length) {
@@ -531,13 +532,26 @@ export function gradesHtml(
       `;
     }).join('');
 
+    let isOpen = false;
+    if (typeof options?.openTargetBreakdown === 'boolean') {
+      isOpen = options.openTargetBreakdown;
+    } else if (typeof localStorage !== 'undefined') {
+      try { isOpen = localStorage.getItem('bbs_open_target_breakdown') === '1'; } catch {}
+    }
+
     targetBreakdownCard = `
-      <div class="marks-section-wrap" id="marks-card-target-breakdown" style="margin-top: 10px; margin-bottom: 8px;">
-        <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
-          <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Target Grade Breakdown</span>
-          <span class="info-badge blue" style="font-size: 10px; font-weight: 700;">${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</span>
-        </div>
-        <div class="marks-targets-list" style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="grade-tracker-widget course-summary-card target-breakdown-card" id="marks-card-target-breakdown" style="margin-top: 10px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 0;">
+        <button type="button" class="grade-tracker-header target-breakdown-header" id="target-breakdown-toggle-btn" aria-expanded="${isOpen ? 'true' : 'false'}" style="width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: transparent; border: 0; color: var(--text-main); font: inherit; text-align: left; cursor: pointer;">
+          <span class="course-summary-title" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;">
+            <svg class="ui-icon" style="width: 15px; height: 15px; color: var(--primary);"><use href="#icon-list-check"></use></svg>
+            <span>Target Grade Breakdown</span>
+          </span>
+          <span class="course-summary-right" style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <span class="info-badge blue" style="font-size: 11px;">${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</span>
+            <svg class="course-summary-arrow ui-icon" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
+          </span>
+        </button>
+        <div class="grade-tracker-breakdown target-breakdown-content" id="target-breakdown-content"${isOpen ? '' : ' hidden'} style="display: ${isOpen ? 'flex' : 'none'}; flex-direction: column; gap: 6px; margin: 0; padding: 0 10px 10px;">
           ${targetCardsHtml}
         </div>
       </div>

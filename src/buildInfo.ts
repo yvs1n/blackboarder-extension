@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.4.49",
-  "build": "28bcda28a47d",
-  "commit": "d50af5cfb792cabd0b8ad6cda4fd057b373976ac",
-  "shortCommit": "d50af5c",
-  "timestamp": "2026-11-02T17:02:50.639Z",
-  "message": "feat: compact term grades, balanced gpa overview, and percentage display for predicted grades",
+  "version": "1.4.50",
+  "build": "e034711f6e66",
+  "commit": "609c8db6a699d8710ed955930a1367e7f09b527f",
+  "shortCommit": "609c8db",
+  "timestamp": "2026-11-02T17:19:42.550Z",
+  "message": "feat: course-styled marks cards, cumulative scholarship gpa mode, and predictor guide",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

@@ -95,13 +95,34 @@ describe('Grades card (GPA and marks together)', () => {
     expect(fullHtml).toContain('id="marks-card-current-grades"');
     expect(fullHtml).toContain('Current Term Grades');
 
-    // Section 3: Target Grade Breakdown
+    // Section 3: Target Grade Breakdown (Accordion Dropdown)
     expect(fullHtml).toContain('id="marks-card-target-breakdown"');
+    expect(fullHtml).toContain('id="target-breakdown-toggle-btn"');
+    expect(fullHtml).toContain('id="target-breakdown-content"');
     expect(fullHtml).toContain('Target Grade Breakdown');
     expect(fullHtml).toContain('target-course-card');
     expect(fullHtml).toContain('trajectory-bar-track');
     expect(fullHtml).toContain('target-task-item');
     expect(fullHtml).not.toMatch(/\u2014/);
+  });
+
+  it('renders Target Grade Breakdown accordion open when openTargetBreakdown option is true', () => {
+    const closedHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, undefined, {
+      tasks: [],
+      targetTermGpa: 3.80,
+      openTargetBreakdown: false
+    });
+    expect(closedHtml).toContain('id="target-breakdown-toggle-btn" aria-expanded="false"');
+    expect(closedHtml).toContain('id="target-breakdown-content" hidden');
+
+    const openHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, undefined, {
+      tasks: [],
+      targetTermGpa: 3.80,
+      openTargetBreakdown: true
+    });
+    expect(openHtml).toContain('id="target-breakdown-toggle-btn" aria-expanded="true"');
+    expect(openHtml).toContain('id="target-breakdown-content" style="display: flex');
+    expect(openHtml).not.toContain('id="target-breakdown-content" hidden');
   });
 
   it('renders course marks cards with left accent borders and footer status bars', () => {

@@ -2104,6 +2104,20 @@ function initGradeTrackerToggle() {
 
   const gradesBody = document.getElementById('grades-tracker-breakdown');
   gradesBody?.addEventListener('click', async (e) => {
+    const targetToggleBtn = (e.target as HTMLElement).closest('#target-breakdown-toggle-btn, .target-breakdown-header') as HTMLElement | null;
+    if (targetToggleBtn) {
+      const content = document.getElementById('target-breakdown-content');
+      if (content) {
+        const isCurrentlyOpen = !content.hidden;
+        const nextOpen = !isCurrentlyOpen;
+        content.hidden = !nextOpen;
+        content.style.display = nextOpen ? 'flex' : 'none';
+        targetToggleBtn.setAttribute('aria-expanded', String(nextOpen));
+        try { localStorage.setItem('bbs_open_target_breakdown', nextOpen ? '1' : '0'); } catch {}
+      }
+      return;
+    }
+
     const guideToggle = (e.target as HTMLElement).closest('#btn-toggle-gpa-guide') as HTMLElement | null;
     if (guideToggle) {
       const panel = document.getElementById('gpa-predictor-guide');

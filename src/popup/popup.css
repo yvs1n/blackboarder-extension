@@ -5228,6 +5228,47 @@ h1, h2, h3 {
 }
 
 /* Target Grade Breakdown & Course Cards */
+.target-breakdown-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  box-shadow: none;
+}
+.target-breakdown-header {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0 !important;
+}
+.target-breakdown-header:focus-visible {
+  outline: 2px solid var(--text-main);
+  outline-offset: -2px;
+}
+.target-breakdown-header[aria-expanded="true"] .course-summary-arrow {
+  transform: rotate(90deg);
+}
+.target-breakdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 10px 10px;
+}
+.target-breakdown-content[hidden] {
+  display: none !important;
+}
 .marks-section-wrap {
   margin-top: 10px;
   margin-bottom: 8px;

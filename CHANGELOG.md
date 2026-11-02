@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.50] - 2026-11-02
+
+### Changed
+
+- **Target Grade Breakdown Accordion Dropdown:** Transformed the Target Grade Breakdown section in the Marks tab from a static full-width card into a collapsible accordion dropdown matching the `course-summary-card` widget styling. Positioned cleanly below Current Term Grades, featuring a header toggle with course summary list icon, planned SGPA indicator pill, rotating chevron arrow, collapsible body, and local storage state persistence (`bbs_open_target_breakdown`).
+
+### Fixed
+
+- **Restored Missing SVG Icons:** Added definitions for `#icon-help-circle` and `#icon-award` in the SVG sprites of both the Chrome extension (`src/popup/index.html`) and mobile web companion (`mobile-web/companion/index.html`), ensuring the "How the GPA & Scholarship Predictor Works" button icon and award badge render crisply in all environments.
+
 ## [1.4.49] - 2026-11-02
 
 ### Added
