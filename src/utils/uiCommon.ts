@@ -35,3 +35,14 @@ export function getTaskTypeIcon(type: TaskType | string = '', extraClass: string
     default: return getSvgIcon('pin', extraClass);
   }
 }
+
+/**
+ * Formats a 24-hour time (hour, minute) into standard 12-hour AM/PM format (e.g. "08:30 AM", "01:15 PM").
+ */
+export function format12Hour(hour: number, minute: number): string {
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  const padH = String(h12).padStart(2, '0');
+  const padM = String(minute).padStart(2, '0');
+  return `${padH}:${padM} ${period}`;
+}

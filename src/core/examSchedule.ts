@@ -8,6 +8,7 @@ import { resolveCourseInfo, parseCourseDetails } from './courseHelper';
 import { getActiveUserCourses, compileCoursePattern } from './userCourses';
 import { resolveTaskWeight } from './syllabusWeights';
 import { resolveTaskRoom, isPlausibleRoom } from './courseSchedule';
+import { format12Hour } from '../utils/uiCommon';
 
 export interface ExamScheduleRow {
   crn: string;
@@ -30,12 +31,6 @@ export interface ParsedExamTime {
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
-
-function format12Hour(hour: number, minute: number): string {
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${pad2(h12)}:${pad2(minute)} ${period}`;
-}
 
 /**
  * Parses a Banner exam time such as "08:30AM", "12:30PM", or Banner's 24-hour+PM hybrid

@@ -4,6 +4,7 @@
  * wherever the device is), the same as they were typed in.
  */
 import type { UserCourseConfig } from '../types';
+import { escapeHtml as esc } from '../utils/uiCommon';
 
 export interface ClassOccurrence {
   /** Stable per class meeting: course, date and start time */
@@ -144,10 +145,6 @@ export function classReminderText(o: ClassOccurrence, now: Date): { title: strin
     title: `Class ${startsIn(o.start, now)}: ${o.courseName}`,
     body: `${formatClock(o.start)} to ${formatClock(o.end)}${where}`
   };
-}
-
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
 /**

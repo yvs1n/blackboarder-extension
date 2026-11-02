@@ -3187,23 +3187,20 @@ async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
         renderQuickLinksManager();
       }
 
-      if (Array.isArray(res.courses)) {
-        const localUpdatedAt = await getCoursesUpdatedAt();
-        const cloudTime = res.coursesUpdatedAt ? new Date(res.coursesUpdatedAt).getTime() : 0;
-        const localTime = localUpdatedAt ? new Date(localUpdatedAt).getTime() : 0;
-
-        // Only overwrite local courses if cloud timestamp is newer, or if local has no timestamp yet
-        if (!localUpdatedAt || cloudTime > localTime) {
-          if (JSON.stringify(res.courses) !== JSON.stringify(currentUserCourses)) {
-            currentUserCourses = res.courses;
-            await saveUserCourses(currentUserCourses, res.coursesUpdatedAt);
-            currentTasks = await recalculateTasksWithActiveCourses();
-            renderUserCoursesManager();
-            renderLegend();
-            updateCourseFilterOptions(currentTasks);
-            refreshAllViews();
-          }
-        }
+      // Courses: the newer list wins (empty list never beats a full one on a tie)
+      const coursesPick = pickNewerList(
+        { items: currentUserCourses, updatedAt: await getCoursesUpdatedAt() },
+        { items: res.courses, updatedAt: res.coursesUpdatedAt },
+        true
+      );
+      if (coursesPick.fromCloud && coursesPick.items && JSON.stringify(coursesPick.items) !== JSON.stringify(currentUserCourses)) {
+        currentUserCourses = coursesPick.items;
+        await saveUserCourses(currentUserCourses, coursesPick.updatedAt);
+        currentTasks = await recalculateTasksWithActiveCourses();
+        renderUserCoursesManager();
+        renderLegend();
+        updateCourseFilterOptions(currentTasks);
+        refreshAllViews();
       }
 
       if (res.semesters) {

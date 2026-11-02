@@ -1,4 +1,4 @@
-import { DeadlineTask, TaskStatus, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
+import { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
 import { sanitizeCloudTasks, encodeCloudKeys, decodeCloudKeys, sanitizeCloudQuickLinks, sanitizeCloudCourses, sanitizeScanRequest } from './cloudSanitize';
 import type { CloudScanRequest } from './cloudSanitize';
 import { getProfile, mergeCloudProfile } from './profile';
@@ -310,99 +310,5 @@ export async function markCloudScanRequestCompleted(
   } catch (err) {
     // Offline or Firebase unreachable: the phone stops waiting on its own
     console.info('[Firebase] Could not mark scan request completed:', err);
-  }
-}
-
-/**
- * Pushes a modified task list back to Firebase while keeping the quick links, courses and
- * deletion tombstones already stored in the cloud (a bare PUT of `tasks` would wipe them).
- */
-function pushPreservingCloudFields(
-  fetched: Awaited<ReturnType<typeof fetchTasksFromFirebase>>,
-  tasks: DeadlineTask[],
-  device: string,
-  syncKey?: string,
-  tombstones: Record<string, string> | undefined = fetched.tombstones
-) {
-  return pushTasksToFirebase(
-    tasks,
-    device,
-    syncKey,
-    fetched.quickLinks,
-    tombstones,
-    fetched.courses,
-    fetched.coursesUpdatedAt,
-    fetched.quickLinksUpdatedAt
-  );
-}
-
-/**
- * Updates a single task status in Firebase Realtime Database without clobbering other fields.
- */
-export async function updateTaskStatusInFirebase(
-  taskId: string,
-  status: TaskStatus,
-  syncKey?: string
-): Promise<boolean> {
-  try {
-    const fetchRes = await fetchTasksFromFirebase(syncKey);
-    if (!fetchRes.success || !fetchRes.tasks) return false;
-
-    const tasks = fetchRes.tasks;
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return false;
-
-    task.status = status;
-    task.updatedAt = new Date().toISOString();
-
-    const pushRes = await pushPreservingCloudFields(fetchRes, tasks, 'Status Update', syncKey);
-    return pushRes.success;
-  } catch (err) {
-    console.error('Error updating task status in Firebase:', err);
-    return false;
-  }
-}
-
-/**
- * Updates a single task (including notes and announcement) in Firebase Realtime Database.
- */
-export async function updateTaskInFirebase(
-  updatedTask: DeadlineTask,
-  device: string = 'Chrome Extension',
-  syncKey?: string
-): Promise<boolean> {
-  try {
-    const fetchRes = await fetchTasksFromFirebase(syncKey);
-    if (!fetchRes.success || !fetchRes.tasks) return false;
-
-    const tasks = fetchRes.tasks.map(t => (t.id === updatedTask.id ? { ...t, ...updatedTask, updatedAt: new Date().toISOString() } : t));
-    const pushRes = await pushPreservingCloudFields(fetchRes, tasks, `${device} Task Edit`, syncKey);
-    return pushRes.success;
-  } catch (err) {
-    console.error('Error updating task in Firebase:', err);
-    return false;
-  }
-}
-
-/**
- * Removes a task from Firebase and records a deletion tombstone so it cannot resurrect from another device.
- * Returns false if the cloud copy could not be read or written.
- */
-export async function recordTaskDeletionInFirebase(
-  taskId: string,
-  device: string = 'Chrome Extension',
-  syncKey?: string
-): Promise<boolean> {
-  try {
-    const fetchRes = await fetchTasksFromFirebase(syncKey);
-    if (!fetchRes.success) return false;
-
-    const remaining = (fetchRes.tasks || []).filter(t => t.id !== taskId);
-    const tombstones = { ...(fetchRes.tombstones || {}), [taskId]: new Date().toISOString() };
-    const pushRes = await pushPreservingCloudFields(fetchRes, remaining, `${device} Deleted Task`, syncKey, tombstones);
-    return pushRes.success;
-  } catch (e) {
-    console.error('Could not record task deletion in Firebase:', e);
-    return false;
   }
 }

@@ -1,6 +1,7 @@
 import type { UserCourseConfig, CustomSyllabusComponent, Weekday } from '../types';
 import type { CourseScheduleEntry } from './courseSchedule';
 import type { CourseSyllabus, SyllabusComponent } from './syllabusWeights';
+import { format12Hour } from '../utils/uiCommon';
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -158,14 +159,6 @@ export const DAY_INDEX_MAP: Record<Weekday, number> = {
   fri: 5,
   sat: 6
 };
-
-function format12Hour(hour: number, minute: number): string {
-  const period = hour >= 12 ? 'PM' : 'AM';
-  const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  const padH = String(h12).padStart(2, '0');
-  const padM = String(minute).padStart(2, '0');
-  return `${padH}:${padM} ${period}`;
-}
 
 export function userCoursesToScheduleEntries(courses: UserCourseConfig[]): CourseScheduleEntry[] {
   const entries: CourseScheduleEntry[] = [];

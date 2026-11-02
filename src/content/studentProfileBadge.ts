@@ -5,6 +5,7 @@ import { buildGpaSummary } from '../utils/gpa';
 import { getAllSyllabi } from '../core/syllabusWeights';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { extractStudentFromBlackboardPage } from './studentProfileExtractor';
+import { escapeHtml } from '../utils/uiCommon';
 
 export const BADGE_ID = 'bbs-student-profile-badge';
 
@@ -171,13 +172,4 @@ export async function startStudentProfileBadge(): Promise<void> {
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
-}
-
-function escapeHtml(text: string): string {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

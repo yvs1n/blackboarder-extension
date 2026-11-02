@@ -1,5 +1,6 @@
 import { DeadlineTask } from '../types';
-import { findCourseSchedule } from '../core/courseSchedule';
+import { findCourseSchedule, resolveTaskRoom } from '../core/courseSchedule';
+import { resolveCourseInfo } from '../core/courseHelper';
 
 /**
  * Formats a Date into Google Calendar UTC string: YYYYMMDDTHHmmssZ or YYYYMMDD.
@@ -292,4 +293,60 @@ export function compareTasksByTime(a: DeadlineTask, b: DeadlineTask): number {
   }
 
   return (a.title || '').localeCompare(b.title || '');
+}
+
+/**
+ * Formats a notification title and body for deadlines across extension and mobile companion apps.
+ */
+export function formatNotificationPayload(
+  task: DeadlineTask,
+  windowType: string,
+  timeRemaining: number
+): { title: string; body: string } {
+  const resolved = resolveCourseInfo(task);
+  const courseDisplay = resolved.courseCode && resolved.courseCode.toLowerCase() !== 'uos'
+    ? `${resolved.courseName} (${resolved.courseCode})`
+    : (resolved.courseName || 'General Course');
+
+  const dueDateObj = new Date(task.dueDate);
+  const timeStr = !isNaN(dueDateObj.getTime()) ? dueDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  const dateStr = !isNaN(dueDateObj.getTime()) ? dueDateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+
+  const room = task.room || resolveTaskRoom({
+    courseNameOrCode: task.courseName || task.courseCode || '',
+    announcementText: task.description || task.sourceSnippet || '',
+    title: task.title,
+    existingRoom: task.room,
+    type: task.type
+  }).room;
+  let locationStr = '';
+  if (room) {
+    locationStr = `📍 Room: ${room}`;
+  } else if (task.type === 'exam' || task.type === 'quiz') {
+    locationStr = '📍 In-class on paper';
+  } else {
+    locationStr = '💻 Online Submission on Blackboard';
+  }
+
+  const weightStr = task.weight ? ` • Worth ${task.weight}%` : '';
+
+  let title = '';
+  let timeDesc = '';
+  if (windowType === 'due') {
+    title = `⏳ Due Now: ${task.title}`;
+    timeDesc = `🕒 Due time has arrived (${dateStr} at ${timeStr})`;
+  } else if (timeRemaining <= 4 * 3600 * 1000) {
+    const minsLeft = Math.max(1, Math.round(timeRemaining / (60 * 1000)));
+    const countdownStr = minsLeft >= 60 ? `about ${Math.round(minsLeft / 60)} hour(s)` : `${minsLeft} minutes`;
+    title = `🚨 Urgent (${windowType}): ${task.title}`;
+    timeDesc = `🕒 Due: ${dateStr} at ${timeStr} (in ${countdownStr})`;
+  } else {
+    const hoursLeft = Math.max(1, Math.round(timeRemaining / (3600 * 1000)));
+    title = `⏰ Reminder (${windowType}): ${task.title}`;
+    timeDesc = `🕒 Due: ${dateStr} at ${timeStr} (~${hoursLeft}h left)`;
+  }
+
+  const body = `${courseDisplay}${weightStr}\n${timeDesc}\n${locationStr}`;
+
+  return { title, body };
 }
