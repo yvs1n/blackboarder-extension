@@ -46,24 +46,6 @@ export function isExtensionContextValid(): boolean {
   }
 }
 
-/**
- * True only on pages where a same-origin `/api/ai/*` edge proxy can plausibly exist (the hosted
- * web app). Content scripts run on the university's Blackboard origin; posting an API key there
- * would hand it to the university's server, so those hosts are always excluded.
- */
-export function canUseSameOriginProxy(): boolean {
-  try {
-    if (typeof window === 'undefined' || !window.location) return false;
-    const { protocol, hostname } = window.location;
-    if (protocol !== 'http:' && protocol !== 'https:') return false;
-    // A content script runs on a university's Blackboard, whatever its address: never post there
-    if (typeof chrome !== 'undefined' && (chrome as any).runtime?.id) return false;
-    return !/(^|\.)(sharjah\.ac\.ae|blackboard\.com)$/i.test(hostname);
-  } catch {
-    return false;
-  }
-}
-
 const memoryStorage = new Map<string, string>();
 
 function canUseLocalStorage(): boolean {

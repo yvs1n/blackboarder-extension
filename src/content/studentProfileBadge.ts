@@ -32,12 +32,6 @@ let started = false;
 let isRendering = false;
 let renderQueued = false;
 
-export function resetStudentProfileBadgeForTesting(): void {
-  started = false;
-  isRendering = false;
-  renderQueued = false;
-}
-
 /**
  * Injects a Swiss Grid academic student identity card above the activity stream in Blackboard Ultra.
  * Displays the student's name, ID number, university, enrolled courses, and projected GPA.

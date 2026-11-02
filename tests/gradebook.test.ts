@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gradebookToUpdates, gradebookColumnsToTasks, applySubmissionUpdates, purgeSyntheticGradebookTasks, isSyntheticGradebookTask, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
+import { gradebookToUpdates, applySubmissionUpdates, purgeSyntheticGradebookTasks, isSyntheticGradebookTask, GradebookColumn, GradebookGrade } from '../src/utils/gradebook';
 import { parseUltraStreamEntries, coreTitle } from '../src/utils/streamParser';
 import type { DeadlineTask } from '../src/types';
 
@@ -112,35 +112,6 @@ describe('gradebook names that differ from task titles', () => {
     expect(ups).toHaveLength(1);
     expect(ups[0].submissionStatus).toBe('graded');
     expect(ups[0].score).toBe(9);
-  });
-
-  it('extracts direct deadlines from linked gradebook columns and ignores manual instructor columns', () => {
-    const cols: GradebookColumn[] = [
-      {
-        id: '_201_1',
-        columnName: 'Work-Kinetic Energy Theorem Lab. Report',
-        possible: 10,
-        calculationType: 'NON_CALCULATED',
-        visible: true,
-        userCreatedColumn: false,
-        contentId: '_9001_1',
-        dueDate: '2026-10-31T19:59:00.000Z'
-      },
-      {
-        id: '_202_1',
-        columnName: 'Manual Instructor Quiz Column',
-        possible: 10,
-        calculationType: 'NON_CALCULATED',
-        visible: true,
-        userCreatedColumn: true,
-        dueDate: '2026-10-15T08:12:34.327Z'
-      }
-    ];
-    const tasks = gradebookColumnsToTasks(cols, { courseName: 'Physics 1 Lab', courseCode: '1430 116', courseId: '_85276_1' });
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0].title).toBe('Work-Kinetic Energy Theorem Lab. Report');
-    expect(tasks[0].dueDate).toBe('2026-10-31T19:59:00.000Z');
-    expect(tasks[0].courseCode).toBe('1430 116');
   });
 
   it('parses Ultra stream HTTP JSON entries into direct tasks, announcements, and grade updates', () => {
