@@ -103,4 +103,68 @@ describe('Grades card (GPA and marks together)', () => {
     expect(fullHtml).toContain('target-task-item');
     expect(fullHtml).not.toMatch(/\u2014/);
   });
+
+  it('renders course marks cards with left accent borders and footer status bars', () => {
+    const htmlWithColors = gradesHtml(gpa, marks, name => name.includes('Physics') ? '#2196f3' : '#4caf50');
+    expect(htmlWithColors).toContain('border-left: 3px solid #2196f3');
+    expect(htmlWithColors).toContain('marks-course-meta');
+    expect(htmlWithColors).toContain('marks-course-footer');
+    expect(htmlWithColors).toContain('Graded');
+  });
+
+  it('supports Cumulative CGPA Scholarship target mode and reverse-calculates required Term SGPA', () => {
+    const cumulativeHistory = {
+      termGpa: 3.00,
+      termGradedCredits: 3,
+      termTotalCredits: 6,
+      cgpa: 3.30,
+      totalGradedCredits: 33, // 30 prior credits + 3 current graded credits
+      totalCompletedCredits: 33,
+      targetCredits: 130,
+      degreeProgressPercent: 25,
+      archivedSemestersCount: 2
+    };
+
+    const upcomingTasks = [
+      task({ title: 'Final Exam', courseName: 'Physics 1', weight: 50, maxScore: 100, status: 'pending' })
+    ] as any;
+
+    const scholarshipHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, cumulativeHistory, {
+      tasks: upcomingTasks,
+      targetCgpa: 3.40,
+      targetGpaMode: 'cgpa'
+    });
+
+    expect(scholarshipHtml).toContain('Target Cumulative CGPA (Scholarship)');
+    expect(scholarshipHtml).toContain('Scholarship Target:');
+    expect(scholarshipHtml).toContain('Requires');
+    expect(scholarshipHtml).toContain('Term SGPA');
+    expect(scholarshipHtml).toContain('gpa-predictor-guide');
+    expect(scholarshipHtml).toContain('How the GPA &amp; Scholarship Predictor Works');
+    expect(scholarshipHtml).not.toMatch(/\u2014/);
+  });
+
+  it('flags unattainable scholarship CGPA targets and displays highest achievable cumulative GPA', () => {
+    const cumulativeHistory = {
+      termGpa: 2.00,
+      termGradedCredits: 3,
+      termTotalCredits: 6,
+      cgpa: 2.50,
+      totalGradedCredits: 63, // 60 prior credits at 2.50 CGPA, term is 6 credits
+      totalCompletedCredits: 63,
+      targetCredits: 130,
+      degreeProgressPercent: 50,
+      archivedSemestersCount: 4
+    };
+
+    const impossibleHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, cumulativeHistory, {
+      targetCgpa: 3.80,
+      targetGpaMode: 'cgpa'
+    });
+
+    expect(impossibleHtml).toContain('is unattainable this semester');
+    expect(impossibleHtml).toContain('Highest achievable Cumulative CGPA after this semester');
+    expect(impossibleHtml).toContain('btn-set-max-cgpa');
+    expect(impossibleHtml).not.toMatch(/\u2014/);
+  });
 });

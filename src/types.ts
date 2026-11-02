@@ -73,6 +73,10 @@ export interface StudentProfile {
   targetCredits?: number;
   /** Desired Target Term GPA (e.g. 3.75) for exam mark allocation */
   targetTermGpa?: number;
+  /** Desired Target Cumulative GPA (CGPA) for scholarship retention or honors (e.g. 3.60) */
+  targetCgpa?: number;
+  /** Target GPA planner mode: 'cgpa' (scholarship / cumulative target) or 'term' (direct semester target) */
+  targetGpaMode?: 'cgpa' | 'term';
   /** Current active academic semester name (e.g. "Fall 2026") */
   currentSemesterName?: string;
   updatedAt: string;

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.49] - 2026-11-02
+
+### Added
+
+- **Course Marks Cards Visual Overhaul:** Redesigned Current Term Grades course cards to mirror the design language of the Courses tab cards with prominent 3px left color accent borders, color dot indicators, subtitle metadata rows (credit hours, marks recorded, GPA point contribution), distinct percentage and letter badges, and footer status bars with completion progress.
+- **Cumulative CGPA & Scholarship Predictor Mode:** Added dedicated Cumulative CGPA target mode that reverse-calculates the exact semester Term SGPA required to achieve or retain university scholarship thresholds (e.g. 3.60 CGPA) based on prior completed credits and starting GPA.
+- **In-App GPA & Scholarship Predictor Guide:** Added an expandable educational guide detailing cumulative credit dilution, the mathematical credit baseline formula, reverse grade allocation, discrete scale points ($A = 4.0, B+ = 3.5$), and trajectory-weighted momentum planning.
+
 ## [1.4.48] - 2026-11-02
 
 ### Changed

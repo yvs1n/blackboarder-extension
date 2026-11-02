@@ -5136,7 +5136,8 @@ h1, h2, h3 {
   color: var(--text-main);
   border-color: var(--text-main);
 }
-.btn-set-max-gpa {
+.btn-set-max-gpa,
+.btn-set-max-cgpa {
   border-radius: 0 !important;
   font-family: inherit;
   margin-top: 4px;
@@ -5145,6 +5146,85 @@ h1, h2, h3 {
   border: 1px solid var(--surface-border);
   color: var(--text-main);
   cursor: pointer;
+}
+.marks-goal-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--surface-border);
+  flex-wrap: wrap;
+}
+.marks-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-hover);
+  border-radius: 0 !important;
+}
+.btn-goal-mode {
+  border-radius: 0 !important;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.btn-goal-mode.is-active {
+  background: var(--text-main) !important;
+  color: var(--bg) !important;
+  font-weight: 700 !important;
+}
+.gpa-guide-panel {
+  border-radius: 0 !important;
+}
+.marks-course {
+  border-radius: 0 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.marks-course:hover {
+  border-color: var(--surface-border-strong);
+}
+.marks-grade-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.marks-course-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  padding: 2px 6px;
+  border-radius: 0 !important;
+}
+.marks-course-letter {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--bg);
+  background: var(--text-main);
+  padding: 2px 7px;
+  min-width: 18px;
+  text-align: center;
+  border-radius: 0 !important;
+}
+.marks-course-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 5px;
+  border-top: 1px dashed var(--surface-border);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.marks-drop-notice {
+  font-size: 10px;
+  color: var(--warning, #e6a23c);
+  background: var(--surface-hover);
+  padding: 3px 6px;
+  border-left: 2px solid var(--warning, #e6a23c);
+  border-radius: 0 !important;
 }
 
 /* Target Grade Breakdown & Course Cards */

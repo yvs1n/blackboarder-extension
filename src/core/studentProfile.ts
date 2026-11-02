@@ -32,6 +32,12 @@ export function sanitizeProfile(raw: unknown): StudentProfile | null {
   if (typeof r.targetTermGpa === 'number' && !isNaN(r.targetTermGpa) && r.targetTermGpa >= 0 && r.targetTermGpa <= 5.0) {
     profile.targetTermGpa = Math.round(r.targetTermGpa * 100) / 100;
   }
+  if (typeof r.targetCgpa === 'number' && !isNaN(r.targetCgpa) && r.targetCgpa >= 0 && r.targetCgpa <= 5.0) {
+    profile.targetCgpa = Math.round(r.targetCgpa * 100) / 100;
+  }
+  if (r.targetGpaMode === 'cgpa' || r.targetGpaMode === 'term') {
+    profile.targetGpaMode = r.targetGpaMode;
+  }
   if (typeof r.currentSemesterName === 'string' && r.currentSemesterName.trim()) {
     profile.currentSemesterName = r.currentSemesterName.trim().slice(0, 50);
   }
@@ -60,6 +66,8 @@ export function newerProfile(a: StudentProfile | null | undefined, b: StudentPro
     priorGpa: newer.priorGpa !== undefined ? newer.priorGpa : older.priorGpa,
     targetCredits: newer.targetCredits !== undefined ? newer.targetCredits : older.targetCredits,
     targetTermGpa: newer.targetTermGpa !== undefined ? newer.targetTermGpa : older.targetTermGpa,
+    targetCgpa: newer.targetCgpa !== undefined ? newer.targetCgpa : older.targetCgpa,
+    targetGpaMode: newer.targetGpaMode || older.targetGpaMode,
     currentSemesterName: newer.currentSemesterName || older.currentSemesterName
   };
 }

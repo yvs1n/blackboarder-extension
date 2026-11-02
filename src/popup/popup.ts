@@ -2080,7 +2080,9 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
     }, cumulative, {
       tasks,
       selectedTargets: Object.fromEntries(selectedTargetGrades),
-      targetTermGpa: profile?.targetTermGpa
+      targetTermGpa: profile?.targetTermGpa,
+      targetCgpa: profile?.targetCgpa,
+      targetGpaMode: profile?.targetGpaMode
     });
   }
 
@@ -2094,12 +2096,37 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
   }
 }
 
+let guideOpenState = false;
+
 function initGradeTrackerToggle() {
   wireCollapsible('grades-tracker-toggle-btn', 'grades-tracker-breakdown');
   wireCollapsible('syllabus-tracker-toggle-btn', 'syllabus-tracker-breakdown');
 
   const gradesBody = document.getElementById('grades-tracker-breakdown');
   gradesBody?.addEventListener('click', async (e) => {
+    const guideToggle = (e.target as HTMLElement).closest('#btn-toggle-gpa-guide') as HTMLElement | null;
+    if (guideToggle) {
+      const panel = document.getElementById('gpa-predictor-guide');
+      if (panel) {
+        guideOpenState = panel.style.display === 'none';
+        panel.style.display = guideOpenState ? 'block' : 'none';
+        guideToggle.setAttribute('aria-expanded', guideOpenState ? 'true' : 'false');
+      }
+      return;
+    }
+
+    const modeBtn = (e.target as HTMLElement).closest('.btn-goal-mode') as HTMLElement | null;
+    if (modeBtn && modeBtn.dataset.mode) {
+      const mode = modeBtn.dataset.mode as 'cgpa' | 'term';
+      const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
+      prof.targetGpaMode = mode;
+      prof.updatedAt = new Date().toISOString();
+      await saveProfile(prof);
+      renderGradeTracker(currentTasks);
+      renderTasks();
+      return;
+    }
+
     const chip = (e.target as HTMLElement).closest('.target-chip') as HTMLElement | null;
     if (chip) {
       const course = chip.getAttribute('data-course');
@@ -2115,9 +2142,31 @@ function initGradeTrackerToggle() {
     const gpaChip = (e.target as HTMLElement).closest('.btn-target-chip-val') as HTMLElement | null;
     if (gpaChip && gpaChip.dataset.target) {
       const val = parseFloat(gpaChip.dataset.target);
+      const mode = gpaChip.dataset.mode || 'term';
       if (!isNaN(val)) {
         const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
-        prof.targetTermGpa = Math.round(val * 100) / 100;
+        if (mode === 'cgpa') {
+          prof.targetCgpa = Math.round(val * 100) / 100;
+          prof.targetGpaMode = 'cgpa';
+        } else {
+          prof.targetTermGpa = Math.round(val * 100) / 100;
+          prof.targetGpaMode = 'term';
+        }
+        prof.updatedAt = new Date().toISOString();
+        await saveProfile(prof);
+        renderGradeTracker(currentTasks);
+        renderTasks();
+      }
+      return;
+    }
+
+    const maxCgpaBtn = (e.target as HTMLElement).closest('.btn-set-max-cgpa') as HTMLElement | null;
+    if (maxCgpaBtn && maxCgpaBtn.dataset.maxCgpa) {
+      const val = parseFloat(maxCgpaBtn.dataset.maxCgpa);
+      if (!isNaN(val)) {
+        const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
+        prof.targetCgpa = Math.round(val * 100) / 100;
+        prof.targetGpaMode = 'cgpa';
         prof.updatedAt = new Date().toISOString();
         await saveProfile(prof);
         renderGradeTracker(currentTasks);
@@ -2132,6 +2181,7 @@ function initGradeTrackerToggle() {
       if (!isNaN(val)) {
         const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
         prof.targetTermGpa = Math.round(val * 100) / 100;
+        prof.targetGpaMode = 'term';
         prof.updatedAt = new Date().toISOString();
         await saveProfile(prof);
         renderGradeTracker(currentTasks);
@@ -2143,11 +2193,18 @@ function initGradeTrackerToggle() {
 
   gradesBody?.addEventListener('change', async (e) => {
     const target = e.target as HTMLInputElement;
-    if (target && target.id === 'input-target-term-gpa') {
+    if (target && (target.id === 'input-target-gpa-val' || target.id === 'input-target-term-gpa')) {
       const val = parseFloat(target.value);
+      const mode = target.dataset.mode || 'term';
       if (!isNaN(val) && val >= 1.0 && val <= 4.0) {
         const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
-        prof.targetTermGpa = Math.round(val * 100) / 100;
+        if (mode === 'cgpa') {
+          prof.targetCgpa = Math.round(val * 100) / 100;
+          prof.targetGpaMode = 'cgpa';
+        } else {
+          prof.targetTermGpa = Math.round(val * 100) / 100;
+          prof.targetGpaMode = 'term';
+        }
         prof.updatedAt = new Date().toISOString();
         await saveProfile(prof);
         renderGradeTracker(currentTasks);
