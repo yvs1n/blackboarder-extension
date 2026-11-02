@@ -71,4 +71,36 @@ describe('Grades card (GPA and marks together)', () => {
     expect(htmlWithTargets).toContain('target-chip');
     expect(htmlWithTargets).toContain('Final Exam');
   });
+
+  it('renders 3 distinct sections: Dual-Column GPA Overview, Current Term Grades, and Target Grade Breakdown', () => {
+    const upcomingTasks = [
+      task({ title: 'Final Exam', courseName: 'Physics 1', weight: 50, maxScore: 100, status: 'pending' })
+    ] as any;
+    const fullHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, null, {
+      tasks: upcomingTasks,
+      targetTermGpa: 3.91
+    });
+
+    // Section 1: Dual-Column GPA Overview
+    expect(fullHtml).toContain('marks-gpa-overview');
+    expect(fullHtml).toContain('Current Standing');
+    expect(fullHtml).toContain('Academic Goal');
+    expect(fullHtml).toContain('Planned SGPA');
+
+    // Nearest attainable discrete rounding explanation (e.g. 3.91 -> 3.97)
+    expect(fullHtml).toContain('Nearest attainable combination');
+    expect(fullHtml).toContain('discrete scale points');
+
+    // Section 2: Current Term Grades
+    expect(fullHtml).toContain('id="marks-card-current-grades"');
+    expect(fullHtml).toContain('Current Term Grades');
+
+    // Section 3: Target Grade Breakdown
+    expect(fullHtml).toContain('id="marks-card-target-breakdown"');
+    expect(fullHtml).toContain('Target Grade Breakdown');
+    expect(fullHtml).toContain('target-course-card');
+    expect(fullHtml).toContain('trajectory-bar-track');
+    expect(fullHtml).toContain('target-task-item');
+    expect(fullHtml).not.toMatch(/\u2014/);
+  });
 });

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.47] - 2026-11-02
+
+### Added
+
+- **Structured Three-Section Marks Tab Layout:** Overhauled the Marks tab into three dedicated, full-width Swiss Grid sections, removing the collapsed accordion wrapper so the academic tracker opens directly into a structured dashboard matching Calendar, Deadlines, and Courses tabs.
+- **Dual-Column GPA Overview (Section 1):** Left column displays Current Academic Standing with large Term SGPA, graded credit breakdown, and Cumulative CGPA in small subtext. Right column displays Academic Goal with target SGPA input, quick-select chips (`3.50`, `3.75`, `4.00`), planned SGPA, and projected Cumulative CGPA based on prior completed credits and current target.
+- **Attainable Discrete Grade Combination Explanation:** Added clear UI context explaining why target GPA inputs (e.g. `3.91`) calculate to the nearest achievable discrete combination (e.g. `3.97 planned SGPA (+0.06)`), clarifying that university scales assign discrete grade points ($A = 4.0, B+ = 3.5$) weighted by course credit hours.
+- **Current Term Grades Card (Section 2):** Dedicated settings card presenting each enrolled course's credit hours, current percentage, letter grade, GPA points, dropped assessment rules, and all individual graded and awaiting marks.
+- **Target Grade Breakdown & Trajectory Cards (Section 3):** Replaced the dense horizontal wall of text with individual course cards featuring momentum trend badges (`Improving ↗`, `Consistent →`, `Needs Focus ↘`), visual trajectory progress bars, structured upcoming task target score rows (e.g. `Score 84–90 / 100`), and interactive target grade chips.
+
 ## [1.4.46] - 2026-11-02
 
 ### Added

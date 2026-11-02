@@ -2051,6 +2051,7 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
   if (selectedSemesterViewId !== 'active') {
     const sem = cachedSemesters.find(s => s.id === selectedSemesterViewId);
     if (sem && gradesBadge && gradesBody) {
+      gradesBody.hidden = false;
       const scale = profileGradeScale(profile);
       const uni = profileUniversity(profile);
       gradesBadge.textContent = typeof sem.termGpa === 'number' ? `Term ${sem.termGpa.toFixed(2)}` : 'Archived';
@@ -2064,6 +2065,7 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
   }
 
   if (gradesBadge && gradesBody) {
+    gradesBody.hidden = false;
     const scale = profileGradeScale(profile);
     const uni = profileUniversity(profile);
     const syllabi = getAllSyllabi();

@@ -2275,7 +2275,7 @@ body.is-standalone .header {
   padding: 14px 16px 20px;
 }
 
-#view-courses {
+#view-courses, #view-marks {
   padding: 10px 14px 20px;
 }
 
@@ -5016,6 +5016,226 @@ h1, h2, h3 {
 .course-summary-card .grade-tracker-breakdown { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0 12px 12px; }
 .course-summary-card .grade-tracker-breakdown[hidden] { display: none; }
 .course-summary-card .marks-row { margin-left: 15px; }
+
+/* Marks Tab: Standalone Full-Width Structure */
+#view-marks #grades-tracker {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  box-shadow: none;
+}
+#view-marks #grades-tracker-toggle-btn {
+  display: none !important;
+}
+#view-marks #grades-tracker-breakdown {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+}
+
+/* Dual-Column GPA Overview */
+.marks-gpa-overview {
+  margin-bottom: 12px;
+}
+.marks-gpa-col {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+.marks-gpa-col-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.marks-gpa-big {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-main);
+  font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.1;
+}
+.marks-gpa-big.is-target {
+  color: var(--primary);
+}
+.marks-gpa-cgpa-row {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.marks-gpa-cgpa-val {
+  color: var(--text-main);
+  font-weight: 700;
+}
+.target-rounding-note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  padding: 4px 6px;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+}
+.target-rounding-title {
+  color: var(--text-main);
+  font-weight: 600;
+  display: block;
+}
+.target-rounding-sub {
+  display: block;
+  font-size: 9.5px;
+  margin-top: 2px;
+}
+.target-plan-unattainable {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  font-size: 10.5px;
+  line-height: 1.35;
+  border-radius: 0 !important;
+}
+.target-unattainable-title {
+  color: var(--text-main);
+  font-weight: 700;
+  display: block;
+}
+.target-unattainable-sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.btn-target-chip-val {
+  padding: 1px 5px;
+  font-size: 10px;
+  height: 22px;
+  min-height: 22px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 0 !important;
+  font-family: inherit;
+}
+.btn-target-chip-val:hover {
+  color: var(--text-main);
+  border-color: var(--text-main);
+}
+.btn-set-max-gpa {
+  border-radius: 0 !important;
+  font-family: inherit;
+  margin-top: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+/* Target Grade Breakdown & Course Cards */
+.marks-card-section {
+  margin-bottom: 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+}
+.target-course-card {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  margin-bottom: 8px;
+  border-radius: 0 !important;
+}
+.target-course-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.target-trend-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  border-radius: 0 !important;
+}
+.target-trend-pill[data-trend="improving"] {
+  color: var(--text-main);
+  font-weight: 700;
+}
+.target-trend-pill[data-trend="needs-focus"] {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+.trajectory-graph-wrap {
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+}
+.trajectory-bar-track {
+  position: relative;
+  height: 6px;
+  background: var(--surface-border);
+  width: 100%;
+  border-radius: 0 !important;
+}
+.trajectory-bar-earned {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--primary);
+  border-radius: 0 !important;
+}
+.trajectory-bar-needed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--text-muted);
+  opacity: 0.65;
+  border-radius: 0 !important;
+}
+.target-task-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.target-task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  padding: 3px 0;
+  border-top: 1px solid var(--surface-border);
+}
+.target-task-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.target-task-score {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 11px;
+  flex-shrink: 0;
+}
 
 /* Pairing QR code (Settings > Sync) */
 .pairing-qr-panel { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--surface-border); background: var(--surface); }
