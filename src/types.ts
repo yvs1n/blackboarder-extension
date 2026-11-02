@@ -71,6 +71,8 @@ export interface StudentProfile {
   priorGpa?: number;
   /** Target degree credit hours required for graduation (e.g. 132 credits) */
   targetCredits?: number;
+  /** Desired Target Term GPA (e.g. 3.75) for exam mark allocation */
+  targetTermGpa?: number;
   /** Current active academic semester name (e.g. "Fall 2026") */
   currentSemesterName?: string;
   updatedAt: string;

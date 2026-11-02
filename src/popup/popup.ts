@@ -32,6 +32,7 @@ import { filterCleanUserCourses } from '../core/courseFilter';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
 import { parseSyllabusWeightsText, parseCoursesFromJson, mergeImportedCourses } from '../core/courseImporter';
 import { applyCourseImport, type CourseDraft } from '../core/courseDocument';
+import { calculateTrajectoryTargetPlan } from '../core/targetGpa';
 import { courseImportReviewHtml, readCourseImportReview } from '../core/courseImportView';
 import { fileToText, type PdfJsLike } from '../core/documentText';
 import { findCoursesInDocument } from '../engine/aiCourseImport';
@@ -2062,7 +2063,8 @@ function renderGradeTracker(tasks: DeadlineTask[]) {
       fromSyllabus: !profile?.gradeScale && uni.cutoffsFromSyllabus
     }, cumulative, {
       tasks,
-      selectedTargets: Object.fromEntries(selectedTargetGrades)
+      selectedTargets: Object.fromEntries(selectedTargetGrades),
+      targetTermGpa: profile?.targetTermGpa
     });
   }
 
@@ -2081,14 +2083,46 @@ function initGradeTrackerToggle() {
   wireCollapsible('syllabus-tracker-toggle-btn', 'syllabus-tracker-breakdown');
 
   const gradesBody = document.getElementById('grades-tracker-breakdown');
-  gradesBody?.addEventListener('click', (e) => {
+  gradesBody?.addEventListener('click', async (e) => {
     const chip = (e.target as HTMLElement).closest('.target-chip') as HTMLElement | null;
-    if (!chip) return;
-    const course = chip.getAttribute('data-course');
-    const letter = chip.getAttribute('data-letter');
-    if (course && letter) {
-      selectedTargetGrades.set(course, letter);
-      renderGradeTracker(currentTasks);
+    if (chip) {
+      const course = chip.getAttribute('data-course');
+      const letter = chip.getAttribute('data-letter');
+      if (course && letter) {
+        selectedTargetGrades.set(course, letter);
+        renderGradeTracker(currentTasks);
+        renderTasks();
+      }
+      return;
+    }
+
+    const gpaChip = (e.target as HTMLElement).closest('.btn-target-chip-val') as HTMLElement | null;
+    if (gpaChip && gpaChip.dataset.target) {
+      const val = parseFloat(gpaChip.dataset.target);
+      if (!isNaN(val)) {
+        const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
+        prof.targetTermGpa = Math.round(val * 100) / 100;
+        prof.updatedAt = new Date().toISOString();
+        await saveProfile(prof);
+        renderGradeTracker(currentTasks);
+        renderTasks();
+      }
+      return;
+    }
+  });
+
+  gradesBody?.addEventListener('change', async (e) => {
+    const target = e.target as HTMLInputElement;
+    if (target && target.id === 'input-target-term-gpa') {
+      const val = parseFloat(target.value);
+      if (!isNaN(val) && val >= 1.0 && val <= 4.0) {
+        const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
+        prof.targetTermGpa = Math.round(val * 100) / 100;
+        prof.updatedAt = new Date().toISOString();
+        await saveProfile(prof);
+        renderGradeTracker(currentTasks);
+        renderTasks();
+      }
     }
   });
 
@@ -2381,6 +2415,15 @@ function renderTasks() {
     return;
   }
 
+  const profile = getCachedProfile();
+  const scale = profileGradeScale(profile);
+  const syllabi = getAllSyllabi();
+  const gpa = buildGpaSummary(currentTasks, syllabi, scale);
+  const targetGpa = (typeof profile?.targetTermGpa === 'number' && profile.targetTermGpa > 0)
+    ? profile.targetTermGpa
+    : (gpa.gpa !== undefined ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20) : 3.75);
+  const trajectoryPlan = calculateTrajectoryTargetPlan(gpa, targetGpa, currentTasks, scale);
+
   const fragment = document.createDocumentFragment();
 
   filtered.forEach(task => {
@@ -2389,6 +2432,16 @@ function renderTasks() {
     const resolved = resolveCourseInfo(task);
     const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
     const gcalUrl = createGoogleCalendarUrl(task);
+
+    const taskTarget = trajectoryPlan?.taskTargetMap?.[task.id];
+    let targetBadgeHtml = '';
+    if (!isCompleted && taskTarget && taskTarget.targetScore > 0) {
+      targetBadgeHtml = `
+        <span class="task-target-pill" title="Target score needed for ${escapeHtml(taskTarget.targetLetter)} grade to achieve ${targetGpa.toFixed(2)} Term GPA" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; padding: 2px 7px; background: var(--surface-hover); border: 1px solid var(--text-main); color: var(--text-main); font-weight: 700; white-space: nowrap;">
+          <span>🎯 Target: ${taskTarget.targetScore}/${taskTarget.maxScore} (${escapeHtml(taskTarget.targetLetter)})</span>
+        </span>
+      `;
+    }
 
     // Room pill button (1-click room changer - only if not hw or project)
     const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
@@ -2483,6 +2536,7 @@ function renderTasks() {
         ${roomBadgeHtml}
         ${weightBadgeHtml}
         ${classTimeBadgeHtml}
+        ${targetBadgeHtml}
         ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
           <span class="task-grade-pill" title="Grade / Score released on Blackboard">
             ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
@@ -3467,27 +3521,85 @@ async function scanActiveTab(fullRescan: boolean = false) {
   }
 
   const startedAt = Date.now();
-  chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
-    void chrome.runtime.lastError;
-    if (scanCancelledByUser || res?.message === 'Scan cancelled.') {
-      resetScanButton();
-      hideScanBanner();
-      return;
-    }
-    if (res && !res.ok && res.message) {
-      fail(res.message);
-      return;
-    }
-    const status = await getScanStatus().catch(() => null);
-    if (status && new Date(status.updatedAt).getTime() >= startedAt) {
-      renderScanStatus(status);
-    } else {
-      resetScanButton();
-      hideScanBanner();
-    }
-    await refreshDataInBackground();
-  });
 
+  const runNormalHttpScan = () => {
+    chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
+      void chrome.runtime.lastError;
+      if (scanCancelledByUser || res?.message === 'Scan cancelled.') {
+        resetScanButton();
+        hideScanBanner();
+        return;
+      }
+      if (res && !res.ok && res.message) {
+        fail(res.message);
+        return;
+      }
+      const status = await getScanStatus().catch(() => null);
+      if (status && new Date(status.updatedAt).getTime() >= startedAt) {
+        renderScanStatus(status);
+      } else {
+        resetScanButton();
+        hideScanBanner();
+      }
+      await refreshDataInBackground();
+    });
+  };
+
+  // If the student has an exam schedule tab currently active, prioritize tab scanning that page directly!
+  try {
+    const tabs = await chrome.tabs?.query?.({ active: true, currentWindow: true }).catch(() => []) || [];
+    const activeTab = tabs[0];
+    const isExamTab = Boolean(activeTab?.url && (
+      /studentexampage|examschedule|banner.*exam|bannerextensibility|\bexam\b|\bfinal\b/i.test(activeTab.url)
+    ));
+
+    if (isExamTab && activeTab?.id) {
+      showScanBanner('Reading exam schedule from this page...', 'active');
+      const sendTabScan = () => {
+        chrome.tabs.sendMessage(activeTab.id!, { type: 'RUN_TAB_SCAN', fullRescan, interactive: true }, async res => {
+          void chrome.runtime.lastError;
+          if (scanCancelledByUser || res?.message === 'Scan cancelled.') {
+            resetScanButton();
+            hideScanBanner();
+            return;
+          }
+          const status = await getScanStatus().catch(() => null);
+          if (status && new Date(status.updatedAt).getTime() >= startedAt) {
+            renderScanStatus(status);
+          } else if (res?.ok) {
+            btnScanTab.innerHTML = `${getSvgIcon('check', 'mr-1')}<span>Done</span>`;
+            showScanBanner(res.message || 'Exam schedule scanned.', 'success', 4000);
+            setTimeout(resetScanButton, 3500);
+          } else {
+            resetScanButton();
+            hideScanBanner();
+          }
+          await refreshDataInBackground();
+        });
+      };
+
+      // Check if tab is ready or needs script injection
+      chrome.tabs.sendMessage(activeTab.id, { type: 'PING_SCANNER' }, async pingRes => {
+        if (chrome.runtime.lastError || !pingRes?.ok) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: activeTab.id!, allFrames: true },
+              files: ['content.js']
+            });
+            setTimeout(sendTabScan, 300);
+          } catch {
+            runNormalHttpScan();
+          }
+        } else {
+          sendTabScan();
+        }
+      });
+      watchScanEnd(startedAt);
+      return;
+    }
+  } catch {}
+
+  runNormalHttpScan();
   watchScanEnd(startedAt);
 }
 

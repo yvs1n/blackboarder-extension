@@ -242,3 +242,255 @@ export function calculateTermTargetPlan(
     coursePlans
   };
 }
+
+export interface TaskTargetAllocation {
+  taskId: string;
+  courseName: string;
+  targetLetter: string;
+  targetScore: number;
+  maxScore: number;
+  requiredPercent: number;
+}
+
+export interface TrajectoryCoursePlan {
+  courseName: string;
+  creditHours: number;
+  currentLetter?: string;
+  currentPercent?: number;
+  gradedWeight: number;
+  remainingWeight: number;
+  historicalPercent: number;
+  targetLetter: string;
+  targetPoints: number;
+  requiredPercent: number;
+  stretch: number;
+  status?: 'on-track' | 'achievable' | 'stretch' | 'unattainable' | 'guaranteed';
+  isGuaranteed: boolean;
+  isUnattainable: boolean;
+  upcomingTasks: UpcomingTaskRequirement[];
+}
+
+export interface TrajectoryTargetPlan {
+  targetGpa: number;
+  totalCredits: number;
+  plannedGpa: number;
+  maxPossibleGpa: number;
+  possible: boolean;
+  courses: TrajectoryCoursePlan[];
+  taskTargetMap: Record<string, TaskTargetAllocation>;
+}
+
+/**
+ * Calculates an optimal, trajectory-weighted course target allocation to achieve a student's
+ * desired Term GPA, taking into account their historical performance in each course.
+ *
+ * If a student averages higher marks in Course A (e.g. 92%) and lower marks in Course B (e.g. 68%),
+ * the planner assigns targets proportionally: expecting Course A to maintain strong performance (A / A-),
+ * while allocating realistic, attainable targets for Course B (e.g. B / B+) rather than demanding
+ * uniform or unrealistic jumps across all courses.
+ */
+export function calculateTrajectoryTargetPlan(
+  gpaSummary: GpaSummary,
+  targetGpa: number,
+  tasks: DeadlineTask[] = [],
+  scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE
+): TrajectoryTargetPlan {
+  const activeScale = scale.length ? scale : UOS_GRADE_SCALE;
+  const sortedScale = [...activeScale].sort((a, b) => b.points - a.points);
+  const totalCredits = gpaSummary.totalCredits || (gpaSummary.courses.length * 3) || 3;
+  const requiredTotalPoints = round2(targetGpa * totalCredits);
+
+  interface CourseAnalysisInternal {
+    courseGrade: CourseGrade;
+    credits: number;
+    gradedWeight: number;
+    earnedWeight: number;
+    remainingWeight: number;
+    historicalPercent: number;
+    maxPossiblePercent: number;
+    maxPossiblePoints: number;
+    pendingTasks: DeadlineTask[];
+    options: Array<{
+      row: GradeRow;
+      reqPercent: number;
+      attainable: boolean;
+      guaranteed: boolean;
+      stretch: number;
+    }>;
+    selectedIndex: number;
+  }
+
+  const courseAnalyses: CourseAnalysisInternal[] = gpaSummary.courses.map(c => {
+    const credits = c.creditHours || 3;
+    const gradedWeight = Math.min(100, Math.max(0, c.gradedWeight || 0));
+    const earnedWeight = Math.max(0, c.earnedWeight || 0);
+    const remainingWeight = Math.max(0, 100 - gradedWeight);
+    const historicalPercent = gradedWeight > 0
+      ? round1((earnedWeight / gradedWeight) * 100)
+      : (c.percent !== undefined ? c.percent : 85);
+    const maxPossiblePercent = round1(Math.min(100, earnedWeight + remainingWeight));
+
+    const bestRow = sortedScale.find(r => maxPossiblePercent >= r.min) || sortedScale[sortedScale.length - 1];
+    const maxPossiblePoints = bestRow ? bestRow.points : 0;
+
+    const pendingTasks = tasks.filter(t => {
+      if (!t || t.status === 'completed') return false;
+      const cName = (t.courseName || '').toLowerCase();
+      const targetName = (c.courseName || '').toLowerCase();
+      return cName && (cName === targetName || targetName.includes(cName) || cName.includes(targetName));
+    });
+
+    const options = sortedScale.map(row => {
+      if (remainingWeight === 0) {
+        const isAchieved = earnedWeight >= row.min;
+        return {
+          row,
+          reqPercent: isAchieved ? 0 : 101,
+          attainable: isAchieved,
+          guaranteed: isAchieved,
+          stretch: isAchieved ? 0 : 99
+        };
+      }
+      const guaranteed = earnedWeight >= row.min;
+      const attainable = row.min <= maxPossiblePercent;
+      const reqPercent = guaranteed
+        ? 0
+        : (attainable ? round1(((row.min - earnedWeight) / remainingWeight) * 100) : 101);
+      const stretch = round1(reqPercent - historicalPercent);
+      return {
+        row,
+        reqPercent,
+        attainable,
+        guaranteed,
+        stretch
+      };
+    });
+
+    const projectedPercent = round1(earnedWeight + (remainingWeight * (historicalPercent / 100)));
+    let baselineIndex = options.findIndex(o => o.attainable && projectedPercent >= o.row.min);
+    if (baselineIndex === -1) {
+      baselineIndex = options.findIndex(o => o.attainable);
+      if (baselineIndex === -1) baselineIndex = options.length - 1;
+    }
+
+    return {
+      courseGrade: c,
+      credits,
+      gradedWeight,
+      earnedWeight,
+      remainingWeight,
+      historicalPercent,
+      maxPossiblePercent,
+      maxPossiblePoints,
+      pendingTasks,
+      options,
+      selectedIndex: baselineIndex
+    };
+  });
+
+  const maxPossibleTotalPoints = courseAnalyses.reduce((sum, c) => sum + (c.maxPossiblePoints * c.credits), 0);
+  const maxPossibleGpa = round2(maxPossibleTotalPoints / totalCredits);
+  const possible = requiredTotalPoints <= maxPossibleTotalPoints;
+
+  const currentTotalPoints = () => courseAnalyses.reduce((sum, c) => sum + (c.options[c.selectedIndex].row.points * c.credits), 0);
+
+  let iterations = 0;
+  while (currentTotalPoints() < requiredTotalPoints && iterations < 30) {
+    iterations++;
+    let bestCourse: CourseAnalysisInternal | null = null;
+    let lowestCostPerPoint = Infinity;
+
+    for (const ca of courseAnalyses) {
+      if (ca.selectedIndex <= 0) continue;
+      const currentOpt = ca.options[ca.selectedIndex];
+      const targetOpt = ca.options[ca.selectedIndex - 1];
+      if (!targetOpt.attainable) continue;
+
+      const pointDiff = targetOpt.row.points - currentOpt.row.points;
+      if (pointDiff <= 0) continue;
+
+      const stretchIncrease = Math.max(1, targetOpt.stretch > 0 ? targetOpt.stretch : (targetOpt.reqPercent / 10));
+      const costPerPoint = stretchIncrease / (pointDiff * ca.credits);
+
+      if (costPerPoint < lowestCostPerPoint) {
+        lowestCostPerPoint = costPerPoint;
+        bestCourse = ca;
+      }
+    }
+
+    if (!bestCourse) break;
+    bestCourse.selectedIndex--;
+  }
+
+  const plannedTotalPoints = currentTotalPoints();
+  const plannedGpa = round2(plannedTotalPoints / totalCredits);
+
+  const courses: TrajectoryCoursePlan[] = [];
+  const taskTargetMap: Record<string, TaskTargetAllocation> = {};
+
+  for (const ca of courseAnalyses) {
+    const selOpt = ca.options[ca.selectedIndex];
+    const targetLetter = selOpt.row.letter;
+    const targetPoints = selOpt.row.points;
+    const requiredPercent = selOpt.reqPercent;
+    const stretch = selOpt.stretch;
+
+    const upcomingTasks: UpcomingTaskRequirement[] = [];
+    for (const pt of ca.pendingTasks) {
+      const weight = Number(pt.weight) || 0;
+      const maxScore = typeof pt.maxScore === 'number' && pt.maxScore > 0 ? pt.maxScore : 100;
+      const targetScore = round1((Math.min(100, Math.max(0, requiredPercent)) / 100) * maxScore);
+      upcomingTasks.push({
+        id: pt.id,
+        title: pt.title,
+        type: pt.type,
+        weight,
+        maxScore,
+        targetScore
+      });
+
+      taskTargetMap[pt.id] = {
+        taskId: pt.id,
+        courseName: ca.courseGrade.courseName,
+        targetLetter,
+        targetScore,
+        maxScore,
+        requiredPercent
+      };
+    }
+
+    let status: 'on-track' | 'achievable' | 'stretch' | 'unattainable' | 'guaranteed' = 'achievable';
+    if (selOpt.guaranteed) status = 'guaranteed';
+    else if (!selOpt.attainable) status = 'unattainable';
+    else if (stretch <= 0) status = 'on-track';
+    else if (stretch > 12) status = 'stretch';
+
+    courses.push({
+      courseName: ca.courseGrade.courseName,
+      creditHours: ca.credits,
+      currentLetter: ca.courseGrade.letter,
+      currentPercent: ca.courseGrade.percent,
+      gradedWeight: ca.gradedWeight,
+      remainingWeight: ca.remainingWeight,
+      historicalPercent: ca.historicalPercent,
+      targetLetter,
+      targetPoints,
+      requiredPercent,
+      stretch,
+      status,
+      isGuaranteed: selOpt.guaranteed,
+      isUnattainable: !selOpt.attainable,
+      upcomingTasks
+    });
+  }
+
+  return {
+    targetGpa,
+    totalCredits,
+    plannedGpa,
+    maxPossibleGpa,
+    possible,
+    courses,
+    taskTargetMap
+  };
+}

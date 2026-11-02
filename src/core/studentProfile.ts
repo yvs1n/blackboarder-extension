@@ -29,6 +29,9 @@ export function sanitizeProfile(raw: unknown): StudentProfile | null {
   if (typeof r.targetCredits === 'number' && !isNaN(r.targetCredits) && r.targetCredits > 0 && r.targetCredits <= 300) {
     profile.targetCredits = Math.round(r.targetCredits);
   }
+  if (typeof r.targetTermGpa === 'number' && !isNaN(r.targetTermGpa) && r.targetTermGpa >= 0 && r.targetTermGpa <= 5.0) {
+    profile.targetTermGpa = Math.round(r.targetTermGpa * 100) / 100;
+  }
   if (typeof r.currentSemesterName === 'string' && r.currentSemesterName.trim()) {
     profile.currentSemesterName = r.currentSemesterName.trim().slice(0, 50);
   }
@@ -56,6 +59,7 @@ export function newerProfile(a: StudentProfile | null | undefined, b: StudentPro
     priorCredits: newer.priorCredits !== undefined ? newer.priorCredits : older.priorCredits,
     priorGpa: newer.priorGpa !== undefined ? newer.priorGpa : older.priorGpa,
     targetCredits: newer.targetCredits !== undefined ? newer.targetCredits : older.targetCredits,
+    targetTermGpa: newer.targetTermGpa !== undefined ? newer.targetTermGpa : older.targetTermGpa,
     currentSemesterName: newer.currentSemesterName || older.currentSemesterName
   };
 }

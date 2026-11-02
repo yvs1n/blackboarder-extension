@@ -1550,10 +1550,15 @@ function init() {
     // Context may already be invalidated
   }
 
-  // Floating button: HTTP first in the service worker; when Blackboard does not answer over HTTP
-  // the service worker runs the scan here, in this tab (RUN_TAB_SCAN), instead of opening another
+  // Floating button: on exam schedule pages it scans the active page directly; on Blackboard
+  // it asks the service worker to scan via HTTP first, falling back to tab scan.
   injectFloatingButton(() => {
     if (!isExtensionContextValid()) return;
+    if (isExamSchedulePage(window.location, document)) {
+      showSidekickToast('Exam Schedule', 'Scanning exam schedule on this page...', 0, true);
+      runExamScheduleScan({ interactive: true, fullRescan: false, reported: false }).catch(() => {});
+      return;
+    }
     const scanStartedAt = Date.now();
     showSidekickToast('Scanning Blackboard...', 'Checking announcements and enrolled courses...', 0, true);
 

@@ -305,17 +305,17 @@ export function examScheduleRowToTask(row: ExamScheduleRow, nowIso: string = new
 }
 
 const HEADER_ALIASES: Record<keyof ExamScheduleRow, RegExp> = {
-  crn: /\bcrn\b|الرقم\s*المرجعي/i,
-  courseNumber: /course\s*(?:number|no\.?|code)|رقم\s*المساق/i,
-  courseTitle: /course\s*(?:title|name)|اسم\s*المساق|عنوان\s*المساق/i,
-  examDate: /exam\s*date|تاريخ\s*الامتحان/i,
-  fromTime: /from\s*\/?\s*time|start\s*time|من\s*وقت|وقت\s*البدء/i,
-  toTime: /to\s*\/?\s*time|end\s*time|إلى\s*وقت|وقت\s*الانتهاء/i,
-  building: /\bbuilding\b|المبنى/i,
-  room: /\broom\b|القاعة/i,
-  examType: /exam\s*type|نوع\s*الامتحان/i,
-  examMethod: /exam\s*method|طريقة\s*الامتحان/i,
-  comment: /\bcomments?\b|ملاحظات/i
+  crn: /\bcrn\b|الرقم\s*المرجعي|reference\s*(?:no\.?|number)/i,
+  courseNumber: /course\s*(?:number|no\.?|code|id)|رقم\s*المساق|رمز\s*المساق/i,
+  courseTitle: /course\s*(?:title|name)|اسم\s*المساق|عنوان\s*المساق|^course$|^subject$|^المساق$|^المادة$/i,
+  examDate: /(?:exam\s*)?date|\bday\b|تاريخ(?:\s*الامتحان)?|اليوم(?:\s*والتاريخ)?/i,
+  fromTime: /from\s*(?:\/\s*)?time|start\s*time|من\s*وقت|وقت\s*البدء|^from$|^start$|^من$/i,
+  toTime: /to\s*(?:\/\s*)?time|end\s*time|إلى\s*وقت|وقت\s*الانتهاء|^to$|^end$|^إلى$/i,
+  building: /\bbuilding\b|المبنى|\bbldg\b/i,
+  room: /\broom\b|القاعة|hall|قاعة/i,
+  examType: /exam\s*type|نوع\s*الامتحان|^exam$|^امتحان$/i,
+  examMethod: /exam\s*method|طريقة\s*الامتحان|method/i,
+  comment: /\bcomments?\b|ملاحظات|notes?|ملاحظة/i
 };
 
 function rowsFromTableMatrix(tableRows: string[][]): ExamScheduleRow[] {
@@ -493,6 +493,21 @@ export function rowsToExamTasks(rows: ExamScheduleRow[], nowIso: string = new Da
 export function extractExamScheduleRowsFromDoc(root: Document | Element): ExamScheduleRow[] {
   const rows: ExamScheduleRow[] = [];
   const tables = Array.from(root.querySelectorAll('table'));
+
+  // Also inspect same-origin iframes where Banner commonly embeds the schedule table
+  try {
+    const iframes = Array.from(root.querySelectorAll('iframe'));
+    for (const iframe of iframes) {
+      try {
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc) {
+          tables.push(...Array.from(doc.querySelectorAll('table')));
+        }
+      } catch {
+        // Cross-origin iframe boundary
+      }
+    }
+  } catch {}
 
   for (const table of tables) {
     const trs = Array.from(table.querySelectorAll('tr'));
@@ -679,7 +694,8 @@ export function isExamSchedulePage(loc: { hostname?: string; pathname?: string; 
     href.includes('studentexampage') ||
     pathname.includes('examschedule') ||
     href.includes('examschedule') ||
-    /\/bannerextensibility\/custompage\/page\/.*exam/i.test(pathname)
+    /\/bannerextensibility\/custompage\/page\/.*exam/i.test(pathname) ||
+    /(?:student.*exam|final.*exam|exam.*schedule|جدول.*امتحان)/i.test(href)
   ) {
     return true;
   }

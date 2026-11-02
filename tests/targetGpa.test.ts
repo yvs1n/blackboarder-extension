@@ -2,7 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateCourseTargetAnalysis,
-  calculateTermTargetPlan
+  calculateTermTargetPlan,
+  calculateTrajectoryTargetPlan
 } from '../src/core/targetGpa';
 import { UOS_GRADE_SCALE, GpaSummary, CourseGrade } from '../src/utils/gpa';
 import { DeadlineTask } from '../src/types';
@@ -260,5 +261,80 @@ describe('Term Target GPA Planning', () => {
     const plan = calculateTermTargetPlan(gpaSummary, 3.5, UOS_GRADE_SCALE);
     expect(plan.possible).toBe(false);
     expect(plan.maxPossibleGpa).toBe(2.5);
+  });
+
+  describe('Trajectory-Weighted Course Target Allocation', () => {
+    it('allocates targets proportionally based on prior marks and maps to upcoming task cards', () => {
+      // Math: strong average (38/40 = 95%). Remaining = 60%.
+      // Physics: struggling average (24/40 = 60%). Remaining = 60%.
+      const gpaSummary: GpaSummary = {
+        gradedCredits: 6,
+        totalCredits: 6,
+        courses: [
+          {
+            courseName: 'Mathematics',
+            creditHours: 3,
+            gradedWeight: 40,
+            earnedWeight: 38,
+            percent: 95.0,
+            components: []
+          },
+          {
+            courseName: 'Physics',
+            creditHours: 3,
+            gradedWeight: 40,
+            earnedWeight: 24,
+            percent: 60.0,
+            components: []
+          }
+        ]
+      };
+
+      const tasks: DeadlineTask[] = [
+        {
+          id: 'task_math_final',
+          courseName: 'Mathematics',
+          title: 'Final Exam',
+          type: 'exam',
+          maxScore: 100,
+          weight: 40,
+          status: 'pending'
+        } as DeadlineTask,
+        {
+          id: 'task_phys_final',
+          courseName: 'Physics',
+          title: 'Final Exam',
+          type: 'exam',
+          maxScore: 100,
+          weight: 40,
+          status: 'pending'
+        } as DeadlineTask
+      ];
+
+      // Student wants Term GPA 3.50 (e.g. A in Math = 4.0, B in Physics = 3.0 -> avg 3.50)
+      const plan = calculateTrajectoryTargetPlan(gpaSummary, 3.50, tasks, UOS_GRADE_SCALE);
+      expect(plan.possible).toBe(true);
+      expect(plan.plannedGpa).toBeGreaterThanOrEqual(3.50);
+
+      const mathPlan = plan.courses.find(c => c.courseName === 'Mathematics');
+      expect(mathPlan).toBeDefined();
+      expect(mathPlan?.targetLetter).toBe('A');
+      // For Math A (90%): Need (90 - 38)/60 = 52/60 = 86.7%
+      expect(mathPlan?.requiredPercent).toBe(86.7);
+
+      const physPlan = plan.courses.find(c => c.courseName === 'Physics');
+      expect(physPlan).toBeDefined();
+      // Physics should be allocated a realistic B or B+, NOT an impossible A
+      expect(['B', 'B+', 'C+']).toContain(physPlan?.targetLetter);
+
+      // Verify taskTargetMap accurately maps to upcoming task IDs
+      expect(plan.taskTargetMap['task_math_final']).toBeDefined();
+      expect(plan.taskTargetMap['task_math_final'].targetLetter).toBe('A');
+      expect(plan.taskTargetMap['task_math_final'].targetScore).toBe(86.7); // 86.7% of 100
+
+      expect(plan.taskTargetMap['task_phys_final']).toBeDefined();
+      expect(plan.taskTargetMap['task_phys_final'].targetLetter).toBe(physPlan?.targetLetter);
+      expect(plan.taskTargetMap['task_phys_final'].targetScore).toBeGreaterThan(0);
+    });
   });
 });

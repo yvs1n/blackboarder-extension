@@ -163,6 +163,7 @@ function renderAcademicBaseline(profile: StudentProfile | null) {
   const priorCreditsEl = document.getElementById('setting-prior-credits') as HTMLInputElement | null;
   const priorGpaEl = document.getElementById('setting-prior-gpa') as HTMLInputElement | null;
   const targetCreditsEl = document.getElementById('setting-target-credits') as HTMLInputElement | null;
+  const targetTermGpaEl = document.getElementById('setting-target-term-gpa') as HTMLInputElement | null;
 
   if (priorCreditsEl && document.activeElement !== priorCreditsEl) {
     priorCreditsEl.value = profile?.priorCredits !== undefined ? String(profile.priorCredits) : '';
@@ -172,6 +173,9 @@ function renderAcademicBaseline(profile: StudentProfile | null) {
   }
   if (targetCreditsEl && document.activeElement !== targetCreditsEl) {
     targetCreditsEl.value = profile?.targetCredits !== undefined ? String(profile.targetCredits) : '';
+  }
+  if (targetTermGpaEl && document.activeElement !== targetTermGpaEl) {
+    targetTermGpaEl.value = profile?.targetTermGpa !== undefined ? String(profile.targetTermGpa) : '';
   }
 
   renderArchivedSemestersManager();
@@ -315,10 +319,12 @@ export async function initUniversitySettings(hooks: UniversitySettingsHooks): Pr
     const priorCreditsEl = document.getElementById('setting-prior-credits') as HTMLInputElement | null;
     const priorGpaEl = document.getElementById('setting-prior-gpa') as HTMLInputElement | null;
     const targetCreditsEl = document.getElementById('setting-target-credits') as HTMLInputElement | null;
+    const targetTermGpaEl = document.getElementById('setting-target-term-gpa') as HTMLInputElement | null;
 
     const priorCreditsVal = priorCreditsEl?.value.trim() ? parseFloat(priorCreditsEl.value) : undefined;
     const priorGpaVal = priorGpaEl?.value.trim() ? parseFloat(priorGpaEl.value) : undefined;
     const targetCreditsVal = targetCreditsEl?.value.trim() ? parseInt(targetCreditsEl.value, 10) : undefined;
+    const targetTermGpaVal = targetTermGpaEl?.value.trim() ? parseFloat(targetTermGpaEl.value) : undefined;
 
     update(hooks, {
       universityId: profileUniversity(cached).id,
@@ -331,7 +337,8 @@ export async function initUniversitySettings(hooks: UniversitySettingsHooks): Pr
       major: cached?.major,
       priorCredits: typeof priorCreditsVal === 'number' && !isNaN(priorCreditsVal) ? priorCreditsVal : undefined,
       priorGpa: typeof priorGpaVal === 'number' && !isNaN(priorGpaVal) ? priorGpaVal : undefined,
-      targetCredits: typeof targetCreditsVal === 'number' && !isNaN(targetCreditsVal) ? targetCreditsVal : undefined
+      targetCredits: typeof targetCreditsVal === 'number' && !isNaN(targetCreditsVal) ? targetCreditsVal : undefined,
+      targetTermGpa: typeof targetTermGpaVal === 'number' && !isNaN(targetTermGpaVal) ? targetTermGpaVal : undefined
     }).then(() => {
       hooks.toast('Academic baseline saved.');
     }).catch(() => {});

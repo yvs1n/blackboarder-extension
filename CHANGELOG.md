@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.45] - 2026-11-02
+
+### Added
+
+- **Direct Finals and Exam Schedule page scanning:** Fixed and modernized exam schedule scanning when students open their exam portal (`StudentExamPage`, Banner Extensibility, or university finals portals). Clicking "Scan" in the extension popup now detects if the active browser tab is on an exam schedule page and sends a direct tab extraction request rather than falling back to background HTTP requests that can fail over SSO CAS redirects. Broadened header aliases to recognize general column variations (`Date`, `التاريخ`, `Course`, `المساق`, `Title`, `Time`, etc.) and added iframe table inspection so tables nested inside portal iframes are extracted immediately.
+- **Trajectory-weighted Target GPA planner:** Added intelligent trajectory-weighted course target allocation (`calculateTrajectoryTargetPlan` in `src/core/targetGpa.ts`, `BBCore`). When a student inputs their desired Target Term GPA (e.g. 3.75), Blackboarder analyzes each course's historical performance trajectory: courses where the student has strong historical averages (e.g. 95%) are allocated higher grades ($A, A-$), while courses with lower averages are allocated realistic, achievable targets ($B, B+$) rather than demanding impossible uniform leaps.
+- **Target exam marks directly on deadline cards:** Upcoming pending assessment cards in both the extension and companion web app now display live target badges (e.g. `🎯 Target: 88/100 (B+)`), telling students exactly what mark they need to score on each pending exam or assignment to hit their target GPA.
+- **Target Term GPA configuration in Grades and Settings:** Added interactive Target Term GPA controls directly in the Grades card (`gradesHtml`) with instant preset pills (`3.50`, `3.75`, `4.00`) and custom number inputs, as well as an Academic Baseline Target GPA field in Settings > General > Your University, synced across devices in `data.profile`.
+
 ## [1.4.44] - 2026-11-02
 
 ### Added

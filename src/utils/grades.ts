@@ -2,7 +2,7 @@ import { describeGradeScale, GradeRow } from '../core/universities';
 import { GpaSummary, UOS_GRADE_SCALE } from './gpa';
 import { MarksSummary, CourseMarks, formatScore } from './marks';
 import type { CumulativeGpaSummary, ArchivedSemester, DeadlineTask } from '../types';
-import { calculateCourseTargetAnalysis, CourseTargetAnalysis } from '../core/targetGpa';
+import { calculateCourseTargetAnalysis, CourseTargetAnalysis, calculateTrajectoryTargetPlan, TrajectoryTargetPlan } from '../core/targetGpa';
 
 /**
  * The Grades card: the projected GPA, then each course's grade so far with every mark under it.
@@ -98,6 +98,7 @@ export function gradesHtml(
   options?: {
     tasks?: DeadlineTask[];
     selectedTargets?: Record<string, string>;
+    targetTermGpa?: number;
   }
 ): string {
   if (!gpa.courses.length && !marks.courses.length) {
@@ -142,6 +143,50 @@ export function gradesHtml(
       : `<div class="gpa-head"><span class="gpa-value">${gpa.gpa.toFixed(2)}</span><span class="gpa-caption">Projected GPA from marks so far, ${gpa.gradedCredits} of ${gpa.totalCredits} credit hours</span></div>`;
   }
 
+  // Target Term GPA Planner & Trajectory Allocation
+  let targetPlannerHtml = '';
+  let trajectoryPlan: TrajectoryTargetPlan | null = null;
+  if (gpa.courses.length > 0) {
+    const defaultTarget = gpa.gpa !== undefined
+      ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20)
+      : 3.75;
+    const targetGpaVal = (typeof options?.targetTermGpa === 'number' && options.targetTermGpa > 0)
+      ? options.targetTermGpa
+      : defaultTarget;
+
+    trajectoryPlan = calculateTrajectoryTargetPlan(
+      gpa,
+      targetGpaVal,
+      options?.tasks || [],
+      scaleInfo.scale
+    );
+
+    const planSummary = trajectoryPlan.possible
+      ? `<div class="target-plan-summary" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--surface-border); font-size: 10.5px; color: var(--text-muted); line-height: 1.4;">
+           <span style="font-weight: 600; color: var(--text-main);">Trajectory Targets (${trajectoryPlan.plannedGpa.toFixed(2)} Planned):</span>
+           ${trajectoryPlan.courses.map(pc => `<span><strong>${esc(pc.courseName)}</strong>: <strong style="color: var(--primary);">${esc(pc.targetLetter)}</strong> (need ${pc.requiredPercent}%)${pc.upcomingTasks.length > 0 ? ` [${esc(pc.upcomingTasks[0].title)}: ${pc.upcomingTasks[0].targetScore}/${pc.upcomingTasks[0].maxScore}]` : ''}</span>`).join(' · ')}
+         </div>`
+      : `<div class="target-plan-summary" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--surface-border); font-size: 10.5px; color: #dc2626; line-height: 1.4;">
+           ⚠️ Target ${targetGpaVal.toFixed(2)} is mathematically unattainable based on completed weight. Highest achievable GPA is <strong>${trajectoryPlan.maxPossibleGpa.toFixed(2)}</strong>.
+         </div>`;
+
+    targetPlannerHtml = `<div class="target-gpa-bar" style="margin-top: 10px; margin-bottom: 8px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+        <div>
+          <span style="font-size: 11.5px; font-weight: 700; color: var(--text-main); display: block;">Target Term GPA</span>
+          <span style="font-size: 10px; color: var(--text-muted); display: block;">Trajectory-weighted score targets for upcoming dues</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.50" style="padding: 2px 6px; font-size: 10.5px; height: 24px; min-height: 24px;">3.50</button>
+          <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.75" style="padding: 2px 6px; font-size: 10.5px; height: 24px; min-height: 24px;">3.75</button>
+          <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="4.00" style="padding: 2px 6px; font-size: 10.5px; height: 24px; min-height: 24px;">4.00</button>
+          <input type="number" id="input-target-term-gpa" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetGpaVal.toFixed(2)}" style="width: 58px; font-size: 11.5px; padding: 2px 4px; text-align: center; font-weight: 700; height: 24px; min-height: 24px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
+        </div>
+      </div>
+      ${planSummary}
+    </div>`;
+  }
+
   const courseRows = gpa.courses.map(c => {
     const courseMarks = marksByCourse.get(c.courseName);
     marksByCourse.delete(c.courseName);
@@ -154,7 +199,9 @@ export function gradesHtml(
       `<div class="gpa-detail">${esc(k.name)}${k.rule ? ` (${esc(k.rule)})` : ''}: not counted ${k.dropped.map(d => `${esc(d.title)} ${d.percent}%`).join(', ')}</div>`
     ).join('');
     const targetAnalysis = calculateCourseTargetAnalysis(c, options?.tasks || [], scaleInfo.scale);
-    const targetHtml = targetSectionHtml(targetAnalysis, options?.selectedTargets?.[c.courseName]);
+    const plannedTargetLetter = trajectoryPlan?.courses.find(pc => pc.courseName === c.courseName)?.targetLetter;
+    const activeSelectedLetter = options?.selectedTargets?.[c.courseName] || plannedTargetLetter;
+    const targetHtml = targetSectionHtml(targetAnalysis, activeSelectedLetter);
     return `<div class="marks-course">
       <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span><span class="marks-course-total">${c.creditHours} cr</span><span class="marks-right">${right}</span></div>
       ${detail}${drops}${markRowsHtml(courseMarks)}${targetHtml}
@@ -173,7 +220,7 @@ export function gradesHtml(
 
   const scale = describeGradeScale([...scaleInfo.scale]);
   const cutoffs = scaleInfo.fromSyllabus ? ' Instructors set the percentages, so check your syllabus and edit the scale in Settings if it differs.' : '';
-  return `${head}${courseRows.join('')}<div class="gpa-note">${esc(scaleInfo.name)} scale: ${esc(scale)}.${cutoffs} A course grade is your score on what is graded so far. Each letter is worth GPA points (shown under each course), and the GPA averages them by credit hours; set credit hours by editing the course below.</div>`;
+  return `${head}${courseRows.join('')}${targetPlannerHtml}<div class="gpa-note">${esc(scaleInfo.name)} scale: ${esc(scale)}.${cutoffs} A course grade is your score on what is graded so far. Each letter is worth GPA points (shown under each course), and the GPA averages them by credit hours; set credit hours by editing the course below.</div>`;
 }
 
 /** Renders a read-only view of a concluded archived semester. */
