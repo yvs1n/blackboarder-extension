@@ -101,6 +101,8 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     }
     // Student notes are only the student's; a task they never made or edited has none
     if (clean.notes && !clean.userEdited && clean.extractedBy !== 'manual') delete clean.notes;
+    if (t.isBonus) clean.isBonus = true;
+    else delete clean.isBonus;
     out.push(clean as DeadlineTask);
   }
   return out;

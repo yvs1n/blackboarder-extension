@@ -32,6 +32,10 @@ function markRowsHtml(course: CourseMarks | undefined): string {
     return '<div class="marks-empty" style="font-size: 11px; color: var(--text-muted); padding: 4px 0; font-style: italic;">No individual marks recorded in gradebook yet.</div>';
   }
   return course.marks.map(m => {
+    if (m.isBonus) {
+      const bonusScore = m.earned ?? m.score ?? m.weight ?? 0;
+      return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--success, #22c55e);">+${bonusScore}% extra credit</span><span class="marks-right"><span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">pts</span></span></div>`;
+    }
     const right = m.status === 'graded'
       ? `<span class="marks-score">${esc(formatScore(m.score, m.maxScore))}</span><span class="marks-pct">${m.percent}%</span>`
       : '<span class="marks-awaiting">Submitted</span>';
@@ -339,6 +343,7 @@ export function gradesHtml(
               <span class="marks-course-name" style="font-size: 12.5px; font-weight: 700; color: var(--text-main); line-height: 1.3; overflow-wrap: anywhere;">${esc(c.courseName)}</span>
               <div class="marks-course-meta" style="font-size: 10px; color: var(--text-muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; line-height: 1.3;">
                 <span>${c.creditHours} credit hour${c.creditHours === 1 ? '' : 's'}</span>
+                ${c.bonusWeight ? `<span>·</span><span class="settings-pill pill-green" style="font-size: 9px; padding: 1px 4px;">+${c.bonusWeight}% Bonus</span>` : ''}
                 ${detail ? `<span>·</span><span>${detail}</span>` : ''}
               </div>
             </div>
@@ -353,7 +358,10 @@ export function gradesHtml(
         </div>
         <div class="marks-course-footer" style="display: flex; align-items: center; justify-content: space-between; padding-top: 5px; border-top: 1px dashed var(--surface-border); font-size: 10px; color: var(--text-muted); margin-top: 2px;">
           <span>${markCount} mark${markCount === 1 ? '' : 's'} recorded</span>
-          ${statusBadge}
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <button type="button" class="btn-outline-action btn-add-course-bonus" data-course="${esc(c.courseName)}" style="font-size: 10px; padding: 2px 7px; height: 20px; width: auto;" title="Add a bonus mark to ${esc(c.courseName)}">+ Bonus</button>
+            ${statusBadge}
+          </div>
         </div>
       </div>
     `;
@@ -395,7 +403,10 @@ export function gradesHtml(
     <div class="marks-section-wrap" id="marks-card-current-grades" style="margin-top: 10px; margin-bottom: 8px;">
       <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Current Term Grades</span>
-        <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${marks.gradedCount} Graded · ${gpa.courses.length} Courses</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${marks.gradedCount} Graded · ${gpa.courses.length} Courses</span>
+          <button type="button" class="btn-outline-action btn-add-bonus-trigger" style="font-size: 10px; padding: 2px 7px; height: 20px; width: auto;" title="Add a bonus mark or extra credit">+ Bonus Mark</button>
+        </div>
       </div>
       <div class="marks-courses-list" style="display: flex; flex-direction: column; gap: 4px;">
         ${courseRows.join('')}

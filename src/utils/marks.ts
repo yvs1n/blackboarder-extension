@@ -24,6 +24,7 @@ export interface MarkRow {
   dueDate?: string;
   gradedAt?: string;
   submittedAt?: string;
+  isBonus?: boolean;
 }
 
 export interface CourseMarks {
@@ -32,8 +33,10 @@ export interface CourseMarks {
   marks: MarkRow[];
   /** Sum of the weights of graded items with a known weight */
   gradedWeight: number;
-  /** Course percentage earned from those items */
+  /** Course percentage earned from those items (including any bonus marks) */
   earnedWeight: number;
+  /** Extra credit bonus marks earned */
+  bonusWeight?: number;
   /** Average score across graded items, in percent */
   averagePercent?: number;
 }
@@ -64,7 +67,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     if (/orientation|توجيه|تهيئة/i.test(cName) || /orientation/i.test(cCode) || /orientation|توجيه|تهيئة/i.test(title)) {
       continue;
     }
-    const graded = t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
+    const isBonus = Boolean(t.isBonus);
+    const graded = (t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0)
+      || (isBonus && typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0);
     const submitted = !graded && (t.submissionStatus === 'submitted' || t.submissionStatus === 'graded');
     if (!graded && !submitted) continue;
 
@@ -78,7 +83,8 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       byCourse.set(courseName, course);
     }
 
-    const weight = Number(t.weight) > 0 ? Number(t.weight) : undefined;
+    const bonusVal = isBonus ? Number(t.weight || t.score || 0) : 0;
+    const weight = isBonus ? bonusVal : (Number(t.weight) > 0 ? Number(t.weight) : undefined);
     const row: MarkRow = {
       id: t.id,
       title: t.title,
@@ -86,14 +92,22 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       weight,
       dueDate: t.dueDate,
       gradedAt: t.gradedAt,
-      submittedAt: t.submittedAt
+      submittedAt: t.submittedAt,
+      isBonus
     };
     if (graded) {
-      row.score = t.score;
-      row.maxScore = t.maxScore;
-      row.percent = round1((t.score! / t.maxScore!) * 100);
-      if (weight) {
-        row.earned = round1((t.score! / t.maxScore!) * weight);
+      if (isBonus) {
+        row.score = bonusVal;
+        row.maxScore = bonusVal;
+        row.percent = 100;
+        row.earned = round1(bonusVal);
+      } else {
+        row.score = t.score;
+        row.maxScore = t.maxScore;
+        row.percent = round1((t.score! / t.maxScore!) * 100);
+        if (weight) {
+          row.earned = round1((t.score! / t.maxScore!) * weight);
+        }
       }
     }
 
@@ -148,23 +162,36 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
         if (weight && !existingRow.weight) {
           existingRow.weight = weight;
           existingRow.earned = row.earned;
-          course.gradedWeight += weight;
-          course.earnedWeight += (t.score! / t.maxScore!) * weight;
+          if (isBonus) {
+            course.earnedWeight += (row.earned || 0);
+            course.bonusWeight = (course.bonusWeight || 0) + (row.earned || 0);
+          } else {
+            course.gradedWeight += weight;
+            course.earnedWeight += (t.score! / t.maxScore!) * weight;
+          }
         }
         gradedCount++;
         submittedCount--;
       } else if (weight && !existingRow.weight && typeof existingRow.score === 'number' && existingRow.maxScore) {
         existingRow.weight = weight;
         existingRow.earned = round1((existingRow.score / existingRow.maxScore) * weight);
-        course.gradedWeight += weight;
-        course.earnedWeight += (existingRow.score / existingRow.maxScore) * weight;
+        if (isBonus) {
+          course.earnedWeight += (existingRow.earned || 0);
+          course.bonusWeight = (course.bonusWeight || 0) + (existingRow.earned || 0);
+        } else {
+          course.gradedWeight += weight;
+          course.earnedWeight += (existingRow.score / existingRow.maxScore) * weight;
+        }
       }
       continue;
     }
 
     if (graded) {
       gradedCount++;
-      if (weight) {
+      if (isBonus) {
+        course.earnedWeight += (row.earned || 0);
+        course.bonusWeight = (course.bonusWeight || 0) + (row.earned || 0);
+      } else if (weight) {
         course.gradedWeight += weight;
         course.earnedWeight += (t.score! / t.maxScore!) * weight;
       }
@@ -179,6 +206,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
   for (const c of courses) {
     c.gradedWeight = round1(c.gradedWeight);
     c.earnedWeight = round1(c.earnedWeight);
+    if (c.bonusWeight) c.bonusWeight = round1(c.bonusWeight);
     const pcts = c.marks.filter(m => m.percent !== undefined).map(m => m.percent!);
     if (pcts.length) c.averagePercent = round1(pcts.reduce((a, b) => a + b, 0) / pcts.length);
     // Ranked from newest to oldest: most recently graded or due first; undated items go last

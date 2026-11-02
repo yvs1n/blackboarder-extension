@@ -2259,6 +2259,111 @@ function initGradeTrackerToggle() {
     renderGradeTracker(currentTasks);
   });
 
+  // Add Bonus Mark Modal
+  const bonusModal = document.getElementById('modal-add-bonus');
+  const bonusForm = document.getElementById('form-add-bonus') as HTMLFormElement | null;
+  const bonusCourseSelect = document.getElementById('bonus-course-select') as HTMLSelectElement | null;
+  const bonusTitleInput = document.getElementById('bonus-title-input') as HTMLInputElement | null;
+  const bonusValInput = document.getElementById('bonus-val-input') as HTMLInputElement | null;
+  const bonusNotesInput = document.getElementById('bonus-notes-input') as HTMLInputElement | null;
+  const closeBonusBtn = document.getElementById('btn-close-bonus-modal');
+  const cancelBonusBtn = document.getElementById('btn-cancel-bonus');
+
+  const openBonusModal = (defaultCourseName?: string) => {
+    if (!bonusModal || !bonusCourseSelect) return;
+    bonusCourseSelect.innerHTML = '';
+    const activeCourses = currentUserCourses || [];
+    if (activeCourses.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = defaultCourseName || 'General Course';
+      opt.textContent = defaultCourseName || 'General Course';
+      bonusCourseSelect.appendChild(opt);
+    } else {
+      for (const c of activeCourses) {
+        const opt = document.createElement('option');
+        opt.value = c.courseName;
+        opt.textContent = c.courseCode ? `${c.courseName} (${c.courseCode})` : c.courseName;
+        if (defaultCourseName && (c.courseName.toLowerCase() === defaultCourseName.toLowerCase() || c.courseCode?.toLowerCase() === defaultCourseName.toLowerCase())) {
+          opt.selected = true;
+        }
+        bonusCourseSelect.appendChild(opt);
+      }
+    }
+    if (bonusTitleInput) bonusTitleInput.value = 'Bonus Mark / Extra Credit';
+    if (bonusValInput) bonusValInput.value = '2.0';
+    if (bonusNotesInput) bonusNotesInput.value = '';
+    bonusModal.style.display = 'flex';
+    bonusModal.classList.remove('hidden');
+  };
+
+  const closeBonusModal = () => {
+    if (bonusModal) {
+      bonusModal.style.display = 'none';
+      bonusModal.classList.add('hidden');
+    }
+  };
+
+  closeBonusBtn?.addEventListener('click', closeBonusModal);
+  cancelBonusBtn?.addEventListener('click', closeBonusModal);
+
+  // Delegated click for + Bonus buttons inside Grades breakdown
+  document.getElementById('grades-tracker-breakdown')?.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement)?.closest('.btn-add-course-bonus') as HTMLElement | null;
+    if (target) {
+      const courseName = target.getAttribute('data-course') || '';
+      openBonusModal(courseName);
+      return;
+    }
+    const generalTrigger = (e.target as HTMLElement)?.closest('.btn-add-bonus-trigger') as HTMLElement | null;
+    if (generalTrigger) {
+      openBonusModal();
+      return;
+    }
+  });
+
+  bonusForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!bonusCourseSelect || !bonusValInput) return;
+    const courseName = bonusCourseSelect.value;
+    const matched = (currentUserCourses || []).find(c => c.courseName === courseName);
+    const courseCode = matched?.courseCode || 'UOS';
+    const title = bonusTitleInput?.value.trim() || 'Bonus Mark';
+    const bonusVal = parseFloat(bonusValInput.value) || 0;
+    const notes = bonusNotesInput?.value.trim() || '';
+
+    const newBonusTask: DeadlineTask = {
+      id: `task_bonus_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      title,
+      courseName,
+      courseCode,
+      dueDate: new Date().toISOString(),
+      hasSpecificTime: false,
+      type: 'other',
+      priority: 'medium',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: bonusVal,
+      maxScore: bonusVal,
+      weight: bonusVal,
+      isBonus: true,
+      notes,
+      description: notes || title,
+      sourceSnippet: notes || 'Manual bonus mark entry',
+      confidence: 1.0,
+      extractedBy: 'manual',
+      userEdited: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    currentTasks = deduplicateTaskList(await addTask(newBonusTask));
+    currentTasks.sort(compareTasksByTime);
+    currentTasks = await saveTasksMergingLatest(currentTasks);
+    closeBonusModal();
+    refreshAllViews();
+    syncTasksToCloud(currentTasks, 'Added Bonus Mark');
+  });
+
   // Archive Term Modal
   const openArchiveBtn = document.getElementById('btn-open-archive-semester');
   const archiveModal = document.getElementById('modal-archive-semester');
@@ -3266,6 +3371,10 @@ function openEditModal(task: DeadlineTask) {
   updateEditRoomVisibility();
   editWeightInput.value = task.weight !== undefined && task.weight !== null ? String(task.weight) : '';
   editWeightHint.textContent = task.syllabusNote || (task.weightDisplay ? `Saved weight: ${task.weightDisplay}` : '');
+  const editIsBonusInput = document.getElementById('edit-is-bonus') as HTMLInputElement | null;
+  if (editIsBonusInput) {
+    editIsBonusInput.checked = Boolean(task.isBonus);
+  }
 
   modalEditTask.style.display = 'flex';
   rememberDraft();
@@ -3986,6 +4095,8 @@ function setupEvents() {
       }
     }
 
+    const isBonus = (document.getElementById('add-is-bonus') as HTMLInputElement)?.checked || false;
+
     const newTask: DeadlineTask = {
       id: `task_manual_${Date.now()}`,
       courseCode: parsedCourse.code,
@@ -3997,7 +4108,11 @@ function setupEvents() {
       hasSpecificTime,
       type,
       priority,
-      status: 'pending',
+      status: isBonus ? 'completed' : 'pending',
+      submissionStatus: isBonus ? 'graded' : undefined,
+      score: isBonus ? (weight || 0) : undefined,
+      maxScore: isBonus ? (weight || 0) : undefined,
+      isBonus: isBonus || undefined,
       sourceSnippet: notes,
       notes: notes,
       confidence: 1.0,
@@ -4105,6 +4220,8 @@ function setupEvents() {
       }
     }
 
+    const isBonus = (document.getElementById('edit-is-bonus') as HTMLInputElement)?.checked || false;
+
     const updatedTaskFields: Partial<DeadlineTask> = {
       title,
       courseName: parsedCourse.name,
@@ -4114,7 +4231,11 @@ function setupEvents() {
       room,
       type,
       priority,
-      status,
+      status: isBonus ? 'completed' : status,
+      submissionStatus: isBonus ? 'graded' : undefined,
+      score: isBonus ? (weight || 0) : undefined,
+      maxScore: isBonus ? (weight || 0) : undefined,
+      isBonus: isBonus || undefined,
       description: descVal,
       sourceSnippet: descVal,
       notes: notesVal,

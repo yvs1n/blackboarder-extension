@@ -68,8 +68,10 @@ export interface CourseGrade {
   creditHours: number;
   /** Course weight already graded (counted items only) */
   gradedWeight: number;
-  /** Course percentage earned from that weight */
+  /** Course percentage earned from that weight (including bonus marks) */
   earnedWeight: number;
+  /** Extra credit bonus marks earned */
+  bonusWeight?: number;
   /** Score on what is graded so far, 0-100; undefined before the first mark */
   percent?: number;
   letter?: string;
@@ -103,6 +105,7 @@ export function bestOfFromNote(note?: string): { count: number; outOf: number } 
 }
 
 function isGraded(t: DeadlineTask): boolean {
+  if (t.isBonus && typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0) return true;
   return t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
 }
 
@@ -165,7 +168,16 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
       if (!exists) uniqueMine.push(t);
     }
 
+    let bonusWeight = 0;
     for (const t of uniqueMine) {
+      if (t.isBonus) {
+        const bVal = Number(t.weight || t.score || 0);
+        if (bVal > 0) {
+          earnedWeight += bVal;
+          bonusWeight += bVal;
+        }
+        continue;
+      }
       const item = { title: t.title, percent: (t.score! / t.maxScore!) * 100 };
       const comp = pickComponent(t, components);
       if (comp) {
@@ -215,10 +227,11 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
       creditHours,
       gradedWeight: round1(gradedWeight),
       earnedWeight: round1(earnedWeight),
+      bonusWeight: bonusWeight > 0 ? round1(bonusWeight) : undefined,
       components: componentGrades
     };
     if (gradedWeight > 0) {
-      course.percent = round1((earnedWeight / gradedWeight) * 100);
+      course.percent = Math.min(100, round1((earnedWeight / gradedWeight) * 100));
       Object.assign(course, gradeForPercent(course.percent, scale));
     }
     courses.push(course);
