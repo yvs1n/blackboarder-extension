@@ -9,6 +9,17 @@ export interface UpcomingTaskRequirement {
   weight: number;
   maxScore: number;
   targetScore: number;
+  safeScore?: number;
+  displayRange?: string;
+}
+
+export interface CourseScoreTrend {
+  direction: 'improving' | 'consistent' | 'needs-focus';
+  label: string;
+  sampleCount: number;
+  averagePercent: number;
+  variance: number;
+  momentum: number;
 }
 
 export interface TargetGradeRequirement {
@@ -248,6 +259,8 @@ export interface TaskTargetAllocation {
   courseName: string;
   targetLetter: string;
   targetScore: number;
+  safeScore?: number;
+  displayRange?: string;
   maxScore: number;
   requiredPercent: number;
 }
@@ -260,14 +273,88 @@ export interface TrajectoryCoursePlan {
   gradedWeight: number;
   remainingWeight: number;
   historicalPercent: number;
+  maxPossiblePercent: number;
   targetLetter: string;
   targetPoints: number;
   requiredPercent: number;
+  safePercent: number;
+  safeBuffer: number;
+  displayRange: string;
   stretch: number;
   status?: 'on-track' | 'achievable' | 'stretch' | 'unattainable' | 'guaranteed';
   isGuaranteed: boolean;
   isUnattainable: boolean;
+  trend: CourseScoreTrend;
   upcomingTasks: UpcomingTaskRequirement[];
+}
+
+/**
+ * Computes historical grade momentum, variance and trend trajectory for a course
+ * based on completed assessments and gradebook marks.
+ */
+export function calculateCourseTrend(
+  tasks: DeadlineTask[] = [],
+  courseName: string
+): CourseScoreTrend {
+  const cTarget = (courseName || '').toLowerCase().trim();
+  const scoredTasks = tasks.filter(t => {
+    if (!t || typeof t.score !== 'number' || typeof t.maxScore !== 'number' || t.maxScore <= 0) return false;
+    const cName = (t.courseName || '').toLowerCase().trim();
+    return cName && (cName === cTarget || cTarget.includes(cName) || cName.includes(cTarget));
+  });
+
+  if (scoredTasks.length === 0) {
+    return {
+      direction: 'consistent',
+      label: 'Consistent →',
+      sampleCount: 0,
+      averagePercent: 0,
+      variance: 0,
+      momentum: 0
+    };
+  }
+
+  // Sort chronologically: dueDate or gradedAt if available, preserving stable order
+  const sorted = [...scoredTasks].sort((a, b) => {
+    const da = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+    const db = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+    return da - db;
+  });
+
+  const percentages = sorted.map(t => round1(((t.score! / t.maxScore!) * 100)));
+  const sum = percentages.reduce((acc, p) => acc + p, 0);
+  const averagePercent = round1(sum / percentages.length);
+
+  // Standard deviation
+  const varianceSum = percentages.reduce((acc, p) => acc + Math.pow(p - averagePercent, 2), 0);
+  const variance = round1(Math.sqrt(varianceSum / percentages.length));
+
+  // Momentum: compare recent score to prior baseline
+  let momentum = 0;
+  if (percentages.length >= 2) {
+    const recent = percentages[percentages.length - 1];
+    const priorAvg = percentages.slice(0, -1).reduce((acc, p) => acc + p, 0) / (percentages.length - 1);
+    momentum = round1(recent - priorAvg);
+  }
+
+  let direction: 'improving' | 'consistent' | 'needs-focus' = 'consistent';
+  let label = 'Consistent →';
+  if (momentum >= 4.0) {
+    direction = 'improving';
+    label = 'Improving ↗';
+  } else if (momentum <= -4.0) {
+    direction = 'needs-focus';
+    label = 'Needs Focus ↘';
+  }
+
+  return {
+    direction,
+    label,
+    sampleCount: percentages.length,
+    averagePercent,
+    variance,
+    momentum
+  };
 }
 
 export interface TrajectoryTargetPlan {
@@ -435,18 +522,41 @@ export function calculateTrajectoryTargetPlan(
     const requiredPercent = selOpt.reqPercent;
     const stretch = selOpt.stretch;
 
+    const trend = calculateCourseTrend(tasks, ca.courseGrade.courseName);
+    const safeBuffer = Math.min(8.0, Math.max(2.5, round1(trend.variance * 0.4)));
+
+    let safePercent = requiredPercent;
+    let displayRange = '0% (Secured)';
+    if (selOpt.guaranteed) {
+      safePercent = 0;
+      displayRange = '0% (Secured)';
+    } else if (!selOpt.attainable) {
+      safePercent = 101;
+      displayRange = 'Unattainable';
+    } else {
+      safePercent = Math.min(100, round1(requiredPercent + safeBuffer));
+      displayRange = `${requiredPercent.toFixed(1)}%–${safePercent.toFixed(1)}%`;
+    }
+
     const upcomingTasks: UpcomingTaskRequirement[] = [];
     for (const pt of ca.pendingTasks) {
       const weight = Number(pt.weight) || 0;
       const maxScore = typeof pt.maxScore === 'number' && pt.maxScore > 0 ? pt.maxScore : 100;
       const targetScore = round1((Math.min(100, Math.max(0, requiredPercent)) / 100) * maxScore);
+      const safeScore = round1((Math.min(100, Math.max(0, safePercent)) / 100) * maxScore);
+      const taskDisplayRange = (targetScore === safeScore || selOpt.guaranteed)
+        ? `${targetScore}/${maxScore}`
+        : `${targetScore}–${safeScore}/${maxScore}`;
+
       upcomingTasks.push({
         id: pt.id,
         title: pt.title,
         type: pt.type,
         weight,
         maxScore,
-        targetScore
+        targetScore,
+        safeScore,
+        displayRange: taskDisplayRange
       });
 
       taskTargetMap[pt.id] = {
@@ -454,6 +564,8 @@ export function calculateTrajectoryTargetPlan(
         courseName: ca.courseGrade.courseName,
         targetLetter,
         targetScore,
+        safeScore,
+        displayRange: taskDisplayRange,
         maxScore,
         requiredPercent
       };
@@ -473,13 +585,18 @@ export function calculateTrajectoryTargetPlan(
       gradedWeight: ca.gradedWeight,
       remainingWeight: ca.remainingWeight,
       historicalPercent: ca.historicalPercent,
+      maxPossiblePercent: ca.maxPossiblePercent,
       targetLetter,
       targetPoints,
       requiredPercent,
+      safePercent,
+      safeBuffer,
+      displayRange,
       stretch,
       status,
       isGuaranteed: selOpt.guaranteed,
       isUnattainable: !selOpt.attainable,
+      trend,
       upcomingTasks
     });
   }

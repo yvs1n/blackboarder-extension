@@ -68,11 +68,13 @@ let selectedCourseFilter: string | null = null;
 // DOM Elements: Views & Nav
 const tabNavCalendar = document.getElementById('tab-nav-calendar') as HTMLButtonElement;
 const tabNavDetails = document.getElementById('tab-nav-details') as HTMLButtonElement;
+const tabNavMarks = document.getElementById('tab-nav-marks') as HTMLButtonElement;
 const tabNavCourses = document.getElementById('tab-nav-courses') as HTMLButtonElement;
 const navBadgeCount = document.getElementById('nav-badge-count') as HTMLElement;
 
 const viewCalendar = document.getElementById('view-calendar') as HTMLElement;
 const viewDetails = document.getElementById('view-details') as HTMLElement;
+const viewMarks = document.getElementById('view-marks') as HTMLElement;
 const viewCourses = document.getElementById('view-courses') as HTMLElement;
 const viewAdd = document.getElementById('view-add') as HTMLElement;
 const viewSettings = document.getElementById('view-settings') as HTMLElement;
@@ -320,9 +322,9 @@ function parsePickedCourse(value: string): { name: string; code: string } {
 // ============================================================================
 // View Navigation
 // ============================================================================
-type AppView = 'calendar' | 'details' | 'courses' | 'add' | 'settings';
+type AppView = 'calendar' | 'details' | 'marks' | 'courses' | 'add' | 'settings';
 let currentActiveView: AppView = 'calendar';
-const dirtyViews = new Set<AppView>(['calendar', 'details', 'courses', 'settings']);
+const dirtyViews = new Set<AppView>(['calendar', 'details', 'marks', 'courses', 'settings']);
 
 // Unfinished work survives closing the popup (src/popup/popupDraft.ts). Off until the saved draft
 // has been restored on open, so the start-up calendar view does not wipe it.
@@ -340,6 +342,8 @@ function rememberDraft() {
     saveDraft({ view: 'add', fields: collectFields(formAddTask) });
   } else if (viewSettings.classList.contains('active')) {
     saveDraft({ view: 'settings', settingsPage: currentSettingsPage() });
+  } else if (viewMarks.classList.contains('active')) {
+    saveDraft({ view: 'marks' });
   } else if (viewCourses.classList.contains('active')) {
     saveDraft({ view: 'courses' });
   } else {
@@ -367,6 +371,8 @@ async function restoreDraft() {
     } else if (d.view === 'settings') {
       switchView('settings');
       showSettingsPage(d.settingsPage || 'general');
+    } else if (d.view === 'marks') {
+      switchView('marks');
     } else if (d.view === 'courses') {
       switchView('courses');
     }
@@ -381,12 +387,14 @@ function switchView(view: AppView) {
 
   viewCalendar.classList.remove('active');
   viewDetails.classList.remove('active');
+  viewMarks.classList.remove('active');
   viewCourses.classList.remove('active');
   viewAdd.classList.remove('active');
   viewSettings.classList.remove('active');
 
   tabNavCalendar.classList.remove('active');
   tabNavDetails.classList.remove('active');
+  tabNavMarks.classList.remove('active');
   tabNavCourses.classList.remove('active');
 
   currentActiveView = view;
@@ -407,11 +415,17 @@ function switchView(view: AppView) {
       renderTasks();
       dirtyViews.delete('details');
     }
+  } else if (view === 'marks') {
+    viewMarks.classList.add('active');
+    tabNavMarks.classList.add('active');
+    if (dirtyViews.has('marks')) {
+      renderGradeTracker(currentTasks);
+      dirtyViews.delete('marks');
+    }
   } else if (view === 'courses') {
     viewCourses.classList.add('active');
     tabNavCourses.classList.add('active');
     if (dirtyViews.has('courses')) {
-      renderGradeTracker(currentTasks);
       renderUserCoursesManager();
       dirtyViews.delete('courses');
     }
@@ -2109,6 +2123,20 @@ function initGradeTrackerToggle() {
       }
       return;
     }
+
+    const maxGpaBtn = (e.target as HTMLElement).closest('.btn-set-max-gpa') as HTMLElement | null;
+    if (maxGpaBtn && maxGpaBtn.dataset.maxGpa) {
+      const val = parseFloat(maxGpaBtn.dataset.maxGpa);
+      if (!isNaN(val)) {
+        const prof = getCachedProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
+        prof.targetTermGpa = Math.round(val * 100) / 100;
+        prof.updatedAt = new Date().toISOString();
+        await saveProfile(prof);
+        renderGradeTracker(currentTasks);
+        renderTasks();
+      }
+      return;
+    }
   });
 
   gradesBody?.addEventListener('change', async (e) => {
@@ -2646,6 +2674,7 @@ function renderTasks() {
         }
         updateStats(currentTasks);
         dirtyViews.add('calendar');
+        dirtyViews.add('marks');
         dirtyViews.add('courses');
       } else {
         refreshAllViews();
@@ -2911,15 +2940,16 @@ function renderAllViewsNow() {
     renderSelectedDay();
   } else if (currentActiveView === 'details') {
     renderTasks();
-  } else if (currentActiveView === 'courses') {
+  } else if (currentActiveView === 'marks') {
     renderGradeTracker(currentTasks);
+  } else if (currentActiveView === 'courses') {
     renderUserCoursesManager();
   } else if (currentActiveView === 'settings') {
     renderUserCoursesManager();
   }
 
   // Mark non-active views dirty so they re-render on navigation
-  (['calendar', 'details', 'courses', 'settings'] as AppView[]).forEach(v => {
+  (['calendar', 'details', 'marks', 'courses', 'settings'] as AppView[]).forEach(v => {
     if (v !== currentActiveView) {
       dirtyViews.add(v);
     }
@@ -3663,6 +3693,7 @@ function setupEvents() {
   // Top Navigation Tabs
   tabNavCalendar.addEventListener('click', () => switchView('calendar'));
   tabNavDetails.addEventListener('click', () => switchView('details'));
+  tabNavMarks.addEventListener('click', () => switchView('marks'));
   tabNavCourses.addEventListener('click', () => switchView('courses'));
 
   // Calendar Controls

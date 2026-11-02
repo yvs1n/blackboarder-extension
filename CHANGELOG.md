@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.46] - 2026-11-02
+
+### Added
+
+- **Dedicated Marks Primary Tab:** Moved the entire grades and academic tracking category into a dedicated primary tab (`Marks`) in both the Chrome extension and mobile companion app, sitting cleanly alongside Calendar, Deadlines, and Courses (with 5-tab mobile segmented control and desktop header shortcuts). Unclutters the Courses tab so it focuses purely on course management, class times, rooms, credit hours, and quick links.
+- **Semester Switcher in Marks View:** Integrated the academic profile banner, term selector dropdown, auto-partitioning tools, and term archiving controls into the Marks tab, allowing students to switch between current active term marks and archived semester records with zero friction.
+- **Historical Score Momentum & Trend Analysis:** Added `calculateCourseTrend` in `src/core/targetGpa.ts` (`BBCore`) to analyze historical assessment momentum, score volatility, and trend trajectories (`Improving ↗`, `Consistent →`, `Needs Focus ↘`). Computes safe buffer score ranges (e.g. `84.5%–88.0%` or `17–18.5 / 20`) on remaining assessments to help students plan for real-world exam score variance.
+- **Visual Trajectory Graphing Bars:** Each active course in the Marks tab now features a compact, hardware-accelerated visual trajectory bar showing current earned weight, needed score range to hit the target cutoff, and max achievable percentage.
+- **Unattainable Target GPA Alert Banner:** When a student enters a Target Term GPA that is mathematically impossible based on completed coursework, Blackboarder immediately surfaces an unattainable status alert banner highlighting the highest achievable GPA with a single-click "Set to Max" action.
+
 ## [1.4.45] - 2026-11-02
 
 ### Added

@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateCourseTargetAnalysis,
   calculateTermTargetPlan,
-  calculateTrajectoryTargetPlan
+  calculateTrajectoryTargetPlan,
+  calculateCourseTrend
 } from '../src/core/targetGpa';
 import { UOS_GRADE_SCALE, GpaSummary, CourseGrade } from '../src/utils/gpa';
 import { DeadlineTask } from '../src/types';
@@ -335,6 +336,98 @@ describe('Term Target GPA Planning', () => {
       expect(plan.taskTargetMap['task_phys_final']).toBeDefined();
       expect(plan.taskTargetMap['task_phys_final'].targetLetter).toBe(physPlan?.targetLetter);
       expect(plan.taskTargetMap['task_phys_final'].targetScore).toBeGreaterThan(0);
+    });
+
+    it('calculates historical score momentum, variance and trend trajectory', () => {
+      const tasks: DeadlineTask[] = [
+        {
+          id: 'q1',
+          courseName: 'Chemistry',
+          title: 'Quiz 1',
+          score: 14,
+          maxScore: 20, // 70%
+          dueDate: '2026-09-10T10:00:00.000Z',
+          status: 'completed'
+        } as DeadlineTask,
+        {
+          id: 'q2',
+          courseName: 'Chemistry',
+          title: 'Quiz 2',
+          score: 17,
+          maxScore: 20, // 85%
+          dueDate: '2026-10-01T10:00:00.000Z',
+          status: 'completed'
+        } as DeadlineTask,
+        {
+          id: 'mid',
+          courseName: 'Chemistry',
+          title: 'Midterm',
+          score: 94,
+          maxScore: 100, // 94%
+          dueDate: '2026-10-25T10:00:00.000Z',
+          status: 'completed'
+        } as DeadlineTask
+      ];
+
+      const trend = calculateCourseTrend(tasks, 'Chemistry');
+      expect(trend.sampleCount).toBe(3);
+      expect(trend.direction).toBe('improving');
+      expect(trend.label).toBe('Improving ↗');
+      expect(trend.momentum).toBeGreaterThan(4);
+      expect(trend.averagePercent).toBeCloseTo(83, 0);
+
+      // Decreasing scores
+      const decliningTasks: DeadlineTask[] = [
+        {
+          id: 'd1',
+          courseName: 'Biology',
+          title: 'Quiz 1',
+          score: 95,
+          maxScore: 100, // 95%
+          dueDate: '2026-09-10T10:00:00.000Z',
+          status: 'completed'
+        } as DeadlineTask,
+        {
+          id: 'd2',
+          courseName: 'Biology',
+          title: 'Midterm',
+          score: 70,
+          maxScore: 100, // 70%
+          dueDate: '2026-10-20T10:00:00.000Z',
+          status: 'completed'
+        } as DeadlineTask
+      ];
+      const decliningTrend = calculateCourseTrend(decliningTasks, 'Biology');
+      expect(decliningTrend.direction).toBe('needs-focus');
+      expect(decliningTrend.label).toBe('Needs Focus ↘');
+    });
+
+    it('flags unattainable target GPA and provides maximum possible GPA', () => {
+      // Completed 80% of weight with mediocre marks (earned 45%). Remaining 20%.
+      // Max possible grade = 45 + 20 = 65% (C / 2.0 GPA)
+      const gpaSummary: GpaSummary = {
+        totalCredits: 3,
+        gradedCredits: 3,
+        gpa: 2.0,
+        courses: [
+          {
+            courseName: 'History',
+            creditHours: 3,
+            gradedWeight: 80,
+            earnedWeight: 45,
+            percent: 56.25,
+            components: []
+          }
+        ]
+      };
+
+      const plan = calculateTrajectoryTargetPlan(gpaSummary, 3.80, [], UOS_GRADE_SCALE);
+      expect(plan.possible).toBe(false);
+      expect(plan.maxPossibleGpa).toBeLessThan(3.80);
+      const hist = plan.courses.find(c => c.courseName === 'History');
+      expect(hist).toBeDefined();
+      expect(hist?.maxPossiblePercent).toBe(65);
+      expect(hist?.targetPoints).toBeLessThanOrEqual(2.0);
     });
   });
 });

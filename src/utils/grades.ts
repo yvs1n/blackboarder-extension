@@ -2,7 +2,7 @@ import { describeGradeScale, GradeRow } from '../core/universities';
 import { GpaSummary, UOS_GRADE_SCALE } from './gpa';
 import { MarksSummary, CourseMarks, formatScore } from './marks';
 import type { CumulativeGpaSummary, ArchivedSemester, DeadlineTask } from '../types';
-import { calculateCourseTargetAnalysis, CourseTargetAnalysis, calculateTrajectoryTargetPlan, TrajectoryTargetPlan } from '../core/targetGpa';
+import { calculateCourseTargetAnalysis, CourseTargetAnalysis, calculateTrajectoryTargetPlan, TrajectoryTargetPlan, TrajectoryCoursePlan } from '../core/targetGpa';
 
 /**
  * The Grades card: the projected GPA, then each course's grade so far with every mark under it.
@@ -40,7 +40,7 @@ function markRowsHtml(course: CourseMarks | undefined): string {
   }).join('');
 }
 
-function targetSectionHtml(analysis: CourseTargetAnalysis, selectedLetter?: string): string {
+function targetSectionHtml(analysis: CourseTargetAnalysis, selectedLetter?: string, planCourse?: TrajectoryCoursePlan): string {
   if (analysis.remainingWeight <= 0) {
     return `<div class="gpa-target-wrap"><div class="gpa-target-desc" style="color: var(--text-muted); font-size: 10.5px;">All course assessment weight is 100% graded.</div></div>`;
   }
@@ -73,19 +73,54 @@ function targetSectionHtml(analysis: CourseTargetAnalysis, selectedLetter?: stri
     targetDesc = `<span class="target-desc-dim" style="color: var(--text-muted);">Grade ${esc(activeTarget.letter)} unattainable (max possible is ${analysis.maxPossiblePercent}%)</span>`;
   } else {
     const upcoming = (activeTarget.upcomingTasks || []).map(u => {
-      return `${esc(u.title)}: ${u.targetScore}/${u.maxScore}`;
+      const scoreText = u.displayRange ? u.displayRange : `${u.targetScore}/${u.maxScore}`;
+      return `${esc(u.title)}: ${scoreText}`;
     }).slice(0, 2).join(' · ');
 
     const breakdownText = upcoming ? ` · ${upcoming}` : '';
-    targetDesc = `Target <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${esc(activeTarget.letter)}</strong> (${activeTarget.minPercent}%): Need <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${activeTarget.requiredPercent}%</strong> on remaining ${analysis.remainingWeight}% weight${breakdownText}`;
+    const reqText = (planCourse && activeTarget.letter === planCourse.targetLetter && planCourse.displayRange)
+      ? planCourse.displayRange
+      : `${activeTarget.requiredPercent}%`;
+
+    targetDesc = `Target <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${esc(activeTarget.letter)}</strong> (${activeTarget.minPercent}%): Need <strong class="target-highlight" style="color: var(--text-main); font-weight: 700;">${reqText}</strong> on remaining ${analysis.remainingWeight}% weight${breakdownText}`;
   }
 
+  // Visual Trajectory Graphing Bar
+  let trajectoryBarHtml = '';
+  if (activeTarget && !activeTarget.guaranteed && !activeTarget.unattainable) {
+    const earnedW = Math.min(100, Math.max(0, analysis.earnedWeight));
+    const neededW = Math.max(0, Math.min(100 - earnedW, activeTarget.minPercent - earnedW));
+    trajectoryBarHtml = `
+      <div class="trajectory-graph-wrap" style="margin-top: 6px; padding: 4px 6px; background: var(--surface); border: 1px solid var(--surface-border);">
+        <div class="trajectory-bar-track" style="position: relative; height: 6px; background: var(--surface-border); width: 100%; border-radius: 0;">
+          <div class="trajectory-bar-earned" style="position: absolute; left: 0; top: 0; bottom: 0; width: ${earnedW}%; background: var(--primary);" title="Earned: ${earnedW}%"></div>
+          ${neededW > 0 ? `<div class="trajectory-bar-needed" style="position: absolute; left: ${earnedW}%; top: 0; bottom: 0; width: ${neededW}%; background: var(--text-muted); opacity: 0.65;" title="Needed to reach ${activeTarget.minPercent}% cutoff"></div>` : ''}
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); margin-top: 4px; font-weight: 500;">
+          <span>Earned: <strong style="color: var(--text-main);">${earnedW}%</strong></span>
+          <span>Cutoff: <strong style="color: var(--text-main);">${activeTarget.minPercent}% (${esc(activeTarget.letter)})</strong></span>
+          <span>Max: <strong style="color: var(--text-main);">${analysis.maxPossiblePercent}%</strong></span>
+        </div>
+      </div>
+    `;
+  }
+
+  const trendBadge = planCourse?.trend ? `
+    <span class="target-trend-pill" data-trend="${planCourse.trend.direction}" style="font-size: 10px; font-weight: 600; padding: 1px 6px; border: 1px solid var(--surface-border); color: var(--text-muted);" title="Momentum based on recent assessments">
+      ${esc(planCourse.trend.label)}
+    </span>
+  ` : '';
+
   return `<div class="gpa-target-wrap" data-course="${esc(analysis.courseName)}">
-    <div class="gpa-target-header">
-      <span class="gpa-target-label">Target Grade</span>
+    <div class="gpa-target-header" style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="gpa-target-label">Target Grade</span>
+        ${trendBadge}
+      </div>
       <div class="gpa-target-chips">${pills}</div>
     </div>
     <div class="gpa-target-desc">${targetDesc}</div>
+    ${trajectoryBarHtml}
   </div>`;
 }
 
@@ -164,10 +199,16 @@ export function gradesHtml(
     const planSummary = trajectoryPlan.possible
       ? `<div class="target-plan-summary" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--surface-border); font-size: 10.5px; color: var(--text-muted); line-height: 1.4;">
            <span style="font-weight: 600; color: var(--text-main);">Trajectory Targets (${trajectoryPlan.plannedGpa.toFixed(2)} Planned):</span>
-           ${trajectoryPlan.courses.map(pc => `<span><strong>${esc(pc.courseName)}</strong>: <strong style="color: var(--primary);">${esc(pc.targetLetter)}</strong> (need ${pc.requiredPercent}%)${pc.upcomingTasks.length > 0 ? ` [${esc(pc.upcomingTasks[0].title)}: ${pc.upcomingTasks[0].targetScore}/${pc.upcomingTasks[0].maxScore}]` : ''}</span>`).join(' · ')}
+           ${trajectoryPlan.courses.map(pc => `<span><strong>${esc(pc.courseName)}</strong>: <strong style="color: var(--primary);">${esc(pc.targetLetter)}</strong> (${esc(pc.displayRange)})${pc.upcomingTasks.length > 0 ? ` [${esc(pc.upcomingTasks[0].title)}: ${esc(pc.upcomingTasks[0].displayRange || `${pc.upcomingTasks[0].targetScore}/${pc.upcomingTasks[0].maxScore}`)}]` : ''}</span>`).join(' · ')}
          </div>`
-      : `<div class="target-plan-summary" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--surface-border); font-size: 10.5px; color: #dc2626; line-height: 1.4;">
-           ⚠️ Target ${targetGpaVal.toFixed(2)} is mathematically unattainable based on completed weight. Highest achievable GPA is <strong>${trajectoryPlan.maxPossibleGpa.toFixed(2)}</strong>.
+      : `<div class="target-plan-summary gpa-unattainable-alert" style="margin-top: 8px; padding: 8px 10px; background: rgba(220, 38, 38, 0.08); border: 1px solid #dc2626; font-size: 11px; line-height: 1.4;">
+           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+             <span style="color: #dc2626; font-weight: 700;">⚠️ Target ${targetGpaVal.toFixed(2)} is mathematically unattainable</span>
+             <button type="button" class="btn-xs-manage-links btn-set-max-gpa" data-max-gpa="${trajectoryPlan.maxPossibleGpa.toFixed(2)}" style="font-size: 10px; padding: 2px 6px; border: 1px solid #dc2626; color: #dc2626; cursor: pointer;">Set to Max (${trajectoryPlan.maxPossibleGpa.toFixed(2)})</button>
+           </div>
+           <span style="color: var(--text-muted); font-size: 10.5px; display: block; margin-top: 2px;">
+             Based on completed coursework, the highest achievable Term GPA is <strong>${trajectoryPlan.maxPossibleGpa.toFixed(2)}</strong>.
+           </span>
          </div>`;
 
     targetPlannerHtml = `<div class="target-gpa-bar" style="margin-top: 10px; margin-bottom: 8px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
@@ -199,9 +240,10 @@ export function gradesHtml(
       `<div class="gpa-detail">${esc(k.name)}${k.rule ? ` (${esc(k.rule)})` : ''}: not counted ${k.dropped.map(d => `${esc(d.title)} ${d.percent}%`).join(', ')}</div>`
     ).join('');
     const targetAnalysis = calculateCourseTargetAnalysis(c, options?.tasks || [], scaleInfo.scale);
-    const plannedTargetLetter = trajectoryPlan?.courses.find(pc => pc.courseName === c.courseName)?.targetLetter;
+    const planCourse = trajectoryPlan?.courses.find(pc => pc.courseName === c.courseName);
+    const plannedTargetLetter = planCourse?.targetLetter;
     const activeSelectedLetter = options?.selectedTargets?.[c.courseName] || plannedTargetLetter;
-    const targetHtml = targetSectionHtml(targetAnalysis, activeSelectedLetter);
+    const targetHtml = targetSectionHtml(targetAnalysis, activeSelectedLetter, planCourse);
     return `<div class="marks-course">
       <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span><span class="marks-course-total">${c.creditHours} cr</span><span class="marks-right">${right}</span></div>
       ${detail}${drops}${markRowsHtml(courseMarks)}${targetHtml}
