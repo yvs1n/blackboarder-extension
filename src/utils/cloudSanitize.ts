@@ -51,6 +51,26 @@ export function decodeCloudKeys<T>(map: Record<string, T> | undefined | null): R
   return out;
 }
 
+/**
+ * Prunes tombstones older than maxAgeDays (defaults to 90 days / 1 semester) to prevent infinite payload growth.
+ */
+export function pruneExpiredTombstones(
+  tombstones: Record<string, string> | undefined | null,
+  maxAgeDays = 90,
+  now = Date.now()
+): Record<string, string> {
+  if (!tombstones || typeof tombstones !== 'object') return {};
+  const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
+  const out: Record<string, string> = {};
+  for (const [id, dateStr] of Object.entries(tombstones)) {
+    const t = new Date(dateStr).getTime();
+    if (!isNaN(t) && now - t < maxAgeMs) {
+      out[id] = dateStr;
+    }
+  }
+  return out;
+}
+
 export function isSafeCloudId(id: unknown): id is string {
   return typeof id === 'string' && SAFE_ID.test(id);
 }

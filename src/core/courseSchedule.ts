@@ -102,26 +102,26 @@ export function extractRoomFromText(text: string): string | null {
   if (!text) return null;
 
   // 0. Positive relocation / explicit room indicator (e.g. "moved to room A8-204", "held in A8-103", "in room A8-204", "قاعة A8-204")
-  const targetRoomRegex = /(?:moved\s*to(?:\s*room)?|transferred\s*to|held\s*in|location:?|venue:?|in\s*room|في\s*قاعة|قاعة)\s*[:\-–]?\s*([A-Za-z]\d{1,2}\s*(?:[-–—/]|:(?=\d{3}))\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/i;
+  const targetRoomRegex = /(?:moved\s*to(?:\s*room)?|transferred\s*to|held\s*in|location:?|venue:?|in\s*room|في\s*قاعة|قاعة)\s*[:\-–]?\s*([A-Za-z]\d{1,2}\s*(?:[-–\u2014/]|:(?=\d{3}))\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/i;
   const targetMatch = text.match(targetRoomRegex);
   if (targetMatch) {
-    return targetMatch[1].replace(/\s*[-–—/:]\s*/, '-').toUpperCase();
+    return targetMatch[1].replace(/\s*[-–\u2014/:]\s*/, '-').toUpperCase();
   }
 
   // 1. Explicit Building + Room or Lab patterns (e.g. "A8-103", "A12 - 110", "A3-184", "A8-TH005", "W8-Lab 3", "M9-102")
   // Exclude rooms explicitly negated (e.g. "NOT in A12-110", "not take place in A12-110")
-  const allBldMatches = Array.from(text.matchAll(/\b([A-Za-z]\d{1,2}\s*(?:[-–—/]|:(?=\d{3}))\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/gi));
+  const allBldMatches = Array.from(text.matchAll(/\b([A-Za-z]\d{1,2}\s*(?:[-–\u2014/]|:(?=\d{3}))\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/gi));
   for (const m of allBldMatches) {
     const matchIndex = m.index ?? 0;
     const precedingSnippet = text.slice(Math.max(0, matchIndex - 35), matchIndex).toLowerCase();
     const isNegated = /not\s*(?:take\s*place\s*)?in\s*$|not\s*in\s*$|never\s*in\s*$|instead\s*of\s*$|ليس\s*في\s*$/i.test(precedingSnippet);
     if (!isNegated) {
-      return m[1].replace(/\s*[-–—/:]\s*/, '-').toUpperCase();
+      return m[1].replace(/\s*[-–\u2014/:]\s*/, '-').toUpperCase();
     }
   }
 
   // 2. Central lab pattern (e.g. "Central Lab Men - 105", "Central Laboratories 105")
-  const centralLabRegex = /\b(?:central\s*lab(?:orator(?:y|ies))?(?:\s*\(?men\)?)?)\s*[-–—:]*\s*(\d{2,4}[A-Za-z]?)\b/i;
+  const centralLabRegex = /\b(?:central\s*lab(?:orator(?:y|ies))?(?:\s*\(?men\)?)?)\s*[-–\u2014:]*\s*(\d{2,4}[A-Za-z]?)\b/i;
   const centralMatch = text.match(centralLabRegex);
   if (centralMatch) {
     return `Central Lab Men - ${centralMatch[1]}`;
@@ -130,12 +130,12 @@ export function extractRoomFromText(text: string): string | null {
   // 3. English keywords: room / classroom / hall / lab / auditorium (e.g. "in room A8-204", "room 103", "hall TH005")
   // The keyword must be a whole word and the room token must contain a digit; otherwise
   // "lab report", "label" or "classroom rules" were read as rooms ("report", "el", "rules").
-  const enRoomRegex = /\b(?:in\s+)?(?:room|rm|classroom|hall|auditorium|lecture\s*hall|lab|laboratory)\b\s*(?:#|no\.?|number)?\s*[:\-–]?\s*([A-Za-z0-9]{1,6}(?:\s*[-–—/]\s*[A-Za-z0-9]+)?)\b/i;
+  const enRoomRegex = /\b(?:in\s+)?(?:room|rm|classroom|hall|auditorium|lecture\s*hall|lab|laboratory)\b\s*(?:#|no\.?|number)?\s*[:\-–]?\s*([A-Za-z0-9]{1,6}(?:\s*[-–\u2014/]\s*[A-Za-z0-9]+)?)\b/i;
   const enMatch = text.match(enRoomRegex);
   if (enMatch) {
     const raw = enMatch[1].trim();
     if (/\d/.test(raw) && !/^(?:temperature|conditions|for|and|or|the|to|with|all|due|today|tomorrow|yesterday)$/i.test(raw)) {
-      return raw.replace(/\s*[-–—/]\s*/, '-');
+      return raw.replace(/\s*[-–\u2014/]\s*/, '-');
     }
   }
 
@@ -145,7 +145,7 @@ export function extractRoomFromText(text: string): string | null {
   if (arMatch) {
     const raw = arMatch[1].trim();
     if (raw && /\d/.test(raw) && !/^(?:الامتحان|الدراسة|المحاضرة|اليوم|أمس|غدا|غداً)$/i.test(raw)) {
-      return raw.replace(/\s*[-–—/]\s*/, '-');
+      return raw.replace(/\s*[-–\u2014/]\s*/, '-');
     }
   }
 

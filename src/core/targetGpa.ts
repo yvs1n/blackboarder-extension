@@ -1,6 +1,7 @@
 import type { DeadlineTask } from '../types';
 import { GradeRow } from './universities';
 import { CourseGrade, GpaSummary, UOS_GRADE_SCALE } from '../utils/gpa';
+import { round1, round2 } from '../utils/uiCommon';
 
 export interface UpcomingTaskRequirement {
   id: string;
@@ -62,9 +63,6 @@ export interface TermTargetPlan {
   possible: boolean;
   coursePlans: CoursePlanItem[];
 }
-
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Calculates the exact exam score percentage needed on remaining course assessments to achieve

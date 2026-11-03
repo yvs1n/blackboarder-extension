@@ -269,8 +269,8 @@ function courseHeaderPatterns(names: string[]): RegExp[] {
   if (!list.length) return [];
   const alt = `(?:${list.join('|')})`;
   return [
-    new RegExp(`^\\s*${alt}\\s*[-–—:]+\\s*\\d{1,2}[A-Z]?\\s*[-–—:]+[ \\t]*(?:[\\u0600-\\u06FF][\\u0600-\\u06FF\\d \\t]*)?[-–—:]*\\s*`, 'i'),
-    new RegExp(`^\\s*${alt}\\s*[-–—:]*\\s*(?:\\b\\d{1,2}[A-Z]?\\b)?\\s*[-–—:]*\\s*`, 'i')
+    new RegExp(`^\\s*${alt}\\s*[-–\\u2014:]+\\s*\\d{1,2}[A-Z]?\\s*[-–\\u2014:]+[ \\t]*(?:[\\u0600-\\u06FF][\\u0600-\\u06FF\\d \\t]*)?[-–\\u2014:]*\\s*`, 'i'),
+    new RegExp(`^\\s*${alt}\\s*[-–\\u2014:]*\\s*(?:\\b\\d{1,2}[A-Z]?\\b)?\\s*[-–\\u2014:]*\\s*`, 'i')
   ];
 }
 
@@ -315,7 +315,7 @@ export function sanitizeDoctorAnnouncementText(
   }
   if (courseCode && courseCode !== 'UOS' && courseCode.trim().length > 2) {
     const escapedCode = courseCode.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s*');
-    dynamicCoursePatterns.push(new RegExp(`^\\s*${escapedCode}\\s*[-–—:]*`, 'i'));
+    dynamicCoursePatterns.push(new RegExp(`^\\s*${escapedCode}\\s*[-–\\u2014:]*`, 'i'));
   }
 
   // Iterate up to 4 passes to clean layered prefixes (e.g. [timestamp] [course name] [section] [arabic name])
@@ -359,7 +359,7 @@ export function sanitizeDoctorAnnouncementText(
     }
 
     // 4. Strip stray section number leftovers like "- 01 - " or "01 - "
-    const sectionMatch = text.match(/^[-–—:]*\s*\b(?:\d{1,2}[A-Z]?|ALL)\b\s*[-–—:]*\s*/i);
+    const sectionMatch = text.match(/^[-–\u2014:]*\s*\b(?:\d{1,2}[A-Z]?|ALL)\b\s*[-–\u2014:]*\s*/i);
     if (sectionMatch && sectionMatch[0]) {
       const next = text.slice(sectionMatch[0].length).trim();
       if (next.length >= 5) {
@@ -393,7 +393,7 @@ export function sanitizeDoctorAnnouncementText(
   text = text.replace(/\s+([,.:;!?])/g, '$1');
 
   // Final cleanup of leading punctuation
-  text = text.replace(/^[:\-–—|,\s]+/, '').trim();
+  text = text.replace(/^[:\-–\u2014|,\s]+/, '').trim();
 
   // If cleaning somehow emptied the text or left it under 5 chars, return rawText to avoid losing content!
   return text.length >= 5 ? text : rawText.trim();
@@ -422,7 +422,7 @@ export function resolveCourseInfo(task: {
     .replace(/(?:Report)?Due\s*date:.*$/gi, '')
     .replace(/New\s*Group\s*\d+/gi, '')
     .replace(/\(UTC[+-]?\d+\)/gi, '')
-    .replace(/^[:\-–—|\s]+|[:\-–—|\s]+$/g, '')
+    .replace(/^[:\-–\u2014|\s]+|[:\-–\u2014|\s]+$/g, '')
     .trim();
 
   const userCourses = getActiveUserCourses();

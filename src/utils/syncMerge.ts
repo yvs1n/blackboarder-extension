@@ -2,7 +2,7 @@ import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, Archive
 import { mergeCloudTasks, mergeTombstones, TombstoneMap } from './taskMerge';
 import { purgeSyntheticGradebookTasks } from './gradebook';
 import { newerProfile, sanitizeProfile } from '../core/studentProfile';
-import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys, sanitizeScanRequest } from './cloudSanitize';
+import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys, sanitizeScanRequest, pruneExpiredTombstones } from './cloudSanitize';
 import { sanitizeSemesters, mergeArchivedSemesters } from '../core/semesters';
 import type { CloudScanRequest } from './cloudSanitize';
 
@@ -112,7 +112,8 @@ export function readCloudSide(data: any): SyncSide {
 /** What to write to Firebase: this device's data merged with the cloud copy read just before. */
 export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | undefined): MergedSync {
   const c = cloud || {};
-  const tombstones = mergeTombstones(local.tombstones || {}, c.tombstones || {});
+  const mergedTomb = mergeTombstones(local.tombstones || {}, c.tombstones || {});
+  const tombstones = pruneExpiredTombstones(mergedTomb, 90);
   const rawTasks = Array.isArray(c.tasks) && c.tasks.length > 0
     ? mergeCloudTasks(local.tasks || [], c.tasks, tombstones).tasks
     : (local.tasks || []).filter(t => {

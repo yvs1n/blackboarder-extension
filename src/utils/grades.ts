@@ -3,15 +3,12 @@ import { GpaSummary, UOS_GRADE_SCALE } from './gpa';
 import { MarksSummary, CourseMarks, formatScore } from './marks';
 import type { CumulativeGpaSummary, ArchivedSemester, DeadlineTask } from '../types';
 import { calculateCourseTargetAnalysis, calculateTrajectoryTargetPlan, TrajectoryTargetPlan } from '../core/targetGpa';
+import { esc } from './uiCommon';
 
 /**
  * The Grades card: the projected GPA, then each course's grade so far with every mark under it.
  * Shared by the extension's and the phone's Courses tab (same classes in both stylesheets).
  */
-
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-}
 
 /** Header badge: "GPA 3.50 · 4 marks", "CGPA 3.65 · Term 3.50", or "No marks yet". */
 export function gradesBadgeText(gpa: GpaSummary, marks: MarksSummary, cumulative?: CumulativeGpaSummary | null): string {

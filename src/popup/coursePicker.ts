@@ -1,4 +1,5 @@
 import type { UserCourseConfig } from '../types';
+import { esc } from '../utils/uiCommon';
 
 /** The courses that fit what has been typed, best first: name starts with it, then a word does, then it appears anywhere (name, code or keyword). */
 export function filterCourses(courses: UserCourseConfig[], query: string): UserCourseConfig[] {
@@ -26,10 +27,6 @@ export function findPickedCourse(courses: UserCourseConfig[], value: string): Us
   if (!v) return undefined;
   return courses.find(c => (c.courseName || '').trim().toLowerCase() === v) ||
     courses.find(c => (c.courseCode || '').replace(/\s+/g, '').toLowerCase() === v.replace(/\s+/g, ''));
-}
-
-function esc(s: string): string {
-  return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
 }
 
 /**

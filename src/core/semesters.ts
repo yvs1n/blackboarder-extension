@@ -9,9 +9,7 @@ import type {
 import { GradeRow } from './universities';
 import { buildGpaSummary, GpaSummary, DEFAULT_CREDIT_HOURS } from '../utils/gpa';
 import { userCoursesToSyllabi } from './userCourses';
-
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const round2 = (n: number) => Math.round(n * 100) / 100;
+import { round1, round2 } from '../utils/uiCommon';
 
 /** Cleans and normalizes an array of archived semesters from storage or cloud sync. */
 export function sanitizeSemesters(raw: unknown): ArchivedSemester[] {

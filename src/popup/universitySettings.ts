@@ -10,6 +10,7 @@ import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { getProfile, saveProfile, PROFILE_KEY } from '../utils/profile';
 import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
 import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/blackboardSites';
+import { esc } from '../utils/uiCommon';
 
 export interface UniversitySettingsHooks {
   /** The profile changed here or from a sync: re-render marks, and push to the cloud when it changed here */
@@ -21,10 +22,6 @@ let cached: StudentProfile | null = null;
 
 export function getCachedProfile(): StudentProfile | null {
   return cached;
-}
-
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
 function fillUniversitySelect(select: HTMLSelectElement | null, profile: StudentProfile | null) {

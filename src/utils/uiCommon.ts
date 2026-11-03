@@ -1,6 +1,17 @@
 import type { TaskType } from '../types';
 
 /**
+ * Mathematical rounding helpers to 1 and 2 decimal places.
+ */
+export const round1 = (n: number): number => Math.round(n * 10) / 10;
+export const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/**
+ * Zero-pads a number or string to 2 digits.
+ */
+export const pad2 = (n: number | string): string => String(n).padStart(2, '0');
+
+/**
  * Escapes HTML characters to prevent XSS vulnerabilities in dynamically injected markup.
  */
 export function escapeHtml(str: any): string {
@@ -12,6 +23,11 @@ export function escapeHtml(str: any): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+/**
+ * Concise alias for escapeHtml used in templates.
+ */
+export const esc = escapeHtml;
 
 /**
  * Generates an SVG icon markup referencing the global symbol sprite sheet.

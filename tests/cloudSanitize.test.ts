@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeCloudTasks } from '../src/utils/cloudSanitize';
+import { sanitizeCloudTasks, pruneExpiredTombstones } from '../src/utils/cloudSanitize';
 import type { DeadlineTask } from '../src/types';
 
 describe('sanitizeCloudTasks Gradebook & Empty Due Date Support', () => {
@@ -119,5 +119,26 @@ describe('sanitizeCloudTasks Gradebook & Empty Due Date Support', () => {
     expect(sanitized[0].score).toBe(18.5);
     expect(sanitized[0].maxScore).toBe(20);
     expect(sanitized[0].notes).toBeUndefined();
+  });
+
+  it('prunes tombstones older than the maxAge cutoff while keeping recent ones', () => {
+    const now = new Date('2026-11-03T12:00:00Z').getTime();
+    const tombstones = {
+      recent_1: new Date('2026-11-01T12:00:00Z').toISOString(), // 2 days old
+      recent_2: new Date('2026-10-15T12:00:00Z').toISOString(), // ~19 days old
+      expired_1: new Date('2026-08-01T12:00:00Z').toISOString(), // ~94 days old (expired)
+      expired_2: new Date('2026-05-01T12:00:00Z').toISOString()  // ~6 months old (expired)
+    };
+
+    const pruned = pruneExpiredTombstones(tombstones, 60, now);
+    expect(Object.keys(pruned)).toEqual(['recent_1', 'recent_2']);
+    expect(pruned.expired_1).toBeUndefined();
+    expect(pruned.expired_2).toBeUndefined();
+  });
+
+  it('handles empty or malformed tombstones safely', () => {
+    expect(pruneExpiredTombstones(null as any)).toEqual({});
+    expect(pruneExpiredTombstones(undefined as any)).toEqual({});
+    expect(pruneExpiredTombstones({ bad_date: 'invalid-date-string' })).toEqual({});
   });
 });

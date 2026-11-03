@@ -1,4 +1,5 @@
 import type { DeadlineTask } from '../types';
+import { round1, esc } from './uiCommon';
 
 export interface ProgressSyllabus {
   courseName: string;
@@ -24,8 +25,6 @@ export interface SyllabusProgress {
   /** Done weight across all courses as a share of all course weight, 0-100 */
   overallPercent: number;
 }
-
-const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** How much of each course's syllabus weight is done, still pending, or not announced yet. */
 export function buildSyllabusProgress(tasks: DeadlineTask[], syllabi: ProgressSyllabus[]): SyllabusProgress {
@@ -57,10 +56,6 @@ export function buildSyllabusProgress(tasks: DeadlineTask[], syllabi: ProgressSy
     };
   });
   return { courses, overallPercent: total > 0 ? Math.round((done / total) * 100) : 0 };
-}
-
-function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
 
 /** The Syllabus Progress list, shared by the popup and the phone app (same classes in both stylesheets). */

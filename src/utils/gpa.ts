@@ -2,6 +2,7 @@ import type { DeadlineTask, TaskType } from '../types';
 import { GradeRow } from '../core/universities';
 import { sanitizeTaskListMarks, extractAssessmentNumber } from './taskMerge';
 import { coreTitle } from './streamParser';
+import { round1, round2 } from './uiCommon';
 
 /**
  * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
@@ -87,9 +88,6 @@ export interface GpaSummary {
   gradedCredits: number;
   totalCredits: number;
 }
-
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
  * Reads "best 2 of 3", "top 3 of 4", "4 scheduled, top 3 counted" or "best 3 out of 4" from a

@@ -250,13 +250,13 @@ export function parseBannerScheduleText(rawText: string): Partial<UserCourseConf
   // Status: **Registered**
   // Instructors: Randa Al-Teraifi (Primary)
   // Class 12:30 pm - 1:45 pm | Tue Thu | UOS Men's Campus, A12, 110 | Type: Class
-  const blockDelimiters = /(?:^|\n)(?=[^\n]+?\s*[-–—]\s*(?:[0-9]{4}\s*[0-9]{3}|[0-9]{7})\b)/g;
+  const blockDelimiters = /(?:^|\n)(?=[^\n]+?\s*[-–\u2014]\s*(?:[0-9]{4}\s*[0-9]{3}|[0-9]{7})\b)/g;
   const blocks = text.split(blockDelimiters).map(b => b.trim()).filter(Boolean);
 
-  if (blocks.length > 1 || (blocks.length === 1 && /[-–—]\s*(?:[0-9]{4}\s*[0-9]{3}|[0-9]{7})/i.test(blocks[0]))) {
+  if (blocks.length > 1 || (blocks.length === 1 && /[-–\u2014]\s*(?:[0-9]{4}\s*[0-9]{3}|[0-9]{7})/i.test(blocks[0]))) {
     for (const block of blocks) {
       const headerLine = block.split('\n')[0] || '';
-      const headerMatch = headerLine.match(/^(.+?)\s*[-–—]\s*([0-9]{4}\s*[0-9]{3}(?:\s*[0-9]{1,2}[A-Z]?)?|[0-9]{7})/i);
+      const headerMatch = headerLine.match(/^(.+?)\s*[-–\u2014]\s*([0-9]{4}\s*[0-9]{3}(?:\s*[0-9]{1,2}[A-Z]?)?|[0-9]{7})/i);
 
       if (headerMatch) {
         const courseName = headerMatch[1].trim();
@@ -272,7 +272,7 @@ export function parseBannerScheduleText(rawText: string): Partial<UserCourseConf
 
         // Time and Days
         // e.g. "12:30 pm - 1:45 pm | Tue Thu | UOS Men's Campus, A12, 110"
-        const timeMatch = block.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*[-–—]\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)/i);
+        const timeMatch = block.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*[-–\u2014]\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)/i);
         const startTime = timeMatch ? convertTo24Hour(timeMatch[1]) : '00:00';
         const endTime = timeMatch ? convertTo24Hour(timeMatch[2]) : '00:00';
 
@@ -294,14 +294,14 @@ export function parseBannerScheduleText(rawText: string): Partial<UserCourseConf
         // Room & Location
         let room = 'TBA';
         let location = '';
-        const bldRoomMatch = block.match(/\b([A-Za-z]\d{1,2})\s*[,–—/-]\s*(TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?)\b/i);
+        const bldRoomMatch = block.match(/\b([A-Za-z]\d{1,2})\s*[,–\u2014/-]\s*(TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?)\b/i);
         if (bldRoomMatch) {
           room = `${bldRoomMatch[1].toUpperCase()}-${bldRoomMatch[2]}`;
         } else {
-          const roomMatch = block.match(/\b([A-Za-z]\d{1,2}\s*[-–—/]\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/i) ||
-                            block.match(/(?:Central\s*Lab(?:orator(?:y|ies))?(?:\s*\(?men\)?)?\s*[-–—:]*\s*\d{2,4}[A-Za-z]?)/i);
+          const roomMatch = block.match(/\b([A-Za-z]\d{1,2}\s*[-–\u2014/]\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/i) ||
+                            block.match(/(?:Central\s*Lab(?:orator(?:y|ies))?(?:\s*\(?men\)?)?\s*[-–\u2014:]*\s*\d{2,4}[A-Za-z]?)/i);
           if (roomMatch) {
-            room = roomMatch[0].replace(/\s*[-–—/]\s*/, '-').trim();
+            room = roomMatch[0].replace(/\s*[-–\u2014/]\s*/, '-').trim();
           }
         }
 
@@ -340,7 +340,7 @@ export function parseBannerScheduleText(rawText: string): Partial<UserCourseConf
 
   for (const line of lines) {
     // Check for row with CRN (5 digits), course code (digits), days, time
-    const rowMatch = line.match(/^(\d{5})?\s*([0-9]{4}\s*[0-9]{3}(?:\s*[0-9]{1,2}[A-Za-z]?)?|[0-9]{7})\s+(.+?)\s+(?:[0-9.]+\s+)?([UMTWRFS]{1,5}|[A-Za-z\s,/\-]+)\s+(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*[-–—]\s*(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s+([A-Za-z0-9\s\-]+?)(?:\s+([A-Za-z,\s]+))?$/i);
+    const rowMatch = line.match(/^(\d{5})?\s*([0-9]{4}\s*[0-9]{3}(?:\s*[0-9]{1,2}[A-Za-z]?)?|[0-9]{7})\s+(.+?)\s+(?:[0-9.]+\s+)?([UMTWRFS]{1,5}|[A-Za-z\s,/\-]+)\s+(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s*[-–\u2014]\s*(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm)?)\s+([A-Za-z0-9\s\-]+?)(?:\s+([A-Za-z,\s]+))?$/i);
 
     if (rowMatch) {
       const crn = rowMatch[1] || undefined;
@@ -370,7 +370,7 @@ export function parseBannerScheduleText(rawText: string): Partial<UserCourseConf
     } else {
       // Freeform single-line check
       const codeMatch = line.match(/\b([0-9]{4}\s*[0-9]{3}(?:\s*[0-9]{1,2}[A-Za-z]?)?|[0-9]{7})\b/);
-      const timeMatch = line.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*[-–—]\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)/i);
+      const timeMatch = line.match(/(\d{1,2}:\d{2}\s*(?:am|pm)?)\s*[-–\u2014]\s*(\d{1,2}:\d{2}\s*(?:am|pm)?)/i);
 
       if (codeMatch && timeMatch) {
         const courseCode = codeMatch[1].trim();
@@ -379,14 +379,14 @@ export function parseBannerScheduleText(rawText: string): Partial<UserCourseConf
         const days = parseDaysString(line);
 
         let room = 'TBA';
-        const roomMatch = line.match(/\b([A-Za-z]\d{1,2}\s*[-–—/]\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/i) ||
+        const roomMatch = line.match(/\b([A-Za-z]\d{1,2}\s*[-–\u2014/]\s*(?:TH\d{2,4}|Lab\s*\d+|\d{2,4}[A-Za-z]?))\b/i) ||
                           line.match(/\bCentral\s*Lab[^\n,]+/i);
         if (roomMatch) room = roomMatch[0].trim();
 
         // Extract title before or after code
-        let courseName = line.split(codeMatch[0])[0].replace(/[-–—:|]+/g, '').trim();
+        let courseName = line.split(codeMatch[0])[0].replace(/[-–\u2014:|]+/g, '').trim();
         if (!courseName || courseName.length < 3) {
-          courseName = line.split(codeMatch[0])[1]?.split(/[-–—|0-9]/)[0].trim() || `Course ${courseCode}`;
+          courseName = line.split(codeMatch[0])[1]?.split(/[-–\u2014|0-9]/)[0].trim() || `Course ${courseCode}`;
         }
 
         courses.push({
@@ -429,7 +429,7 @@ export function parseSyllabusWeightsText(rawText: string): CustomSyllabusCompone
     // Look for percentage or marks: e.g. "30%", "20 %", "30 marks", "25 pts", "40 points"
     const pctMatch = line.match(/(\d+(?:\.\d+)?)\s*%/i) ||
                      line.match(/(\d+(?:\.\d+)?)\s*(?:marks?|points?|pts?)\b/i) ||
-                     line.match(/[-–—:\s]+(\d+(?:\.\d+)?)\s*$/);
+                     line.match(/[-–\u2014:\s]+(\d+(?:\.\d+)?)\s*$/);
 
     if (!pctMatch) continue;
 
@@ -437,10 +437,10 @@ export function parseSyllabusWeightsText(rawText: string): CustomSyllabusCompone
     if (isNaN(totalWeight) || totalWeight <= 0 || totalWeight > 100) continue;
 
     // Component name is the text preceding the score
-    let namePart = line.slice(0, pctMatch.index).replace(/[-–—:]+$/, '').trim();
+    let namePart = line.slice(0, pctMatch.index).replace(/[-–\u2014:]+$/, '').trim();
     if (!namePart || namePart.length < 2) {
       // If score is at the beginning e.g. "30% - Midterm Exam"
-      namePart = line.slice((pctMatch.index || 0) + pctMatch[0].length).replace(/^[-–—:]+/, '').trim();
+      namePart = line.slice((pctMatch.index || 0) + pctMatch[0].length).replace(/^[-–\u2014:]+/, '').trim();
     }
     if (!namePart) namePart = `Assessment ${idx + 1}`;
 

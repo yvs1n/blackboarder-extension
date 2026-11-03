@@ -2,6 +2,7 @@ import type { DeadlineTask } from '../types';
 import { coreTitle } from './streamParser';
 import { extractAssessmentNumber } from '../core/syllabusWeights';
 import { sanitizeTaskListMarks } from './taskMerge';
+import { round1 } from './uiCommon';
 import { isExamItem } from './gradebook';
 
 /** The fields of a syllabus this summary needs (both the extension and phone shapes have them). */
@@ -46,8 +47,6 @@ export interface MarksSummary {
   gradedCount: number;
   submittedCount: number;
 }
-
-const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
  * Every mark in one place: graded and submitted tasks grouped by course, with each course's

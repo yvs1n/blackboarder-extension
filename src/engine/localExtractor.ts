@@ -162,7 +162,7 @@ function parseTime(text: string): { hour: number; minute: number; hasTime: boole
   }
 
   // Hyphen / dash range (e.g. "12:30 pm - 1:30 pm", "12:30 - 13:30", "11:00 AM - 12:15 PM")
-  const hyphenRangeRegex = /\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\b/i;
+  const hyphenRangeRegex = /\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\s*[-–\u2014]\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\b/i;
   const hyphenMatch = text.match(hyphenRangeRegex);
   if (hyphenMatch) {
     const startStr = hyphenMatch[1];
