@@ -689,7 +689,7 @@ body.is-standalone .header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -713,7 +713,7 @@ body.is-standalone .header {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
   flex-shrink: 0;
   min-width: 74px;
   max-width: 86px;
@@ -929,7 +929,7 @@ body.is-standalone .header {
   color: var(--text-muted);
   border-radius: 0;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .nav-tab:hover {
@@ -993,7 +993,7 @@ body.is-standalone .header {
   justify-content: center;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
 }
 
 .calendar-nav-btn:hover {
@@ -1010,7 +1010,7 @@ body.is-standalone .header {
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.12s;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .calendar-today-btn:hover {
@@ -1046,6 +1046,58 @@ body.is-standalone .header {
   border-radius: var(--radius-md);
   border: 1px solid var(--surface-border);
   margin-bottom: 12px;
+  contain: layout style;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.calendar-grid.cal-slide-next {
+  animation: calSlideNext 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.calendar-grid.cal-slide-prev {
+  animation: calSlidePrev 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes calSlideNext {
+  0% {
+    transform: translateX(18px);
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes calSlidePrev {
+  0% {
+    transform: translateX(-18px);
+    opacity: 0.65;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.calendar-month-title.cal-title-fade {
+  animation: calTitleFade 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes calTitleFade {
+  0% { opacity: 0.5; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-grid.cal-slide-next,
+  .calendar-grid.cal-slide-prev,
+  .calendar-month-title.cal-title-fade {
+    animation: none !important;
+  }
 }
 
 .cal-day {
@@ -1059,10 +1111,15 @@ body.is-standalone .header {
   border-radius: 6px;
   display: flex;
   flex-direction: column;
-  transition: all 0.12s ease;
+  transition: background-color 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
   cursor: pointer;
   position: relative;
   overflow: hidden;
+}
+
+.cal-day:active {
+  transform: scale(0.985);
+  transition: transform 0.05s ease-out;
 }
 
 /* 6-row months (42 cells) tighten inner cell spacing so 2 chips fit cleanly inside each 1/6th row */
@@ -1338,7 +1395,7 @@ body.is-standalone .header {
   border: 1px solid var(--surface-border);
   cursor: pointer;
   user-select: none;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .legend-chip:hover {
@@ -1398,7 +1455,7 @@ body.is-standalone .header {
   padding: 3px 9px;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .btn-xs-add:hover {
@@ -1423,7 +1480,7 @@ body.is-standalone .header {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-left-width: 4px;
-  transition: all 0.12s;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .selected-day-item:hover {
@@ -1603,7 +1660,7 @@ body.is-standalone .header {
   color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .filter-chip.active, .tab-btn.active {
@@ -1658,7 +1715,7 @@ body.is-standalone .header {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
 
 [data-theme="dark"] .btn-primary-action {
@@ -1688,7 +1745,7 @@ body.is-standalone .header {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .btn-add-action:hover {
@@ -1785,7 +1842,7 @@ body.is-standalone .header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   padding: 0;
   flex-shrink: 0;
 }
@@ -1878,7 +1935,7 @@ body.is-standalone .header {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   text-decoration: none;
   line-height: 1.4;
 }
@@ -2079,7 +2136,7 @@ body.is-standalone .header {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  transition: all 0.12s;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   text-decoration: none;
 }
 
@@ -2198,7 +2255,7 @@ body.is-standalone .header {
   background: var(--surface-hover);
   color: var(--text-main);
   cursor: pointer;
-  transition: all 0.12s;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .btn-add-extracted-item:hover {
@@ -2394,7 +2451,7 @@ body.is-standalone .header {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .btn-danger:hover {
@@ -2471,7 +2528,7 @@ body.is-standalone .header {
   align-items: center;
   justify-content: center;
   border-radius: 0;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .modal-close-btn:hover {
@@ -2712,7 +2769,7 @@ body.is-standalone .header {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .btn-drawer-close:hover {
@@ -2740,7 +2797,7 @@ body.is-standalone .header {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: all 0.12s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
 .day-summary-card:hover {
@@ -3021,7 +3078,7 @@ body.is-standalone .header {
   padding: 3px 8px;
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease;
   flex-shrink: 0;
 }
 
@@ -3206,7 +3263,7 @@ body.is-standalone .header {
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .reading-meta-section .room-pill-btn:hover {
@@ -3291,7 +3348,7 @@ body.is-standalone .header {
   box-shadow: none !important;
   appearance: none;
   -webkit-appearance: none;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .btn-copy-announcement:hover {
@@ -3448,7 +3505,7 @@ body.is-standalone .header {
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .room-preset-btn:hover {
@@ -3564,7 +3621,7 @@ body.is-standalone .header {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .btn-xs-manage-links:hover {
@@ -3592,7 +3649,7 @@ body.is-standalone .header {
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.1s ease;
   user-select: none;
 }
 
@@ -3641,7 +3698,7 @@ body.is-standalone .header {
   border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .ql-item-card:hover {
@@ -3744,7 +3801,7 @@ body.is-standalone .header {
   align-items: center;
   gap: 4px;
   text-decoration: none;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease;
 }
 
 .btn-ql-open:hover {
@@ -3771,7 +3828,7 @@ body.is-standalone .header {
   background: var(--surface);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .btn-ql-action:hover {
@@ -4152,7 +4209,7 @@ input:checked + .slider:before {
   font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
 .btn-outline-action:hover, .btn-outline-action:active {
@@ -4257,7 +4314,7 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease;
   padding: 0;
 }
 
@@ -4349,7 +4406,7 @@ input:checked + .slider:before {
   color: var(--text-muted);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   user-select: none;
 }
 
@@ -4477,7 +4534,7 @@ input:checked + .slider:before {
   font-weight: 600;
   padding: 3px 6px;
   border-radius: 6px;
-  transition: all 0.15s ease;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
 .walkthrough-step-btn:hover {

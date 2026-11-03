@@ -510,7 +510,7 @@ function isCalendarDeadline(task: DeadlineTask): boolean {
   return true;
 }
 
-function renderCalendar() {
+function renderCalendar(animationDirection: 'next' | 'prev' | 'none' = 'none') {
   calMonthTitle.textContent = formatMonthYear(calendarYear, calendarMonth);
 
   // Group active tasks by YYYY-MM-DD (filtered by selectedCourseFilter if active)
@@ -587,6 +587,40 @@ function renderCalendar() {
   calendarGrid.dataset.rows = String(rowCount);
   calendarGrid.classList.toggle('is-six-rows', rowCount >= 6);
   calendarGrid.classList.toggle('is-four-rows', rowCount <= 4);
+
+  // Smooth slide animations on month transitions
+  if (animationDirection === 'next' || animationDirection === 'prev') {
+    calendarGrid.classList.remove('cal-slide-next', 'cal-slide-prev');
+    void calendarGrid.offsetWidth;
+    calendarGrid.classList.add(animationDirection === 'next' ? 'cal-slide-next' : 'cal-slide-prev');
+    calMonthTitle.classList.remove('cal-title-fade');
+    void calMonthTitle.offsetWidth;
+    calMonthTitle.classList.add('cal-title-fade');
+  }
+}
+
+function navigateMonth(direction: -1 | 1, anim: 'next' | 'prev' = direction === 1 ? 'next' : 'prev'): void {
+  calendarMonth += direction;
+  if (calendarMonth < 0) {
+    calendarMonth = 11;
+    calendarYear--;
+  } else if (calendarMonth > 11) {
+    calendarMonth = 0;
+    calendarYear++;
+  }
+  renderCalendar(anim);
+}
+
+function navigateToToday(): void {
+  const now = new Date();
+  const prevDate = new Date(calendarYear, calendarMonth, 1);
+  const targetDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  const anim: 'next' | 'prev' | 'none' = targetDate > prevDate ? 'next' : (targetDate < prevDate ? 'prev' : 'none');
+  calendarYear = now.getFullYear();
+  calendarMonth = now.getMonth();
+  selectedDateStr = formatDateKey(now);
+  renderCalendar(anim);
+  renderSelectedDay();
 }
 
 function openAddModalOnDate(dateStr: string) {
@@ -3435,8 +3469,132 @@ function watchScanEnd(startedAt: number) {
 }
 
 // ============================================================================
-// Setup Event Listeners
+// Setup Event Listeners & Touchpad Gestures
 // ============================================================================
+function initCalendarGestures(): void {
+  const container = document.getElementById('view-calendar');
+  if (!container || !calendarGrid) return;
+
+  if (calMonthTitle) {
+    calMonthTitle.title = 'Swipe horizontally with two fingers or use arrow keys to navigate months';
+  }
+
+  // 1. Two-finger horizontal swipe on precision trackpad / mouse wheel (Wheel events)
+  let accumulatedDeltaX = 0;
+  let gestureLockoutUntil = 0;
+  let resetTimer: number | null = null;
+  const GESTURE_THRESHOLD = 42;
+  const LOCKOUT_MS = 360;
+
+  container.addEventListener('wheel', (e: WheelEvent) => {
+    // If cursor is directly inside the horizontal courses legend chips bar, preserve chips scrolling
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('#course-legend-panel')) return;
+
+    const absX = Math.abs(e.deltaX);
+    const absY = Math.abs(e.deltaY);
+
+    // Only handle when horizontal delta dominates vertical delta (intentional horizontal swipe)
+    if (absX < 8 || absX <= absY * 1.1) {
+      accumulatedDeltaX = 0;
+      return;
+    }
+
+    const now = Date.now();
+    if (now < gestureLockoutUntil) {
+      // Absorb momentum events while locked out
+      e.preventDefault();
+      return;
+    }
+
+    // Horizontal swipe intent: prevent default page rubber-banding
+    e.preventDefault();
+    accumulatedDeltaX += e.deltaX;
+
+    if (resetTimer) clearTimeout(resetTimer);
+    resetTimer = window.setTimeout(() => {
+      accumulatedDeltaX = 0;
+    }, 140);
+
+    if (accumulatedDeltaX >= GESTURE_THRESHOLD) {
+      // Swiped left (fingers moved left) -> Next Month
+      gestureLockoutUntil = now + LOCKOUT_MS;
+      accumulatedDeltaX = 0;
+      navigateMonth(1, 'next');
+    } else if (accumulatedDeltaX <= -GESTURE_THRESHOLD) {
+      // Swiped right (fingers moved right) -> Previous Month
+      gestureLockoutUntil = now + LOCKOUT_MS;
+      accumulatedDeltaX = 0;
+      navigateMonth(-1, 'prev');
+    }
+  }, { passive: false });
+
+  // 2. Touchscreen / Pointer Swipe Gestures (Surface laptops, touchscreen devices)
+  let pointerStartX = 0;
+  let pointerStartY = 0;
+  let pointerStartTime = 0;
+  let activePointerId: number | null = null;
+  let isSwiping = false;
+
+  calendarGrid.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    activePointerId = e.pointerId;
+    pointerStartX = e.clientX;
+    pointerStartY = e.clientY;
+    pointerStartTime = Date.now();
+    isSwiping = false;
+  }, { passive: true });
+
+  calendarGrid.addEventListener('pointermove', (e: PointerEvent) => {
+    if (activePointerId === null || e.pointerId !== activePointerId) return;
+    const dx = e.clientX - pointerStartX;
+    const dy = e.clientY - pointerStartY;
+    if (Math.abs(dx) > 15 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      isSwiping = true;
+    }
+  }, { passive: true });
+
+  const finishPointerSwipe = (e: PointerEvent) => {
+    if (activePointerId === null || e.pointerId !== activePointerId) return;
+    const elapsed = Date.now() - pointerStartTime;
+    const dx = e.clientX - pointerStartX;
+    const dy = e.clientY - pointerStartY;
+    activePointerId = null;
+
+    if (isSwiping && elapsed < 650 && Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      if (dx < 0) {
+        navigateMonth(1, 'next');
+      } else {
+        navigateMonth(-1, 'prev');
+      }
+    }
+    isSwiping = false;
+  };
+
+  calendarGrid.addEventListener('pointerup', finishPointerSwipe, { passive: true });
+  calendarGrid.addEventListener('pointercancel', finishPointerSwipe, { passive: true });
+
+  // 3. Keyboard Arrow Navigation in Calendar View
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (currentActiveView !== 'calendar') return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) return;
+    const activeModal = document.querySelector('.modal-backdrop:not(.hidden)');
+    if (activeModal && (activeModal as HTMLElement).style.display !== 'none') return;
+
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      navigateMonth(-1, 'prev');
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      navigateMonth(1, 'next');
+    } else if (e.key === 't' || e.key === 'T' || e.key === 'Home') {
+      e.preventDefault();
+      navigateToToday();
+    }
+  });
+}
+
 function setupEvents() {
   initLegendScroll();
 
@@ -3468,31 +3626,18 @@ function setupEvents() {
 
   // Calendar Controls
   btnCalPrev.addEventListener('click', () => {
-    calendarMonth--;
-    if (calendarMonth < 0) {
-      calendarMonth = 11;
-      calendarYear--;
-    }
-    renderCalendar();
+    navigateMonth(-1, 'prev');
   });
 
   btnCalNext.addEventListener('click', () => {
-    calendarMonth++;
-    if (calendarMonth > 11) {
-      calendarMonth = 0;
-      calendarYear++;
-    }
-    renderCalendar();
+    navigateMonth(1, 'next');
   });
 
   btnCalToday.addEventListener('click', () => {
-    const now = new Date();
-    calendarYear = now.getFullYear();
-    calendarMonth = now.getMonth();
-    selectedDateStr = formatDateKey(now);
-    renderCalendar();
-    renderSelectedDay();
+    navigateToToday();
   });
+
+  initCalendarGestures();
 
   // Add deadline on selected day
   btnAddOnDate.addEventListener('click', () => {
@@ -5976,36 +6121,50 @@ async function initApp() {
   setupEvents();
   initAiExtractModal();
   initGradeTrackerToggle();
-  await updateSemesterSelector();
-  // Load and render user courses synchronously from cache
+
+  // 1. Synchronously render immediately from cache for an instant 0ms first paint
   currentUserCourses = getCachedCoursesSync();
   renderLegend();
 
-  // Load and render academic quick links synchronously from cache
   currentQuickLinks = getCachedQuickLinksSync();
   renderQuickLinksBar();
   initQuickLinksModal();
 
-  // Load and render deadlines: fetch fresh from storage (fallback to cache)
-  let rawTasks = await getTasks();
-  if (!rawTasks || rawTasks.length === 0) {
-    rawTasks = getCachedTasksSync();
-  }
-  const validTasks = rawTasks.filter(isValidTask);
-  const { cleaned: purgedCached, purgedIds: startupPurgedIds } = purgeSyntheticGradebookTasks(validTasks);
-  currentTasks = deduplicateTaskList(purgedCached);
-  currentTasks.sort(compareTasksByTime);
-
-  if (startupPurgedIds.length > 0) {
-    startupPurgedIds.forEach(id => recordLocalTombstone(id));
-    saveTasksMergingLatest(currentTasks).catch(() => {});
+  const cachedTasks = getCachedTasksSync();
+  if (cachedTasks && cachedTasks.length > 0) {
+    const validCached = cachedTasks.filter(isValidTask);
+    currentTasks = deduplicateTaskList(validCached);
+    currentTasks.sort(compareTasksByTime);
   }
 
-  // Render all views immediately so the popup appears instantly populated with up-to-date data
+  // Render all views immediately with cached data
   refreshAllViews();
   switchView('calendar');
-  // Back to an unfinished add / edit / settings page, if the popup was closed during one
   restoreDraft();
+
+  // 2. Asynchronously load fresh storage, semesters, and cleanups in background (non-blocking)
+  (async () => {
+    updateSemesterSelector().catch(() => {});
+
+    let rawTasks = await getTasks();
+    if (!rawTasks || rawTasks.length === 0) {
+      rawTasks = getCachedTasksSync();
+    }
+    const validTasks = rawTasks.filter(isValidTask);
+    const { cleaned: purgedCached, purgedIds: startupPurgedIds } = purgeSyntheticGradebookTasks(validTasks);
+    const freshTasks = deduplicateTaskList(purgedCached);
+    freshTasks.sort(compareTasksByTime);
+
+    if (JSON.stringify(freshTasks) !== JSON.stringify(currentTasks)) {
+      currentTasks = freshTasks;
+      refreshAllViews();
+    }
+
+    if (startupPurgedIds.length > 0) {
+      startupPurgedIds.forEach(id => recordLocalTombstone(id));
+      saveTasksMergingLatest(currentTasks).catch(() => {});
+    }
+  })().catch(() => {});
 
   // Initialize first-time setup walkthrough modal
   initWalkthroughModal();
@@ -6045,8 +6204,13 @@ async function initApp() {
     }
   }).catch(() => {});
 
-  // Run cloud pull and retroactive upgrades non-blockingly in the background
-  refreshDataInBackground();
+  // Run cloud pull and retroactive upgrades when the main thread is idle
+  const runBackgroundRefresh = () => refreshDataInBackground().catch(() => {});
+  if (typeof (window as any).requestIdleCallback === 'function') {
+    (window as any).requestIdleCallback(runBackgroundRefresh, { timeout: 1200 });
+  } else {
+    setTimeout(runBackgroundRefresh, 250);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', initApp);

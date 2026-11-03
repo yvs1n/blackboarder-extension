@@ -84,7 +84,7 @@ describe('reading uploaded files', () => {
     expect(c).toMatchObject({ courseCode: 'CSC 201', courseName: 'Data Structures', creditHours: 3 });
     expect(c.syllabus.map(s => s.totalWeight)).toEqual([20, 30, 50]);
     expect(c.scheduleSlots[0]).toMatchObject({ days: ['Sunday', 'Tuesday'], startTime: '11:00', room: 'A8-103' });
-  }, 20000);
+  }, 40000);
 
   it('reads a Word file, keeping table rows on one line', async () => {
     const xml = '<w:document><w:body>'

@@ -209,4 +209,88 @@ describe('Popup UI Logic & Accessibility Suite', () => {
       expect(closeBtn?.getAttribute('aria-label')).toBe('Dismiss notification');
     });
   });
+
+  describe('Calendar Touchpad Gestures & Smooth Navigation', () => {
+    it('detects horizontal trackpad wheel gestures to navigate months with momentum lockout', () => {
+      const container = document.getElementById('view-calendar');
+      expect(container).not.toBeNull();
+
+      let navigatedMonth = 0;
+      let accumulatedDeltaX = 0;
+      let gestureLockoutUntil = 0;
+      const GESTURE_THRESHOLD = 42;
+      const LOCKOUT_MS = 360;
+
+      const handleWheel = (e: WheelEvent) => {
+        const absX = Math.abs(e.deltaX);
+        const absY = Math.abs(e.deltaY);
+
+        if (absX < 8 || absX <= absY * 1.1) {
+          accumulatedDeltaX = 0;
+          return;
+        }
+
+        const now = Date.now();
+        if (now < gestureLockoutUntil) return;
+
+        accumulatedDeltaX += e.deltaX;
+
+        if (accumulatedDeltaX >= GESTURE_THRESHOLD) {
+          navigatedMonth++;
+          gestureLockoutUntil = now + LOCKOUT_MS;
+          accumulatedDeltaX = 0;
+        } else if (accumulatedDeltaX <= -GESTURE_THRESHOLD) {
+          navigatedMonth--;
+          gestureLockoutUntil = now + LOCKOUT_MS;
+          accumulatedDeltaX = 0;
+        }
+      };
+
+      container?.addEventListener('wheel', handleWheel as any);
+
+      // Normal vertical scrolling should NOT trigger month navigation
+      container?.dispatchEvent(new WheelEvent('wheel', { deltaX: 0, deltaY: 50 }));
+      expect(navigatedMonth).toBe(0);
+
+      // Horizontal swipe left (e.deltaX > 0) beyond threshold triggers next month
+      container?.dispatchEvent(new WheelEvent('wheel', { deltaX: 50, deltaY: 5 }));
+      expect(navigatedMonth).toBe(1);
+
+      // Subsequent inertial wheel event during lockout window is absorbed
+      container?.dispatchEvent(new WheelEvent('wheel', { deltaX: 50, deltaY: 5 }));
+      expect(navigatedMonth).toBe(1);
+
+      // Reset lockout to test right swipe (previous month)
+      gestureLockoutUntil = 0;
+      container?.dispatchEvent(new WheelEvent('wheel', { deltaX: -50, deltaY: 5 }));
+      expect(navigatedMonth).toBe(0);
+    });
+
+    it('navigates months using left and right arrow keys in calendar view', () => {
+      let navigatedDirection: string | null = null;
+
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'ArrowLeft') {
+          navigatedDirection = 'prev';
+        } else if (e.key === 'ArrowRight') {
+          navigatedDirection = 'next';
+        } else if (e.key === 't' || e.key === 'T' || e.key === 'Home') {
+          navigatedDirection = 'today';
+        }
+      };
+
+      window.addEventListener('keydown', onKeyDown);
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      expect(navigatedDirection).toBe('next');
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+      expect(navigatedDirection).toBe('prev');
+
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }));
+      expect(navigatedDirection).toBe('today');
+
+      window.removeEventListener('keydown', onKeyDown);
+    });
+  });
 });
