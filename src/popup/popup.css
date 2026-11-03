@@ -5039,6 +5039,22 @@ h1, h2, h3 {
 .marks-gpa-overview {
   margin-bottom: 8px;
 }
+.gpa-head-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.marks-gpa-stat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.marks-gpa-stat-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.25;
+}
 .marks-gpa-col {
   padding: 8px 10px;
   background: var(--surface);
@@ -5136,6 +5152,12 @@ h1, h2, h3 {
   color: var(--text-main);
   border-color: var(--text-main);
 }
+.btn-target-chip-val.is-active {
+  background: var(--text-main) !important;
+  color: var(--bg) !important;
+  border-color: var(--text-main) !important;
+  font-weight: 700;
+}
 .btn-set-max-gpa,
 .btn-set-max-cgpa {
   border-radius: 0 !important;
@@ -5174,6 +5196,53 @@ h1, h2, h3 {
 }
 .gpa-guide-panel {
   border-radius: 0 !important;
+  animation: fadeIn 0.15s ease-out;
+}
+.gpa-guide-step {
+  margin-bottom: 8px;
+}
+.gpa-guide-step:last-child {
+  margin-bottom: 0;
+}
+.gpa-guide-step-title {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.gpa-guide-step-body {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.gpa-guide-step-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  padding: 1px 4px;
+}
+.btn-add-course-bonus,
+.btn-add-bonus-trigger {
+  min-height: 20px !important;
+  height: 20px !important;
+  width: auto !important;
+  padding: 1px 7px !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0 !important;
+}
+.marks-row-bonus {
+  background: rgba(34, 197, 94, 0.05);
+  border-left: 2px solid var(--text-main);
+  padding-left: 4px;
+}
+[data-theme="dark"] .marks-row-bonus {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: var(--primary);
 }
 .marks-course {
   border-radius: 0 !important;

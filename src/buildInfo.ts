@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.4.50",
-  "build": "6acfbbaa5cfe",
-  "commit": "cebae101e6be14ed3761f073ef2449ee2fa5f088",
-  "shortCommit": "cebae10",
-  "timestamp": "2026-11-03T02:59:38.086Z",
-  "message": "feat(grades): add bonus mark and extra credit tracking across extension and web app",
+  "build": "8896f13a27d3",
+  "commit": "8d803666fcf8a7b6371d2fa69de71863ae2eeaec",
+  "shortCommit": "8d80366",
+  "timestamp": "2026-11-03T04:00:07.175Z",
+  "message": "refactor: phase 3 controller modularization, helper unification, and tombstone pruning",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

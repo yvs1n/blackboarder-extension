@@ -205,9 +205,9 @@ export function gradesHtml(
       <div class="gpa-head-dual" style="display: grid; grid-template-columns: ${trajectoryPlan ? '1fr 1fr' : '1fr'}; gap: 8px;">
         <div class="marks-gpa-col gpa-stat-current" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
           <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Current Standing</span>
-          <div style="display: flex; align-items: baseline; gap: 8px;">
+          <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
             <span class="marks-gpa-big" style="font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1;">${termVal}</span>
-            <span style="font-size: 11px; color: var(--text-muted);">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
+            <span class="marks-gpa-stat-label" style="font-size: 11px; color: var(--text-muted); line-height: 1.25;">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
           </div>
           ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">Cumulative CGPA: <strong class="marks-gpa-cgpa-val">${cgpaVal}</strong> (${totalGradedCreds} cr)</div>` : ''}
         </div>
@@ -215,9 +215,9 @@ export function gradesHtml(
         ${trajectoryPlan ? `
         <div class="marks-gpa-col gpa-stat-target" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
           <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Academic Goal</span>
-          <div style="display: flex; align-items: baseline; gap: 8px;">
+          <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
             <span class="marks-gpa-big is-target" style="font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1;">${trajectoryPlan.plannedGpa.toFixed(2)}</span>
-            <span style="font-size: 11px; color: var(--text-muted);">Planned SGPA</span>
+            <span class="marks-gpa-stat-label" style="font-size: 11px; color: var(--text-muted); line-height: 1.25;">Planned SGPA</span>
           </div>
           ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">${projectedCgpaText}</div>` : ''}
         </div>
@@ -231,8 +231,8 @@ export function gradesHtml(
             <button type="button" class="btn-goal-mode ${activeMode === 'cgpa' ? 'is-active' : ''}" data-mode="cgpa" title="Target your cumulative GPA (ideal for scholarship retention and honors)" style="background: ${activeMode === 'cgpa' ? 'var(--text-main)' : 'transparent'}; color: ${activeMode === 'cgpa' ? 'var(--bg)' : 'var(--text-muted)'}; border: none; padding: 2px 7px; font-size: 10px; font-weight: ${activeMode === 'cgpa' ? '700' : '600'}; cursor: pointer;">Cumulative CGPA (Scholarship)</button>
             <button type="button" class="btn-goal-mode ${activeMode === 'term' ? 'is-active' : ''}" data-mode="term" title="Directly target your current semester GPA" style="background: ${activeMode === 'term' ? 'var(--text-main)' : 'transparent'}; color: ${activeMode === 'term' ? 'var(--bg)' : 'var(--text-muted)'}; border: none; padding: 2px 7px; font-size: 10px; font-weight: ${activeMode === 'term' ? '700' : '600'}; cursor: pointer;">Term SGPA</button>
           </div>
-          <button type="button" class="btn-xs-manage-links" id="btn-toggle-gpa-guide" aria-expanded="false" style="font-size: 10px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" title="Learn how the predictor calculates required grades">
-            <svg class="ui-icon" style="width: 11px; height: 11px;"><use href="#icon-help-circle"></use></svg>
+          <button type="button" class="btn-xs-manage-links" id="btn-toggle-gpa-guide" aria-expanded="false" style="font-size: 10px; padding: 2px 7px; min-height: 24px; display: inline-flex; align-items: center; gap: 4px;" title="Learn how the predictor calculates required grades">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             <span>How It Works</span>
           </button>
         </div>
@@ -241,15 +241,15 @@ export function gradesHtml(
           <span style="font-size: 11px; font-weight: 700; color: var(--text-main);">${activeMode === 'cgpa' ? 'Target Cumulative CGPA (Scholarship):' : 'Target Term SGPA:'}</span>
           <div style="display: flex; align-items: center; gap: 4px;">
             ${activeMode === 'cgpa' ? `
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.50" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.60" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Standard Scholarship Minimum">3.60</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.80" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Excellence / Dean's List">3.80</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="4.00" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 3.60) < 0.005 ? 'is-active' : ''}" data-target="3.60" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Standard Scholarship Minimum">3.60</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 3.80) < 0.005 ? 'is-active' : ''}" data-target="3.80" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Excellence / Dean's List">3.80</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
               <input type="number" id="input-target-gpa-val" data-mode="cgpa" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetCgpaVal.toFixed(2)}" style="width: 52px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Cumulative CGPA" />
             ` : `
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.50" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="3.75" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val" data-target="4.00" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetTermVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetTermVal - 3.75) < 0.005 ? 'is-active' : ''}" data-target="3.75" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetTermVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
               <input type="number" id="input-target-term-gpa" data-mode="term" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetTermVal.toFixed(2)}" style="width: 52px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
             `}
           </div>
@@ -260,9 +260,11 @@ export function gradesHtml(
         <div id="gpa-predictor-guide" class="gpa-guide-panel" style="display: none; margin-top: 8px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
             <h4 style="margin: 0; font-size: 11.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 5px;">
-              <svg class="ui-icon" style="width: 12px; height: 12px; color: var(--primary);"><use href="#icon-award"></use></svg>
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px; color: var(--primary);"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
               <span>How the GPA &amp; Scholarship Predictor Works</span>
             </h4>
+            <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase;">Guide</span>
+          </div>
             <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase;">Guide</span>
           </div>
 
@@ -356,7 +358,7 @@ export function gradesHtml(
         <div class="marks-course-footer" style="display: flex; align-items: center; justify-content: space-between; padding-top: 5px; border-top: 1px dashed var(--surface-border); font-size: 10px; color: var(--text-muted); margin-top: 2px;">
           <span>${markCount} mark${markCount === 1 ? '' : 's'} recorded</span>
           <div style="display: flex; align-items: center; gap: 6px;">
-            <button type="button" class="btn-outline-action btn-add-course-bonus" data-course="${esc(c.courseName)}" style="font-size: 10px; padding: 2px 7px; height: 20px; width: auto;" title="Add a bonus mark to ${esc(c.courseName)}">+ Bonus</button>
+            <button type="button" class="btn-outline-action btn-add-course-bonus" data-course="${esc(c.courseName)}" style="font-size: 10px; padding: 1px 7px; height: 20px; min-height: 20px; width: auto; line-height: 18px;" title="Add a bonus mark to ${esc(c.courseName)}">+ Bonus</button>
             ${statusBadge}
           </div>
         </div>
@@ -402,7 +404,7 @@ export function gradesHtml(
         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Current Term Grades</span>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${marks.gradedCount} Graded · ${gpa.courses.length} Courses</span>
-          <button type="button" class="btn-outline-action btn-add-bonus-trigger" style="font-size: 10px; padding: 2px 7px; height: 20px; width: auto;" title="Add a bonus mark or extra credit">+ Bonus Mark</button>
+          <button type="button" class="btn-outline-action btn-add-bonus-trigger" style="font-size: 10px; padding: 1px 7px; height: 20px; min-height: 20px; width: auto; line-height: 18px;" title="Add a bonus mark or extra credit">+ Bonus Mark</button>
         </div>
       </div>
       <div class="marks-courses-list" style="display: flex; flex-direction: column; gap: 4px;">
@@ -551,12 +553,12 @@ export function gradesHtml(
       <div class="grade-tracker-widget course-summary-card target-breakdown-card" id="marks-card-target-breakdown" style="margin-top: 10px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 0;">
         <button type="button" class="grade-tracker-header target-breakdown-header" id="target-breakdown-toggle-btn" aria-expanded="${isOpen ? 'true' : 'false'}" style="width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: transparent; border: 0; color: var(--text-main); font: inherit; text-align: left; cursor: pointer;">
           <span class="course-summary-title" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;">
-            <svg class="ui-icon" style="width: 15px; height: 15px; color: var(--primary);"><use href="#icon-list-check"></use></svg>
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; color: var(--primary);"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><polyline points="3 6 4 7 6 5"></polyline><polyline points="3 12 4 13 6 11"></polyline><polyline points="3 18 4 19 6 17"></polyline></svg>
             <span>Target Grade Breakdown</span>
           </span>
           <span class="course-summary-right" style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
             <span class="info-badge blue" style="font-size: 11px;">${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</span>
-            <svg class="course-summary-arrow ui-icon" style="width: 14px; height: 14px; transition: transform 0.2s;"><use href="#icon-chevron-right"></use></svg>
+            <svg class="course-summary-arrow ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; transition: transform 0.2s;"><polyline points="9 18 15 12 9 6"></polyline></svg>
           </span>
         </button>
         <div class="grade-tracker-breakdown target-breakdown-content" id="target-breakdown-content"${isOpen ? '' : ' hidden'} style="display: ${isOpen ? 'flex' : 'none'}; flex-direction: column; gap: 6px; margin: 0; padding: 0 10px 10px;">
