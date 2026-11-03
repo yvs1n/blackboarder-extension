@@ -96,19 +96,23 @@ export async function docxToText(bytes: Uint8Array): Promise<string> {
   return docxXmlToText(new TextDecoder().decode(xml));
 }
 
-/** Text items from pdf.js (str, transform [a, b, c, d, x, y], width) put back into lines, top to bottom. */
-export function pdfItemsToLines(items: { str?: string; transform?: number[]; width?: number }[]): string {
-  const parts = (items || [])
-    .filter(i => i && typeof i.str === 'string' && i.str.trim() && Array.isArray(i.transform))
-    .map(i => ({ str: i.str as string, x: i.transform![4], y: i.transform![5], w: Number(i.width) || 0, h: Math.abs(i.transform![3]) || 10 }));
+interface PdfPart {
+  str: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function assemblePartsIntoLines(parts: PdfPart[]): string {
   parts.sort((a, b) => b.y - a.y || a.x - b.x);
-  const lines: (typeof parts)[] = [];
+  const lines: PdfPart[][] = [];
   for (const part of parts) {
     const line = lines[lines.length - 1];
     if (line && Math.abs(line[0].y - part.y) <= Math.max(2, part.h * 0.4)) line.push(part);
     else lines.push([part]);
   }
-  return tidyText(lines.map(line => {
+  return lines.map(line => {
     line.sort((a, b) => a.x - b.x);
     let text = '';
     let end = -Infinity;
@@ -119,7 +123,92 @@ export function pdfItemsToLines(items: { str?: string; transform?: number[]; wid
       end = part.x + part.w;
     }
     return text;
-  }).join('\n'));
+  }).join('\n');
+}
+
+/** Detects vertical empty gutter in two-column page layouts. */
+function findTwoColumnGutter(parts: PdfPart[]): { start: number; end: number } | null {
+  if (parts.length < 20) return null;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  for (const p of parts) {
+    if (p.x < minX) minX = p.x;
+    if (p.x + p.w > maxX) maxX = p.x + p.w;
+  }
+  const width = maxX - minX;
+  if (width < 320) return null;
+
+  const gutterMin = minX + width * 0.35;
+  const gutterMax = minX + width * 0.65;
+  const minGutterWidth = 24;
+
+  let bestGutter: { start: number; end: number } | null = null;
+  let maxSpan = 0;
+
+  for (let center = gutterMin + minGutterWidth / 2; center <= gutterMax - minGutterWidth / 2; center += 8) {
+    const gStart = center - minGutterWidth / 2;
+    const gEnd = center + minGutterWidth / 2;
+    let inGutter = 0;
+    let leftCount = 0;
+    let rightCount = 0;
+
+    for (const p of parts) {
+      const pRight = p.x + p.w;
+      if (p.x < gEnd && pRight > gStart) inGutter++;
+      if (pRight <= gStart) leftCount++;
+      if (p.x >= gEnd) rightCount++;
+    }
+
+    if (inGutter <= Math.max(1, parts.length * 0.03) && leftCount >= parts.length * 0.2 && rightCount >= parts.length * 0.2) {
+      const leftBoundary = Math.max(...parts.filter(p => p.x + p.w <= center).map(p => p.x + p.w), minX);
+      const rightBoundary = Math.min(...parts.filter(p => p.x >= center).map(p => p.x), maxX);
+      const span = rightBoundary - leftBoundary;
+      if (span >= minGutterWidth && span > maxSpan) {
+        maxSpan = span;
+        bestGutter = { start: leftBoundary, end: rightBoundary };
+      }
+    }
+  }
+  return bestGutter;
+}
+
+/** Text items from pdf.js (str, transform [a, b, c, d, x, y], width) put back into lines, top to bottom. */
+export function pdfItemsToLines(items: { str?: string; transform?: number[]; width?: number }[]): string {
+  const parts: PdfPart[] = (items || [])
+    .filter(i => i && typeof i.str === 'string' && i.str.trim() && Array.isArray(i.transform))
+    .map(i => ({ str: i.str as string, x: i.transform![4], y: i.transform![5], w: Number(i.width) || 0, h: Math.abs(i.transform![3]) || 10 }));
+
+  if (!parts.length) return '';
+
+  const gutter = findTwoColumnGutter(parts);
+  if (gutter) {
+    const colLeft = parts.filter(p => p.x + p.w <= gutter.start + 5);
+    const colRight = parts.filter(p => p.x >= gutter.end - 5);
+    if (colLeft.length && colRight.length) {
+      const topOfCols = Math.min(
+        Math.max(...colLeft.map(p => p.y)),
+        Math.max(...colRight.map(p => p.y))
+      );
+      const bottomOfCols = Math.max(
+        Math.min(...colLeft.map(p => p.y)),
+        Math.min(...colRight.map(p => p.y))
+      );
+
+      const header = parts.filter(p => p.y > topOfCols + 15);
+      const footer = parts.filter(p => p.y < bottomOfCols - 15);
+      const middleLeft = colLeft.filter(p => p.y <= topOfCols + 15 && p.y >= bottomOfCols - 15);
+      const middleRight = colRight.filter(p => p.y <= topOfCols + 15 && p.y >= bottomOfCols - 15);
+
+      const blocks: string[] = [];
+      if (header.length) blocks.push(assemblePartsIntoLines(header));
+      if (middleLeft.length) blocks.push(assemblePartsIntoLines(middleLeft));
+      if (middleRight.length) blocks.push(assemblePartsIntoLines(middleRight));
+      if (footer.length) blocks.push(assemblePartsIntoLines(footer));
+      return tidyText(blocks.join('\n'));
+    }
+  }
+
+  return tidyText(assemblePartsIntoLines(parts));
 }
 
 /** What the apps pass in: the pdf.js module (getDocument), already pointed at its worker file. */

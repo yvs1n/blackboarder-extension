@@ -6,8 +6,8 @@
 import { analyzeCourseDocument, sanitizeCourseDrafts, normalizeDocumentText, timeRangeIn, type CourseDraft } from '../core/courseDocument';
 import { aiRequestHeaders, parseAiJson, type AiEndpoint } from './aiProviders';
 
-/** The server accepts 20,000 characters per request, prompt included. */
-const MAX_DOCUMENT_CHARS = 15000;
+/** The server accepts 20,000 characters per request, prompt included; direct models accept 45,000+. */
+const MAX_DOCUMENT_CHARS = 18000;
 
 export const COURSE_IMPORT_PROMPT = `You read university course documents: a syllabus or a class schedule (timetable). Find every course in it.
 Return only JSON in this shape:
@@ -17,7 +17,10 @@ Return only JSON in this shape:
 Rules:
 - meetings are the weekly class, lab or tutorial times only. Never office hours, exam dates or deadlines. Times are 24-hour HH:MM.
 - days are full English day names. Banner letters: U Sunday, M Monday, T Tuesday, W Wednesday, R Thursday, F Friday, S Saturday.
-- assessments are the graded parts and their percentage of the course grade (weight, 0 to 100). count is how many items share that weight (4 quizzes), outOf is how many are held when only the best count are kept ("best 3 of 4": count 3, outOf 4). Leave out totals and letter-grade cutoffs.
+- assessments are the graded parts and their percentage of the course grade (weight, 0 to 100). count is how many items share that weight (4 quizzes), outOf is how many are held when only the best count are kept ("best 3 of 4": count 3, outOf 4).
+- When assessments are in a table, inspect column headers to map Assessment Name, Percentage/Weight, and Count/Drop notes. Do not include date or description columns in the assessment name.
+- When nested categories exist (e.g. Theory 70% containing Midterm 30%, Quizzes 15%, Final 25%), include the individual sub-assessments, not the category total.
+- Leave out totals and letter-grade cutoffs.
 - Use null for anything the document does not say. Do not guess.
 - The document may be in English or Arabic; write names as they appear.`;
 
@@ -29,8 +32,8 @@ export function focusDocumentForAi(text: string, limit = MAX_DOCUMENT_CHARS): st
   const keep = new Set<number>();
   lines.forEach((line, i) => {
     if (i < 60) keep.add(i);
-    if (/assessment|grading|evaluation|distribution|weight|credit|instructor|course\s*(code|title|name|number)|التقييم|الدرجات/i.test(line)) {
-      for (let j = i; j < Math.min(lines.length, i + 25); j++) keep.add(j);
+    if (/assessment|grading|evaluation|distribution|weight|credit|instructor|course\s*(code|title|name|number)|التقييم|الدرجات|توزيع|العلامات|المساق/i.test(line)) {
+      for (let j = i; j < Math.min(lines.length, i + 80); j++) keep.add(j);
     }
     if (timeRangeIn(line)) for (let j = Math.max(0, i - 1); j <= Math.min(lines.length - 1, i + 1); j++) keep.add(j);
   });

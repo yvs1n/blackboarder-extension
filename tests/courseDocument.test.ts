@@ -157,6 +157,88 @@ Homework\t٢٠`);
     expect(r.courses[0].syllabus.map(s => s.totalWeight)).toEqual([10, 30, 40, 20]);
   });
 
+  it('reads complex multi-column tables with headers and clean names', () => {
+    const doc = `Course: COE 301 Computer Architecture
+Credit Hours: 3
+Evaluation Criteria:
+Assessment Method\tWeight (%)\tDue Date\tDescription
+Quizzes (4)\t15%\tWeeks 4, 8, 11\tIn-class quizzes
+(Best 3 of 4 quizzes will count)
+Midterm Exam\t25%\tWeek 7\tChapters 1 to 4 closed-book
+Homework Assignments\t10%\tBi-weekly\tProblem sets
+Lab Work & Reports\t15%\tWeekly\tHands-on hardware labs
+Course Project\t10%\tWeek 13\tVerilog pipeline implementation
+Final Examination\t25%\tExam Period\tComprehensive final exam
+Total\t100%`;
+
+    const r = analyzeCourseDocument(doc);
+    expect(r.kind).toBe('syllabus');
+    expect(r.courses[0].courseCode).toBe('COE 301');
+    expect(r.courses[0].courseName).toBe('Computer Architecture');
+    const items = r.courses[0].syllabus;
+    expect(items).toHaveLength(6);
+    expect(items[0]).toMatchObject({ name: 'Quizzes', totalWeight: 15, count: 3, outOf: 4 });
+    expect(items[1]).toMatchObject({ name: 'Midterm Exam', totalWeight: 25 });
+    expect(items[2]).toMatchObject({ name: 'Homework Assignments', totalWeight: 10 });
+    expect(items[3]).toMatchObject({ name: 'Lab Work & Reports', totalWeight: 15 });
+    expect(items[4]).toMatchObject({ name: 'Course Project', totalWeight: 10 });
+    expect(items[5]).toMatchObject({ name: 'Final Examination', totalWeight: 25 });
+  });
+
+  it('reads Markdown pipe tables and resolves nested categories', () => {
+    const doc = `Syllabus for PHY 201 University Physics II
+Credit Hours: 4
+Assessments and Grading Policy:
+| Component | Weight | Remarks |
+|---|---|---|
+| Theory Components | 70% | Lecture grade |
+| Midterm Exam | 25% | Closed book |
+| Quizzes (3) | 15% | Best 2 of 3 |
+| Final Exam | 30% | Comprehensive |
+| Practical Laboratory | 30% | Lab component |
+| Lab Reports | 15% | Weekly experiments |
+| Lab Final Exam | 15% | Practical test |
+| Total | 100% | Final Grade |`;
+
+    const r = analyzeCourseDocument(doc);
+    expect(r.kind).toBe('syllabus');
+    const items = r.courses[0].syllabus;
+    // Should drop Theory Components (70%) and Practical Laboratory (30%) and keep the 5 sub-components totaling 100%
+    expect(items).toHaveLength(5);
+    expect(items.map(s => [s.name, s.totalWeight])).toEqual([
+      ['Midterm Exam', 25],
+      ['Quizzes', 15],
+      ['Final Exam', 30],
+      ['Lab Reports', 15],
+      ['Lab Final Exam', 15]
+    ]);
+    expect(items[1]).toMatchObject({ count: 2, outOf: 3 });
+  });
+
+  it('reads Arabic syllabus assessment tables', () => {
+    const doc = `رمز المساق: ARB 101
+اسم المساق: مهارات اللغة العربية
+عدد الساعات: 3
+توزيع الدرجات:
+طريقة التقييم\tالوزن\tالموعد\tملاحظات
+الاختبارات القصيرة\t15%\tخلال الفصل\tأفضل 2 من 3
+الواجبات المنزلية\t15%\tأسبوعي\t
+الامتحان النصفي\t25%\tالأسبوع الثامن\t
+المشروع والبحث\t15%\tالأسبوع الثاني عشر\t
+الامتحان النهائي\t30%\tنهاية الفصل\t`;
+
+    const r = analyzeCourseDocument(doc);
+    expect(r.kind).toBe('syllabus');
+    expect(r.courses[0].courseCode).toBe('ARB 101');
+    const items = r.courses[0].syllabus;
+    expect(items).toHaveLength(5);
+    expect(items[0]).toMatchObject({ name: 'الاختبارات القصيرة', totalWeight: 15, count: 2, outOf: 3 });
+    expect(items[1]).toMatchObject({ name: 'الواجبات المنزلية', totalWeight: 15 });
+    expect(items[2]).toMatchObject({ name: 'الامتحان النصفي', totalWeight: 25 });
+    expect(items[3]).toMatchObject({ name: 'المشروع والبحث', totalWeight: 15 });
+    expect(items[4]).toMatchObject({ name: 'الامتحان النهائي', totalWeight: 30 });
+  });
+
   it('finds nothing in a document that is neither', () => {
     expect(analyzeCourseDocument('Dear students, the library opens at 9.').kind).toBe('none');
     expect(analyzeCourseDocument('')).toEqual({ kind: 'none', courses: [] });

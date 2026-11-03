@@ -266,13 +266,247 @@ function courseIdentity(lines: string[]): { code: string; name: string } {
 
 const ASSESSMENT_HEADER = /^(?:\d+(?:\.\d+)*[.)]?\s*)?(?:course\s+)?(?:assessments?|grading|evaluation|grade\s+distribution|marks?\s+distribution|distribution\s+of\s+(?:marks|grades)|weighting|assessment\s+(?:methods?|plan|strategy|tools)|course\s+grade|grading\s+(?:policy|scheme|criteria|system)|methods?\s+of\s+assessment|توزيع\s*(?:الدرجات|العلامات)|التقييم|طرق\s*التقييم)\b/i;
 const PROSE = /\b(?:will|must|should|shall|more than|less than|at least|up to|exceed|deduct|penalt|plagiar|similarity|turnitin|absen|late\b|warning|receive|obtain|minimum|maximum)/i;
-const GRADE_ROW = /^\s*[A-F][+-]?\s*[:=\t ]\s*\(?\d|\b\d{1,3}(?:\.\d+)?\s*(?:-|to)\s*\d{1,3}(?:\.\d+)?\s*%?/i;
+const GRADE_ROW = /^\s*(?:[A-F][+-]?\s*[:=\t ]\s*\(?\d|\b\d{2,3}(?:\.\d+)?\s*(?:-|to)\s*\d{2,3}(?:\.\d+)?\s*(?:%|[:=\t ]\s*[A-F][+-]?))/i;
+
+const TABLE_HEADER_NAME = /\b(?:assessments?|components?|tasks?|activities|activity|evaluations?|methods?|tools?|descriptions?|titles?|names?|types?|items?|instruments?|work)\b|التقييم|الاختبار|المهمة|البند|طريقة التقييم|نوع التقييم|النشاط|الأداة|العنصر/i;
+const TABLE_HEADER_WEIGHT = /\b(?:weights?|weightings?|percentages?|%|marks?|grades?|points?|scores?|share|distributions?)\b|النسبة|الدرجة|العلامة|الوزن/i;
+const TABLE_HEADER_DATE = /\b(?:dates?|due|weeks?|timing|deadlines?|schedule)\b|التاريخ|الأسبوع|موعد|أسبوع/i;
+const TABLE_HEADER_NOTES = /\b(?:notes?|remarks?|details?|comments?|clos?|plos?|topics?|coverage)\b|ملاحظات|تفاصيل/i;
+
+function splitLineCells(line: string): string[] {
+  const trimmed = line.trim();
+  if (trimmed.includes('\t')) return trimmed.split('\t').map(c => c.trim()).filter(Boolean);
+  if (trimmed.includes('|')) return trimmed.split('|').map(c => c.trim()).filter(Boolean);
+  if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim()).filter(Boolean);
+  return [trimmed];
+}
+
+/** Resolves nested parent category totals (e.g. Theory 70% with sub-items Midterm 30%, Quizzes 15%, Final 25%). */
+function resolveNestedCategories(components: CustomSyllabusComponent[]): CustomSyllabusComponent[] {
+  const sum = sumOf(components);
+  if (Math.abs(sum - 100) <= 5) return components;
+
+  const toRemove = new Set<number>();
+  for (let i = 0; i < components.length; i++) {
+    const parentWeight = components[i].totalWeight;
+    let subSum = 0;
+    const subIdxs: number[] = [];
+    for (let j = i + 1; j < components.length; j++) {
+      subSum += components[j].totalWeight;
+      subIdxs.push(j);
+      if (Math.abs(subSum - parentWeight) <= 0.5 && subIdxs.length >= 2) {
+        toRemove.add(i);
+        break;
+      }
+      if (subSum > parentWeight + 1) break;
+    }
+  }
+
+  if (toRemove.size > 0) {
+    const filtered = components.filter((_, idx) => !toRemove.has(idx));
+    if (Math.abs(sumOf(filtered) - 100) <= 5) return filtered;
+  }
+  return components;
+}
+
+/** Parses a table row when table header column positions are known. */
+function parseTableRowWithHeader(
+  cells: string[],
+  map: { nameCol: number; weightCol: number; dateCol: number; notesCol: number },
+  idx: number,
+  rawLine: string
+): CustomSyllabusComponent | null {
+  if (cells.length < 2) return null;
+  const lineText = cells.join(' ');
+  if (/^total\b|\btotal\s*[:=]?\s*100|المجموع|الإجمالي/i.test(lineText)) return null;
+  if (GRADE_ROW.test(lineText) || PROSE.test(lineText)) return null;
+
+  let weight: number | undefined;
+  const weightCell = cells[map.weightCol] || '';
+  const weightMatch = weightCell.match(/(\d{1,3}(?:\.\d+)?)\s*%?/) || lineText.match(/(\d{1,3}(?:\.\d+)?)\s*%/);
+  if (weightMatch) {
+    const val = parseFloat(weightMatch[1]);
+    if (val > 0 && val <= 100) weight = val;
+  }
+  if (weight === undefined) {
+    for (let i = 0; i < cells.length; i++) {
+      if (i === map.nameCol) continue;
+      const m = cells[i].match(/^(\d{1,3}(?:\.\d+)?)$/);
+      if (m) {
+        const val = parseFloat(m[1]);
+        if (val > 0 && val <= 100) { weight = val; break; }
+      }
+    }
+  }
+  if (weight === undefined) return null;
+
+  let name = (cells[map.nameCol] || '')
+    .replace(/^[\s\-•*●▪◦·]+/, '')
+    .replace(/^\d{1,2}[.)]\s+/, '')
+    .replace(/\s*\([^)]*\d[^)]*\)\s*$/, '')
+    .replace(/[\s:=\-–(|,]+$/, '')
+    .trim();
+
+  if (!name || !/[A-Za-z؀-ۿ]{2}/.test(name)) {
+    for (let i = 0; i < cells.length; i++) {
+      if (i === map.weightCol) continue;
+      const candidate = cells[i].replace(/^[\s\-•*●▪◦·]+/, '').trim();
+      if (/[A-Za-z؀-ۿ]{2}/.test(candidate) && !/^\d+$/.test(candidate) && !/^(?:week|date|due|tbd|day|room)\b/i.test(candidate)) {
+        name = candidate;
+        break;
+      }
+    }
+  }
+  if (!name || !/[A-Za-z؀-ۿ]{2}/.test(name) || name.length > 70) return null;
+
+  const notesText = (map.notesCol >= 0 ? cells[map.notesCol] + ' ' : '') + lineText;
+  const countMatch = notesText.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
+    || notesText.match(/أفضل\s+(\d{1,2})\s+من\s+(\d{1,2})/)
+    || notesText.match(/\((\d{1,2})\)/)
+    || notesText.match(/\b(\d{1,2})\s*[x×]\s*\d/)
+    || notesText.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
+    || notesText.match(/\b(\d{1,2})\s+(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments|كويزات|واجبات|اختبارات)\b/i);
+
+  const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
+  const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;
+
+  return makeSyllabusComponent(name, weight, count && count > 0 ? count : undefined, idx, rawLine, outOf);
+}
+
+/** LLM-grade table parser for multi-column syllabus assessment tables. */
+export function parseAssessmentTable(lines: string[]): CustomSyllabusComponent[] {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const cells = splitLineCells(line);
+    if (cells.length < 2) continue;
+
+    let nameCol = -1;
+    let weightCol = -1;
+    let dateCol = -1;
+    let notesCol = -1;
+
+    cells.forEach((cell, idx) => {
+      if (TABLE_HEADER_NAME.test(cell) && nameCol < 0) nameCol = idx;
+      else if (TABLE_HEADER_WEIGHT.test(cell) && weightCol < 0) weightCol = idx;
+      else if (TABLE_HEADER_DATE.test(cell) && dateCol < 0) dateCol = idx;
+      else if (TABLE_HEADER_NOTES.test(cell) && notesCol < 0) notesCol = idx;
+    });
+
+    if (weightCol >= 0) {
+      if (nameCol < 0) nameCol = cells.findIndex((_, idx) => idx !== weightCol);
+      if (nameCol >= 0) {
+        const map = { nameCol, weightCol, dateCol, notesCol };
+        const components: CustomSyllabusComponent[] = [];
+        const seenNames = new Set<string>();
+        let emptyCount = 0;
+
+        for (let j = i + 1; j < Math.min(lines.length, i + 50); j++) {
+          const rowLine = lines[j].trim();
+          if (!rowLine) {
+            emptyCount++;
+            if (emptyCount >= 3) break;
+            continue;
+          }
+          emptyCount = 0;
+          if (/^total\b|\btotal\s*[:=]?\s*100|المجموع|الإجمالي/i.test(rowLine)) break;
+          if (/^(?:course\s+policies|attendance|grading\s+scale|academic\s+integrity|schedule|weekly|lecture)/i.test(rowLine)) break;
+
+          const rowCells = splitLineCells(rowLine);
+          const comp = parseTableRowWithHeader(rowCells, map, components.length, rowLine);
+          if (comp) {
+            const key = comp.name.toLowerCase();
+            if (!seenNames.has(key)) {
+              seenNames.add(key);
+              components.push(comp);
+            }
+          } else if (components.length > 0) {
+            const dropMatch = rowLine.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
+              || rowLine.match(/أفضل\s+(\d{1,2})\s+من\s+(\d{1,2})/);
+            if (dropMatch) {
+              const lastComp = components[components.length - 1];
+              lastComp.count = parseInt(dropMatch[1], 10);
+              if (dropMatch[2]) lastComp.outOf = parseInt(dropMatch[2], 10);
+            }
+          }
+        }
+
+        const resolved = resolveNestedCategories(components);
+        const totalWeight = sumOf(resolved);
+        if (resolved.length >= 2 && Math.abs(totalWeight - 100) <= 5) {
+          return resolved;
+        }
+      }
+    }
+  }
+  return [];
+}
 
 /** One weighted assessment from a line ("Midterm Exam 30%", "Quizzes (4) 20%", "Labs 4 x 5%"), or null. */
 export function assessmentFromLine(line: string, inSection: boolean, idx: number): CustomSyllabusComponent | null {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.length > 180 || /^total\b|\btotal\s*[:=]?\s*100|المجموع|الإجمالي/i.test(trimmed)) return null;
+  if (PROSE.test(trimmed) || GRADE_ROW.test(trimmed)) return null;
+
+  // First, check if the line has delimited table cells (tabs, pipes, multi-space)
+  const cells = splitLineCells(line);
+  if (cells.length >= 2) {
+    let weightCellIdx = -1;
+    let weightVal: number | undefined;
+
+    for (let c = cells.length - 1; c >= 0; c--) {
+      const pm = cells[c].match(/(\d{1,3}(?:\.\d+)?)\s*%/);
+      if (pm) {
+        const val = parseFloat(pm[1]);
+        if (val > 0 && val <= 100) { weightCellIdx = c; weightVal = val; break; }
+      }
+    }
+    if (weightVal === undefined && inSection) {
+      for (let c = cells.length - 1; c >= 0; c--) {
+        const nm = cells[c].match(/^(\d{1,3}(?:\.\d+)?)$/);
+        if (nm) {
+          const val = parseFloat(nm[1]);
+          if (val > 0 && val <= 100) { weightCellIdx = c; weightVal = val; break; }
+        }
+      }
+    }
+
+    if (weightVal !== undefined && weightCellIdx >= 0) {
+      let nameCellIdx = -1;
+      for (let c = 0; c < cells.length; c++) {
+        if (c === weightCellIdx) continue;
+        const candidate = cells[c].replace(/^[\s\-•*●▪◦·]+/, '').trim();
+        if (/[A-Za-z؀-ۿ]{2}/.test(candidate) && !/^(?:week|date|due|tbd|day|room)\b/i.test(candidate)) {
+          nameCellIdx = c;
+          break;
+        }
+      }
+      if (nameCellIdx >= 0) {
+        let name = cells[nameCellIdx]
+          .replace(/^[\s\-•*●▪◦·]+/, '')
+          .replace(/^\d{1,2}[.)]\s+/, '')
+          .replace(/\s*\([^)]*\d[^)]*\)\s*$/, '')
+          .replace(/[\s:=\-–(|,]+$/, '')
+          .trim();
+
+        const restText = cells.join(' ');
+        const countMatch = restText.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
+          || restText.match(/أفضل\s+(\d{1,2})\s+من\s+(\d{1,2})/)
+          || restText.match(/\((\d{1,2})\)/)
+          || restText.match(/\b(\d{1,2})\s*[x×]\s*\d/)
+          || restText.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
+          || restText.match(/\b(\d{1,2})\s+(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments|كويزات|واجبات|اختبارات)\b/i);
+
+        const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
+        const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;
+
+        if (name && /[A-Za-z؀-ۿ]{2}/.test(name) && name.length <= 70) {
+          return makeSyllabusComponent(name, weightVal, count && count > 0 ? count : undefined, idx, line, outOf);
+        }
+      }
+    }
+  }
+
   const text = line.replace(/\s+/g, ' ').trim();
-  if (!text || text.length > 160 || /^total\b|\btotal\s*[:=]?\s*100/i.test(text)) return null;
-  if (PROSE.test(text) || GRADE_ROW.test(text)) return null;
   const pcts: { value: number; index: number; each: boolean; length: number }[] = [];
   const re = /(\d{1,3}(?:\.\d+)?)\s*%/g;
   for (let m = re.exec(text); m; m = re.exec(text)) {
@@ -341,11 +575,17 @@ const sumOf = (comps: CustomSyllabusComponent[]) => comps.reduce((s, c) => s + c
 
 /** The assessment weights: from the grading section closest to 100%, else from anywhere if they add up. */
 function syllabusWeights(lines: string[]): CustomSyllabusComponent[] {
+  // 1. LLM-grade structured table parser first
+  const tableResult = parseAssessmentTable(lines);
+  if (tableResult.length >= 2 && Math.abs(sumOf(tableResult) - 100) <= 5) {
+    return tableResult;
+  }
+
+  // 2. Section-based and line-by-line fallback
   let best: CustomSyllabusComponent[] = [];
   lines.forEach((line, i) => {
     if (line.length > 90 || !ASSESSMENT_HEADER.test(line.trim())) return;
-    const found = weightsFrom(lines.slice(i + 1, i + 45), true);
-    // The header line itself may hold the first row of a table
+    const found = weightsFrom(lines.slice(i + 1, i + 60), true);
     if (Math.abs(sumOf(found) - 100) < Math.abs(sumOf(best) - 100) || (!best.length && found.length)) best = found;
   });
   if (best.length >= 2 && Math.abs(sumOf(best) - 100) <= 5) return best;

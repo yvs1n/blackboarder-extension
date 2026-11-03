@@ -105,6 +105,36 @@ describe('reading uploaded files', () => {
       t('Midterm', 72, 700, 40), t('30%', 300, 700, 15),
       t('Data', 72, 720, 20), t('Structures', 94, 720.5, 50)
     ])).toBe('Data Structures\nMidterm\t30%');
+
+    // Two-column layout should read column 1 top-to-bottom, then column 2 top-to-bottom
+    const colItems = [
+      // Top header banner
+      t('Course Syllabus Overview', 180, 800, 200),
+      // Left column
+      t('Left Paragraph 1', 50, 700, 120),
+      t('Left Paragraph 2', 50, 670, 120),
+      t('Left Paragraph 3', 50, 640, 120),
+      t('Left Paragraph 4', 50, 610, 120),
+      t('Left Paragraph 5', 50, 580, 120),
+      t('Left Paragraph 6', 50, 550, 120),
+      t('Left Paragraph 7', 50, 520, 120),
+      t('Left Paragraph 8', 50, 490, 120),
+      t('Left Paragraph 9', 50, 460, 120),
+      t('Left Paragraph 10', 50, 430, 120),
+      // Right column
+      t('Right Paragraph 1', 350, 700, 120),
+      t('Right Paragraph 2', 350, 670, 120),
+      t('Right Paragraph 3', 350, 640, 120),
+      t('Right Paragraph 4', 350, 610, 120),
+      t('Right Paragraph 5', 350, 580, 120),
+      t('Right Paragraph 6', 350, 550, 120),
+      t('Right Paragraph 7', 350, 520, 120),
+      t('Right Paragraph 8', 350, 490, 120),
+      t('Right Paragraph 9', 350, 460, 120),
+      t('Right Paragraph 10', 350, 430, 120)
+    ];
+    const extracted = pdfItemsToLines(colItems);
+    expect(extracted.indexOf('Left Paragraph 10')).toBeLessThan(extracted.indexOf('Right Paragraph 1'));
   });
 
   it('reads HTML and says why a file cannot be read', async () => {

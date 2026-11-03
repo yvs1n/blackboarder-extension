@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.0",
-  "build": "19152f72457b",
-  "commit": "5ad35d8e9cd7d85845ae23ce931916ff5fa57b30",
-  "shortCommit": "5ad35d8",
-  "timestamp": "2026-11-03T12:06:40.289Z",
-  "message": "feat(gpa): auto-snap target gpa to nearest attainable combination and display assessment target percentages",
+  "build": "5dc28e5ce57a",
+  "commit": "c83b0d06369ec2beb124bd39d86584ca27b76c94",
+  "shortCommit": "c83b0d0",
+  "timestamp": "2026-11-03T12:41:08.745Z",
+  "message": "feat(milestone): consolidate release history into v1.7.0 milestone",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
