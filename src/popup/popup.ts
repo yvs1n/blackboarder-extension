@@ -33,7 +33,7 @@ import { filterCleanUserCourses } from '../core/courseFilter';
 import { mergeCloudTasks, mergeTombstones, getTaskSeriesInfo, deduplicateTaskList } from '../utils/taskMerge';
 import { parseSyllabusWeightsText, parseCoursesFromJson, mergeImportedCourses } from '../core/courseImporter';
 import { applyCourseImport, type CourseDraft } from '../core/courseDocument';
-import { calculateTrajectoryTargetPlan } from '../core/targetGpa';
+import { calculateTrajectoryTargetPlan, type TrajectoryTargetPlan } from '../core/targetGpa';
 import { courseImportReviewHtml, readCourseImportReview } from '../core/courseImportView';
 import { fileToText, type PdfJsLike } from '../core/documentText';
 import { findCoursesInDocument } from '../engine/aiCourseImport';
@@ -859,6 +859,42 @@ function renderDoctorQuoteHtml(
   `;
 }
 
+function getCurrentTrajectoryPlan(): { plan: TrajectoryTargetPlan | null; targetGpa: number } {
+  const profile = getCachedProfile();
+  const scale = profileGradeScale(profile);
+  const syllabi = getAllSyllabi();
+  const gpa = buildGpaSummary(currentTasks, syllabi, scale);
+  const targetGpa = (typeof profile?.targetTermGpa === 'number' && profile.targetTermGpa > 0)
+    ? profile.targetTermGpa
+    : (gpa.gpa !== undefined ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20) : 3.75);
+  const plan = calculateTrajectoryTargetPlan(gpa, targetGpa, currentTasks, scale);
+  return { plan, targetGpa };
+}
+
+function getTaskTargetBadgeHtml(
+  task: DeadlineTask,
+  trajectoryPlan: TrajectoryTargetPlan | null,
+  targetGpa: number
+): string {
+  if (!task || task.status === 'completed' || !trajectoryPlan?.taskTargetMap) return '';
+  const taskTarget = trajectoryPlan.taskTargetMap[task.id];
+  if (!taskTarget) return '';
+
+  const pct = taskTarget.requiredPercent;
+  let text = '';
+  if (pct <= 0) {
+    text = `Target: Secured (${escapeHtml(taskTarget.targetLetter)})`;
+  } else if (pct > 100) {
+    text = `Target: >100% (${escapeHtml(taskTarget.targetLetter)})`;
+  } else {
+    text = `Target: ${pct.toFixed(1)}% (${escapeHtml(taskTarget.targetLetter)})`;
+  }
+
+  const tooltip = `Target required score: ${pct.toFixed(1)}% (${taskTarget.targetScore}/${taskTarget.maxScore} pts) for ${escapeHtml(taskTarget.targetLetter)} grade to achieve ${targetGpa.toFixed(2)} GPA`;
+
+  return `<span class="task-target-pill" title="${tooltip}">${getSvgIcon('star', 'mr-1')}<span>${text}</span></span>`;
+}
+
 // Create a summary card for a day event: Task Name, Subject (in permanent color), and Time
 function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   const isCompleted = task.status === 'completed';
@@ -869,6 +905,8 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   const timeDisplay = formatTaskTime(task);
 
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
+  const { plan: trajectoryPlan, targetGpa } = getCurrentTrajectoryPlan();
+  const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
   const card = document.createElement('div');
   card.className = `day-summary-card ${isCompleted ? 'is-completed' : ''}`;
@@ -912,6 +950,7 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
           ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(task.weightDisplay)}</span>
         </div>
       ` : ''}
+      ${targetBadgeHtml}
       ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
         <div class="task-grade-pill" title="Grade / Score released on Blackboard">
           ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
@@ -2196,15 +2235,7 @@ function renderTasks() {
     const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
     const gcalUrl = createGoogleCalendarUrl(task);
 
-    const taskTarget = trajectoryPlan?.taskTargetMap?.[task.id];
-    let targetBadgeHtml = '';
-    if (!isCompleted && taskTarget && taskTarget.targetScore > 0) {
-      targetBadgeHtml = `
-        <span class="task-target-pill" title="Target score needed for ${escapeHtml(taskTarget.targetLetter)} grade to achieve ${targetGpa.toFixed(2)} Term GPA" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; padding: 2px 7px; background: var(--surface-hover); border: 1px solid var(--text-main); color: var(--text-main); font-weight: 700; white-space: nowrap;">
-          <span>🎯 Target: ${taskTarget.targetScore}/${taskTarget.maxScore} (${escapeHtml(taskTarget.targetLetter)})</span>
-        </span>
-      `;
-    }
+    const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
     // Room pill button (1-click room changer - only if not hw or project)
     const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
@@ -2452,6 +2483,8 @@ function openReadingSheet(task: DeadlineTask) {
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
   const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
   const gcalUrl = createGoogleCalendarUrl(task);
+  const { plan: trajectoryPlan, targetGpa } = getCurrentTrajectoryPlan();
+  const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
   const fullAnnouncement = (task.description || task.sourceSnippet || '').trim();
   const hasAnnouncement = fullAnnouncement && !fullAnnouncement.startsWith('Blackboard Ultra Stream item');
@@ -2483,6 +2516,7 @@ function openReadingSheet(task: DeadlineTask) {
       </button>
       ` : ''}
       ${task.weightDisplay || task.weight ? `<span class="task-weight-pill weight-major">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(task.weightDisplay || `${task.weight}%`)}</span>` : ''}
+      ${targetBadgeHtml}
       ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
         <span class="task-grade-pill" title="Grade / Score released on Blackboard">
           ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>

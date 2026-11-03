@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.4.50",
-  "build": "d0173372e4da",
-  "commit": "e97cea12ff441c84a6ad8db8e954a0518768b744",
-  "shortCommit": "e97cea1",
-  "timestamp": "2026-11-03T04:26:09.755Z",
-  "message": "style(companion): polish mobile layouts, modal surfaces, target chips, and badge styling",
+  "build": "cfc896491653",
+  "commit": "4e71c0bacd035b39ec54eb8a0e3a13994ea29a27",
+  "shortCommit": "4e71c0b",
+  "timestamp": "2026-11-03T05:18:41.041Z",
+  "message": "fix(popup): restore marks tab alignment, archive modal, guide state, and course metadata",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

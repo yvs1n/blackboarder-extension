@@ -344,6 +344,26 @@
   border-color: var(--surface-border);
 }
 
+.task-target-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 0 !important;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+[data-theme="dark"] .task-target-pill {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border);
+}
+
 [data-theme="dark"] .btn-card-action,
 [data-theme="dark"] .btn-secondary {
   background: #24242b;
@@ -3149,6 +3169,7 @@ body.is-standalone .header {
 .reading-meta-section .urgency-badge,
 .reading-meta-section .room-pill-btn,
 .reading-meta-section .task-weight-pill,
+.reading-meta-section .task-target-pill,
 .reading-meta-section .task-grade-pill,
 .reading-meta-section .task-submitted-pill,
 .reading-meta-section .high-priority-tag {
@@ -3206,6 +3227,7 @@ body.is-standalone .header {
   font-weight: 600 !important;
 }
 
+.reading-meta-section .task-target-pill,
 .reading-meta-section .task-grade-pill,
 .reading-meta-section .task-submitted-pill {
   background: var(--surface-hover);

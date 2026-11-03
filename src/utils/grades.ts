@@ -162,7 +162,9 @@ export function gradesHtml(
         const sign = diff >= 0 ? '+' : '';
         targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
           <span class="target-rounding-title">Scholarship Target: <strong>${targetCgpaVal.toFixed(2)} Cumulative CGPA</strong> &rarr; Requires <strong>${requiredTermSgpaRaw.toFixed(2)} Term SGPA</strong></span>
-          <span class="target-rounding-sub">Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</strong> (${sign}${diff.toFixed(2)}) &bull; Projected CGPA: <strong>${projCgpaVal?.toFixed(2)}</strong>. University grades round to discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.</span>
+          <span class="target-rounding-sub">${projCgpaVal && Math.abs(projCgpaVal - targetCgpaVal) >= 0.005
+            ? `The nearest attainable Cumulative CGPA to your target (${targetCgpaVal.toFixed(2)}) is <strong>${projCgpaVal.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`
+            : `Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</strong> (${sign}${diff.toFixed(2)}) &bull; Projected CGPA: <strong>${projCgpaVal?.toFixed(2)}</strong>. University grades round to discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`}</span>
         </div>`;
       }
     } else {
@@ -177,7 +179,12 @@ export function gradesHtml(
         const sign = diff >= 0 ? '+' : '';
         targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
           <span class="target-rounding-title">Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} SGPA</strong> (${sign}${diff.toFixed(2)})</span>
-          <span class="target-rounding-sub">University grades round to discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.</span>
+          <span class="target-rounding-sub">The nearest attainable GPA to your target (${targetTermVal.toFixed(2)}) is <strong>${trajectoryPlan.plannedGpa.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.</span>
+        </div>`;
+      } else {
+        targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
+          <span class="target-rounding-title">Target <strong>${targetTermVal.toFixed(2)} SGPA</strong> is directly attainable</span>
+          <span class="target-rounding-sub">Matched to discrete scale points (A = 4.0, B+ = 3.5) weighted by course credit hours.</span>
         </div>`;
       }
     }
@@ -506,7 +513,7 @@ export function gradesHtml(
                 <svg class="ui-icon" style="width: 12px; height: 12px; color: var(--text-muted); flex-shrink: 0;"><use href="#icon-pencil"></use></svg>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${esc(u.title)}${u.weight ? ` <span style="color: var(--text-muted); font-size: 10px;">(${u.weight}%)</span>` : ''}</span>
               </span>
-              <span class="target-task-score" style="font-weight: 700; color: var(--text-main); font-size: 11px; flex-shrink: 0;">Score ${scorePercent} <span style="font-size: 10px; font-weight: normal; color: var(--text-muted);">(${scoreRaw})</span></span>
+              <span class="target-task-score" style="font-weight: 700; color: var(--text-main); font-size: 11px; flex-shrink: 0;">Target: ${scorePercent} <span style="font-size: 10px; font-weight: normal; color: var(--text-muted);">(${scoreRaw})</span></span>
             </div>
           `;
         }).join('');
