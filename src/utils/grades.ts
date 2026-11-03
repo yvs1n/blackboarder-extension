@@ -58,6 +58,8 @@ export function gradesHtml(
     showGuide?: boolean;
     courseCodes?: Map<string, string>;
     openTargetBreakdown?: boolean;
+    userCourses?: import('../types').UserCourseConfig[];
+    courseCrns?: Map<string, string>;
   }
 ): string {
   if (!gpa.courses.length && !marks.courses.length) {
@@ -205,9 +207,9 @@ export function gradesHtml(
       <div class="gpa-head-dual" style="display: grid; grid-template-columns: ${trajectoryPlan ? '1fr 1fr' : '1fr'}; gap: 8px;">
         <div class="marks-gpa-col gpa-stat-current" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
           <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Current Standing</span>
-          <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+          <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: nowrap; white-space: nowrap;">
             <span class="marks-gpa-big" style="font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1;">${termVal}</span>
-            <span class="marks-gpa-stat-label" style="font-size: 11px; color: var(--text-muted); line-height: 1.25;">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
+            <span class="marks-gpa-stat-label" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.25; white-space: nowrap;">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
           </div>
           ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">Cumulative CGPA: <strong class="marks-gpa-cgpa-val">${cgpaVal}</strong> (${totalGradedCreds} cr)</div>` : ''}
         </div>
@@ -215,9 +217,9 @@ export function gradesHtml(
         ${trajectoryPlan ? `
         <div class="marks-gpa-col gpa-stat-target" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
           <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Academic Goal</span>
-          <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+          <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: nowrap; white-space: nowrap;">
             <span class="marks-gpa-big is-target" style="font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1;">${trajectoryPlan.plannedGpa.toFixed(2)}</span>
-            <span class="marks-gpa-stat-label" style="font-size: 11px; color: var(--text-muted); line-height: 1.25;">Planned SGPA</span>
+            <span class="marks-gpa-stat-label" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.25; white-space: nowrap;">Planned SGPA</span>
           </div>
           ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">${projectedCgpaText}</div>` : ''}
         </div>
@@ -231,8 +233,8 @@ export function gradesHtml(
             <button type="button" class="btn-goal-mode ${activeMode === 'cgpa' ? 'is-active' : ''}" data-mode="cgpa" title="Target your cumulative GPA (ideal for scholarship retention and honors)" style="background: ${activeMode === 'cgpa' ? 'var(--text-main)' : 'transparent'}; color: ${activeMode === 'cgpa' ? 'var(--bg)' : 'var(--text-muted)'}; border: none; padding: 2px 7px; font-size: 10px; font-weight: ${activeMode === 'cgpa' ? '700' : '600'}; cursor: pointer;">Cumulative CGPA (Scholarship)</button>
             <button type="button" class="btn-goal-mode ${activeMode === 'term' ? 'is-active' : ''}" data-mode="term" title="Directly target your current semester GPA" style="background: ${activeMode === 'term' ? 'var(--text-main)' : 'transparent'}; color: ${activeMode === 'term' ? 'var(--bg)' : 'var(--text-muted)'}; border: none; padding: 2px 7px; font-size: 10px; font-weight: ${activeMode === 'term' ? '700' : '600'}; cursor: pointer;">Term SGPA</button>
           </div>
-          <button type="button" class="btn-xs-manage-links" id="btn-toggle-gpa-guide" aria-expanded="false" style="font-size: 10px; padding: 2px 7px; min-height: 24px; display: inline-flex; align-items: center; gap: 4px;" title="Learn how the predictor calculates required grades">
-            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px;"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          <button type="button" class="btn-xs-manage-links" id="btn-toggle-gpa-guide" aria-expanded="${options?.showGuide ? 'true' : 'false'}" style="font-size: 10px; padding: 2px 7px; min-height: 24px; display: inline-flex; align-items: center; gap: 4px;" title="Learn how the predictor calculates required grades">
+            <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-help-circle"></use></svg>
             <span>How It Works</span>
           </button>
         </div>
@@ -257,14 +259,12 @@ export function gradesHtml(
         ${targetExplanation}
 
         <!-- Expandable Predictor & Scholarship Guide Panel -->
-        <div id="gpa-predictor-guide" class="gpa-guide-panel" style="display: none; margin-top: 8px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
+        <div id="gpa-predictor-guide" class="gpa-guide-panel" style="display: ${options?.showGuide ? 'block' : 'none'}; margin-top: 8px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
             <h4 style="margin: 0; font-size: 11.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 5px;">
-              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px; color: var(--primary);"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+              <svg class="ui-icon" style="width: 12px; height: 12px; color: var(--primary);"><use href="#icon-award"></use></svg>
               <span>How the GPA &amp; Scholarship Predictor Works</span>
             </h4>
-            <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase;">Guide</span>
-          </div>
             <span style="font-size: 9.5px; color: var(--text-muted); text-transform: uppercase;">Guide</span>
           </div>
 
@@ -333,6 +333,18 @@ export function gradesHtml(
       ? `<span class="settings-pill pill-green" style="font-size: 10px;">100% Graded</span>`
       : `<span class="settings-pill pill-blue" style="font-size: 10px;">${c.gradedWeight}% Graded (${100 - c.gradedWeight}% Remaining)</span>`;
 
+    const userCourse = (options?.userCourses || []).find(uc => uc.courseName.toLowerCase() === c.courseName.toLowerCase());
+    const code = userCourse?.courseCode || options?.courseCodes?.get(c.courseName.toLowerCase()) || '';
+    const crn = userCourse?.crn || options?.courseCrns?.get(c.courseName.toLowerCase()) || '';
+
+    const metaParts = [
+      code ? `<span class="ucc-code" style="font-weight: 700; color: var(--text-main);">${esc(code)}</span>` : '',
+      crn ? `<span title="CRN">CRN ${esc(crn)}</span>` : '',
+      `<span>${c.creditHours} credit hour${c.creditHours === 1 ? '' : 's'}</span>`,
+      c.bonusWeight ? `<span class="settings-pill pill-green" style="font-size: 9px; padding: 1px 4px;">+${c.bonusWeight}% Bonus</span>` : '',
+      detail ? `<span>${detail}</span>` : ''
+    ].filter(Boolean).join('<span aria-hidden="true"> · </span>');
+
     return `
       <div class="marks-course" style="border: 1px solid var(--surface-border); border-left: 3px solid ${esc(courseColor)}; background: var(--surface); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px;">
         <div class="marks-course-head" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
@@ -341,9 +353,7 @@ export function gradesHtml(
             <div class="marks-course-title-text" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
               <span class="marks-course-name" style="font-size: 12.5px; font-weight: 700; color: var(--text-main); line-height: 1.3; overflow-wrap: anywhere;">${esc(c.courseName)}</span>
               <div class="marks-course-meta" style="font-size: 10px; color: var(--text-muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; line-height: 1.3;">
-                <span>${c.creditHours} credit hour${c.creditHours === 1 ? '' : 's'}</span>
-                ${c.bonusWeight ? `<span>·</span><span class="settings-pill pill-green" style="font-size: 9px; padding: 1px 4px;">+${c.bonusWeight}% Bonus</span>` : ''}
-                ${detail ? `<span>·</span><span>${detail}</span>` : ''}
+                ${metaParts}
               </div>
             </div>
           </div>

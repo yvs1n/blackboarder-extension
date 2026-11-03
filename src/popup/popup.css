@@ -5048,12 +5048,14 @@ h1, h2, h3 {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 .marks-gpa-stat-label {
   font-size: 10.5px;
   color: var(--text-muted);
   line-height: 1.25;
+  white-space: nowrap;
 }
 .marks-gpa-col {
   padding: 8px 10px;

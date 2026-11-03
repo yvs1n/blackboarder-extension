@@ -127,6 +127,9 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
     const marks = buildMarksSummary(tasks, syllabi);
     const cumulative = calculateCgpa(gpa, semesters, profile);
     gradesBadge.textContent = gradesBadgeText(gpa, marks, cumulative);
+    let isBreakdownOpen = false;
+    try { isBreakdownOpen = localStorage.getItem('bbs_open_target_breakdown') === '1'; } catch {}
+
     gradesBody.innerHTML = gradesHtml(gpa, marks, name => hooks.getCourseHex(name), {
       name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
       scale,
@@ -136,7 +139,10 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
       selectedTargets: Object.fromEntries(selectedTargetGrades),
       targetTermGpa: profile?.targetTermGpa,
       targetCgpa: profile?.targetCgpa,
-      targetGpaMode: profile?.targetGpaMode
+      targetGpaMode: profile?.targetGpaMode,
+      showGuide: guideOpenState,
+      openTargetBreakdown: isBreakdownOpen,
+      userCourses
     });
   }
 
@@ -159,6 +165,19 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
 
   const gradesBody = document.getElementById('grades-tracker-breakdown');
   gradesBody?.addEventListener('click', async (e) => {
+    const bonusCourseBtn = (e.target as HTMLElement).closest('.btn-add-course-bonus') as HTMLElement | null;
+    if (bonusCourseBtn) {
+      const courseName = bonusCourseBtn.getAttribute('data-course') || '';
+      openBonusModal(courseName);
+      return;
+    }
+
+    const bonusTriggerBtn = (e.target as HTMLElement).closest('.btn-add-bonus-trigger') as HTMLElement | null;
+    if (bonusTriggerBtn) {
+      openBonusModal();
+      return;
+    }
+
     const targetToggleBtn = (e.target as HTMLElement).closest('#target-breakdown-toggle-btn, .target-breakdown-header') as HTMLElement | null;
     if (targetToggleBtn) {
       const content = document.getElementById('target-breakdown-content');
@@ -358,20 +377,6 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
   closeBonusBtn?.addEventListener('click', closeBonusModal);
   cancelBonusBtn?.addEventListener('click', closeBonusModal);
 
-  gradesBody?.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement)?.closest('.btn-add-course-bonus') as HTMLElement | null;
-    if (target) {
-      const courseName = target.getAttribute('data-course') || '';
-      openBonusModal(courseName);
-      return;
-    }
-    const generalTrigger = (e.target as HTMLElement)?.closest('.btn-add-bonus-trigger') as HTMLElement | null;
-    if (generalTrigger) {
-      openBonusModal();
-      return;
-    }
-  });
-
   bonusForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!bonusCourseSelect || !bonusValInput) return;
@@ -413,6 +418,8 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     updatedTasks.sort(compareTasksByTime);
     const saved = await hooks.saveTasks(updatedTasks);
     closeBonusModal();
+    renderGradeTracker(saved, hooks);
+    hooks.renderTasks();
     hooks.refreshAllViews();
     hooks.syncCloud(saved, 'Added Bonus Mark');
   });
@@ -423,13 +430,13 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
   const closeArchiveBtn = document.getElementById('btn-close-archive-modal');
   const cancelArchiveBtn = document.getElementById('btn-cancel-archive-semester');
   const confirmArchiveBtn = document.getElementById('btn-confirm-archive-semester');
-  const archiveTermInput = document.getElementById('archive-term-name') as HTMLInputElement | null;
-  const archivePreview = document.getElementById('archive-courses-preview');
 
   openArchiveBtn?.addEventListener('click', () => {
     if (!archiveModal) return;
     const userCourses = hooks.getUserCourses();
     const detected = detectSemesterName(userCourses);
+    const archiveTermInput = (document.getElementById('archive-semester-name') || document.getElementById('archive-term-name')) as HTMLInputElement | null;
+    const archivePreview = document.getElementById('archive-semester-summary') || document.getElementById('archive-courses-preview');
     if (archiveTermInput) {
       archiveTermInput.value = detected || '';
     }
@@ -457,22 +464,28 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         }).join('');
       }
     }
-    archiveModal.hidden = false;
+    archiveModal.style.display = 'flex';
+    archiveModal.classList.remove('hidden');
   });
 
   const closeArchive = () => {
-    if (archiveModal) archiveModal.hidden = true;
+    if (archiveModal) {
+      archiveModal.style.display = 'none';
+      archiveModal.classList.add('hidden');
+    }
   };
   closeArchiveBtn?.addEventListener('click', closeArchive);
   cancelArchiveBtn?.addEventListener('click', closeArchive);
 
   confirmArchiveBtn?.addEventListener('click', async () => {
+    const archiveTermInput = (document.getElementById('archive-semester-name') || document.getElementById('archive-term-name')) as HTMLInputElement | null;
     if (!archiveTermInput) return;
     const semesters = hooks.getSemesters();
     const userCourses = hooks.getUserCourses();
     const tasks = hooks.getTasks();
     const name = archiveTermInput.value.trim() || `Term ${semesters.length + 1}`;
-    const depthFull = (document.querySelector('input[name="archive-depth"]:checked') as HTMLInputElement)?.value === 'full';
+    const depthRadio = (document.querySelector('input[name="archive-mode"]:checked') || document.querySelector('input[name="archive-depth"]:checked')) as HTMLInputElement | null;
+    const depthFull = depthRadio?.value === 'full';
     const clearActive = (document.getElementById('archive-clear-active') as HTMLInputElement)?.checked;
 
     const profile = hooks.getProfile();
