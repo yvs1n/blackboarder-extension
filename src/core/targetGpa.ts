@@ -383,7 +383,6 @@ export function calculateTrajectoryTargetPlan(
   const activeScale = scale.length ? scale : UOS_GRADE_SCALE;
   const sortedScale = [...activeScale].sort((a, b) => b.points - a.points);
   const totalCredits = gpaSummary.totalCredits || (gpaSummary.courses.length * 3) || 3;
-  const requiredTotalPoints = round2(targetGpa * totalCredits);
 
   interface CourseAnalysisInternal {
     courseGrade: CourseGrade;
@@ -475,12 +474,12 @@ export function calculateTrajectoryTargetPlan(
 
   const maxPossibleTotalPoints = courseAnalyses.reduce((sum, c) => sum + (c.maxPossiblePoints * c.credits), 0);
   const maxPossibleGpa = round2(maxPossibleTotalPoints / totalCredits);
-  const possible = requiredTotalPoints <= maxPossibleTotalPoints;
+  const possible = targetGpa <= maxPossibleGpa;
 
   const currentTotalPoints = () => courseAnalyses.reduce((sum, c) => sum + (c.options[c.selectedIndex].row.points * c.credits), 0);
 
   let iterations = 0;
-  while (currentTotalPoints() < requiredTotalPoints && iterations < 30) {
+  while (round2(currentTotalPoints() / totalCredits) < targetGpa && iterations < 30) {
     iterations++;
     let bestCourse: CourseAnalysisInternal | null = null;
     let lowestCostPerPoint = Infinity;

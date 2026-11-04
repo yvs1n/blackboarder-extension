@@ -188,4 +188,27 @@ describe('Grades card (GPA and marks together)', () => {
     expect(impossibleHtml).toContain('btn-set-max-cgpa');
     expect(impossibleHtml).not.toMatch(/\u2014/);
   });
+
+  it('renders Target CGPA prominently in Academic Goal card and shows dual target controls in goal bar', () => {
+    const cgpaHtml = gradesHtml(gpa, marks, () => '#000', { name: 'UOS', scale: [] as any }, null, {
+      targetCgpa: 3.97,
+      targetGpaMode: 'cgpa'
+    });
+
+    // Academic Goal displays Target CGPA prominently
+    expect(cgpaHtml).toContain('3.97');
+    expect(cgpaHtml).toContain('Target CGPA');
+    expect(cgpaHtml).toContain('Planned SGPA');
+
+    // Dual target inputs exist in the goal bar
+    expect(cgpaHtml).toContain('id="input-target-gpa-val"');
+    expect(cgpaHtml).toContain('id="input-target-term-gpa"');
+    expect(cgpaHtml).toContain('Target Cumulative CGPA (Scholarship):');
+    expect(cgpaHtml).toContain('Target Term SGPA (Semester):');
+
+    // Current Standing displays both Term and Cumulative
+    expect(cgpaHtml).toContain('Current Standing');
+    expect(cgpaHtml).toContain('Term SGPA');
+    expect(cgpaHtml).toContain('Cumulative CGPA:');
+  });
 });

@@ -5037,6 +5037,17 @@ h1, h2, h3 {
 .marks-score { font-weight: 700; font-variant-numeric: tabular-nums; }
 .marks-pct { font-size: 10.5px; color: var(--text-muted); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
 .marks-awaiting { font-size: 10.5px; color: var(--text-muted); }
+.marks-awaiting.waiting {
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--surface-border-strong);
+  padding: 1px 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: 0;
+}
 
 /* Syllabus Progress bars (shared markup from src/utils/syllabusProgress.ts) */
 .syl-bar { display: flex; width: 100%; height: 6px; background: var(--surface-border); overflow: hidden; margin: 2px 0; }

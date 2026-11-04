@@ -429,5 +429,25 @@ describe('Term Target GPA Planning', () => {
       expect(hist?.maxPossiblePercent).toBe(65);
       expect(hist?.targetPoints).toBeLessThanOrEqual(2.0);
     });
+
+    it('accurately attains discrete 3.97 GPA for 16 credits without floating-point bump to 4.00', () => {
+      const gpaSummary: GpaSummary = {
+        totalCredits: 16,
+        gradedCredits: 16,
+        gpa: 3.47,
+        courses: [
+          { courseName: 'Course 1', creditHours: 3, gradedWeight: 40, earnedWeight: 36, percent: 90, components: [] },
+          { courseName: 'Course 2', creditHours: 3, gradedWeight: 40, earnedWeight: 36, percent: 90, components: [] },
+          { courseName: 'Course 3', creditHours: 3, gradedWeight: 40, earnedWeight: 36, percent: 90, components: [] },
+          { courseName: 'Course 4', creditHours: 3, gradedWeight: 40, earnedWeight: 36, percent: 90, components: [] },
+          { courseName: 'Course 5', creditHours: 3, gradedWeight: 40, earnedWeight: 36, percent: 90, components: [] },
+          { courseName: 'Lab', creditHours: 1, gradedWeight: 40, earnedWeight: 34, percent: 85, components: [] }
+        ]
+      };
+
+      const plan = calculateTrajectoryTargetPlan(gpaSummary, 3.97, [], UOS_GRADE_SCALE);
+      expect(plan.possible).toBe(true);
+      expect(plan.plannedGpa).toBe(3.97); // Must stay at 3.97 and not jump to 4.00
+    });
   });
 });

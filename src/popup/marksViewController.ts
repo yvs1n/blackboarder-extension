@@ -45,7 +45,7 @@ export function snapTargetGpa(
   val: number,
   mode: 'term' | 'cgpa',
   hooks: MarksControllerHooks
-): { snappedVal: number; adjusted: boolean; reason: string } {
+): { snappedVal: number; adjusted: boolean; reason: string; plannedTermGpa?: number; projCgpaVal?: number } {
   const profile = hooks.getProfile();
   const scale = profileGradeScale(profile);
   const syllabi = hooks.getAllSyllabi();
@@ -56,32 +56,37 @@ export function snapTargetGpa(
 
   const topPoints = scale.length > 0 ? Math.max(...scale.map(s => s.points)) : 4.0;
   const termCredits = gpa.totalCredits || (gpa.courses.length * 3) || 3;
+  const priorCredits = Math.max(0, (cumulative?.totalGradedCredits || 0) - (gpa.gradedCredits || 0));
+  const priorWeighted = ((cumulative?.cgpa || 0) * (cumulative?.totalGradedCredits || 0));
+  const activeWeighted = (gpa.gpa || 0) * (gpa.gradedCredits || 0);
+  const priorPoints = Math.max(0, priorWeighted - activeWeighted);
+  const totalCredsAfterTerm = priorCredits + termCredits;
 
   if (mode === 'term') {
     const plan = calculateTrajectoryTargetPlan(gpa, val, tasks, scale);
     if (!plan.possible || val > plan.maxPossibleGpa) {
       const snappedVal = Math.round(plan.maxPossibleGpa * 100) / 100;
+      const projCgpaVal = Math.round(((priorPoints + (snappedVal * termCredits)) / totalCredsAfterTerm) * 100) / 100;
       return {
         snappedVal,
         adjusted: Math.abs(snappedVal - val) >= 0.005,
-        reason: `Target ${val.toFixed(2)} exceeds highest achievable SGPA (${snappedVal.toFixed(2)}). Adjusted to maximum achievable.`
+        reason: `Target ${val.toFixed(2)} exceeds highest achievable SGPA (${snappedVal.toFixed(2)}). Adjusted to maximum achievable.`,
+        plannedTermGpa: snappedVal,
+        projCgpaVal
       };
     }
     const snappedVal = Math.round(plan.plannedGpa * 100) / 100;
     const adjusted = Math.abs(snappedVal - val) >= 0.005;
+    const projCgpaVal = Math.round(((priorPoints + (snappedVal * termCredits)) / totalCredsAfterTerm) * 100) / 100;
     return {
       snappedVal,
       adjusted,
-      reason: `Nearest attainable GPA to your target (${val.toFixed(2)}) is ${snappedVal.toFixed(2)}, so we adjusted it for you.`
+      reason: `Nearest attainable GPA to your target (${val.toFixed(2)}) is ${snappedVal.toFixed(2)}, so we adjusted it for you.`,
+      plannedTermGpa: snappedVal,
+      projCgpaVal
     };
   } else {
     // Cumulative CGPA mode
-    const priorCredits = Math.max(0, (cumulative?.totalGradedCredits || 0) - (gpa.gradedCredits || 0));
-    const priorWeighted = ((cumulative?.cgpa || 0) * (cumulative?.totalGradedCredits || 0));
-    const activeWeighted = (gpa.gpa || 0) * (gpa.gradedCredits || 0);
-    const priorPoints = Math.max(0, priorWeighted - activeWeighted);
-    const totalCredsAfterTerm = priorCredits + termCredits;
-
     const requiredTermSgpaRaw = priorCredits > 0
       ? ((val * totalCredsAfterTerm) - priorPoints) / termCredits
       : val;
@@ -91,7 +96,9 @@ export function snapTargetGpa(
       return {
         snappedVal: maxAchievableCgpa,
         adjusted: Math.abs(maxAchievableCgpa - val) >= 0.005,
-        reason: `Target ${val.toFixed(2)} CGPA is unattainable this semester. Highest achievable Cumulative CGPA is ${maxAchievableCgpa.toFixed(2)}, so we adjusted it for you.`
+        reason: `Target ${val.toFixed(2)} CGPA is unattainable this semester. Highest achievable Cumulative CGPA is ${maxAchievableCgpa.toFixed(2)}, so we adjusted it for you.`,
+        plannedTermGpa: topPoints,
+        projCgpaVal: maxAchievableCgpa
       };
     }
 
@@ -100,7 +107,9 @@ export function snapTargetGpa(
       return {
         snappedVal: minCgpa,
         adjusted: Math.abs(minCgpa - val) >= 0.005,
-        reason: `Adjusted to nearest attainable Cumulative CGPA (${minCgpa.toFixed(2)}).`
+        reason: `Adjusted to nearest attainable Cumulative CGPA (${minCgpa.toFixed(2)}).`,
+        plannedTermGpa: 0,
+        projCgpaVal: minCgpa
       };
     }
 
@@ -113,7 +122,9 @@ export function snapTargetGpa(
     return {
       snappedVal: projCgpaVal,
       adjusted,
-      reason: `Nearest attainable Cumulative CGPA to your target (${val.toFixed(2)}) is ${projCgpaVal.toFixed(2)}, so we adjusted it for you.`
+      reason: `Nearest attainable Cumulative CGPA to your target (${val.toFixed(2)}) is ${projCgpaVal.toFixed(2)}, so we adjusted it for you.`,
+      plannedTermGpa,
+      projCgpaVal
     };
   }
 }
@@ -318,9 +329,15 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         const prof = hooks.getProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
         if (mode === 'cgpa') {
           prof.targetCgpa = snap.snappedVal;
+          if (snap.plannedTermGpa !== undefined) {
+            prof.targetTermGpa = snap.plannedTermGpa;
+          }
           prof.targetGpaMode = 'cgpa';
         } else {
           prof.targetTermGpa = snap.snappedVal;
+          if (snap.projCgpaVal !== undefined) {
+            prof.targetCgpa = snap.projCgpaVal;
+          }
           prof.targetGpaMode = 'term';
         }
         prof.updatedAt = new Date().toISOString();
@@ -375,9 +392,15 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         const prof = hooks.getProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
         if (mode === 'cgpa') {
           prof.targetCgpa = snap.snappedVal;
+          if (snap.plannedTermGpa !== undefined) {
+            prof.targetTermGpa = snap.plannedTermGpa;
+          }
           prof.targetGpaMode = 'cgpa';
         } else {
           prof.targetTermGpa = snap.snappedVal;
+          if (snap.projCgpaVal !== undefined) {
+            prof.targetCgpa = snap.projCgpaVal;
+          }
           prof.targetGpaMode = 'term';
         }
         prof.updatedAt = new Date().toISOString();
@@ -389,6 +412,13 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         renderGradeTracker(hooks.getTasks(), hooks);
         hooks.renderTasks();
       }
+    }
+  });
+
+  gradesBody?.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLInputElement;
+    if (e.key === 'Enter' && target && (target.id === 'input-target-gpa-val' || target.id === 'input-target-term-gpa')) {
+      target.blur();
     }
   });
 

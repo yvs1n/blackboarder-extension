@@ -35,7 +35,9 @@ function markRowsHtml(course: CourseMarks | undefined): string {
     }
     const right = m.status === 'graded'
       ? `<span class="marks-score">${esc(formatScore(m.score, m.maxScore))}</span><span class="marks-pct">${m.percent}%</span>`
-      : '<span class="marks-awaiting">Submitted</span>';
+      : (m.status === 'waiting'
+          ? '<span class="marks-awaiting waiting">Waiting</span>'
+          : '<span class="marks-awaiting">Submitted</span>');
     const sub = m.weight
       ? `<span class="marks-weight">${m.earned !== undefined ? `${m.earned} of ${m.weight}% weight` : `worth ${m.weight}%`}</span>`
       : '';
@@ -133,17 +135,14 @@ export function gradesHtml(
   }
 
   // Calculate Projected Cumulative CGPA
-  let projectedCgpaText = '';
   let projCgpaVal: number | null = null;
   if (trajectoryPlan) {
     const plannedTermGpa = trajectoryPlan.plannedGpa;
     if (priorCredits > 0) {
       const projTotalPts = priorPoints + (plannedTermGpa * termCredits);
       projCgpaVal = Math.round((projTotalPts / totalCredsAfterTerm) * 100) / 100;
-      projectedCgpaText = `Projected CGPA: <strong class="marks-gpa-cgpa-val">${projCgpaVal.toFixed(2)}</strong> (${totalCredsAfterTerm} cr)`;
     } else {
       projCgpaVal = plannedTermGpa;
-      projectedCgpaText = `Projected CGPA: <strong class="marks-gpa-cgpa-val">${plannedTermGpa.toFixed(2)}</strong> (${termCredits} cr)`;
     }
   }
 
@@ -195,13 +194,6 @@ export function gradesHtml(
   const cgpaVal = (cumulative?.cgpa !== undefined) ? cumulative.cgpa.toFixed(2) : '-';
   const totalGradedCreds = cumulative?.totalGradedCredits || gpa.gradedCredits || 0;
 
-  const hasDiffCgpa = Boolean(
-    cumulative &&
-    cumulative.cgpa !== undefined &&
-    gpa.gpa !== undefined &&
-    Math.abs(cumulative.cgpa - gpa.gpa) > 0.001
-  );
-
   const progressRow = (cumulative && cumulative.degreeProgressPercent !== undefined)
     ? `<div class="gpa-progress-wrap" title="${cumulative.totalCompletedCredits} of ${cumulative.targetCredits} degree credits completed" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--surface-border);">
          <div class="gpa-progress-track" style="height: 4px; background: var(--surface-border); width: 100%; border-radius: 0;"><div class="gpa-progress-bar" style="height: 100%; background: var(--primary); width:${cumulative.degreeProgressPercent}%;"></div></div>
@@ -218,17 +210,21 @@ export function gradesHtml(
             <span class="marks-gpa-big" style="font-size: 24px; font-weight: 800; color: var(--text-main); line-height: 1;">${termVal}</span>
             <span class="marks-gpa-stat-label" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.25; white-space: nowrap;">Term SGPA (${gpa.gradedCredits} of ${gpa.totalCredits} cr)</span>
           </div>
-          ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">Cumulative CGPA: <strong class="marks-gpa-cgpa-val">${cgpaVal}</strong> (${totalGradedCreds} cr)</div>` : ''}
+          <div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">Cumulative CGPA: <strong class="marks-gpa-cgpa-val">${cgpaVal !== '-' ? cgpaVal : termVal}</strong> (${totalGradedCreds > 0 ? totalGradedCreds : gpa.totalCredits} cr)</div>
         </div>
 
         ${trajectoryPlan ? `
         <div class="marks-gpa-col gpa-stat-target" style="padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); display: flex; flex-direction: column; justify-content: center;">
           <span class="marks-gpa-col-title" style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); display: block; margin-bottom: 4px;">Academic Goal</span>
           <div class="marks-gpa-stat-row" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: nowrap; white-space: nowrap;">
-            <span class="marks-gpa-big is-target" style="font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1;">${trajectoryPlan.plannedGpa.toFixed(2)}</span>
-            <span class="marks-gpa-stat-label" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.25; white-space: nowrap;">Planned SGPA</span>
+            <span class="marks-gpa-big is-target" style="font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1;">${activeMode === 'cgpa' ? targetCgpaVal.toFixed(2) : trajectoryPlan.plannedGpa.toFixed(2)}</span>
+            <span class="marks-gpa-stat-label" style="font-size: 10.5px; color: var(--text-muted); line-height: 1.25; white-space: nowrap;">${activeMode === 'cgpa' ? 'Target CGPA' : 'Planned SGPA'}</span>
           </div>
-          ${hasDiffCgpa ? `<div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">${projectedCgpaText}</div>` : ''}
+          <div class="marks-gpa-cgpa-row" style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+            ${activeMode === 'cgpa'
+              ? `Requires <strong>${trajectoryPlan.plannedGpa.toFixed(2)}</strong> Planned SGPA`
+              : (projCgpaVal !== null ? `Projected CGPA: <strong class="marks-gpa-cgpa-val">${projCgpaVal.toFixed(2)}</strong>` : `Target SGPA: ${targetTermVal.toFixed(2)}`)}
+          </div>
         </div>
         ` : ''}
       </div>
@@ -246,21 +242,32 @@ export function gradesHtml(
           </button>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-          <span style="font-size: 11px; font-weight: 700; color: var(--text-main);">${activeMode === 'cgpa' ? 'Target Cumulative CGPA (Scholarship):' : 'Target Term SGPA:'}</span>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            ${activeMode === 'cgpa' ? `
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 3.60) < 0.005 ? 'is-active' : ''}" data-target="3.60" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Standard Scholarship Minimum">3.60</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 3.80) < 0.005 ? 'is-active' : ''}" data-target="3.80" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Excellence / Dean's List">3.80</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetCgpaVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
-              <input type="number" id="input-target-gpa-val" data-mode="cgpa" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetCgpaVal.toFixed(2)}" style="width: 52px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Cumulative CGPA" />
-            ` : `
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetTermVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetTermVal - 3.75) < 0.005 ? 'is-active' : ''}" data-target="3.75" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${Math.abs(targetTermVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
-              <input type="number" id="input-target-term-gpa" data-mode="term" class="form-input" min="1.0" max="4.0" step="0.05" value="${targetTermVal.toFixed(2)}" style="width: 52px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
-            `}
+        <div class="marks-target-inputs-grid" style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="marks-target-row ${activeMode === 'cgpa' ? 'is-active-driver' : ''}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 3px 6px; background: ${activeMode === 'cgpa' ? 'var(--surface-hover)' : 'transparent'}; border-left: 2px solid ${activeMode === 'cgpa' ? 'var(--primary)' : 'transparent'};">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-main);">Target Cumulative CGPA (Scholarship):</span>
+              ${activeMode === 'cgpa' ? '<span class="settings-pill pill-blue" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Driver</span>' : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 3.60) < 0.005 ? 'is-active' : ''}" data-target="3.60" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Standard Scholarship Minimum">3.60</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 3.80) < 0.005 ? 'is-active' : ''}" data-target="3.80" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Excellence / Dean's List">3.80</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+              <input type="number" id="input-target-gpa-val" data-mode="cgpa" class="form-input" min="1.0" max="4.0" step="0.01" value="${targetCgpaVal.toFixed(2)}" style="width: 54px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Cumulative CGPA" />
+            </div>
+          </div>
+
+          <div class="marks-target-row ${activeMode === 'term' ? 'is-active-driver' : ''}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 3px 6px; background: ${activeMode === 'term' ? 'var(--surface-hover)' : 'transparent'}; border-left: 2px solid ${activeMode === 'term' ? 'var(--primary)' : 'transparent'};">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-main);">Target Term SGPA (Semester):</span>
+              ${activeMode === 'term' ? '<span class="settings-pill pill-blue" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Driver</span>' : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(targetTermVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(targetTermVal - 3.75) < 0.005 ? 'is-active' : ''}" data-target="3.75" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(targetTermVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+              <input type="number" id="input-target-term-gpa" data-mode="term" class="form-input" min="1.0" max="4.0" step="0.01" value="${targetTermVal.toFixed(2)}" style="width: 54px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
+            </div>
           </div>
         </div>
         ${targetExplanation}
@@ -420,7 +427,7 @@ export function gradesHtml(
       <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Current Term Grades</span>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${marks.gradedCount} Graded · ${gpa.courses.length} Courses</span>
+          <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${marks.gradedCount} Graded · ${marks.submittedCount > 0 ? `${marks.submittedCount} Awaiting · ` : ''}${gpa.courses.length} Course${gpa.courses.length === 1 ? '' : 's'}</span>
           <button type="button" class="btn-outline-action btn-add-bonus-trigger" style="font-size: 10px; padding: 1px 7px; height: 20px; min-height: 20px; width: auto; line-height: 18px;" title="Add a bonus mark or extra credit">+ Bonus Mark</button>
         </div>
       </div>

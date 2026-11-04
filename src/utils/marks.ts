@@ -15,7 +15,7 @@ export interface MarksSyllabus {
 export interface MarkRow {
   id: string;
   title: string;
-  status: 'graded' | 'submitted';
+  status: 'graded' | 'submitted' | 'waiting';
   score?: number;
   maxScore?: number;
   percent?: number;
@@ -49,6 +49,21 @@ export interface MarksSummary {
 }
 
 /**
+ * Identifies whether a task represents a graded assessment component
+ * (quiz, exam, midterm, final, assignment, homework, project, lab, or weighted syllabus item).
+ */
+export function isAssessmentTask(t: { type?: string; title?: string; weight?: number }): boolean {
+  if (typeof t.weight === 'number' && t.weight > 0) return true;
+  const type = (t.type || '').toLowerCase();
+  if (type === 'quiz' || type === 'exam' || type === 'assignment' || type === 'project' || type === 'lab') {
+    return true;
+  }
+  if (isExamItem(t)) return true;
+  const title = (t.title || '').toLowerCase();
+  return /\b(?:quiz(?:zes)?|test|exam|mid[\s_-]*term|final|assignment|hw\d*|homework|project|lab|paper|presentation|essay|report)\b|كويز|اختبار|امتحان|واجب|مشروع|مختبر|تقرير|تجربة/i.test(title);
+}
+
+/**
  * Every mark in one place: graded and submitted tasks grouped by course, with each course's
  * earned share of the grade. Courses are named after their syllabus when one matches.
  */
@@ -70,7 +85,8 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     const graded = (t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0)
       || (isBonus && typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0);
     const submitted = !graded && (t.submissionStatus === 'submitted' || t.submissionStatus === 'graded');
-    if (!graded && !submitted) continue;
+    const waiting = !graded && !submitted && t.status === 'completed' && isAssessmentTask(t);
+    if (!graded && !submitted && !waiting) continue;
 
     const syl = syllabi.find(s =>
       s.courseCodePattern.test(t.courseName || '') || s.courseCodePattern.test(t.courseCode || '')
@@ -87,7 +103,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     const row: MarkRow = {
       id: t.id,
       title: t.title,
-      status: graded ? 'graded' : 'submitted',
+      status: graded ? 'graded' : (waiting ? 'waiting' : 'submitted'),
       weight,
       dueDate: t.dueDate,
       gradedAt: t.gradedAt,
@@ -154,6 +170,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
         existingRow.submittedAt = row.submittedAt;
       }
       if (graded && existingRow.status !== 'graded') {
+        const wasAwaiting = existingRow.status === 'submitted' || existingRow.status === 'waiting';
         existingRow.status = 'graded';
         existingRow.score = row.score;
         existingRow.maxScore = row.maxScore;
@@ -170,7 +187,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
           }
         }
         gradedCount++;
-        submittedCount--;
+        if (wasAwaiting) submittedCount--;
+      } else if (!graded && row.status === 'submitted' && existingRow.status === 'waiting') {
+        existingRow.status = 'submitted';
       } else if (weight && !existingRow.weight && typeof existingRow.score === 'number' && existingRow.maxScore) {
         existingRow.weight = weight;
         existingRow.earned = round1((existingRow.score / existingRow.maxScore) * weight);
