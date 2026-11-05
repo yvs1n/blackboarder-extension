@@ -1,6 +1,6 @@
 import { Announcement, DeadlineTask, TaskType, TaskPriority } from '../types';
 import { resolveTaskTimeWithSchedule, resolveTaskRoom } from '../core/courseSchedule';
-import { sanitizeDoctorAnnouncementText } from '../core/courseHelper';
+import { sanitizeDoctorAnnouncementText, toEnglishDeadlineTitle } from '../core/courseHelper';
 import { isExtensionContextValid } from '../utils/storage';
 import { AiEndpoint, OPENROUTER_CHAT_URL, DEFAULT_OPENROUTER_MODEL, aiRequestHeaders, parseAiJson } from './aiProviders';
 
@@ -74,7 +74,7 @@ CRITICAL TIME & DATE RULES:
 {
   "deadlines": [
     {
-      "title": "Short title, e.g., Midterm Exam",
+      "title": "Short concise English title, e.g., Midterm Exam, Quiz 1, Homework 2",
       "dueDate": "2026-10-12T12:30:00",
       "hasSpecificTime": true,
       "type": "quiz" | "assignment" | "exam" | "project" | "lab" | "meeting" | "other",
@@ -85,8 +85,9 @@ CRITICAL TIME & DATE RULES:
     }
   ]
 }
-6. If the doctor mentions a specific classroom, hall, or lab to attend in (e.g. "room A8-204", "hall TH005", "Lab 3", "قاعة 103", "مختبر 105"), extract it into "room". Otherwise set "room" to null.
-7. DO NOT extract post-exam reviews, paper viewing sessions, Akkindi / bubble sheet checks, grade disputes, or answer key discussions where the exam has already concluded (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان", "الاطلاع على ورقة الإجابة"). Only extract upcoming future assessments, exams to be taken, or work to be submitted.
+6. CRITICAL LANGUAGE RULE: All deadline titles MUST be in English (e.g. 'Midterm Exam', 'Quiz 1', 'Homework 2', 'Final Exam', 'Course Project'). Even if the announcement is in Arabic, translate and standardize the title into concise English.
+7. If the doctor mentions a specific classroom, hall, or lab to attend in (e.g. "room A8-204", "hall TH005", "Lab 3", "قاعة 103", "مختبر 105"), extract it into "room". Otherwise set "room" to null.
+8. DO NOT extract post-exam reviews, paper viewing sessions, Akkindi / bubble sheet checks, grade disputes, or answer key discussions where the exam has already concluded (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان", "الاطلاع على ورقة الإجابة"). Only extract upcoming future assessments, exams to be taken, or work to be submitted.
 If no deadlines or tasks are found, return { "deadlines": [] }. Output valid JSON only.`;
 
   const cleanBody = sanitizeDoctorAnnouncementText(
@@ -287,7 +288,7 @@ ${cleanBody}`;
           announcementId: announcement.id,
           courseCode: item.courseCode || announcement.courseCode,
           courseName: announcement.courseName,
-          title: item.title || 'Extracted Task',
+          title: toEnglishDeadlineTitle(item.title || 'Extracted Task', resolvedType),
           description: fullDoctorText,
           dueDate: scheduleRes.dueDate.toISOString(),
           hasSpecificTime: scheduleRes.hasSpecificTime,

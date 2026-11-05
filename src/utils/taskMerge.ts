@@ -1,5 +1,5 @@
 import { DeadlineTask } from '../types';
-import { resolveCourseInfo, isValidTask, stripAutoNotes } from '../core/courseHelper';
+import { resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle, mergeAnnouncementTexts, isBareTypeTitle } from '../core/courseHelper';
 import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
 import { purgeSyntheticGradebookTasks, isExamItem, hasScanTimeDueDate } from './gradebook';
@@ -497,7 +497,35 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   const hasTimeB = !isNaN(timeB);
   const diffMs = (hasTimeA && hasTimeB) ? Math.abs(timeA - timeB) : Infinity;
 
-  // Case 0: Same course, same assessment number for quizzes, labs, or same assessment type
+  // Case 0: Singleton assessment deduplication within the same course:
+  // 1. Midterm exams (only 1 midterm exam per course unless explicitly numbered Midterm 1 vs Midterm 2)
+  const isMidA = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(a.title) || (a.type === 'exam' && /mid/i.test(a.title));
+  const isMidB = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(b.title) || (b.type === 'exam' && /mid/i.test(b.title));
+  if (isMidA && isMidB) {
+    if (!(numA !== null && numB !== null && numA !== numB)) {
+      return true;
+    }
+  }
+
+  // 2. Final exams (strictly 1 final exam per course)
+  const isFinA = /(?:\bfinals?\b|نهائي)/i.test(a.title) || (a.type === 'exam' && /final/i.test(a.title));
+  const isFinB = /(?:\bfinals?\b|نهائي)/i.test(b.title) || (b.type === 'exam' && /final/i.test(b.title));
+  if (isFinA && isFinB) {
+    if (!(numA !== null && numB !== null && numA !== numB)) {
+      return true;
+    }
+  }
+
+  // 3. Homeworks and Assignments with matching sequence number (e.g. HW 1 vs Assignment 1 vs Homework 1 vs واجب 1)
+  const isHwA = /(?:assignment|homework|hw|problem\s*set|asmt|واجب)/i.test(a.title) || typeA === 'assignment';
+  const isHwB = /(?:assignment|homework|hw|problem\s*set|asmt|واجب)/i.test(b.title) || typeB === 'assignment';
+  if (isHwA && isHwB) {
+    if (numA !== null && numB !== null && numA === numB) {
+      return true;
+    }
+  }
+
+  // 4. Same assessment number for quizzes, labs, or same assessment type
   if (numA !== null && numB !== null && numA === numB) {
     const isQuizA = /quiz|كويز/i.test(a.title);
     const isQuizB = /quiz|كويز/i.test(b.title);
@@ -506,6 +534,15 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
     const isLabB = /lab|تقرير/i.test(b.title);
     if (isLabA && isLabB) return true;
     if (typeA === typeB && !((isQuizA && isLabB) || (isLabA && isQuizB))) {
+      return true;
+    }
+  }
+
+  // 5. Course Projects (Course Project, Term Project, مشروع)
+  const isPrjA = /project|مشروع|بحث/i.test(a.title) || typeA === 'project';
+  const isPrjB = /project|مشروع|بحث/i.test(b.title) || typeB === 'project';
+  if (isPrjA && isPrjB) {
+    if ((numA !== null && numB !== null && numA === numB) || (numA === null && numB === null)) {
       return true;
     }
   }
@@ -603,6 +640,9 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     id = incoming.id;
   }
 
+  // Type: prefer specific type over generic assignment
+  const type = (existing.type && existing.type !== 'assignment' ? existing.type : incoming.type) || existing.type;
+
   // Title: student edits win (Rule 3); otherwise prefer official gbcol title over extension-announcement wrapper or longer informative title
   let title = existing.title;
   const isExtensionWrapper = (s: string) => /^(?:تمديد\s*(?:فترة|موعد)?|موعد\s*تسليم|إعلان\s*:)/i.test((s || '').trim());
@@ -615,14 +655,25 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   } else if (existing.id.startsWith('gbcol_') && !incoming.id.startsWith('gbcol_') && isExtensionWrapper(incoming.title)) {
     title = existing.title;
   } else {
-    const isExistingGeneric = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(existing.title.trim());
-    const isIncomingGeneric = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(incoming.title.trim());
-    if (isExistingGeneric && !isIncomingGeneric) {
+    const isExistingGeneric = isBareTypeTitle(existing.title);
+    const isIncomingGeneric = isBareTypeTitle(incoming.title);
+    const hasArabicEx = /[\u0600-\u06FF]/.test(existing.title);
+    const hasArabicInc = /[\u0600-\u06FF]/.test(incoming.title);
+
+    if (hasArabicEx && !hasArabicInc) {
+      title = incoming.title;
+    } else if (!hasArabicEx && hasArabicInc) {
+      title = existing.title;
+    } else if (isExistingGeneric && !isIncomingGeneric) {
       title = incoming.title;
     } else if (!isExistingGeneric && isIncomingGeneric) {
       title = existing.title;
     } else {
       title = existing.title.length >= incoming.title.length ? existing.title : incoming.title;
+    }
+
+    if (!isUserEdited) {
+      title = toEnglishDeadlineTitle(title, type);
     }
   }
 
@@ -655,9 +706,6 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
       hasSpecificTime = true;
     }
   }
-
-  // Type: prefer specific type over generic assignment
-  const type = (existing.type && existing.type !== 'assignment' ? existing.type : incoming.type) || existing.type;
 
   // Room & weight: prefer weight matching the resolved specific type (e.g. project 15% over assignment 10%)
   const room = existing.room || incoming.room;
@@ -699,13 +747,9 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     ? 'completed'
     : (existing.status === 'dismissed' ? 'dismissed' : incoming.status);
 
-  // Description / sourceSnippet: pick longer
-  const desc = (existing.description || '').length >= (incoming.description || '').length
-    ? existing.description
-    : incoming.description;
-  const snippet = (existing.sourceSnippet || '').length >= (incoming.sourceSnippet || '').length
-    ? existing.sourceSnippet
-    : incoming.sourceSnippet;
+  // Description / sourceSnippet: merge new doctor updates and unabridged text
+  const desc = mergeAnnouncementTexts(existing.description, incoming.description);
+  const snippet = mergeAnnouncementTexts(existing.sourceSnippet, incoming.sourceSnippet);
 
   // Notes: only the student's own (see stripAutoNotes)
   const notes = stripAutoNotes(existing).notes || stripAutoNotes(incoming).notes || '';

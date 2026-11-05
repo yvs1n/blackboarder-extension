@@ -4,7 +4,9 @@ import { extractDeadlinesWithAi } from './aiExtractor';
 import { AiSettings, resolveAiEndpoint } from './aiProviders';
 import { resolveTaskWeight, extractAssessmentNumber } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
-import { isPresentationTitle } from '../core/courseHelper';
+import { isPresentationTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts, isExamReviewSession } from '../core/courseHelper';
+import { coreTitle } from '../utils/streamParser';
+import { areTasksDuplicates } from '../utils/taskMerge';
 
 /**
  * Normalizes title for deduplication comparison.
@@ -101,10 +103,10 @@ export function titleCourseKeyFor(task: Pick<DeadlineTask, 'title' | 'courseCode
   const codeKnown = code !== '' && code.toUpperCase() !== 'UOS';
   const nameKnown = name !== '' && name !== 'General Course' && name.toLowerCase() !== 'uos';
   if (!codeKnown && !nameKnown) return '';
-  const cleanT = cleanTitle(task.title);
-  if (!cleanT) return '';
-  const cleanC = (codeKnown ? code : name).toLowerCase().replace(/[^a-z0-9؀-ۿ]/g, '');
-  return `${cleanC}_${cleanT}`;
+  const coreT = coreTitle(task.title);
+  if (!coreT) return '';
+  const cleanC = (codeKnown ? code : name).toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, '');
+  return `${cleanC}_${coreT}`;
 }
 
 const TYPE_WORDS: Array<[TaskType, RegExp]> = [
@@ -251,7 +253,67 @@ export async function processAnnouncementsBatch(
     }
   });
 
-  for (const extracted of extractedLists) {
+  for (let idx = 0; idx < toProcess.length; idx++) {
+    const ann = toProcess[idx];
+    const extracted = extractedLists[idx] || [];
+
+    if (extracted.length === 0) {
+      // If no deadline date was found in this announcement, check if it's a doctor update
+      // for an already existing upcoming exam or pending assessment in the same course
+      const annCombinedText = `${ann.title} ${ann.contentText || ''}`;
+      if (!isExamReviewSession(ann.title, ann.contentText || '')) {
+        for (const existing of existingIdMap.values()) {
+          if (existing.status === 'completed' || existing.submissionStatus === 'graded' || existing.userEdited) continue;
+          if (existing.courseCode && ann.courseCode && existing.courseCode !== ann.courseCode) continue;
+
+          // Check if announcement refers to this existing assessment
+          const isMidterm = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(existing.title);
+          const isFinal = /(?:\bfinals?\b|نهائي)/i.test(existing.title);
+          const annHasMid = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(annCombinedText);
+          const annHasFin = /(?:\bfinals?\b|نهائي)/i.test(annCombinedText);
+
+          const numEx = extractAssessmentNumber(existing.title);
+          const numAnn = extractAssessmentNumber(annCombinedText);
+          const numbersMatch = (numEx !== null && numAnn !== null && numEx === numAnn) || (numEx === null && numAnn === null);
+
+          const matchesMid = isMidterm && annHasMid && numbersMatch;
+          const matchesFin = isFinal && annHasFin && numbersMatch;
+
+          if (matchesMid || matchesFin) {
+            let changed = false;
+            const mergedDesc = mergeAnnouncementTexts(existing.description || existing.sourceSnippet, ann.contentText);
+            if (mergedDesc && mergedDesc !== (existing.description || '')) {
+              existing.description = mergedDesc;
+              existing.sourceSnippet = mergedDesc;
+              changed = true;
+            }
+
+            const roomRes = resolveTaskRoom({
+              courseNameOrCode: existing.courseName || existing.courseCode,
+              announcementText: annCombinedText,
+              title: existing.title,
+              existingRoom: existing.room,
+              type: existing.type
+            });
+            if (roomRes.room && roomRes.room !== existing.room) {
+              existing.room = roomRes.room;
+              changed = true;
+            }
+
+            if (changed) {
+              existing.updatedAt = new Date().toISOString();
+              if (!updatedTaskIds.has(existing.id)) {
+                updatedTasks.push(existing);
+                updatedTaskIds.add(existing.id);
+              }
+            }
+            break;
+          }
+        }
+      }
+      continue;
+    }
+
     for (const task of extracted) {
       if (task.weight === undefined) {
         const wInfo = resolveTaskWeight(task, task.courseName);
@@ -285,6 +347,7 @@ export async function processAnnouncementsBatch(
       const exactMatch = sameAnnouncement
         || existingIdMap.get(task.id)
         || existingKeyMap.get(key);
+
       // Same title in the same (known) course on another day: the course moved the date
       let rescheduledFrom: DeadlineTask | undefined;
       if (!exactMatch && titleCourseKey) {
@@ -307,36 +370,67 @@ export async function processAnnouncementsBatch(
           }
         }
       }
+
+      // Check candidate duplicate via areTasksDuplicates against existing items
+      let candidateDuplicate: DeadlineTask | undefined;
+      if (!exactMatch && !rescheduledFrom) {
+        for (const existingItem of existingIdMap.values()) {
+          if (areTasksDuplicates(existingItem, task)) {
+            if (!titleCourseKey && dayOf(existingItem.dueDate) !== dayOf(task.dueDate)) {
+              continue;
+            }
+            const isDone = existingItem.status === 'completed' ||
+              existingItem.submissionStatus === 'graded' ||
+              existingItem.submissionStatus === 'submitted';
+            const numEx = extractAssessmentNumber(existingItem.title);
+            const numTask = extractAssessmentNumber(task.title);
+            if (isDone && numEx === null && numTask === null && dayOf(existingItem.dueDate) !== dayOf(task.dueDate)) {
+              continue;
+            }
+            candidateDuplicate = existingItem;
+            break;
+          }
+        }
+      }
+
       // The same exam described again (format, rules, reminders) is not a new exam, and keeps its date
-      const sameExam = !exactMatch && !rescheduledFrom ? findSameExam(task, existingIdMap.values()) : undefined;
-      const existing = exactMatch || rescheduledFrom || sameExam;
+      const sameExam = !exactMatch && !rescheduledFrom && !candidateDuplicate ? findSameExam(task, existingIdMap.values()) : undefined;
+      const existing = exactMatch || rescheduledFrom || candidateDuplicate || sameExam;
 
       if (existing) {
         let changed = false;
 
-        // 1. Description / sourceSnippet: update if incoming has longer text, or existing ends in '…' or '...'
+        // 1. Description / sourceSnippet: merge new doctor updates and unabridged text
         const incomingDesc = (task.description || task.sourceSnippet || '').trim();
-        const existingDesc = (existing.description || existing.sourceSnippet || '').trim();
-        const isExistingTruncated = /[…\.]\s*$/.test(existingDesc) || existingDesc.includes('…') || existingDesc.endsWith('...');
-
-        if (incomingDesc && (incomingDesc.length > existingDesc.length || (isExistingTruncated && !incomingDesc.includes('…')))) {
-          existing.description = incomingDesc;
-          existing.sourceSnippet = incomingDesc;
+        const mergedDesc = mergeAnnouncementTexts(existing.description || existing.sourceSnippet, incomingDesc);
+        if (mergedDesc && mergedDesc !== (existing.description || '')) {
+          existing.description = mergedDesc;
+          existing.sourceSnippet = mergedDesc;
           changed = true;
         }
 
         // 2. If existing task was edited or created manually by the student, DO NOT override student changes!
         if (!existing.userEdited && existing.extractedBy !== 'manual') {
+          // Normalize title to standardized English if not already
+          const enTitle = toEnglishDeadlineTitle(existing.title, existing.type);
+          if (enTitle && enTitle !== existing.title) {
+            existing.title = enTitle;
+            changed = true;
+          }
+
           // Room: re-resolve room with the latest announcement text. An announced room ALWAYS overrides the default!
           const newRoomRes = resolveTaskRoom({
             courseNameOrCode: existing.courseName || existing.courseCode,
             announcementText: existing.description || existing.sourceSnippet || incomingDesc,
             title: existing.title,
-            existingRoom: existing.room,
+            existingRoom: existing.room || task.room,
             type: existing.type || task.type
           });
           if (newRoomRes.room && newRoomRes.room !== existing.room) {
             existing.room = newRoomRes.room;
+            changed = true;
+          } else if (task.room && !existing.room) {
+            existing.room = task.room;
             changed = true;
           } else {
             const cleanExT = (existing.type || task.type || '').toLowerCase();
@@ -381,6 +475,7 @@ export async function processAnnouncementsBatch(
           updatedTaskIds.add(existing.id);
         }
       } else {
+        task.title = toEnglishDeadlineTitle(task.title, task.type);
         existingKeyMap.set(key, task);
         existingIdMap.set(task.id, task);
         if (titleCourseKey) existingTitleCourseMap.set(titleCourseKey, task);

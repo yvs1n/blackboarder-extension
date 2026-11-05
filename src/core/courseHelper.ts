@@ -708,7 +708,246 @@ export function findLegacyNamelessTaskIds(tasks: Array<{
 
 /** True for titles that are only a task type word, such as "Exam", "Meeting" or "Other". */
 export function isBareTypeTitle(title: string): boolean {
-  return /^(?:assignment|homework|hw|exam|quiz|test|lab|meeting|other|project|presentation|task|event|deadline)$/i.test(title.trim());
+  const trimmed = title.trim();
+  if (/^(?:assignment|homework|hw|exam|quiz|test|lab|meeting|other|project|presentation|task|event|deadline)$/i.test(trimmed)) {
+    return true;
+  }
+  return /^(?:واجب|هومورك|كويز|امتحان|اختبار|مشروع|تقرير|مختبر|مهمة|عرض)$/.test(trimmed);
+}
+
+/**
+ * Normalizes deadline titles to clear, standardized English titles.
+ * Translates Arabic assessment titles (e.g., "كويز 1" -> "Quiz 1", "الواجب الأول" -> "Homework 1",
+ * "امتحان نصفي" -> "Midterm Exam", "الامتحان النهائي" -> "Final Exam") and normalizes English
+ * abbreviations and variants (e.g., "HW 1" -> "Homework 1", "Midterm" -> "Midterm Exam").
+ */
+export function toEnglishDeadlineTitle(rawTitle: string, taskType?: string): string {
+  if (!rawTitle || typeof rawTitle !== 'string') {
+    return taskType ? (taskType.charAt(0).toUpperCase() + taskType.slice(1)) : 'Assessment';
+  }
+
+  let title = rawTitle.trim();
+  if (!title) {
+    return taskType ? (taskType.charAt(0).toUpperCase() + taskType.slice(1)) : 'Assessment';
+  }
+
+  // 1. Strip common announcement and reminder prefixes in English and Arabic
+  title = title.replace(/^(?:announcement|reminder|urgent|notice|update|إعلان|تنبيه|تذكير|هام|عاجل|تحديث)\s*[:|-]\s*/i, '');
+
+  // 2. Strip leading course code prefixes like "[CS101] ", "MATH 101 - "
+  title = title.replace(/^\s*\[?[A-Z]{2,5}\s*\d{3,4}[A-Z]?\]?\s*[-:|]\s*/i, '');
+
+  // 3. Convert Arabic-Indic digits (٠-٩) to ASCII digits (0-9)
+  const arDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  for (let i = 0; i < 10; i++) {
+    title = title.split(arDigits[i]).join(String(i));
+  }
+
+  const hasArabic = /[\u0600-\u06FF]/.test(title);
+
+  // If the title contains no Arabic, normalize standard abbreviations or preserve descriptive English
+  if (!hasArabic) {
+    const trimmed = title.trim();
+    if (/^hw\s*#?\s*(\d+)$/i.test(trimmed)) {
+      return trimmed.replace(/^hw\s*#?\s*(\d+)$/i, 'Homework $1');
+    }
+    if (/^hw$/i.test(trimmed)) {
+      return 'Homework';
+    }
+    if (/^midterm\s+(?:exam|examination|test)$/i.test(trimmed)) {
+      return 'Midterm';
+    }
+    return title;
+  }
+
+  // Extract trailing subtitle/topic if separated by colon or dash (e.g. "HW 1: Calculus Limits")
+  let topicSuffix = '';
+  const sepMatch = title.match(/^(.+?)\s*([:-])\s*(.+)$/);
+  let mainPart = title;
+  if (sepMatch) {
+    const head = sepMatch[1].trim();
+    const tail = sepMatch[3].trim();
+    if (/(?:quiz|exam|midterm|final|assignment|homework|hw|lab|project|كويز|واجب|امتحان|اختبار|مشروع|تقرير)/i.test(head)) {
+      mainPart = head;
+      if (/[a-zA-Z0-9]/.test(tail)) {
+        topicSuffix = ` ${sepMatch[2]} ${tail}`;
+      }
+    }
+  }
+
+  // Helper to extract assessment number or Arabic/English ordinal
+  const extractNum = (str: string): number | null => {
+    const arOrdMap: Record<string, number> = {
+      'اول': 1, 'أول': 1, 'الاول': 1, 'الأول': 1,
+      'ثاني': 2, 'ثانى': 2, 'الثاني': 2, 'الثانى': 2,
+      'ثالث': 3, 'الثالث': 3,
+      'رابع': 4, 'الرابع': 4,
+      'خامس': 5, 'الخامس': 5,
+      'سادس': 6, 'السادس': 6,
+      'سابع': 7, 'السابع': 7,
+      'ثامن': 8, 'الثامن': 8,
+      'تاسع': 9, 'التاسع': 9,
+      'عاشر': 10, 'العاشر': 10
+    };
+    for (const [k, v] of Object.entries(arOrdMap)) {
+      if (str.includes(k)) return v;
+    }
+
+    const enOrdMap: Record<string, number> = {
+      first: 1, second: 2, third: 3, fourth: 4, fifth: 5,
+      sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10
+    };
+    const enMatch = str.match(/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/i);
+    if (enMatch) return enOrdMap[enMatch[1].toLowerCase()] || null;
+
+    const digitMatch = str.match(/(?:#|no\.?|part|phase)?\s*(\d+)/i);
+    if (digitMatch) return parseInt(digitMatch[1], 10);
+
+    const romMatch = str.match(/\b(i{1,3}|iv|v|vi{0,3}|ix|x)\b/i);
+    if (romMatch) {
+      const romMap: Record<string, number> = {
+        i: 1, ii: 2, iii: 3, iv: 4, v: 5,
+        vi: 6, vii: 7, viii: 8, ix: 9, x: 10
+      };
+      return romMap[romMatch[1].toLowerCase()] || null;
+    }
+
+    return null;
+  };
+
+  const num = extractNum(mainPart);
+
+  // Midterm Exam
+  const isMidterm = /(?:امتحان|اختبار)\s*(?:نصفي|منتصف\s*الفصل)|(?:الامتحان|الاختبار)\s*(?:النصفي)|\bmid[\s_-]*terms?\b/i.test(mainPart);
+  if (isMidterm) {
+    if (num && num > 1) {
+      return `Midterm ${num}${topicSuffix}`;
+    }
+    return `Midterm${topicSuffix}`;
+  }
+
+  // Final Exam
+  const isFinal = /(?:امتحان|اختبار)\s*(?:نهائي)|(?:الامتحان|الاختبار)\s*(?:النهائي)|\bfinal\s+(?:exam|examination|test)\b|\bfinal\b/i.test(mainPart);
+  if (isFinal) {
+    return `Final Exam${topicSuffix}`;
+  }
+
+  // General Exam / Test (when not explicitly midterm/final)
+  const isExam = (/(?:امتحان|اختبار)|\b(?:exam|examination|test)\b/i.test(mainPart) && (taskType === 'exam' || !taskType));
+  if (isExam && !isMidterm && !isFinal) {
+    if (num) {
+      return `Exam ${num}${topicSuffix}`;
+    }
+    return `Exam${topicSuffix}`;
+  }
+
+  // Assignment vs Homework
+  const isAssign = /\bassignment\b/i.test(mainPart);
+  const isHw = /(?:الواجب|واجب|هومورك)|\b(?:homework|hw|problem\s*set|asmt)\b/i.test(mainPart) || taskType === 'assignment';
+  if (isAssign) {
+    if (num) {
+      return `Assignment ${num}${topicSuffix}`;
+    }
+    return `Assignment${topicSuffix}`;
+  }
+  if (isHw) {
+    if (num) {
+      return `Homework ${num}${topicSuffix}`;
+    }
+    return `Homework${topicSuffix}`;
+  }
+
+  // Quiz
+  const isQuiz = /(?:الكويز|كويز|الاختبار\s*القصير|اختبار\s*قصير)|\b(?:quiz(?:zes)?)\b/i.test(mainPart) || taskType === 'quiz';
+  if (isQuiz) {
+    if (num) {
+      return `Quiz ${num}${topicSuffix}`;
+    }
+    return `Quiz${topicSuffix}`;
+  }
+
+  // Lab / Lab Report
+  const isLab = /(?:تقرير\s*(?:مختبر|معمل)?|مختبر|معمل)|\b(?:lab\s*report|labs?|experiments?)\b/i.test(mainPart) || taskType === 'lab';
+  if (isLab) {
+    const isReport = /(?:تقرير|\breport\b)/i.test(mainPart);
+    const prefix = isReport ? 'Lab Report' : 'Lab';
+    if (num) {
+      return `${prefix} ${num}${topicSuffix}`;
+    }
+    return `${prefix}${topicSuffix}`;
+  }
+
+  // Project
+  const isProject = /(?:المشروع|مشروع|البحث\s*(?:العلمي)?|بحث)|\b(?:projects?|proposals?)\b/i.test(mainPart) || taskType === 'project';
+  if (isProject) {
+    if (num) {
+      return `Course Project ${num}${topicSuffix}`;
+    }
+    return `Course Project${topicSuffix}`;
+  }
+
+  // Presentation
+  const isPresentation = /(?:عرض\s*تقديمي|عرض|بريزنتيشن)|\b(?:presentations?)\b/i.test(mainPart);
+  if (isPresentation) {
+    return `Presentation${topicSuffix}`;
+  }
+
+  // If title still contains Arabic characters, provide clean English fallback
+  if (/[\u0600-\u06FF]/.test(title)) {
+    if (taskType && taskType !== 'other') {
+      const cap = taskType.charAt(0).toUpperCase() + taskType.slice(1);
+      return num ? `${cap} ${num}` : cap;
+    }
+    return 'Course Assessment';
+  }
+
+  return title;
+}
+
+/**
+ * Merges existing announcement descriptions with newly posted doctor updates,
+ * preserving existing syllabus details and appending new doctor information under a clear header.
+ */
+export function mergeAnnouncementTexts(existingText?: string, incomingText?: string): string {
+  const ex = (existingText || '').trim();
+  const inc = (incomingText || '').trim();
+
+  const isSynthetic = (s: string) => !s || s.toLowerCase() === 'gradebook' || /^gbcol_/i.test(s);
+  if (isSynthetic(ex) && isSynthetic(inc)) return '';
+  if (isSynthetic(ex)) return inc;
+  if (isSynthetic(inc)) return ex;
+
+  if (ex === inc) return ex;
+
+  // If one string strictly contains the other, prefer the longer (resolves truncation)
+  if (ex.includes(inc)) return ex;
+  if (inc.includes(ex)) return inc;
+
+  // Normalized comparison ignoring whitespace and punctuation
+  const normEx = ex.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, '');
+  const normInc = inc.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, '');
+  if (normEx === normInc) return ex.length >= inc.length ? ex : inc;
+  if (normEx.includes(normInc)) return ex;
+  if (normInc.includes(normEx)) return inc;
+
+  // Break incoming text into logical paragraphs
+  const incParagraphs = inc.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const newParagraphs: string[] = [];
+
+  for (const p of incParagraphs) {
+    const pNorm = p.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, '');
+    if (pNorm.length < 5) continue;
+    if (!normEx.includes(pNorm)) {
+      newParagraphs.push(p);
+    }
+  }
+
+  if (newParagraphs.length === 0) {
+    return ex.length >= inc.length ? ex : inc;
+  }
+
+  const newContent = newParagraphs.join('\n\n');
+  return `${ex}\n\n[Doctor Update]:\n${newContent}`;
 }
 
 /**

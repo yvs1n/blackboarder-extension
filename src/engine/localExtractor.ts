@@ -7,7 +7,8 @@ import {
   isExamReviewTitle,
   hasExamReviewContent,
   hasMakeupExamAction,
-  isExamReviewSession
+  isExamReviewSession,
+  toEnglishDeadlineTitle
 } from '../core/courseHelper';
 
 interface DateMatchResult {
@@ -532,13 +533,13 @@ function extractTaskTitle(sentence: string, taskType: TaskType): string {
   // English title label like "Quiz 2", "Assignment 3", "Project Proposal"
   const specificMatch = clean.match(/\b((?:Final\s+Exam|Quiz|Assignment|HW|Homework|Exam|Midterm|Project|Lab)\s*(?:#?\d+|[A-Z]\b|Part\s*\d+|Phase\s*\d+|Proposal|Final)?)/i);
   if (specificMatch && specificMatch[1].length > 2) {
-    return specificMatch[1].trim();
+    return toEnglishDeadlineTitle(specificMatch[1].trim(), taskType);
   }
 
   // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي", "البحث العلمي"
   const arTitleMatch = clean.match(/(?:(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+|(?:كويز|واجب|امتحان|مشروع|اختبار)(?:\s*(?:الأول|الثاني|الثالث|الرابع|النهائي|النصفي|\d+))?)/i);
   if (arTitleMatch && arTitleMatch[0].length > 2) {
-    return arTitleMatch[0].trim();
+    return toEnglishDeadlineTitle(arTitleMatch[0].trim(), taskType);
   }
 
   // Capitalize fallback
@@ -666,6 +667,7 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       const headingType = TASK_TYPE_PATTERNS.find(p => p.type !== 'other' && p.regex.test(fromHeading));
       if (headingType) effectiveType = headingType.type;
     }
+    title = toEnglishDeadlineTitle(title, effectiveType);
     // Dates that are not graded work ("other") are left out; the AI tier may still name them.
     if (effectiveType === 'other') continue;
     const taskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;

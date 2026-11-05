@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
-  "build": "204fe20f29a5",
-  "commit": "a9586b634119325617c908fd199ac668df6e7942",
-  "shortCommit": "a9586b6",
-  "timestamp": "2026-11-05T13:49:39.912Z",
-  "message": "feat(marks): display waiting status for completed assessments, synchronize dual-target GPA controls, and fix 3.97 discrete rounding",
+  "build": "6095bd648a5a",
+  "commit": "c4b763aa01f3dca71a7d5a2d7e3ac39e6873edf6",
+  "shortCommit": "c4b763a",
+  "timestamp": "2026-11-05T15:39:28.068Z",
+  "message": "fix: audit and resolve GPA target planning, marks deduplication, mobile companion, and Arabic regex bugs (v1.7.1)",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

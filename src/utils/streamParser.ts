@@ -1,5 +1,5 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
-import { parseCourseDetails, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
+import { parseCourseDetails, sanitizeDoctorAnnouncementText, toEnglishDeadlineTitle } from '../core/courseHelper';
 import { resolveTaskWeight, extractExplicitPoints, extractAssessmentNumber } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
 
@@ -241,14 +241,23 @@ export function coreTitle(s?: string): string {
   if (!s) return '';
   let str = s.toLowerCase();
 
+  // Convert Arabic-Indic digits to ASCII digits
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  for (let i = 0; i < 10; i++) {
+    str = str.split(arabicDigits[i]).join(String(i));
+  }
+
   // Strip weight and percentage mentions (e.g. "worth 25%", "(25%)", "10%", "بنسبة 20%")
   str = str.replace(/\bworth\s*\d+(?:\.\d+)?%?/gi, ' ');
   str = str.replace(/(?:بنسبة|وزن)?\s*\d+(?:\.\d+)?%/gi, ' ');
   str = str.replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/gi, ' ');
 
+  // Standardize homework/assignment variants so "HW 1", "Homework 1", "Assignment 1" match
+  str = str.replace(/\b(?:homework|hw|problem\s*set|asmt)\b/gi, 'assignment');
+
   // Normalize course acronyms and exam words so "EAP Midterm Exam" matches "Midterm"
-  str = str.replace(/\bmidterm\s+(?:exam|examination|test)\b/gi, 'midterm');
-  str = str.replace(/\bfinal\s+(?:exam|examination|test)\b/gi, 'final');
+  str = str.replace(/\bmid[\s_-]+terms?\s*(?:exam|examination|test)?\b/gi, 'midterm');
+  str = str.replace(/\bfinal\s*(?:exam|examination|test)?\b/gi, 'final');
 
   // Arabic exam normalization
   str = str.replace(/(?:امتحان|اختبار)\s*(?:نصفي|منتصف\s*الفصل)|(?:الامتحان|الاختبار)\s*(?:النصفي)/gi, 'midterm');
@@ -603,13 +612,15 @@ export function parseUltraStreamEntries(
       if (isNaN(due.getTime())) continue;
       if (courseName === 'General Course' && !courseCode) continue;
 
-      const cleanTaskTitle = rawTitle.replace(/^(?:due\s*(?:in|date)?|reminder|announcement)[:\s-]*/i, '').trim();
-      if (!cleanTaskTitle) continue;
+      const rawClean = rawTitle.replace(/^(?:due\s*(?:in|date)?|reminder|announcement)[:\s-]*/i, '').trim();
+      if (!rawClean) continue;
 
       let type: TaskType = 'assignment';
-      if (/quiz|كويز|اختبار\s*قصير/i.test(cleanTaskTitle)) type = 'quiz';
-      else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان/i.test(cleanTaskTitle)) type = 'exam';
-      else if (/project|مشروع|بحث/i.test(cleanTaskTitle)) type = 'project';
+      if (/quiz|كويز|اختبار\s*قصير/i.test(rawClean)) type = 'quiz';
+      else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان/i.test(rawClean)) type = 'exam';
+      else if (/project|مشروع|بحث/i.test(rawClean)) type = 'project';
+
+      const cleanTaskTitle = toEnglishDeadlineTitle(rawClean, type);
 
       const taskId = `stream_${courseCode || 'task'}_${cleanTaskTitle.slice(0, 15).replace(/\s+/g, '')}_${due.getTime()}`;
       if (seenDirectIds.has(taskId)) continue;
