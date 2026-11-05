@@ -311,7 +311,7 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
   const timeInfo = parseTime(clean);
 
   // Pattern 1: Month Name Day [Year] e.g. "October 15", "Oct 15th", "Oct 15, 2026"
-  const monthDayRegex = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i;
+  const monthDayRegex = /(?:^|[\s,:((\-])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i;
   const mdMatch = clean.match(monthDayRegex);
   if (mdMatch) {
     const monthKey = mdMatch[1].toLowerCase().replace('.', '');
@@ -321,12 +321,12 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
 
     if (month !== undefined && day >= 1 && day <= 31) {
       const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: mdMatch[0] };
+      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: mdMatch[0].trim() };
     }
   }
 
   // Pattern 2: Day Month [Year] e.g. "15th of October", "15 Oct 2026", "15 أكتوبر"
-  const dayMonthRegex = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?\s*(?:,?\s*(\d{4}))?\b/i;
+  const dayMonthRegex = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?(?:\s*,?\s*(\d{4})\b|(?=$|[\s,.)!\-؛،]))/i;
   const dmMatch = clean.match(dayMonthRegex);
   if (dmMatch) {
     const day = parseInt(dmMatch[1], 10);
@@ -336,7 +336,7 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
 
     if (month !== undefined && day >= 1 && day <= 31) {
       const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: dmMatch[0] };
+      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: dmMatch[0].trim() };
     }
   }
 

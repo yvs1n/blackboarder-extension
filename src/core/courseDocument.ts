@@ -264,7 +264,7 @@ function courseIdentity(lines: string[]): { code: string; name: string } {
   return { code, name };
 }
 
-const ASSESSMENT_HEADER = /^(?:\d+(?:\.\d+)*[.)]?\s*)?(?:course\s+)?(?:assessments?|grading|evaluation|grade\s+distribution|marks?\s+distribution|distribution\s+of\s+(?:marks|grades)|weighting|assessment\s+(?:methods?|plan|strategy|tools)|course\s+grade|grading\s+(?:policy|scheme|criteria|system)|methods?\s+of\s+assessment|توزيع\s*(?:الدرجات|العلامات)|التقييم|طرق\s*التقييم)\b/i;
+const ASSESSMENT_HEADER = /^(?:\d+(?:\.\d+)*[.)]?\s*)?(?:course\s+)?(?:(?:assessments?|grading|evaluation|grade\s+distribution|marks?\s+distribution|distribution\s+of\s+(?:marks|grades)|weighting|assessment\s+(?:methods?|plan|strategy|tools)|course\s+grade|grading\s+(?:policy|scheme|criteria|system)|methods?\s+of\s+assessment)\b|توزيع\s*(?:الدرجات|العلامات)|التقييم|طرق\s*التقييم)/i;
 const PROSE = /\b(?:will|must|should|shall|more than|less than|at least|up to|exceed|deduct|penalt|plagiar|similarity|turnitin|absen|late\b|warning|receive|obtain|minimum|maximum)/i;
 const GRADE_ROW = /^\s*(?:[A-F][+-]?\s*[:=\t ]\s*\(?\d|\b\d{2,3}(?:\.\d+)?\s*(?:-|to)\s*\d{2,3}(?:\.\d+)?\s*(?:%|[:=\t ]\s*[A-F][+-]?))/i;
 
@@ -365,7 +365,7 @@ function parseTableRowWithHeader(
     || notesText.match(/\((\d{1,2})\)/)
     || notesText.match(/\b(\d{1,2})\s*[x×]\s*\d/)
     || notesText.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
-    || notesText.match(/\b(\d{1,2})\s+(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments|كويزات|واجبات|اختبارات)\b/i);
+    || notesText.match(/\b(\d{1,2})\s+(?:(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments)\b|كويزات|واجبات|اختبارات)/i);
 
   const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
   const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;
@@ -494,7 +494,7 @@ export function assessmentFromLine(line: string, inSection: boolean, idx: number
           || restText.match(/\((\d{1,2})\)/)
           || restText.match(/\b(\d{1,2})\s*[x×]\s*\d/)
           || restText.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
-          || restText.match(/\b(\d{1,2})\s+(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments|كويزات|واجبات|اختبارات)\b/i);
+          || restText.match(/\b(\d{1,2})\s+(?:(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments)\b|كويزات|واجبات|اختبارات)/i);
 
         const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
         const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;

@@ -239,6 +239,20 @@ Assessments and Grading Policy:
     expect(items[4]).toMatchObject({ name: 'الامتحان النهائي', totalWeight: 30 });
   });
 
+  it('recognises Arabic assessment headers without colons and Arabic count words like 4 كويزات', () => {
+    const doc = `رمز المساق: ISL 101
+اسم المساق: الثقافة الإسلامية
+توزيع الدرجات
+الاختبارات القصيرة (4 كويزات)\t20%
+الواجبات (3 واجبات)\t15%
+الامتحان النصفي\t25%
+الامتحان النهائي\t40%`;
+    const r = analyzeCourseDocument(doc);
+    expect(r.kind).toBe('syllabus');
+    expect(r.courses[0].syllabus[0]).toMatchObject({ totalWeight: 20, count: 4, unitWeight: 5 });
+    expect(r.courses[0].syllabus[1]).toMatchObject({ totalWeight: 15, count: 3, unitWeight: 5 });
+  });
+
   it('finds nothing in a document that is neither', () => {
     expect(analyzeCourseDocument('Dear students, the library opens at 9.').kind).toBe('none');
     expect(analyzeCourseDocument('')).toEqual({ kind: 'none', courses: [] });

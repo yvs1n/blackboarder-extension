@@ -203,5 +203,24 @@ describe('Local NLP Deadline Extractor', () => {
     const tasks = extractDeadlinesLocally(ann);
     expect(tasks).toEqual([]);
   });
+
+  it('extracts Arabic month names like 15 أكتوبر without failing on word boundaries', () => {
+    const ann: Announcement = {
+      id: 'ann-arabic-month',
+      courseCode: '1430115',
+      courseName: 'Physics 1',
+      title: 'موعد الكويز الثاني',
+      postedAt: '2026-10-01T10:00:00.000Z',
+      contentText: 'سيعقد الكويز الثاني يوم 15 أكتوبر الساعة 10:00 صباحا.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae/ultra/stream',
+      scannedAt: '2026-10-01T10:05:00.000Z'
+    };
+
+    const tasks = extractDeadlinesLocally(ann);
+    expect(tasks.length).toBe(1);
+    const d = new Date(tasks[0].dueDate);
+    expect(d.getMonth()).toBe(9); // October
+    expect(d.getDate()).toBe(15);
+  });
 });
 

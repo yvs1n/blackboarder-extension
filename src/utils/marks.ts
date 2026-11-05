@@ -175,21 +175,25 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
         existingRow.score = row.score;
         existingRow.maxScore = row.maxScore;
         existingRow.percent = row.percent;
-        if (weight && !existingRow.weight) {
-          existingRow.weight = weight;
-          existingRow.earned = row.earned;
+        const effWeight = weight || existingRow.weight;
+        if (effWeight) {
+          existingRow.weight = effWeight;
+          existingRow.earned = isBonus ? round1(effWeight) : round1((t.score! / t.maxScore!) * effWeight);
           if (isBonus) {
-            course.earnedWeight += (row.earned || 0);
-            course.bonusWeight = (course.bonusWeight || 0) + (row.earned || 0);
+            course.earnedWeight += (existingRow.earned || 0);
+            course.bonusWeight = (course.bonusWeight || 0) + (existingRow.earned || 0);
           } else {
-            course.gradedWeight += weight;
-            course.earnedWeight += (t.score! / t.maxScore!) * weight;
+            course.gradedWeight += effWeight;
+            course.earnedWeight += (t.score! / t.maxScore!) * effWeight;
           }
         }
         gradedCount++;
         if (wasAwaiting) submittedCount--;
       } else if (!graded && row.status === 'submitted' && existingRow.status === 'waiting') {
         existingRow.status = 'submitted';
+        if (weight && !existingRow.weight) existingRow.weight = weight;
+      } else if (!graded && weight && !existingRow.weight) {
+        existingRow.weight = weight;
       } else if (weight && !existingRow.weight && typeof existingRow.score === 'number' && existingRow.maxScore) {
         existingRow.weight = weight;
         existingRow.earned = round1((existingRow.score / existingRow.maxScore) * weight);

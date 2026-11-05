@@ -479,7 +479,8 @@ export function calculateTrajectoryTargetPlan(
   const currentTotalPoints = () => courseAnalyses.reduce((sum, c) => sum + (c.options[c.selectedIndex].row.points * c.credits), 0);
 
   let iterations = 0;
-  while (round2(currentTotalPoints() / totalCredits) < targetGpa && iterations < 30) {
+  const roundedTarget = round2(targetGpa);
+  while (round2(currentTotalPoints() / totalCredits) < roundedTarget && iterations < 30) {
     iterations++;
     let bestCourse: CourseAnalysisInternal | null = null;
     let lowestCostPerPoint = Infinity;
@@ -504,6 +505,38 @@ export function calculateTrajectoryTargetPlan(
 
     if (!bestCourse) break;
     bestCourse.selectedIndex--;
+  }
+
+  // If baseline trajectory started above targetGpa, relax non-guaranteed courses down toward targetGpa
+  if (iterations === 0 && round2(currentTotalPoints() / totalCredits) > roundedTarget) {
+    let downIterations = 0;
+    while (round2(currentTotalPoints() / totalCredits) > roundedTarget && downIterations < 30) {
+      downIterations++;
+      let relaxCourse: CourseAnalysisInternal | null = null;
+      let highestDifficulty = -Infinity;
+      const curTotal = currentTotalPoints();
+
+      for (const ca of courseAnalyses) {
+        if (ca.selectedIndex + 1 >= ca.options.length) continue;
+        const currentOpt = ca.options[ca.selectedIndex];
+        if (currentOpt.guaranteed || ca.remainingWeight === 0) continue;
+        const lowerOpt = ca.options[ca.selectedIndex + 1];
+        if (!lowerOpt.attainable || lowerOpt.row.points < 1.0) continue;
+
+        const pointDrop = (currentOpt.row.points - lowerOpt.row.points) * ca.credits;
+        if (pointDrop <= 0) continue;
+        if (round2((curTotal - pointDrop) / totalCredits) < roundedTarget) continue;
+
+        const difficulty = currentOpt.reqPercent - ca.historicalPercent * 0.5;
+        if (difficulty > highestDifficulty) {
+          highestDifficulty = difficulty;
+          relaxCourse = ca;
+        }
+      }
+
+      if (!relaxCourse) break;
+      relaxCourse.selectedIndex++;
+    }
   }
 
   const plannedTotalPoints = currentTotalPoints();

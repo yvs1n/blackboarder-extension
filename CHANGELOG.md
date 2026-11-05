@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.1] - 2026-11-05
+
+### Fixed
+
+- **Completed Assessment "Waiting" Marks Deduplication:** Fixed a bug in `buildMarksSummary` where assessments first recorded as `waiting` or `submitted` with a known syllabus weight and later matched to a graded entry did not accumulate their earned weight into the course total.
+- **Target GPA Downward Relaxation & Dual-Input Sync:** Fixed `calculateTrajectoryTargetPlan` so selecting a target GPA below the current baseline projection relaxes non-guaranteed courses downward toward the requested target. Synchronized the secondary GPA input field and preserved the inline adjustment note when auto-snapping custom GPA inputs.
+- **Mobile Companion GPA Snapping & Trajectory Badges:** Resolved a `ReferenceError` in `snapTargetGpa` when operating in Term SGPA mode on the mobile web app and connected `getCurrentTrajectoryPlan` and `snapTargetGpa` to `activeSyllabi`.
+- **Popup Semester Persistence & In-Place Task Toggling:** Loaded archived semesters (`bbs_semesters`) on popup startup and storage updates, rendered initial views synchronously before draft restoration, and fixed repeated in-place status toggling in the `All` filter view.
+- **Syllabus Table Gutter Detection & Arabic Regex Boundaries:** Prevented two-column syllabus assessment tables from being split vertically by column gutter detection in `documentText.ts`, and removed ASCII `\b` word boundaries around Arabic month names and syllabus keywords in `localExtractor.ts` and `courseDocument.ts`.
+
+---
+
 ## [1.7.0] - 2026-11-03 (Milestone Release)
 
 ### Added

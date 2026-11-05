@@ -137,6 +137,26 @@ describe('reading uploaded files', () => {
     expect(extracted.indexOf('Left Paragraph 10')).toBeLessThan(extracted.indexOf('Right Paragraph 1'));
   });
 
+  it('does not split a two-column assessment table where the right column is numeric weights', () => {
+    const t = (str: string, x: number, y: number, w = 40, h = 10) => ({ str, transform: [1, 0, 0, h, x, y], width: w });
+    const tableItems = [
+      t('Assessment Component', 50, 700, 140), t('Weight', 360, 700, 40),
+      t('Quiz 1', 50, 670, 80), t('5%', 360, 670, 20),
+      t('Quiz 2', 50, 640, 80), t('5%', 360, 640, 20),
+      t('Quiz 3', 50, 610, 80), t('5%', 360, 610, 20),
+      t('Quiz 4', 50, 580, 80), t('5%', 360, 580, 20),
+      t('Homework 1', 50, 550, 90), t('5%', 360, 550, 20),
+      t('Homework 2', 50, 520, 90), t('5%', 360, 520, 20),
+      t('Lab Reports', 50, 490, 90), t('10%', 360, 490, 25),
+      t('Midterm Exam', 50, 460, 100), t('25%', 360, 460, 25),
+      t('Course Project', 50, 430, 100), t('10%', 360, 430, 25),
+      t('Final Examination', 50, 400, 110), t('25%', 360, 400, 25)
+    ];
+    const extracted = pdfItemsToLines(tableItems);
+    expect(extracted).toContain('Midterm Exam\t25%');
+    expect(extracted).toContain('Final Examination\t25%');
+  });
+
   it('reads HTML and says why a file cannot be read', async () => {
     expect(htmlToText('<table><tr><td>Quiz</td><td>10%</td></tr></table><script>x()</script>')).toBe('Quiz\t10%');
     await expect(fileToText(asFile('photo.jpg', 'x'), loadPdfJs)).rejects.toThrow(/Pictures/);

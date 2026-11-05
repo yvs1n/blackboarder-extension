@@ -8,7 +8,8 @@ import {
   initMarksViewController
 } from './marksViewController';
 import { buildGpaSummary } from '../utils/gpa';
-import { saveStoredSemesters } from '../utils/semestersStorage';
+import { getStoredSemesters, saveStoredSemesters, SEMESTERS_STORAGE_KEY } from '../utils/semestersStorage';
+import { sanitizeSemesters } from '../core/semesters';
 import type { ArchivedSemester } from '../types';
 import { pickNewerList } from '../utils/syncMerge';
 import { initUniversitySettings, getCachedProfile, renderStudentIdentity } from './universitySettings';
@@ -2103,6 +2104,9 @@ function getMarksControllerHooks() {
 }
 
 async function updateSemesterSelector(): Promise<void> {
+  try {
+    cachedSemesters = await getStoredSemesters();
+  } catch {}
   await marksUpdateSemesterSelector(getMarksControllerHooks());
 }
 
@@ -2456,14 +2460,24 @@ function renderTasks() {
     // Toggle Done
     const handleToggleDone = async (e: Event) => {
       e.stopPropagation();
-      const prevStatus = task.status;
-      const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
+      const currentTask = currentTasks.find(t => t.id === task.id) || task;
+      const prevStatus = currentTask.status;
+      const currentlyCompleted = prevStatus === 'completed';
+      const nextStatus: TaskStatus = currentlyCompleted ? 'pending' : 'completed';
       currentTasks = applyTaskUpdateLocal(task.id, { status: nextStatus });
 
       // Immediate in-place visual feedback on the card
       const nowCompleted = nextStatus === 'completed';
       card.classList.toggle('status-completed', nowCompleted);
+      card.classList.toggle('status-pending', !nowCompleted);
       card.classList.toggle('is-completed', nowCompleted);
+
+      const checkBtn = card.querySelector('.status-checkbox-btn');
+      if (checkBtn) {
+        checkBtn.classList.toggle('checked', nowCompleted);
+        checkBtn.textContent = nowCompleted ? '✓' : '';
+        checkBtn.setAttribute('title', nowCompleted ? 'Mark as Pending' : 'Mark as Done');
+      }
 
       if (currentFilterStatus === 'all') {
         const toggleBtn = card.querySelector('.btn-card-toggle');
@@ -5303,6 +5317,11 @@ function setupStorageAndSyncListeners() {
         updateCourseFilterOptions(currentTasks);
         refreshAllViews();
       }
+      if (area === 'local' && changes[SEMESTERS_STORAGE_KEY]) {
+        cachedSemesters = sanitizeSemesters(changes[SEMESTERS_STORAGE_KEY].newValue);
+        updateSemesterSelector().catch(() => {});
+        refreshAllViews();
+      }
     });
   }
 
@@ -6136,9 +6155,15 @@ async function initApp() {
     currentTasks = deduplicateTaskList(validCached);
     currentTasks.sort(compareTasksByTime);
   }
+  try {
+    const rawSemesters = localStorage.getItem(SEMESTERS_STORAGE_KEY);
+    if (rawSemesters) {
+      cachedSemesters = sanitizeSemesters(JSON.parse(rawSemesters));
+    }
+  } catch {}
 
   // Render all views immediately with cached data
-  refreshAllViews();
+  renderAllViewsNow();
   switchView('calendar');
   restoreDraft();
 

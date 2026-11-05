@@ -160,8 +160,17 @@ function findTwoColumnGutter(parts: PdfPart[]): { start: number; end: number } |
     }
 
     if (inGutter <= Math.max(1, parts.length * 0.03) && leftCount >= parts.length * 0.2 && rightCount >= parts.length * 0.2) {
-      const leftBoundary = Math.max(...parts.filter(p => p.x + p.w <= center).map(p => p.x + p.w), minX);
-      const rightBoundary = Math.min(...parts.filter(p => p.x >= center).map(p => p.x), maxX);
+      const leftParts = parts.filter(p => p.x + p.w <= center);
+      const rightParts = parts.filter(p => p.x >= center);
+      const numericCellRe = /^\d+(?:\.\d+)?\s*%?$/;
+      const leftNumRatio = leftParts.filter(p => numericCellRe.test(p.str.trim())).length / Math.max(1, leftParts.length);
+      const rightNumRatio = rightParts.filter(p => numericCellRe.test(p.str.trim())).length / Math.max(1, rightParts.length);
+      const leftAvgW = leftParts.reduce((s, p) => s + p.w, 0) / Math.max(1, leftParts.length);
+      const rightAvgW = rightParts.reduce((s, p) => s + p.w, 0) / Math.max(1, rightParts.length);
+      if (leftNumRatio >= 0.2 || rightNumRatio >= 0.2 || leftAvgW < 45 || rightAvgW < 45) continue;
+
+      const leftBoundary = Math.max(...leftParts.map(p => p.x + p.w), minX);
+      const rightBoundary = Math.min(...rightParts.map(p => p.x), maxX);
       const span = rightBoundary - leftBoundary;
       if (span >= minGutterWidth && span > maxSpan) {
         maxSpan = span;

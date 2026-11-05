@@ -62,6 +62,7 @@ export function gradesHtml(
     openTargetBreakdown?: boolean;
     userCourses?: import('../types').UserCourseConfig[];
     courseCrns?: Map<string, string>;
+    adjustedFrom?: { requested: number; snapped: number; mode: 'cgpa' | 'term' } | null;
   }
 ): string {
   if (!gpa.courses.length && !marks.courses.length) {
@@ -147,6 +148,20 @@ export function gradesHtml(
   }
 
   // Target explanation note (Scholarship & discrete grade rounding explanation)
+  const displayTargetCgpaVal = (activeMode === 'term' && options?.targetCgpa === undefined && projCgpaVal !== null)
+    ? projCgpaVal
+    : targetCgpaVal;
+  const displayTargetTermVal = (activeMode === 'cgpa' && options?.targetTermGpa === undefined && trajectoryPlan)
+    ? trajectoryPlan.plannedGpa
+    : targetTermVal;
+
+  const adjustedCgpa = options?.adjustedFrom?.mode === 'cgpa' && Math.abs(options.adjustedFrom.snapped - targetCgpaVal) < 0.005
+    ? options.adjustedFrom
+    : null;
+  const adjustedTerm = options?.adjustedFrom?.mode === 'term' && Math.abs(options.adjustedFrom.snapped - targetTermVal) < 0.005
+    ? options.adjustedFrom
+    : null;
+
   let targetExplanation = '';
   if (trajectoryPlan) {
     if (activeMode === 'cgpa') {
@@ -159,11 +174,14 @@ export function gradesHtml(
       } else {
         const diff = trajectoryPlan.plannedGpa - requiredTermSgpaRaw;
         const sign = diff >= 0 ? '+' : '';
+        const adjustmentSub = adjustedCgpa
+          ? `The nearest attainable Cumulative CGPA to your target (${adjustedCgpa.requested.toFixed(2)}) is <strong>${adjustedCgpa.snapped.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`
+          : (projCgpaVal && Math.abs(projCgpaVal - targetCgpaVal) >= 0.005
+              ? `The nearest attainable Cumulative CGPA to your target (${targetCgpaVal.toFixed(2)}) is <strong>${projCgpaVal.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`
+              : `Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</strong> (${sign}${diff.toFixed(2)}) &bull; Projected CGPA: <strong>${projCgpaVal?.toFixed(2)}</strong>. University grades round to discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`);
         targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
           <span class="target-rounding-title">Scholarship Target: <strong>${targetCgpaVal.toFixed(2)} Cumulative CGPA</strong> &rarr; Requires <strong>${requiredTermSgpaRaw.toFixed(2)} Term SGPA</strong></span>
-          <span class="target-rounding-sub">${projCgpaVal && Math.abs(projCgpaVal - targetCgpaVal) >= 0.005
-            ? `The nearest attainable Cumulative CGPA to your target (${targetCgpaVal.toFixed(2)}) is <strong>${projCgpaVal.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`
-            : `Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} Planned SGPA</strong> (${sign}${diff.toFixed(2)}) &bull; Projected CGPA: <strong>${projCgpaVal?.toFixed(2)}</strong>. University grades round to discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.`}</span>
+          <span class="target-rounding-sub">${adjustmentSub}</span>
         </div>`;
       }
     } else {
@@ -173,12 +191,13 @@ export function gradesHtml(
           <span class="target-unattainable-sub">Highest achievable Term SGPA is <strong>${trajectoryPlan.maxPossibleGpa.toFixed(2)}</strong>.</span>
           <button type="button" class="btn-xs-manage-links btn-set-max-gpa" data-max-gpa="${trajectoryPlan.maxPossibleGpa.toFixed(2)}">Set to Max (${trajectoryPlan.maxPossibleGpa.toFixed(2)})</button>
         </div>`;
-      } else if (Math.abs(trajectoryPlan.plannedGpa - targetTermVal) >= 0.005) {
-        const diff = trajectoryPlan.plannedGpa - targetTermVal;
+      } else if (adjustedTerm || Math.abs(trajectoryPlan.plannedGpa - targetTermVal) >= 0.005) {
+        const origRequested = adjustedTerm ? adjustedTerm.requested : targetTermVal;
+        const diff = trajectoryPlan.plannedGpa - origRequested;
         const sign = diff >= 0 ? '+' : '';
         targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
           <span class="target-rounding-title">Nearest attainable combination: <strong>${trajectoryPlan.plannedGpa.toFixed(2)} SGPA</strong> (${sign}${diff.toFixed(2)})</span>
-          <span class="target-rounding-sub">The nearest attainable GPA to your target (${targetTermVal.toFixed(2)}) is <strong>${trajectoryPlan.plannedGpa.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.</span>
+          <span class="target-rounding-sub">The nearest attainable GPA to your target (${origRequested.toFixed(2)}) is <strong>${trajectoryPlan.plannedGpa.toFixed(2)}</strong>, so we adjusted it for you based on discrete scale points (A = 4.0, B+ = 3.5) weighted by credit hours.</span>
         </div>`;
       } else {
         targetExplanation = `<div class="target-rounding-note" style="margin-top: 6px;">
@@ -249,11 +268,11 @@ export function gradesHtml(
               ${activeMode === 'cgpa' ? '<span class="settings-pill pill-blue" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Driver</span>' : ''}
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 3.60) < 0.005 ? 'is-active' : ''}" data-target="3.60" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Standard Scholarship Minimum">3.60</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 3.80) < 0.005 ? 'is-active' : ''}" data-target="3.80" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Excellence / Dean's List">3.80</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(targetCgpaVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
-              <input type="number" id="input-target-gpa-val" data-mode="cgpa" class="form-input" min="1.0" max="4.0" step="0.01" value="${targetCgpaVal.toFixed(2)}" style="width: 54px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Cumulative CGPA" />
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(displayTargetCgpaVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(displayTargetCgpaVal - 3.60) < 0.005 ? 'is-active' : ''}" data-target="3.60" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Standard Scholarship Minimum">3.60</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(displayTargetCgpaVal - 3.80) < 0.005 ? 'is-active' : ''}" data-target="3.80" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;" title="Excellence / Dean's List">3.80</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'cgpa' && Math.abs(displayTargetCgpaVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="cgpa" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+              <input type="number" id="input-target-gpa-val" data-mode="cgpa" class="form-input" min="1.0" max="4.0" step="0.01" value="${displayTargetCgpaVal.toFixed(2)}" style="width: 54px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Cumulative CGPA" />
             </div>
           </div>
 
@@ -263,10 +282,10 @@ export function gradesHtml(
               ${activeMode === 'term' ? '<span class="settings-pill pill-blue" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Driver</span>' : ''}
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(targetTermVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(targetTermVal - 3.75) < 0.005 ? 'is-active' : ''}" data-target="3.75" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
-              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(targetTermVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
-              <input type="number" id="input-target-term-gpa" data-mode="term" class="form-input" min="1.0" max="4.0" step="0.01" value="${targetTermVal.toFixed(2)}" style="width: 54px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(displayTargetTermVal - 3.50) < 0.005 ? 'is-active' : ''}" data-target="3.50" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.50</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(displayTargetTermVal - 3.75) < 0.005 ? 'is-active' : ''}" data-target="3.75" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">3.75</button>
+              <button type="button" class="btn-xs-manage-links btn-target-chip-val ${activeMode === 'term' && Math.abs(displayTargetTermVal - 4.00) < 0.005 ? 'is-active' : ''}" data-target="4.00" data-mode="term" style="padding: 1px 6px; font-size: 10px; height: 22px; min-height: 22px;">4.00</button>
+              <input type="number" id="input-target-term-gpa" data-mode="term" class="form-input" min="1.0" max="4.0" step="0.01" value="${displayTargetTermVal.toFixed(2)}" style="width: 54px; font-size: 11px; padding: 1px 3px; text-align: center; font-weight: 700; height: 22px; min-height: 22px; box-sizing: border-box;" title="Enter custom Target Term GPA" />
             </div>
           </div>
         </div>

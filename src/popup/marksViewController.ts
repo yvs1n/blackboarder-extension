@@ -131,6 +131,7 @@ export function snapTargetGpa(
 
 export const selectedTargetGrades = new Map<string, string>();
 let guideOpenState = false;
+let lastAdjustedTarget: { requested: number; snapped: number; mode: 'cgpa' | 'term' } | null = null;
 
 /**
  * Updates the semester dropdown in the Marks tab with active and archived terms.
@@ -235,7 +236,8 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
       targetGpaMode: profile?.targetGpaMode,
       showGuide: guideOpenState,
       openTargetBreakdown: isBreakdownOpen,
-      userCourses
+      userCourses,
+      adjustedFrom: lastAdjustedTarget
     });
   }
 
@@ -342,6 +344,7 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         }
         prof.updatedAt = new Date().toISOString();
         await hooks.saveProfile(prof);
+        lastAdjustedTarget = snap.adjusted ? { requested: val, snapped: snap.snappedVal, mode } : null;
         if (snap.adjusted) {
           hooks.showToast(snap.reason);
         }
@@ -355,6 +358,7 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     if (maxCgpaBtn && maxCgpaBtn.dataset.maxCgpa) {
       const val = parseFloat(maxCgpaBtn.dataset.maxCgpa);
       if (!isNaN(val)) {
+        lastAdjustedTarget = null;
         const prof = hooks.getProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
         prof.targetCgpa = Math.round(val * 100) / 100;
         prof.targetGpaMode = 'cgpa';
@@ -370,6 +374,7 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     if (maxGpaBtn && maxGpaBtn.dataset.maxGpa) {
       const val = parseFloat(maxGpaBtn.dataset.maxGpa);
       if (!isNaN(val)) {
+        lastAdjustedTarget = null;
         const prof = hooks.getProfile() || { universityId: 'uos', updatedAt: new Date().toISOString() };
         prof.targetTermGpa = Math.round(val * 100) / 100;
         prof.targetGpaMode = 'term';
@@ -406,6 +411,7 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         prof.updatedAt = new Date().toISOString();
         await hooks.saveProfile(prof);
         target.value = snap.snappedVal.toFixed(2);
+        lastAdjustedTarget = snap.adjusted ? { requested: val, snapped: snap.snappedVal, mode } : null;
         if (snap.adjusted) {
           hooks.showToast(snap.reason);
         }

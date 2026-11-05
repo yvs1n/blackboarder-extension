@@ -448,6 +448,12 @@ describe('Term Target GPA Planning', () => {
       const plan = calculateTrajectoryTargetPlan(gpaSummary, 3.97, [], UOS_GRADE_SCALE);
       expect(plan.possible).toBe(true);
       expect(plan.plannedGpa).toBe(3.97); // Must stay at 3.97 and not jump to 4.00
+
+      // When targeting a lower GPA (e.g. 3.60) than the baseline projection (3.97), it relaxes non-guaranteed courses down toward 3.60
+      const lowerPlan = calculateTrajectoryTargetPlan(gpaSummary, 3.60, [], UOS_GRADE_SCALE);
+      expect(lowerPlan.possible).toBe(true);
+      expect(lowerPlan.plannedGpa).toBeGreaterThanOrEqual(3.60);
+      expect(lowerPlan.plannedGpa).toBeLessThan(3.97);
     });
   });
 });
