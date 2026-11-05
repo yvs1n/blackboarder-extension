@@ -2007,6 +2007,19 @@ function showToast(message: string, actionText?: string, onAction?: () => void) 
   const container = document.getElementById('toast-container');
   if (!container) return;
 
+  // Deduplicate active toasts: clear duplicate or overlapping status toasts
+  container.querySelectorAll('.toast').forEach(el => {
+    const text = el.textContent?.trim() || '';
+    if (
+      text === message.trim() ||
+      (message.includes('up to date') && text.includes('up to date')) ||
+      (message.includes('Update installed') && text.includes('Update installed')) ||
+      (message.includes('New version') && text.includes('New version'))
+    ) {
+      el.remove();
+    }
+  });
+
   const toast = document.createElement('div');
   toast.className = 'toast';
 
@@ -6113,7 +6126,6 @@ function initExtensionUpdateSystem() {
       case 'updated':
         setPill('Restart pending', 'blue');
         if (statusDesc) statusDesc.textContent = `A new version${remoteNote} was installed. Blackboarder restarts into it when you close this window. Your data stays intact.`;
-        if (manual) showToast('Update installed. It applies when you close this window.');
         break;
       case 'update-available':
         setPill('Update Available', 'orange');
@@ -6123,22 +6135,18 @@ function initExtensionUpdateSystem() {
             ? `A new version${remoteNote} is on GitHub. Click Update Now to download and install. Your data stays intact.`
             : `A new version${remoteNote} is on GitHub. To install it and every future update automatically, ${ENABLE_HINT}.`;
         }
-        if (manual) showToast('A new version is available.');
         break;
       case 'dev-checkout':
         setPill('Update waiting', 'orange');
         if (statusDesc) statusDesc.textContent = `Git clone: a new version${remoteNote} is on GitHub but was not pulled automatically. ${status.error || 'Run git pull.'}`;
-        if (manual) showToast('New version on GitHub. See Settings for why it was not pulled.');
         break;
       case 'offline':
         setPill('Offline', 'gray');
         if (statusDesc) statusDesc.textContent = `Could not reach GitHub. Installed ${installed}; Blackboarder checks again in 15 minutes.`;
-        if (manual) showToast('Could not reach GitHub right now.');
         break;
       case 'error':
         setPill('Update failed', 'orange');
         if (statusDesc) statusDesc.textContent = `The automatic update failed (${status.error || 'unknown error'}). It retries every 15 minutes, or ${ENABLE_HINT} to update by hand.`;
-        if (manual) showToast('Update failed. See Settings for details.');
         break;
       default:
         setPill('Up to Date', 'green');
@@ -6147,7 +6155,6 @@ function initExtensionUpdateSystem() {
             ? `Automatic updates are on. You have the latest version (${installed}).`
             : `You have the latest version (${installed}). Automatic updates are off: ${ENABLE_HINT} to turn them on.`;
         }
-        if (manual) showToast('Blackboarder is up to date!');
     }
   };
 
@@ -6172,14 +6179,30 @@ function initExtensionUpdateSystem() {
     if (status) {
       render(status, manual);
       if (manual) {
-        if (status.state === 'update-available') {
-          if (status.helperInstalled) {
-            applyUpdateNow(btnCheckManual);
-          } else {
-            showToast('New version available! Run update.bat or download ZIP.');
-          }
-        } else if (status.state === 'up-to-date') {
-          showToast(`Blackboarder is up to date (${BUILD_INFO.build})!`);
+        switch (status.state) {
+          case 'update-available':
+            if (status.helperInstalled) {
+              applyUpdateNow(btnCheckManual);
+            } else {
+              showToast('New version available! Run update.bat or download ZIP.');
+            }
+            break;
+          case 'updated':
+            showToast('Update installed. It applies when you close this window.');
+            break;
+          case 'dev-checkout':
+            showToast('New version on GitHub. Run git pull to update.');
+            break;
+          case 'offline':
+            showToast('Could not reach GitHub right now.');
+            break;
+          case 'error':
+            showToast('Update check failed. See Settings for details.');
+            break;
+          case 'up-to-date':
+          default:
+            showToast(BUILD_INFO.build ? `Blackboarder is up to date (${BUILD_INFO.build})!` : 'Blackboarder is up to date!');
+            break;
         }
       }
     } else if (manual) {

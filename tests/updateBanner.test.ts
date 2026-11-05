@@ -58,4 +58,18 @@ describe('when the popup checks GitHub again', () => {
     expect(src).toContain('const CHECK_PERIOD_MINUTES = 15;');
     expect(src).toContain('existing.periodInMinutes !== CHECK_PERIOD_MINUTES');
   });
+
+  it('keeps render pure with zero duplicate side-effect toasts in popup update section', () => {
+    const popupSrc = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    // Ensure render() in initExtensionUpdateSystem does not trigger showToast side-effects
+    const autoUpdateSectionMatch = popupSrc.match(/function initExtensionUpdateSystem\(\) \{([\s\S]*?)\n\}\n\n\/\*/);
+    expect(autoUpdateSectionMatch).not.toBeNull();
+    const sectionBody = autoUpdateSectionMatch ? autoUpdateSectionMatch[1] : '';
+    const renderFuncMatch = sectionBody.match(/const render = \([\s\S]*?\n  \};/);
+    expect(renderFuncMatch).not.toBeNull();
+    expect(renderFuncMatch?.[0]).not.toContain('showToast');
+
+    // Ensure showToast deduplicates active toasts
+    expect(popupSrc).toContain("message.includes('up to date') && text.includes('up to date')");
+  });
 });
