@@ -1,0 +1,3 @@
+# The updater scripts run on end users' machines straight from GitHub's zip download
+*.bat text eol=crlf
+*.sh text eol=lf

@@ -3717,7 +3717,7 @@ body.is-standalone .header {
 .ql-item-icon-box {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 0 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3841,6 +3841,133 @@ body.is-standalone .header {
   color: var(--danger);
   border-color: #d4d4d8;
   background: #f4f4f5;
+}
+
+/* Quick Links Reorder Controls & Drag and Drop */
+.ql-move-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.btn-ql-move {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 0 !important;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.btn-ql-move:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+}
+
+.btn-ql-move:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ql-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 26px;
+  cursor: grab;
+  color: var(--text-muted);
+  opacity: 0.55;
+  user-select: none;
+  font-size: 13px;
+  letter-spacing: -1px;
+}
+
+.ql-drag-handle:hover {
+  opacity: 1;
+  color: var(--text-main);
+}
+
+.ql-item-card.is-dragging {
+  opacity: 0.45;
+  background: var(--surface-hover);
+  border: 1px dashed var(--text-muted);
+}
+
+.ql-item-card.drag-over-top {
+  border-top: 2px solid var(--text-main) !important;
+}
+
+.ql-item-card.drag-over-bottom {
+  border-bottom: 2px solid var(--text-main) !important;
+}
+
+/* Quick Links Icon Library Picker Grid */
+.ql-icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  padding: 8px;
+  border-radius: 0 !important;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.ql-icon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 2px;
+  min-height: 44px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 0 !important;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.ql-icon-tile:hover {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+}
+
+.ql-icon-tile.is-selected {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--text-main);
+  box-shadow: inset 0 0 0 1px var(--text-main);
+}
+
+.ql-icon-tile svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.ql-icon-tile-label {
+  font-size: 8.5px;
+  line-height: 1.1;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Dark mode overrides */
@@ -5532,9 +5659,9 @@ h1, h2, h3 {
 .pairing-qr-help { margin: 0; font-size: 11px; line-height: 1.4; color: var(--text-muted); text-align: center; }
 
 /* Quick Link icons: line icons in the text colour, no category colours */
-.ql-chip-icon { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-main); }
-.ql-item-icon-box { background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--surface-border); }
-.ql-item-icon-box .ql-icon { width: 16px; height: 16px; }
+.ql-chip-icon { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-main); display: inline-block; vertical-align: middle; }
+.ql-item-icon-box { background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--surface-border); border-radius: 0 !important; }
+.ql-item-icon-box .ql-icon { width: 16px; height: 16px; display: inline-block; vertical-align: middle; flex-shrink: 0; }
 .ql-category-badge { background: var(--surface-hover); color: var(--text-muted); }
 
 /* Your University card: grading scale editor and added Blackboard addresses */

@@ -9,10 +9,13 @@ import {
   addQuickLink,
   updateQuickLink,
   deleteQuickLink,
-  resetQuickLinksToDefault
+  resetQuickLinksToDefault,
+  moveQuickLink,
+  reorderQuickLinks
 } from '../src/utils/storage';
 import { pushTasksToFirebase, fetchTasksFromFirebase, FIREBASE_DB_URL } from '../src/utils/firebaseSync';
 import { universityQuickLinks, quickLinkPreset } from '../src/core/universities';
+import { quickLinkMeta, quickLinkIconHtml, QUICK_LINK_ICONS, getQuickLinkIconList, reorderQuickLinksList } from '../src/utils/quickLinkMeta';
 
 class LocalStorageMock {
   private store: Record<string, string> = {};
@@ -188,5 +191,110 @@ describe('Academic Quick Links Management & Sync', () => {
     expect(res.quickLinks).toBeDefined();
     expect(res.quickLinks).toHaveLength(1);
     expect(res.quickLinks?.[0].title).toBe('Cloud Attendance');
+  });
+
+  it('quickLinkIconHtml generates valid, self-contained SVG for all categories and fallbacks', () => {
+    const categories = ['attendance', 'study_plan', 'marks', 'portal', 'other'] as const;
+    for (const cat of categories) {
+      const meta = quickLinkMeta(cat);
+      expect(meta.label).toBeDefined();
+      expect(meta.icon).toBeDefined();
+      expect(meta.badgeClass).toBe(`ql-cat-${cat}`);
+
+      const html = quickLinkIconHtml(cat, 'test-icon-class');
+      expect(html).toContain('<svg class="ui-icon test-icon-class"');
+      expect(html).toContain('viewBox="0 0 24 24"');
+      expect(html).toContain('fill="none"');
+      expect(html).toContain('stroke="currentColor"');
+      expect(html).toContain('aria-hidden="true"');
+      expect(html).toContain('</svg>');
+      // Must contain actual vector elements, not be empty
+      expect(html).toMatch(/<(path|circle|line)/);
+    }
+
+    // Portal specifically contains circle and path for globe
+    const portalHtml = quickLinkIconHtml('portal');
+    expect(portalHtml).toContain('<circle');
+
+    // Unknown category falls back cleanly to 'other' without throwing
+    const fallbackHtml = quickLinkIconHtml('unknown_category' as any);
+    expect(fallbackHtml).toContain('<svg class="ui-icon ql-icon"');
+    expect(fallbackHtml).toContain('<path');
+
+    // Undefined category falls back cleanly
+    const undefHtml = quickLinkIconHtml(undefined);
+    expect(undefHtml).toContain('<svg class="ui-icon ql-icon"');
+  });
+
+  it('supports selecting and rendering icons from the quick links icon library', async () => {
+    const iconList = getQuickLinkIconList();
+    expect(iconList.length).toBe(20);
+    for (const icon of iconList) {
+      expect(icon.id).toBeDefined();
+      expect(icon.label).toBeDefined();
+      expect(icon.path).toBeDefined();
+      expect(QUICK_LINK_ICONS[icon.id]).toBeDefined();
+    }
+
+    // Adding link with custom icon preserves icon field
+    const added = await addQuickLink({
+      title: 'Lab Server',
+      url: 'https://lab.sharjah.ac.ae',
+      category: 'other',
+      icon: 'laptop'
+    });
+    const labLink = added.find(l => l.title === 'Lab Server');
+    expect(labLink?.icon).toBe('laptop');
+
+    // quickLinkIconHtml renders custom icon if specified
+    const customHtml = quickLinkIconHtml('other', 'test-custom', 'laptop');
+    expect(customHtml).toContain(QUICK_LINK_ICONS['laptop'].path);
+
+    // Fallback to category when custom icon is unknown
+    const fallbackHtml = quickLinkIconHtml('marks', 'test-custom', 'nonexistent_icon');
+    expect(fallbackHtml).toContain(QUICK_LINK_ICONS['scale'].path);
+
+    // Updating quick link can update or remove custom icon
+    if (labLink) {
+      const updated = await updateQuickLink(labLink.id, { icon: 'flask-conical' });
+      expect(updated.find(l => l.id === labLink.id)?.icon).toBe('flask-conical');
+    }
+  });
+
+  it('reorders quick links up and down with bounds checking', async () => {
+    const list: QuickLink[] = [
+      { id: 'l1', title: 'Link 1', url: 'https://1.com', category: 'portal', createdAt: '2026-01-01' },
+      { id: 'l2', title: 'Link 2', url: 'https://2.com', category: 'attendance', createdAt: '2026-01-02' },
+      { id: 'l3', title: 'Link 3', url: 'https://3.com', category: 'marks', createdAt: '2026-01-03' }
+    ];
+    await saveQuickLinks(list);
+
+    // Pure reordering list helper
+    const reorderedList = reorderQuickLinksList(list, 0, 2);
+    expect(reorderedList.map(l => l.id)).toEqual(['l2', 'l3', 'l1']);
+
+    // Out of bounds reordering does not alter list
+    expect(reorderQuickLinksList(list, -1, 2)).toEqual(list);
+    expect(reorderQuickLinksList(list, 0, 5)).toEqual(list);
+
+    // Move middle link up
+    const afterMoveUp = await moveQuickLink('l2', 'up');
+    expect(afterMoveUp.map(l => l.id)).toEqual(['l2', 'l1', 'l3']);
+
+    // Move first link up does nothing
+    const afterFirstUp = await moveQuickLink('l2', 'up');
+    expect(afterFirstUp.map(l => l.id)).toEqual(['l2', 'l1', 'l3']);
+
+    // Move first link down
+    const afterFirstDown = await moveQuickLink('l2', 'down');
+    expect(afterFirstDown.map(l => l.id)).toEqual(['l1', 'l2', 'l3']);
+
+    // Move last link down does nothing
+    const afterLastDown = await moveQuickLink('l3', 'down');
+    expect(afterLastDown.map(l => l.id)).toEqual(['l1', 'l2', 'l3']);
+
+    // Arbitrary reordering by list of IDs (e.g. from drag and drop)
+    const afterReorder = await reorderQuickLinks(['l3', 'l1', 'l2']);
+    expect(afterReorder.map(l => l.id)).toEqual(['l3', 'l1', 'l2']);
   });
 });

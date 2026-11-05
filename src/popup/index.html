@@ -211,6 +211,11 @@
       <symbol id="icon-flask-conical" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2M6.453 15h11.094M8.5 2h7"></path>
       </symbol>
+      <symbol id="icon-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </symbol>
     </defs>
   </svg>
 
@@ -1557,6 +1562,16 @@
               <button type="button" class="btn-preset-ql" data-preset="marks" style="font-size: 10px; padding: 3px 8px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Marks</button>
               <button type="button" class="btn-preset-ql" data-preset="portal" style="font-size: 10px; padding: 3px 8px; border: 1px solid var(--surface-border); background: var(--surface); cursor: pointer; color: var(--text-main);">+ Blackboard</button>
             </div>
+          </div>
+
+          <!-- Icon Selector -->
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="font-size: 11px; font-weight: 600; margin: 0;">Icon</label>
+              <span id="ql-selected-icon-name" style="font-size: 10px; color: var(--text-muted);">Default</span>
+            </div>
+            <input type="hidden" id="ql-icon" value="">
+            <div class="ql-icon-picker-grid" id="ql-icon-picker-grid" role="radiogroup" aria-label="Select Quick Link Icon"></div>
           </div>
 
           <div style="display: flex; justify-content: flex-end; gap: 6px;">

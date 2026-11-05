@@ -1,5 +1,6 @@
 import { DeadlineTask, Announcement, UserSettings, DEFAULT_SETTINGS, QuickLink, UserCourseConfig } from '../types';
 import { universityQuickLinks } from '../core/universities';
+import { reorderQuickLinksList } from './quickLinkMeta';
 import { isValidTask, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
 import { areTasksDuplicates, mergeDuplicatePair, deduplicateTaskList, mergeCloudTasks, mergeTombstones, sanitizeTaskListMarks } from './taskMerge';
 import { getStorageTombstones, setStorageTombstones } from './tombstones';
@@ -717,6 +718,35 @@ export async function deleteQuickLink(id: string): Promise<QuickLink[]> {
   const updated = existing.filter(l => l.id !== id);
   await saveQuickLinks(updated);
   return updated;
+}
+
+export async function moveQuickLink(id: string, direction: 'up' | 'down'): Promise<QuickLink[]> {
+  const existing = await getQuickLinks();
+  const index = existing.findIndex(l => l.id === id);
+  if (index === -1) return existing;
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= existing.length) return existing;
+  const updated = reorderQuickLinksList(existing, index, targetIndex);
+  await saveQuickLinks(updated);
+  return updated;
+}
+
+export async function reorderQuickLinks(orderedIds: string[]): Promise<QuickLink[]> {
+  const existing = await getQuickLinks();
+  const map = new Map(existing.map(l => [l.id, l]));
+  const reordered: QuickLink[] = [];
+  for (const id of orderedIds) {
+    const item = map.get(id);
+    if (item) {
+      reordered.push(item);
+      map.delete(id);
+    }
+  }
+  for (const remaining of map.values()) {
+    reordered.push(remaining);
+  }
+  await saveQuickLinks(reordered);
+  return reordered;
 }
 
 /** Replaces the quick links with the university's built-in ones (none for most universities). */

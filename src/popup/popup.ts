@@ -16,12 +16,12 @@ import { initUniversitySettings, getCachedProfile, renderStudentIdentity } from 
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { quickLinkPreset } from '../core/universities';
 import { classesOnDay, todaysClassesHtml, formatClock, type ClassOccurrence } from '../core/classSchedule';
-import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, setScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt, safeSetLocalStorage } from '../utils/storage';
+import { getTasks, saveTasks, addTask, getSettings, saveSettings, saveLastScanCheckpoint, getQuickLinks, saveQuickLinks, addQuickLink, updateQuickLink, deleteQuickLink, resetQuickLinksToDefault, moveQuickLink, getCachedTasksSync, getCachedQuickLinksSync, getCachedSettingsSync, getCachedCoursesSync, getUserCourses, saveUserCourses, recalculateTasksWithActiveCourses, getCoursesUpdatedAt, generateUniqueSyncKey, getScanStatus, setScanStatus, ScanStatus, SCAN_STALE_MS, SCAN_STATUS_KEY, saveTasksMergingLatest, getQuickLinksUpdatedAt, safeSetLocalStorage } from '../utils/storage';
 import { createGoogleCalendarUrl, downloadIcsFile, formatCountdown, formatTaskTime, compareTasksByTime } from '../utils/calendar';
 import { extractDeadlinesLocally } from '../engine/localExtractor';
 import { resolveAiEndpoint, normalizeAiBaseUrl, testAiEndpoint, IFM_MODEL } from '../engine/aiProviders';
 import { qrSvg } from '../utils/qrCode';
-import { quickLinkMeta, quickLinkIconHtml } from '../utils/quickLinkMeta';
+import { quickLinkMeta, quickLinkIconHtml, getQuickLinkIconList, reorderQuickLinksList } from '../utils/quickLinkMeta';
 import { syncAiKeyLock, getAiLockState, describeAiLock, ensureAiPass, newAiPass, pairingLink } from '../utils/aiKeyLock';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, resolveCourseInfo, isValidTask, findLegacyNamelessTaskIds, matchesSelectedCourseFilter, isBlackboardSystemNoise } from '../core/courseHelper';
 import { getCourseHex, getCourseColorTheme } from '../core/courseColors';
@@ -4819,10 +4819,10 @@ function renderQuickLinksBar() {
   if (bar) bar.style.display = '';
 
   container.innerHTML = currentQuickLinks.map(link => {
-    const meta = quickLinkMeta(link.category);
+    const meta = quickLinkMeta(link.category, link.icon);
     return `
       <a class="ql-chip ${meta.badgeClass}" data-id="${escapeHtml(link.id)}" data-url="${escapeHtml(link.url)}" title="${escapeHtml(link.title)} (${escapeHtml(link.url)})">
-        ${quickLinkIconHtml(link.category, 'ql-chip-icon')}
+        ${quickLinkIconHtml(link.category, 'ql-chip-icon', link.icon)}
         <span>${escapeHtml(link.title)}</span>
         <svg class="ql-chip-external-icon"><use href="#icon-external-link"></use></svg>
       </a>
@@ -4834,6 +4834,48 @@ function renderQuickLinksBar() {
       e.preventDefault();
       const url = chip.getAttribute('data-url');
       if (url) openQuickLinkUrl(url);
+    });
+  });
+}
+
+function renderQuickLinkIconPicker(currentIconId = '') {
+  const container = document.getElementById('ql-icon-picker-grid');
+  const iconInput = document.getElementById('ql-icon') as HTMLInputElement | null;
+  const iconNameLabel = document.getElementById('ql-selected-icon-name');
+  if (!container) return;
+
+  const icons = getQuickLinkIconList();
+  const selected = currentIconId || '';
+  if (iconInput) iconInput.value = selected;
+  if (iconNameLabel) {
+    const found = icons.find(i => i.id === selected);
+    iconNameLabel.textContent = found ? found.label : 'Default';
+  }
+
+  container.innerHTML = icons.map(icon => {
+    const isSelected = icon.id === selected;
+    return `
+      <div class="ql-icon-tile ${isSelected ? 'is-selected' : ''}" data-icon="${escapeHtml(icon.id)}" title="${escapeHtml(icon.label)}" role="radio" aria-checked="${isSelected}">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon.path}</svg>
+        <span class="ql-icon-tile-label">${escapeHtml(icon.id)}</span>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.ql-icon-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const iconId = tile.getAttribute('data-icon') || '';
+      container.querySelectorAll('.ql-icon-tile').forEach(t => {
+        t.classList.remove('is-selected');
+        t.setAttribute('aria-checked', 'false');
+      });
+      tile.classList.add('is-selected');
+      tile.setAttribute('aria-checked', 'true');
+      if (iconInput) iconInput.value = iconId;
+      if (iconNameLabel) {
+        const found = icons.find(i => i.id === iconId);
+        iconNameLabel.textContent = found ? found.label : 'Default';
+      }
     });
   });
 }
@@ -4851,8 +4893,8 @@ function renderQuickLinksManager() {
     return;
   }
 
-  listContainer.innerHTML = currentQuickLinks.map(link => {
-    const meta = quickLinkMeta(link.category);
+  listContainer.innerHTML = currentQuickLinks.map((link, idx) => {
+    const meta = quickLinkMeta(link.category, link.icon);
     let hostname = '';
     try {
       const parsed = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`);
@@ -4861,11 +4903,15 @@ function renderQuickLinksManager() {
       hostname = link.url;
     }
 
+    const isFirst = idx === 0;
+    const isLast = idx === currentQuickLinks.length - 1;
+
     return `
-      <div class="ql-item-card ${meta.badgeClass}" data-id="${escapeHtml(link.id)}">
+      <div class="ql-item-card ${meta.badgeClass}" data-id="${escapeHtml(link.id)}" data-index="${idx}" draggable="true">
+        <div class="ql-drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⋮⋮</div>
         <div class="ql-item-left">
           <div class="ql-item-icon-box">
-            ${quickLinkIconHtml(link.category)}
+            ${quickLinkIconHtml(link.category, '', link.icon)}
           </div>
           <div class="ql-item-info">
             <div class="ql-item-title-row">
@@ -4876,6 +4922,10 @@ function renderQuickLinksManager() {
           </div>
         </div>
         <div class="ql-item-actions">
+          <div class="ql-move-group">
+            <button type="button" class="btn-ql-move btn-move-ql-up" data-id="${escapeHtml(link.id)}" title="Move up" aria-label="Move up" ${isFirst ? 'disabled' : ''}>↑</button>
+            <button type="button" class="btn-ql-move btn-move-ql-down" data-id="${escapeHtml(link.id)}" title="Move down" aria-label="Move down" ${isLast ? 'disabled' : ''}>↓</button>
+          </div>
           <button type="button" class="btn-ql-open btn-open-link" data-url="${escapeHtml(link.url)}" title="Open in new tab">
             <span>Open</span>
             <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-external-link"></use></svg>
@@ -4891,7 +4941,86 @@ function renderQuickLinksManager() {
     `;
   }).join('');
 
-  // Wire buttons
+  // Wire move up / move down buttons
+  listContainer.querySelectorAll('.btn-move-ql-up').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-id');
+      if (!id) return;
+      currentQuickLinks = await moveQuickLink(id, 'up');
+      renderQuickLinksBar();
+      renderQuickLinksManager();
+      syncQuickLinksToCloud();
+    });
+  });
+
+  listContainer.querySelectorAll('.btn-move-ql-down').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-id');
+      if (!id) return;
+      currentQuickLinks = await moveQuickLink(id, 'down');
+      renderQuickLinksBar();
+      renderQuickLinksManager();
+      syncQuickLinksToCloud();
+    });
+  });
+
+  // Wire drag and drop
+  let draggedId: string | null = null;
+  listContainer.querySelectorAll<HTMLElement>('.ql-item-card').forEach(card => {
+    card.addEventListener('dragstart', (e) => {
+      draggedId = card.getAttribute('data-id');
+      card.classList.add('is-dragging');
+      e.dataTransfer?.setData('text/plain', draggedId || '');
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('is-dragging');
+      listContainer.querySelectorAll('.ql-item-card').forEach(c => {
+        c.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+      draggedId = null;
+    });
+
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedId || card.getAttribute('data-id') === draggedId) return;
+      const rect = card.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (e.clientY < mid) {
+        card.classList.add('drag-over-top');
+        card.classList.remove('drag-over-bottom');
+      } else {
+        card.classList.add('drag-over-bottom');
+        card.classList.remove('drag-over-top');
+      }
+    });
+
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+
+    card.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      card.classList.remove('drag-over-top', 'drag-over-bottom');
+      const targetId = card.getAttribute('data-id');
+      if (!draggedId || !targetId || draggedId === targetId) return;
+
+      const fromIndex = currentQuickLinks.findIndex(l => l.id === draggedId);
+      const toIndex = currentQuickLinks.findIndex(l => l.id === targetId);
+      if (fromIndex === -1 || toIndex === -1) return;
+
+      currentQuickLinks = reorderQuickLinksList(currentQuickLinks, fromIndex, toIndex);
+      await saveQuickLinks(currentQuickLinks);
+      renderQuickLinksBar();
+      renderQuickLinksManager();
+      syncQuickLinksToCloud();
+    });
+  });
+
+  // Wire open
   listContainer.querySelectorAll('.btn-open-link').forEach(btn => {
     btn.addEventListener('click', () => {
       const url = btn.getAttribute('data-url');
@@ -4899,6 +5028,7 @@ function renderQuickLinksManager() {
     });
   });
 
+  // Wire edit
   listContainer.querySelectorAll('.btn-edit-ql').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
@@ -4917,6 +5047,7 @@ function renderQuickLinksManager() {
         titleInput.value = target.title;
         urlInput.value = target.url;
         catSelect.value = target.category || 'other';
+        renderQuickLinkIconPicker(target.icon || '');
         if (saveBtn) saveBtn.textContent = 'Update Link';
         form.style.display = 'block';
         titleInput.focus();
@@ -4924,6 +5055,7 @@ function renderQuickLinksManager() {
     });
   });
 
+  // Wire delete
   listContainer.querySelectorAll('.btn-delete-ql').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
@@ -4969,6 +5101,7 @@ function initQuickLinksModal() {
       if (editId) editId.value = '';
       const saveBtn = document.getElementById('btn-save-ql') as HTMLButtonElement | null;
       if (saveBtn) saveBtn.textContent = 'Save Link';
+      renderQuickLinkIconPicker('');
     }
   };
 
@@ -4991,6 +5124,7 @@ function initQuickLinksModal() {
         if (editId) editId.value = '';
         const saveBtn = document.getElementById('btn-save-ql') as HTMLButtonElement | null;
         if (saveBtn) saveBtn.textContent = 'Save Link';
+        renderQuickLinkIconPicker('');
         form.style.display = 'block';
         (document.getElementById('ql-title') as HTMLInputElement | null)?.focus();
       }
@@ -5003,10 +5137,19 @@ function initQuickLinksModal() {
       form.style.display = 'none';
       const editId = document.getElementById('ql-edit-id') as HTMLInputElement | null;
       if (editId) editId.value = '';
+      renderQuickLinkIconPicker('');
     }
   });
 
   // Preset chips
+  const categoryDefaultIcons: Record<string, string> = {
+    attendance: 'list-check',
+    study_plan: 'book',
+    marks: 'scale',
+    portal: 'globe',
+    other: 'link'
+  };
+
   document.querySelectorAll('.btn-preset-ql').forEach(btn => {
     btn.addEventListener('click', () => {
       const preset = btn.getAttribute('data-preset');
@@ -5024,7 +5167,18 @@ function initQuickLinksModal() {
         if (!filled.url) urlInput.focus();
       }
       if (catSelect) catSelect.value = filled.category;
+      const defaultIcon = categoryDefaultIcons[filled.category] || '';
+      renderQuickLinkIconPicker(defaultIcon);
     });
+  });
+
+  // Category select change auto-updates icon preview if none was chosen
+  document.getElementById('ql-category')?.addEventListener('change', (e) => {
+    const cat = (e.target as HTMLSelectElement).value;
+    const currentIcon = (document.getElementById('ql-icon') as HTMLInputElement | null)?.value;
+    if (!currentIcon) {
+      renderQuickLinkIconPicker(categoryDefaultIcons[cat] || '');
+    }
   });
 
   // Reset defaults
@@ -5049,6 +5203,7 @@ function initQuickLinksModal() {
     const title = (document.getElementById('ql-title') as HTMLInputElement | null)?.value.trim() || '';
     let url = (document.getElementById('ql-url') as HTMLInputElement | null)?.value.trim() || '';
     const category = ((document.getElementById('ql-category') as HTMLSelectElement | null)?.value || 'other') as QuickLinkCategory;
+    const icon = (document.getElementById('ql-icon') as HTMLInputElement | null)?.value.trim() || undefined;
 
     if (!title || !url) {
       showToast('Please provide both title and URL.');
@@ -5060,10 +5215,10 @@ function initQuickLinksModal() {
     }
 
     if (editId) {
-      currentQuickLinks = await updateQuickLink(editId, { title, url, category });
+      currentQuickLinks = await updateQuickLink(editId, { title, url, category, icon });
       showToast(`Updated "${title}"`);
     } else {
-      currentQuickLinks = await addQuickLink({ title, url, category });
+      currentQuickLinks = await addQuickLink({ title, url, category, icon });
       showToast(`Added "${title}" to quick links!`);
     }
 
@@ -5071,6 +5226,7 @@ function initQuickLinksModal() {
     form.style.display = 'none';
     const idInput = document.getElementById('ql-edit-id') as HTMLInputElement | null;
     if (idInput) idInput.value = '';
+    renderQuickLinkIconPicker('');
 
     renderQuickLinksBar();
     renderQuickLinksManager();
