@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+
+### Changed
+
+- **Chronological Marks Sorting:** Completed assessments and tasks in the Grades card are now ranked from newest to oldest by posting, due, or completion date (`dueDate`, `submittedAt`, `completedAt`, `createdAt`), rather than by when the mark was released.
+
+### Fixed
+
+- **Shorthand Lab Assessment Matching:** Improved component name matching for shorthand assessment names (e.g. `Q1. Density-Errors`, `R-Density`) to correctly attach scores to their respective course syllabus components.
+- **Push Notification Stale Acknowledgment and Foreground Throttling:** Throttled foreground alert toasts and ensured stale past deadlines are acknowledged cleanly without duplicate notifications when opening the app.
+
+---
+
 ## [1.7.1] - 2026-11-05
 
 ### Fixed
