@@ -263,31 +263,46 @@ async function checkUpcomingDeadlines() {
     const now = Date.now();
     const alertThresholdMs = reminderHours * 3600 * 1000;
 
+    let notificationsTriggered = 0;
+    const MAX_NOTIFICATIONS_PER_CHECK = 2;
+
     for (const task of tasks) {
       if (task.status !== 'pending') continue;
       const dueTime = new Date(task.dueDate).getTime();
       const timeRemaining = dueTime - now;
 
-      // If within notification window (or up to 6 hours overdue on wake) and hasn't been notified in past 12 hours
-      if (timeRemaining >= -6 * 3600 * 1000 && timeRemaining <= alertThresholdMs) {
+      // Past deadlines older than 15 minutes are stale; mark them acknowledged silently
+      // so waking Chrome or the computer later never bursts old "Due now" notifications.
+      if (timeRemaining < -15 * 60 * 1000) {
+        if (!notifiedMap[task.id]) {
+          notifiedMap[task.id] = now;
+        }
+        continue;
+      }
+
+      // If within notification window (up to 15 minutes overdue on wake) and hasn't been notified in past 12 hours
+      if (timeRemaining >= -15 * 60 * 1000 && timeRemaining <= alertThresholdMs) {
         const lastNotified = notifiedMap[task.id] || 0;
         if (now - lastNotified > 12 * 3600 * 1000) {
           notifiedMap[task.id] = now;
 
-          const hoursLeft = Math.round(timeRemaining / (3600 * 1000));
-          const timeText = timeRemaining <= 0
-            ? 'now (or overdue)'
-            : hoursLeft <= 1
-              ? 'under 1 hour'
-              : `about ${hoursLeft} hours`;
+          if (notificationsTriggered < MAX_NOTIFICATIONS_PER_CHECK) {
+            notificationsTriggered++;
+            const hoursLeft = Math.round(timeRemaining / (3600 * 1000));
+            const timeText = timeRemaining <= 0
+              ? 'now (or overdue)'
+              : hoursLeft <= 1
+                ? 'under 1 hour'
+                : `about ${hoursLeft} hours`;
 
-          chrome.notifications.create(`reminder_${task.id}`, {
-            type: 'basic',
-            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-            title: `[Urgent] Upcoming ${task.type.toUpperCase()}: ${task.title}`,
-            message: `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}! Course: ${task.courseCode} - ${task.courseName}`,
-            priority: 2
-          });
+            chrome.notifications.create(`reminder_${task.id}`, {
+              type: 'basic',
+              iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+              title: `[Urgent] Upcoming ${task.type.toUpperCase()}: ${task.title}`,
+              message: `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}! Course: ${task.courseCode} - ${task.courseName}`,
+              priority: 2
+            });
+          }
         }
       }
     }

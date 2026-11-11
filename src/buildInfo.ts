@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
-  "build": "5670f65b2e84",
-  "commit": "5c8e05de59dd165f947e8444e50e9da4e198d8f7",
-  "shortCommit": "5c8e05d",
-  "timestamp": "2026-11-11T09:06:34.730Z",
-  "message": "fix(popup): eliminate duplicate update notifications and add toast deduplication",
+  "build": "c8b7e58f650d",
+  "commit": "bd33d32efed6cbd33c80e927951e1d68194bd864",
+  "shortCommit": "bd33d32",
+  "timestamp": "2026-11-11T09:31:33.300Z",
+  "message": "fix(syllabus): auto-match shorthand lab marks (Q1, R-Density) and improve component matching",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
