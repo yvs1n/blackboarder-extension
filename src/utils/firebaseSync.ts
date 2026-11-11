@@ -4,6 +4,7 @@ import type { CloudScanRequest } from './cloudSanitize';
 import { getProfile, mergeCloudProfile } from './profile';
 import { getStoredSemesters, getStoredSemestersUpdatedAt, mergeCloudSemesters, saveStoredSemesters } from './semestersStorage';
 import { mergeForCloudWrite, readCloudSide } from './syncMerge';
+import { wrapCloudVault, unwrapCloudVault } from './vaultCrypto';
 
 export const FIREBASE_CONFIG = {
   authDomain: 'blackboard-sidekick.firebaseapp.com',
@@ -115,7 +116,8 @@ export async function pushTasksToFirebase(
   coursesUpdatedAt?: string,
   quickLinksUpdatedAt?: string
 ): Promise<{ success: boolean; message: string; lastSync?: string; count?: number }> {
-  const targetUrl = getFirebaseDataUrl(syncKey);
+  const cleanKey = extractSyncKey(syncKey);
+  const targetUrl = getFirebaseDataUrl(cleanKey);
   if (!targetUrl) return { success: false, message: NO_SYNC_KEY_MESSAGE };
   try {
     const profile = await getProfile();
@@ -127,7 +129,9 @@ export async function pushTasksToFirebase(
         return { success: false, message: `Could not read the cloud copy before saving (${cloudRes ? cloudRes.status : 'no response'})` };
       }
       const etag = headerOf(cloudRes, 'ETag');
-      const cloud = readCloudSide(await cloudRes.json().catch(() => null));
+      const rawCloud = await cloudRes.json().catch(() => null);
+      const unwrappedCloud = await unwrapCloudVault(rawCloud, cleanKey);
+      const cloud = readCloudSide(unwrappedCloud);
       const merged = mergeForCloudWrite({
         tasks,
         tombstones,
@@ -150,7 +154,7 @@ export async function pushTasksToFirebase(
         lastSync,
         device,
         count: merged.tasks.length,
-        syncKey: syncKey || undefined,
+        syncKey: cleanKey || undefined,
         quickLinks: merged.quickLinks,
         quickLinksUpdatedAt: merged.quickLinksUpdatedAt,
         courses: merged.courses,
@@ -167,7 +171,8 @@ export async function pushTasksToFirebase(
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (etag) headers['if-match'] = etag;
-      const res = await fetch(targetUrl, { method: 'PUT', headers, body: JSON.stringify(payload) });
+      const cloudDoc = await wrapCloudVault(payload, cleanKey);
+      const res = await fetch(targetUrl, { method: 'PUT', headers, body: JSON.stringify(cloudDoc) });
 
       if (res.status === 412 && etag && attempt < ETAG_RETRIES) {
         // Another device wrote since the read: read its copy, merge again and retry
@@ -215,7 +220,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   semestersUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
 }> {
-  const targetUrl = getFirebaseDataUrl(syncKey);
+  const cleanKey = extractSyncKey(syncKey);
+  const targetUrl = getFirebaseDataUrl(cleanKey);
   if (!targetUrl) return { success: false, tasks: [], error: NO_SYNC_KEY_MESSAGE };
   try {
     const res = await fetch(targetUrl, {
@@ -226,7 +232,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       return { success: false, tasks: [], error: `HTTP ${res.status}` };
     }
 
-    const data: FirebaseSyncPayload | null = await res.json();
+    const rawData = await res.json();
+    const data: FirebaseSyncPayload | null = await unwrapCloudVault(rawData, cleanKey);
     if (data === null || (data as any)?.deleted === true) {
       return {
         success: false,

@@ -14,6 +14,7 @@ import {
   reorderQuickLinks
 } from '../src/utils/storage';
 import { pushTasksToFirebase, fetchTasksFromFirebase, FIREBASE_DB_URL } from '../src/utils/firebaseSync';
+import { unwrapCloudVault } from '../src/utils/vaultCrypto';
 import { universityQuickLinks, quickLinkPreset } from '../src/core/universities';
 import { quickLinkMeta, quickLinkIconHtml, QUICK_LINK_ICONS, getQuickLinkIconList, reorderQuickLinksList } from '../src/utils/quickLinkMeta';
 
@@ -155,14 +156,15 @@ describe('Academic Quick Links Management & Sync', () => {
       `${FIREBASE_DB_URL}/users/BBS-TESTKEY1/data.json`,
       expect.objectContaining({
         method: 'PUT',
-        body: expect.stringContaining('"quickLinks"')
+        body: expect.stringContaining('"vault":"v1:')
       })
     );
 
     const callArgs = fetchSpy.mock.calls[1];
     const bodyObj = JSON.parse(callArgs[1]?.body as string);
-    expect(bodyObj.quickLinks).toBeDefined();
-    expect(bodyObj.quickLinks[0].title).toBe('Sharjah Portal');
+    const unwrapped = await unwrapCloudVault(bodyObj, 'BBS-TESTKEY1');
+    expect(unwrapped.quickLinks).toBeDefined();
+    expect(unwrapped.quickLinks[0].title).toBe('Sharjah Portal');
 
     fetchSpy.mockRestore();
   });
