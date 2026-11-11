@@ -1034,14 +1034,20 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
     e.stopPropagation();
     const prevStatus = task.status;
     const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
-    currentTasks = applyTaskUpdateLocal(task.id, { status: nextStatus });
+    currentTasks = applyTaskUpdateLocal(task.id, {
+      status: nextStatus,
+      completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined
+    });
     refreshAllViews();
     syncTasksToCloud(currentTasks, 'Drawer Status Change');
     showToast(
       nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending',
       'Undo',
       async () => {
-        currentTasks = applyTaskUpdateLocal(task.id, { status: prevStatus });
+        currentTasks = applyTaskUpdateLocal(task.id, {
+          status: prevStatus,
+          completedAt: prevStatus === 'completed' ? task.completedAt || new Date().toISOString() : undefined
+        });
         refreshAllViews();
         syncTasksToCloud(currentTasks, 'Revert Status Change');
         showToast('Status reverted');
@@ -2243,8 +2249,8 @@ function renderTasks() {
         const n = new Date(d).getTime();
         return isNaN(n) ? NaN : n;
       };
-      const timeA = parse(a.gradedAt) || parse(a.dueDate) || parse(a.submittedAt) || parse(a.updatedAt) || -Infinity;
-      const timeB = parse(b.gradedAt) || parse(b.dueDate) || parse(b.submittedAt) || parse(b.updatedAt) || -Infinity;
+      const timeA = parse(a.dueDate) || parse(a.submittedAt) || parse(a.completedAt) || parse(a.createdAt) || parse(a.updatedAt) || parse(a.gradedAt) || -Infinity;
+      const timeB = parse(b.dueDate) || parse(b.submittedAt) || parse(b.completedAt) || parse(b.createdAt) || parse(b.updatedAt) || parse(b.gradedAt) || -Infinity;
       if (timeA !== timeB) return timeB - timeA;
       return (a.title || '').localeCompare(b.title || '');
     }
@@ -2477,7 +2483,10 @@ function renderTasks() {
       const prevStatus = currentTask.status;
       const currentlyCompleted = prevStatus === 'completed';
       const nextStatus: TaskStatus = currentlyCompleted ? 'pending' : 'completed';
-      currentTasks = applyTaskUpdateLocal(task.id, { status: nextStatus });
+      currentTasks = applyTaskUpdateLocal(task.id, {
+        status: nextStatus,
+        completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined
+      });
 
       // Immediate in-place visual feedback on the card
       const nowCompleted = nextStatus === 'completed';
@@ -2512,7 +2521,10 @@ function renderTasks() {
         nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending',
         'Undo',
         async () => {
-          currentTasks = applyTaskUpdateLocal(task.id, { status: prevStatus });
+          currentTasks = applyTaskUpdateLocal(task.id, {
+            status: prevStatus,
+            completedAt: prevStatus === 'completed' ? task.completedAt || new Date().toISOString() : undefined
+          });
           refreshAllViews();
           syncTasksToCloud(currentTasks, 'Revert Status Change');
           showToast('Status reverted');
@@ -2647,7 +2659,10 @@ function openReadingSheet(task: DeadlineTask) {
 
   content.querySelector('.modal-reading-toggle-btn')?.addEventListener('click', async () => {
     const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
-    currentTasks = applyTaskUpdateLocal(task.id, { status: nextStatus });
+    currentTasks = applyTaskUpdateLocal(task.id, {
+      status: nextStatus,
+      completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined
+    });
     refreshAllViews();
     syncTasksToCloud(currentTasks, 'Status Change');
     closeReadingSheet();

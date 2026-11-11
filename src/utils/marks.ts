@@ -25,6 +25,8 @@ export interface MarkRow {
   dueDate?: string;
   gradedAt?: string;
   submittedAt?: string;
+  completedAt?: string;
+  createdAt?: string;
   isBonus?: boolean;
 }
 
@@ -108,6 +110,8 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       dueDate: t.dueDate,
       gradedAt: t.gradedAt,
       submittedAt: t.submittedAt,
+      completedAt: t.completedAt || (t.status === 'completed' ? (t.submittedAt || t.updatedAt) : undefined),
+      createdAt: t.createdAt,
       isBonus
     };
     if (graded) {
@@ -168,6 +172,15 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       }
       if (row.submittedAt && !existingRow.submittedAt) {
         existingRow.submittedAt = row.submittedAt;
+      }
+      if (row.completedAt && !existingRow.completedAt) {
+        existingRow.completedAt = row.completedAt;
+      }
+      if (row.dueDate && !existingRow.dueDate) {
+        existingRow.dueDate = row.dueDate;
+      }
+      if (row.createdAt && !existingRow.createdAt) {
+        existingRow.createdAt = row.createdAt;
       }
       if (graded && existingRow.status !== 'graded') {
         const wasAwaiting = existingRow.status === 'submitted' || existingRow.status === 'waiting';
@@ -231,25 +244,34 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     if (c.bonusWeight) c.bonusWeight = round1(c.bonusWeight);
     const pcts = c.marks.filter(m => m.percent !== undefined).map(m => m.percent!);
     if (pcts.length) c.averagePercent = round1(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-    // Ranked from newest to oldest: most recently graded or due first; undated items go last
+    // Ranked from newest to oldest by posting, due, or completion date (NOT by when the mark was released); oldest at the bottom
     const time = (m: MarkRow) => {
       const parse = (d?: string) => {
         if (!d) return NaN;
         const n = new Date(d).getTime();
         return isNaN(n) ? NaN : n;
       };
-      const tGraded = parse(m.gradedAt);
-      if (!isNaN(tGraded)) return tGraded;
       const tDue = parse(m.dueDate);
       if (!isNaN(tDue)) return tDue;
       const tSub = parse(m.submittedAt);
       if (!isNaN(tSub)) return tSub;
+      const tComp = parse(m.completedAt);
+      if (!isNaN(tComp)) return tComp;
+      const tCreated = parse(m.createdAt);
+      if (!isNaN(tCreated)) return tCreated;
+      const tGraded = parse(m.gradedAt);
+      if (!isNaN(tGraded)) return tGraded;
       return -Infinity;
     };
     c.marks.sort((a, b) => {
       const diff = time(b) - time(a);
       if (diff !== 0) return diff;
-      return a.title.localeCompare(b.title);
+      const numA = extractAssessmentNumber(a.title);
+      const numB = extractAssessmentNumber(b.title);
+      if (numA !== null && numB !== null && numA !== numB) {
+        return numB - numA;
+      }
+      return a.title.localeCompare(b.title, undefined, { numeric: true });
     });
   }
   courses.sort((a, b) => a.courseName.localeCompare(b.courseName));
