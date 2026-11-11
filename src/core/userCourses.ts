@@ -136,6 +136,32 @@ export function compileSyllabusComponentMatcher(comp: CustomSyllabusComponent): 
     parts.push(escapeRegex(comp.name.trim()));
   }
 
+  const compType = (comp.type || '').toLowerCase();
+  const nameLow = (comp.name || '').toLowerCase();
+
+  if (compType === 'quiz' || /quiz|كويز/i.test(nameLow)) {
+    parts.push('\\bq\\s*[-_.]?\\s*\\d+\\b');
+    parts.push('^q\\d+');
+    parts.push('\\bquiz(?:zes)?\\b');
+    parts.push('كويز');
+  } else if (compType === 'lab' || /lab|report|تقرير|مختبر|تجربة/i.test(nameLow)) {
+    parts.push('\\br\\s*[-_.]?\\s*\\d+\\b');
+    parts.push('^r\\s*[-_.]');
+    parts.push('\\b(?:labs?|reports?|experiments?)\\b');
+    parts.push('(?:تقرير|مختبر|تجربة)');
+  } else if (compType === 'assignment' || /assign|homework|hw|واجب/i.test(nameLow)) {
+    parts.push('\\bhw\\s*[-_.]?\\s*\\d*\\b');
+    parts.push('^hw\\d+');
+    parts.push('\\b(?:assignments?|homework)\\b');
+    parts.push('واجب');
+  } else if (compType === 'exam' && /midterm|فصلي|نصفي/i.test(nameLow)) {
+    parts.push('\\bmidterms?\\b');
+    parts.push('(?:فصلي|نصفي)');
+  } else if (compType === 'exam' && /final|نهائي/i.test(nameLow)) {
+    parts.push('\\bfinals?\\b');
+    parts.push('نهائي');
+  }
+
   if (parts.length === 0) {
     return new RegExp(escapeRegex(comp.id || 'item'), 'i');
   }

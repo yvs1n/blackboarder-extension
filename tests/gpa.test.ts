@@ -138,4 +138,25 @@ describe('projected GPA', () => {
     expect(quizComp.dropped).toHaveLength(0);
     expect(quizComp.counted).toHaveLength(2);
   });
+
+  it('matches shorthand lab grades like Q1, Q2, and R-Density to syllabus components', () => {
+    const course = 'Physics 1 Lab';
+    const tasks = [
+      mark(course, 'Q1. Density-Errors', 'assignment', 7, 10),
+      mark(course, 'Q2.Forces', 'assignment', 10, 10),
+      mark(course, 'Q3- Free fall+Friction.', 'assignment', 7.5, 10),
+      mark(course, 'R-Density', 'assignment', 9.8, 10),
+      mark(course, 'R-Free Fall', 'assignment', 9.5, 10),
+      mark(course, 'R-Friction', 'assignment', 10, 10),
+      mark(course, 'R-Newton\'s Second Law', 'assignment', 9, 10),
+      mark(course, 'R-Projectile Motion', 'assignment', 9, 10),
+      mark(course, 'R-Vectors', 'assignment', 8, 10)
+    ];
+    const s = buildGpaSummary(tasks, syllabi);
+    const phy = s.courses.find(c => c.courseName === course)!;
+    expect(phy).toBeDefined();
+    expect(phy.gradedWeight).toBeGreaterThan(0);
+    expect(phy.percent).toBeGreaterThan(0);
+    expect(phy.components.length).toBeGreaterThan(0);
+  });
 });

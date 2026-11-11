@@ -62,10 +62,10 @@ export interface ScanPipelineResult {
 
 function markTaskType(title: string): TaskType {
   const lowTitle = (title || '').toLowerCase();
-  if (/quiz|كويز|اختبار\s*قصير/i.test(lowTitle)) return 'quiz';
+  if (/quiz|كويز|اختبار\s*قصير|\bq\s*[-_.]?\s*\d+\b|^q\d+/i.test(lowTitle)) return 'quiz';
   if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان|اختبار\s*(?:نصفي|نهائي|فصلي)/i.test(lowTitle)) return 'exam';
   if (/project|مشروع|بحث/i.test(lowTitle)) return 'project';
-  if (/lab|تقرير/i.test(lowTitle)) return 'lab';
+  if (/lab|تقرير|report|\br\s*[-_.]?\s*\d*\b|^r\s*[-_.]/i.test(lowTitle)) return 'lab';
   return 'assignment';
 }
 

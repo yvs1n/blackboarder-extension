@@ -117,8 +117,8 @@ export function extractAssessmentNumber(title: string, context?: string): number
     .replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/gi, ' ')
     .trim();
 
-  // 1. Explicit numbering attached to keyword: "Quiz 2", "Quiz #2", "Quiz (1)", "Quiz [2]", "Quiz - 2", "HW2", "Assignment 2", "Lab 2", "كويز 2"
-  const m = combined.match(/(?:quiz|test|exam|midterm|assignment|hw|homework|lab|report|activity|task|كويز|اختبار|امتحان|واجب|تقرير|مشروع)[^0-9a-z\u0600-\u06ff\n]*#?\s*\(?\s*(\d+|[١-٩]|١٠)(?:[^0-9a-z\u0600-\u06ff]|$)\s*\)?/i);
+  // 1. Explicit numbering attached to keyword: "Quiz 2", "Quiz #2", "Quiz (1)", "Quiz [2]", "Quiz - 2", "HW2", "Assignment 2", "Lab 2", "كويز 2", "Q1", "R1"
+  const m = combined.match(/(?:quiz|test|exam|midterm|assignment|hw|homework|lab|report|activity|task|كويز|اختبار|امتحان|واجب|تقرير|مشروع|\bq|\br)[^0-9a-z\u0600-\u06ff\n]*#?\s*\(?\s*(\d+|[١-٩]|١٠)(?:[^0-9a-z\u0600-\u06ff]|$)\s*\)?/i);
   if (m) {
     const raw = m[1];
     const arDigits: Record<string, number> = { '١': 1, '٢': 2, '٣': 3, '٤': 4, '٥': 5, '٦': 6, '٧': 7, '٨': 8, '٩': 9, '١٠': 10 };
