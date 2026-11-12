@@ -460,10 +460,6 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   // A practice run, mock exam, or sample paper never matches a real assessment
   if (isPracticeTitle(a.title) !== isPracticeTitle(b.title)) return false;
 
-  // A task that recorded another task's gradeSourceId in gradeSourcesBefore specifically refused that mark (early/mock run); they are not duplicates
-  if (a.gradeSourceId && (b.gradeSourcesBefore || []).includes(a.gradeSourceId)) return false;
-  if (b.gradeSourceId && (a.gradeSourcesBefore || []).includes(b.gradeSourceId)) return false;
-
   const cleanA = (a.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
   const cleanB = (b.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
 

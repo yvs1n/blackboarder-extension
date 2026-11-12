@@ -479,9 +479,6 @@ export function isSyntheticGradebookTask(t: DeadlineTask, allTasks?: DeadlineTas
         const tNums = (t.title.replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)?\s*\)/gi, ' ').match(/\d+/g) || []).map(Number);
         const oNums = (other.title.replace(/\(\s*\d+(?:\.\d+)?\s*(?:pts?|points?|marks?|درجات|درجة|علامات|علامة)?\s*\)/gi, ' ').match(/\d+/g) || []).map(Number);
         if (tNums.length > 0 && oNums.length > 0 && !tNums.some(n => oNums.includes(n))) return false;
-        // If the other exam has not happened yet, this completed gradebook mark is an early/practice assessment, not a duplicate
-        const otherDue = new Date(other.dueDate).getTime();
-        if (!isNaN(otherDue) && otherDue > Date.now() + MARK_SLACK_MS) return false;
         return true;
       });
       if (hasOtherExam) return true;
@@ -556,9 +553,6 @@ export function purgeSyntheticGradebookTasks(tasks: DeadlineTask[]): { cleaned: 
         const oCode = (res.code || other.courseCode || '').toLowerCase();
         const sameCourse = (sCode && oCode && sCode === oCode) || (sName && oName && (sName.includes(oName) || oName.includes(sName)));
         if (!sameCourse) return false;
-        const otherDue = new Date(other.dueDate).getTime();
-        const isFuture = !isNaN(otherDue) && otherDue > Date.now() + MARK_SLACK_MS;
-        if (isFuture) return false;
         if (/(?:\bmidterm\b|نصفي)/i.test(s.title) && /(?:\bmidterm\b|نصفي)/i.test(other.title)) return true;
         if (/(?:\bfinal\b|نهائي)/i.test(s.title) && /(?:\bfinal\b|نهائي)/i.test(other.title)) return true;
         return false;

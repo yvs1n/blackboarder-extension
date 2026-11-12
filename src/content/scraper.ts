@@ -458,6 +458,18 @@ async function scrapeAnnouncements(
       text = titleAttr.trim();
     }
 
+    // Check if text ends in ellipsis or is truncated
+    const isTruncated = /(?:…|\.\.\.)\s*$/.test(text) || text.includes('…') || text.endsWith('...');
+
+    // Fetch complete unabridged text directly from code (REST API / Classic Webapp) - ZERO DOM clicks or mutations
+    if (isTruncated || (courseId && announcementId)) {
+      const fullRes = await fetchFullAnnouncementBodyFromCode(courseId, announcementId, title);
+      if (fullRes && fullRes.text.length > text.length) {
+        text = fullRes.text;
+        fullHtml = fullRes.html;
+      }
+    }
+
     text = sanitizeDoctorAnnouncementText(text, cardCourseName, cardCourseCode, title);
 
     if (!title) {
@@ -678,7 +690,157 @@ function startCourseLookup(page: { courses: Map<string, CourseMeta>; skipped: Se
 }
 
 
+// Cache for classic Blackboard course announcements to prevent redundant fetches
+const classicCourseAnnouncementsCache = new Map<string, Map<string, { html: string; text: string }>>();
 
+/**
+ * Fetches course announcements directly from Blackboard's classic webapp endpoint.
+ * This endpoint is 100% cookie-authenticated for enrolled students and returns
+ * the unabridged HTML without any summary clipping.
+ */
+async function fetchCourseAnnouncementsClassicWebapp(courseId: string): Promise<Map<string, { html: string; text: string }>> {
+  if (classicCourseAnnouncementsCache.has(courseId)) {
+    return classicCourseAnnouncementsCache.get(courseId)!;
+  }
+  const map = new Map<string, { html: string; text: string }>();
+  try {
+    const res = await bbFetch(`/webapps/blackboard/execute/announcement?method=search&course_id=${encodeURIComponent(courseId)}`, {
+      credentials: 'same-origin'
+    });
+    if (res.ok) {
+      const htmlText = await res.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+      const items = doc.querySelectorAll('#announcementList > li, .announcementList > li, li[id*="announcement"], .item');
+      items.forEach(item => {
+        const titleEl = item.querySelector('h3, .item h3, .announcement-title, [role="heading"]');
+        const title = titleEl?.textContent?.trim().toLowerCase() || '';
+        const bodyEl = item.querySelector('.vtbegenerated, .details, .announcement-content, .announcement-body') || item;
+        const html = bodyEl.innerHTML || '';
+        const text = bodyEl.textContent?.trim() || '';
+        const itemId = item.getAttribute('id') || '';
+        if (title && text) {
+          map.set(title, { html, text });
+          if (itemId) map.set(itemId, { html, text });
+        }
+      });
+    }
+  } catch {
+    // webapp search unavailable
+  }
+  classicCourseAnnouncementsCache.set(courseId, map);
+  return map;
+}
+
+/**
+ * Orchestrates unabridged announcement retrieval directly via code:
+ * 1. Public REST API
+ * 2. Internal v1 REST API
+ * 3. Classic Blackboard Course Announcement Webapp
+ * ZERO DOM clicks. ZERO drawers opened. Pure background memory retrieval.
+ */
+async function fetchFullAnnouncementBodyFromCode(
+  courseId: string | null,
+  announcementId: string | null,
+  title: string
+): Promise<{ text: string; html: string } | null> {
+  if (courseId) {
+    const bbHeaders = getBlackboardFetchHeaders();
+
+    // 1. Try public REST API endpoint
+    if (announcementId) {
+      try {
+        const res = await bbFetch(`/learn/api/public/v1/courses/${encodeURIComponent(courseId)}/announcements/${encodeURIComponent(announcementId)}`, {
+          headers: bbHeaders,
+          credentials: 'same-origin'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.body) {
+            const temp = document.createElement('div');
+            temp.innerHTML = data.body;
+            const clean = temp.textContent?.trim() || '';
+            if (clean) return { text: clean, html: data.body };
+          }
+        }
+      } catch {}
+
+      // 2. Try internal v1 REST API endpoint
+      try {
+        const res = await bbFetch(`/learn/api/v1/courses/${encodeURIComponent(courseId)}/announcements/${encodeURIComponent(announcementId)}`, {
+          headers: bbHeaders,
+          credentials: 'same-origin'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.body) {
+            const temp = document.createElement('div');
+            temp.innerHTML = data.body;
+            const clean = temp.textContent?.trim() || '';
+            if (clean) return { text: clean, html: data.body };
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Try classic Blackboard course announcements webapp (100% cookie authenticated, returns full HTML)
+    const classicMap = await fetchCourseAnnouncementsClassicWebapp(courseId);
+    if (classicMap.size > 0) {
+      if (announcementId && classicMap.has(announcementId)) {
+        return classicMap.get(announcementId)!;
+      }
+      const titleLower = title.toLowerCase().trim();
+      if (classicMap.has(titleLower)) {
+        return classicMap.get(titleLower)!;
+      }
+      const cleanTokens = titleLower.replace(/[^a-z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(w => w.length >= 3);
+      for (const [key, val] of classicMap.entries()) {
+        const keyLower = key.toLowerCase().trim();
+        if (titleLower && (keyLower.includes(titleLower) || titleLower.includes(keyLower))) {
+          return val;
+        }
+        if (cleanTokens.length > 0) {
+          const matchCount = cleanTokens.filter(t => keyLower.includes(t)).length;
+          if (matchCount >= Math.min(2, cleanTokens.length)) {
+            return val;
+          }
+        }
+      }
+    }
+
+    // 4. Try REST course announcements list endpoint
+    try {
+      const listRes = await bbFetch(`/learn/api/public/v1/courses/${encodeURIComponent(courseId)}/announcements`, {
+        headers: bbHeaders,
+        credentials: 'same-origin'
+      });
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        if (listData && Array.isArray(listData.results)) {
+          const titleLower = title.toLowerCase().trim();
+          const cleanTokens = titleLower.replace(/[^a-z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(w => w.length >= 3);
+
+          for (const item of listData.results) {
+            if (!item.body) continue;
+            const itemTitle = (item.title || '').toLowerCase().trim();
+            const matchesId = announcementId && item.id === announcementId;
+            const matchesSub = titleLower && (itemTitle.includes(titleLower) || titleLower.includes(itemTitle));
+            const tokenMatch = cleanTokens.length > 0 && cleanTokens.filter((t: string) => itemTitle.includes(t)).length >= Math.min(2, cleanTokens.length);
+
+            if (matchesId || matchesSub || tokenMatch) {
+              const temp = document.createElement('div');
+              temp.innerHTML = item.body;
+              const clean = temp.textContent?.trim() || '';
+              if (clean) return { text: clean, html: item.body };
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return null;
+}
 
 /** Saves whether the Blackboard session is alive (from the users/me call), for the popup's banner. */
 function saveSessionStatus(expired: boolean): void {
@@ -1119,7 +1281,7 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
 
   const changedTotal = addedCount + updatedCount;
   lastTabScanResult = { ok: true, newCount: addedCount, message: `Read ${examTasks.length} exams from the exam schedule.` };
-  if (run.interactive) {
+  if (run.interactive || changedTotal > 0) {
     const msg = addedCount > 0
       ? `Added <strong>${addedCount}</strong> exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from your Exam Schedule!`
       : updatedCount > 0
@@ -1301,7 +1463,7 @@ async function runBlackboardScan(run: ScanRun) {
       badge.style.display = 'inline-block';
     }
 
-    if (run.interactive) {
+    if (run.interactive || totalNewCount > 0) {
       const msg = totalNewCount > 0
         ? `Found <strong>${totalNewCount}</strong> new deadline${totalNewCount > 1 ? 's' : ''} (Quizzes & Assignments) from Blackboard!`
         : `All deadlines up to date. (${result.pendingCount} pending tasks in dashboard)`;
@@ -1566,25 +1728,6 @@ function isSignInPage(): boolean {
   return Boolean(document.querySelector('input[type="password"]')) || /(?:^|\/)login(?:\/|$)/i.test(window.location.pathname);
 }
 
-/** True when the student is on an active quiz, test, or exam taking page where background scanning must never interfere. */
-export function isAssessmentTakingPage(loc: Location = window.location, doc: Document = document): boolean {
-  const path = (loc.pathname || '').toLowerCase();
-  const search = (loc.search || '').toLowerCase();
-  if (path.includes('/webapps/assessment/take') || path.includes('/webapps/assessment/do/') || path.includes('/take/launch.jsp')) {
-    return true;
-  }
-  if (search.includes('attempt_id') || search.includes('course_assessment_id')) {
-    return true;
-  }
-  if (path.includes('/ultra/') && (path.includes('/attempt') || path.includes('/submission') || path.includes('/assessment/take'))) {
-    return true;
-  }
-  if (doc.querySelector('form[name="takeAssessment"], .take-assessment, #assessmentAttempts, input[name="save_and_submit"], button[data-analytics-id*="assessment.attempt.submit"], .test-timer, #timer-div')) {
-    return true;
-  }
-  return false;
-}
-
 /**
  * Asks the service worker for a quiet scan: HTTP first, never reading the exam schedule. When
  * Blackboard does not answer over HTTP the scan runs in this tab; no other tab is opened.
@@ -1592,9 +1735,9 @@ export function isAssessmentTakingPage(loc: Location = window.location, doc: Doc
 function scheduleAutoScan(): void {
   getSettings()
     .then(settings => {
-      if (!settings.autoScanOnPageLoad || !isExtensionContextValid() || isSignInPage() || isAssessmentTakingPage()) return;
+      if (!settings.autoScanOnPageLoad || !isExtensionContextValid() || isSignInPage()) return;
       setTimeout(async () => {
-        if (!isExtensionContextValid() || isAssessmentTakingPage()) return;
+        if (!isExtensionContextValid()) return;
         if (!(await claimAutoScan(chrome.storage.local as any))) return;
         try {
           chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', auto: true }, () => {

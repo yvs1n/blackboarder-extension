@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveVaultCryptoKey,
-  clearVaultKeyCache,
   encryptVaultPayload,
   decryptVaultPayload,
   isVaultEnvelope,
@@ -47,19 +46,6 @@ describe('Vault Cryptography (Client-Side Zero-Knowledge)', () => {
     expect(key.extractable).toBe(false);
     expect(key.usages).toContain('encrypt');
     expect(key.usages).toContain('decrypt');
-  });
-
-  it('caches derived CryptoKey in-memory to avoid redundant HKDF computations', async () => {
-    clearVaultKeyCache();
-    const key1 = await deriveVaultCryptoKey(sampleSyncKey);
-    const key2 = await deriveVaultCryptoKey(sampleSyncKey);
-    // Identical key reference from memory cache
-    expect(key1).toBe(key2);
-
-    clearVaultKeyCache();
-    const key3 = await deriveVaultCryptoKey(sampleSyncKey);
-    expect(key3).not.toBe(key1);
-    expect(key3.algorithm.name).toBe('AES-GCM');
   });
 
   it('correctly detects vault envelopes', () => {

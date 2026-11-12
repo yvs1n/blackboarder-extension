@@ -40,36 +40,22 @@ export function serviceWorkerFetch(
     'X-Requested-With': 'XMLHttpRequest'
   };
   let xsrf: Promise<string | null> | null = null;
-  const getXsrf = (forceFresh = false) => {
-    if (forceFresh || !xsrf) xsrf = readXsrf(origin);
-    return xsrf;
-  };
-
   return async (path: string, init?: RequestInit) => {
     if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
     const extra: Record<string, string> = {};
     if (needsXsrf(init)) {
-      const token = await getXsrf();
+      xsrf ??= readXsrf(origin);
+      const token = await xsrf;
       if (token) extra[XSRF_HEADER] = token;
     }
-    const doFetch = (headersWithXsrf: Record<string, string>) => fetch(new URL(path, origin).href, {
+    return fetch(new URL(path, origin).href, {
       ...init,
       signal: init?.signal || signal,
       credentials: 'include',
-      headers: { ...headers, ...headersWithXsrf, ...((init?.headers as Record<string, string>) || {}) }
+      headers: { ...headers, ...extra, ...(init?.headers as Record<string, string> || {}) }
     });
-
-    const res = await doFetch(extra);
-    if (res.status === 403 && needsXsrf(init) && !signal?.aborted) {
-      // XSRF token in BbRouter cookie may have expired or rotated; force-refresh from cookie and retry once
-      const freshToken = await getXsrf(true);
-      if (freshToken) {
-        return doFetch({ [XSRF_HEADER]: freshToken });
-      }
-    }
-    return res;
   };
 }
 
