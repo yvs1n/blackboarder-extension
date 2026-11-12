@@ -48,6 +48,7 @@ import { SESSION_STATUS_KEY, describeSessionBanner, type SessionStatus } from '.
 import { describeUpdateBanner, isUpdateStatusFresh, ENABLE_UPDATES_HINT } from '../utils/updateBanner';
 import { BUILD_INFO } from '../buildInfo';
 import { calendarFeedUrl, cleanCalendarFeedShow } from '../core/calendarLink';
+import { detectUserDevice } from '../core/deviceDetection';
 
 // State
 let currentTasks: DeadlineTask[] = [];
@@ -4701,6 +4702,120 @@ function setupEvents() {
       alert(`Copied WebCal link to clipboard:\n${webcalUrl}\n\nPaste this link into Apple Calendar on your iPhone or Google Calendar on the web to subscribe!`);
     } catch {
       prompt('WebCal Subscription Link:', webcalUrl);
+    }
+  });
+
+  // Widgets & Dynamic Wallpapers in Settings > Calendar
+  const selectWidgetPlatform = document.getElementById('select-popup-widget-platform') as HTMLSelectElement | null;
+  const widgetDeviceBadge = document.getElementById('popup-detected-device-badge');
+  const widgetPanels: Record<string, HTMLElement | null> = {
+    windows: document.getElementById('popup-widget-panel-windows'),
+    ios: document.getElementById('popup-widget-panel-ios'),
+    android: document.getElementById('popup-widget-panel-android'),
+    mac: document.getElementById('popup-widget-panel-mac')
+  };
+
+  const detectedDev = detectUserDevice();
+  let defaultPlat = 'windows';
+  let badgeLabel = 'Windows PC';
+
+  if (detectedDev.isIos) {
+    defaultPlat = 'ios';
+    badgeLabel = detectedDev.isIPhone ? 'iPhone' : (detectedDev.isIPad ? 'iPad' : 'iOS');
+  } else if (detectedDev.isAndroid) {
+    defaultPlat = 'android';
+    badgeLabel = 'Android';
+  } else if (detectedDev.isMac) {
+    defaultPlat = 'mac';
+    badgeLabel = 'macOS';
+  } else if (detectedDev.isWindows) {
+    defaultPlat = 'windows';
+    badgeLabel = 'Windows PC';
+  }
+
+  if (widgetDeviceBadge) widgetDeviceBadge.textContent = badgeLabel;
+  if (selectWidgetPlatform) {
+    selectWidgetPlatform.value = defaultPlat;
+    const updateWidgetPanels = () => {
+      const val = selectWidgetPlatform.value;
+      Object.keys(widgetPanels).forEach(k => {
+        const p = widgetPanels[k];
+        if (p) p.style.display = (k === val) ? 'block' : 'none';
+      });
+    };
+    selectWidgetPlatform.addEventListener('change', updateWidgetPanels);
+    updateWidgetPanels();
+  }
+
+  // Windows: Copy Sync Key
+  document.getElementById('btn-popup-copy-sync-key')?.addEventListener('click', async () => {
+    const s = await getSettings();
+    if (s.syncKey) {
+      await navigator.clipboard.writeText(s.syncKey);
+      showToast(`Copied Sync Key: ${s.syncKey}`);
+    } else {
+      showToast('No Sync Key found. Set up sync first.');
+    }
+  });
+
+  // iOS: Copy Dynamic Wallpaper URL
+  document.getElementById('btn-popup-copy-ios-wp')?.addEventListener('click', async () => {
+    const s = await getSettings();
+    const url = `${SITE_URL}/api/wallpaper?key=${s.syncKey || ''}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Copied Dynamic Wallpaper URL!');
+    } catch {
+      prompt('Dynamic Wallpaper URL:', url);
+    }
+  });
+
+  // iOS: Download Scriptable script (.js)
+  document.getElementById('btn-popup-download-scriptable')?.addEventListener('click', async () => {
+    const s = await getSettings();
+    const key = s.syncKey || '';
+    try {
+      const res = await fetch(`${SITE_URL}/widgets/blackboarder-widget.js`);
+      let code = await res.text();
+      if (key) {
+        code = code.replace(/const SYNC_KEY = '';/, `const SYNC_KEY = '${key}';`);
+      }
+      const blob = new Blob([code], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'blackboarder-widget.js';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded Scriptable script with your sync key!');
+    } catch {
+      window.open(`${SITE_URL}/widgets/blackboarder-widget.js`, '_blank');
+    }
+  });
+
+  // Android: Copy Live Web Widget URL
+  document.getElementById('btn-popup-copy-android-web')?.addEventListener('click', async () => {
+    const s = await getSettings();
+    const url = `${SITE_URL}/widget?key=${s.syncKey || ''}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Copied Live Web Widget URL!');
+    } catch {
+      prompt('Widget URL:', url);
+    }
+  });
+
+  // macOS: Copy Dynamic Desktop Picture Wallpaper URL
+  document.getElementById('btn-popup-copy-mac-wp')?.addEventListener('click', async () => {
+    const s = await getSettings();
+    const url = `${SITE_URL}/api/wallpaper?key=${s.syncKey || ''}&w=3024&h=1964&pos=bottom`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Copied Mac Wallpaper URL!');
+    } catch {
+      prompt('Mac Wallpaper URL:', url);
     }
   });
 

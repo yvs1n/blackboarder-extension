@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
-  "build": "5eae57e5d9bd",
-  "commit": "1017212201966067b071a592ef68bd0368336121",
-  "shortCommit": "1017212",
-  "timestamp": "2026-11-12T12:56:55.231Z",
-  "message": "docs: update readmes, walkthrough, hosting guide, changelog, and landing page for zero-knowledge vault",
+  "build": "79fd89587528",
+  "commit": "1ed192c1ef48068e61eae40790d813e77a90d388",
+  "shortCommit": "1ed192c",
+  "timestamp": "2026-11-12T14:28:18.159Z",
+  "message": "feat: multi-platform liquid glass widgets, dynamic wallpapers, and device detection for iOS, Android, macOS, and Windows",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

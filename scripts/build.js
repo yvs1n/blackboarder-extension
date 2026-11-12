@@ -226,6 +226,14 @@ function copyWidget() {
   // widgets/blackboarder-widget.js is the only copy to edit; the web app serves it for "Copy Widget Script"
   const source = readText(r('widgets', 'blackboarder-widget.js'));
   writeIfChanged(path.join(WEB_DIR, 'widget.js'), source);
+
+  // Copy to mobile-web/widgets/ for direct downloading from the landing page
+  const webWidgetsDir = r('mobile-web', 'widgets');
+  writeIfChanged(path.join(webWidgetsDir, 'blackboarder-widget.js'), source);
+  const kwgtSource = r('widgets', 'android', 'blackboarder-kwgt.json');
+  if (fs.existsSync(kwgtSource)) {
+    writeIfChanged(path.join(webWidgetsDir, 'blackboarder-kwgt.json'), readText(kwgtSource));
+  }
 }
 
 function stampWebApp(git) {
