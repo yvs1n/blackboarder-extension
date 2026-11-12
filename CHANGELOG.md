@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-Platform Liquid Glass Widgets & Dynamic Wallpapers:** Introduced cross-platform frosted glass widgets and dynamic wallpaper automation across iOS, Android, macOS, and Windows.
+  - **iPhone and iPad (iOS):** Live vector SVG dynamic wallpaper generation (`/api/wallpaper?key=...`) automated via Apple Shortcuts, with course color pills, strike-throughs for finished tasks, and pending counters; updated Scriptable accessory widgets with active task filtering and completion checkmarks.
+  - **Android:** Instant Live Web Widget frosted glass cards (`/widget?key=...`), KWGT custom widget integration (`widgets/android/blackboarder-kwgt.json`), and lock screen dynamic wallpaper automation.
+  - **Windows and Mac Desktop:** Native Windows 11/10 companion application (`BlackboarderWidget.exe`) connecting via personal Sync Key; high-resolution desktop dynamic wallpaper generation (`/api/wallpaper?key=...&w=...&h=...&pos=bottom`) automated via macOS Shortcuts.
+  - **Hardware & Device Detection Engine (`src/core/deviceDetection.ts`):** Automatically detects user hardware (iPhone models from 16 Pro Max to SE, Android manufacturers, MacBook Pro/Air and iMac display bounds, Windows PCs) to adapt Settings > Calendar and the post-pairing onboarding wizard with tailored quick-copy buttons and platform guides.
 
 ### Changed
 

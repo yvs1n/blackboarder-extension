@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
-  "build": "a053d62dc0e4",
-  "commit": "0089824d17f2e9a3f0b7d789b9f63b9bbabb387e",
-  "shortCommit": "0089824",
-  "timestamp": "2026-11-11T17:19:10.295Z",
-  "message": "fix(marks): order marks and completed tasks by posting, due, or completion date instead of mark release date",
+  "build": "5eae57e5d9bd",
+  "commit": "1017212201966067b071a592ef68bd0368336121",
+  "shortCommit": "1017212",
+  "timestamp": "2026-11-12T12:56:55.231Z",
+  "message": "docs: update readmes, walkthrough, hosting guide, changelog, and landing page for zero-knowledge vault",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
