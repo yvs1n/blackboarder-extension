@@ -960,8 +960,8 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
         <span class="day-card-course-dot" style="background-color: ${courseHex};"></span>
         <span class="day-card-course-name">${escapeHtml(resolved.courseName)}</span>
       </span>
-      <div style="display: flex; align-items: center; gap: 5px;">
-        <span class="type-pill type-${escapeHtml(task.type)}" style="font-size: 9px; padding: 1px 5px; display: inline-flex; align-items: center; gap: 3px;">
+      <div class="day-card-header-badges">
+        <span class="type-pill type-${escapeHtml(task.type)}">
           ${getTaskTypeIcon(task.type)}
           <span>${escapeHtml(task.type)}</span>
         </span>
@@ -990,7 +990,7 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
         ${getSvgIcon('clock', 'mr-1')} <span class="day-card-time-text">${escapeHtml(timeDisplay)}</span>
       </div>
       ${hasRoom ? `
-        <div class="day-card-room" title="Classroom / Exam Hall" style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: #4338ca; background: #e0e7ff; padding: 1px 6px; border-radius: 4px; border: 1px solid #c7d2fe;">
+        <div class="day-card-room" title="Classroom / Exam Hall">
           ${getSvgIcon('pin', 'mr-1')} <span class="day-card-room-text">${escapeHtml(task.room!)}</span>
         </div>
       ` : ''}
@@ -2323,7 +2323,7 @@ function renderTasks() {
         `;
       } else {
         roomBadgeHtml = `
-          <button type="button" class="room-pill-btn" data-id="${escapeHtml(task.id)}" style="background:#f1f5f9; color:#64748b; border-color:#e2e8f0;" title="Click to assign room">
+          <button type="button" class="room-pill-btn is-empty" data-id="${escapeHtml(task.id)}" title="Click to assign room">
             <span>${getSvgIcon('pin', 'mr-1')} Add Room</span>
             <span class="room-edit-hint">${getSvgIcon('plus')}</span>
           </button>
@@ -2378,8 +2378,8 @@ function renderTasks() {
           <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${courseTheme.hex}; display: inline-block; flex-shrink: 0;"></span>
           <span class="course-name-text" style="color: ${courseTheme.textDark}; font-weight: 700;">${escapeHtml(resolved.courseName)}</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <span class="type-pill type-${escapeHtml(task.type)}" style="display: inline-flex; align-items: center; gap: 3px;">
+        <div class="task-header-right">
+          <span class="type-pill type-${escapeHtml(task.type)}">
             ${getTaskTypeIcon(task.type)}
             <span>${(task.type || 'assignment').toUpperCase()}</span>
           </span>
