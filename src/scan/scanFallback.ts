@@ -22,6 +22,9 @@ export function decideFallback(sources: ScanSourceOutcomes): FallbackDecision {
   if (sources.session === 'expired') return { fallback: false, reason: 'expired' };
   if (sources.session === 'unreachable') return { fallback: true, reason: 'unreachable' };
   if (!sources.courses.ok && !sources.stream.ok) return { fallback: true, reason: 'no-data' };
+  if (!sources.stream.ok && (sources.stream.status === 403 || sources.stream.error?.includes('403'))) {
+    return { fallback: true, reason: 'no-data' };
+  }
   return { fallback: false, reason: null };
 }
 

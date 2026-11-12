@@ -63,6 +63,34 @@ describe('the service worker fetch', () => {
     await serviceWorkerFetch('https://elearning.example.edu', async () => null)('/learn/api/v1/streams/ultra', { method: 'POST' });
     expect(seen[0][XSRF_HEADER]).toBeUndefined();
   });
+
+  it('re-reads fresh cookies and retries POST when receiving a 403 XSRF error', async () => {
+    let attempts = 0;
+    const sentTokens: (string | undefined)[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      attempts++;
+      const headers = init.headers as Record<string, string>;
+      sentTokens.push(headers[XSRF_HEADER]);
+      if (attempts === 1) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+
+    let xsrfCalls = 0;
+    const readXsrf = vi.fn(async () => {
+      xsrfCalls++;
+      return xsrfCalls === 1 ? 'stale-token' : 'fresh-token';
+    });
+
+    const bb = serviceWorkerFetch('https://elearning.example.edu', readXsrf);
+    const res = await bb('/learn/api/v1/streams/ultra', { method: 'POST', body: '{}' });
+
+    expect(res.status).toBe(200);
+    expect(attempts).toBe(2);
+    expect(readXsrf).toHaveBeenCalledTimes(2);
+    expect(sentTokens).toEqual(['stale-token', 'fresh-token']);
+  });
 });
 
 describe('the manifest', () => {

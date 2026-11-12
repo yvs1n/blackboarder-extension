@@ -178,10 +178,11 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
   // Put marks and submissions on their tasks (only changed tasks are touched)
   const marksChanged = applySubmissionUpdates(finalTasks, submissionUpdates);
 
-  // Which gradebook marks found no deadline (shown in the scan message and the console)
+  // Which gradebook marks found no deadline (shown in the scan message and the console).
+  // Early/mock exam marks recorded in gradeSourcesBefore are retained here so they appear in Grades.
   const gradebookMarks = submissionUpdates.filter(u => u.sourceId && u.submissionStatus === 'graded');
   const unmatchedMarks = gradebookMarks.filter(u =>
-    !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
+    !finalTasks.some(t => t.gradeSourceId === u.sourceId)
   );
 
   // Preserve unannounced gradebook marks in the Grades card without creating fake calendar deadlines:
@@ -192,9 +193,11 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
     if (typeof u.score !== 'number' || !u.maxScore) continue;
     const courseKey = (u.courseCode || u.courseName || 'other').replace(/[^A-Za-z0-9_]/g, '');
     const colId = (u.sourceId || '').replace(/^gb:/, '');
+    const taskId = `gbcol_${courseKey}_${colId || u.title.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`;
+    if (tombstones[taskId]) continue;
     const type = markTaskType(u.title);
     finalTasks.push({
-      id: `gbcol_${courseKey}_${colId || u.title.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`,
+      id: taskId,
       courseCode: u.courseCode || '',
       courseName: u.courseName || u.courseCode || 'Other',
       title: u.title || 'Graded Item',

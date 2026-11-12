@@ -122,12 +122,14 @@ async function legacyPipeline(streamAnns: Announcement[], courseAnns: Announceme
   const finalTasks = deduplicateTaskList([...newlyAddedDirect, ...mergedAnnTasks]).filter(isValidTask);
   applySubmissionUpdates(finalTasks, updates);
   const gradebookMarks = updates.filter(u => u.sourceId && u.submissionStatus === 'graded');
-  const unmatched = gradebookMarks.filter(u => !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!)));
+  const unmatched = gradebookMarks.filter(u => !finalTasks.some(t => t.gradeSourceId === u.sourceId));
   const ts = new Date().toISOString();
   for (const u of unmatched) {
     if (typeof u.score !== 'number' || !u.maxScore) continue;
     const courseKey = (u.courseCode || u.courseName || 'other').replace(/[^A-Za-z0-9_]/g, '');
     const colId = (u.sourceId || '').replace(/^gb:/, '');
+    const taskId = `gbcol_${courseKey}_${colId || u.title.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`;
+    if (tombstones[taskId]) continue;
     let type: TaskType = 'assignment';
     const low = (u.title || '').toLowerCase();
     if (/quiz|كويز|اختبار\s*قصير/i.test(low)) type = 'quiz';
@@ -135,7 +137,7 @@ async function legacyPipeline(streamAnns: Announcement[], courseAnns: Announceme
     else if (/project|مشروع|بحث/i.test(low)) type = 'project';
     else if (/lab|تقرير/i.test(low)) type = 'lab';
     finalTasks.push({
-      id: `gbcol_${courseKey}_${colId || u.title.replace(/[^A-Za-z0-9]/g, '').slice(0, 20)}`,
+      id: taskId,
       courseCode: u.courseCode || '', courseName: u.courseName || u.courseCode || 'Other', title: u.title || 'Graded Item',
       description: '', dueDate: '', hasSpecificTime: false, type, priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',
       status: 'completed', submissionStatus: 'graded', score: u.score, maxScore: u.maxScore, scoreDisplay: u.scoreDisplay,
@@ -312,5 +314,63 @@ describe('the HTTP scan reports what it could read', () => {
     expect(enrolled.ok).toBe(false);
     const read = await readBlackboardApi(fetchFn, { origin: 'https://elearning.sharjah.ac.ae' });
     expect(read.sources.session).toBe('unreachable');
+  });
+
+  it('respects tombstones when synthesizing gbcol_ tasks', async () => {
+    const store = installChrome({
+      ...STORE(),
+      bbs_tombstones: { 'gbcol_Physics1_502_1': new Date().toISOString() }
+    });
+    await runScanPipeline({
+      streamAnnouncements: [],
+      courseAnnouncements: [],
+      directTasks: [],
+      submissionUpdates: [
+        { title: 'Lab Report 2', courseName: 'Physics 1', courseCode: '1430 115', submissionStatus: 'graded', score: 9, maxScore: 10, sourceId: 'gb:_502_1' } as TaskSubmissionUpdate
+      ],
+      gradebook: { courses: 1, coursesRead: 1, skipped: [] },
+      checkpoint: emptyCheckpoint(),
+      fullRescan: false,
+      isInteractive: () => false
+    });
+    const tasks = store.bbs_tasks as DeadlineTask[];
+    expect(tasks.some(t => t.id === 'gbcol_Physics1_502_1')).toBe(false);
+  });
+
+  it('preserves early/mock exam marks that were refused by upcoming exams', async () => {
+    const futureMidterm: DeadlineTask = {
+      id: 'task_midterm', courseCode: '1430 115', courseName: 'Physics 1', title: 'Midterm Exam', description: '',
+      dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(), hasSpecificTime: true, type: 'exam', priority: 'high',
+      status: 'pending', confidence: 1, extractedBy: 'local', sourceSnippet: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    };
+    const store = installChrome({
+      ...STORE(),
+      bbs_tasks: [futureMidterm]
+    });
+    // Grade dated before the exam date: refused by futureMidterm as early, recorded in gradeSourcesBefore
+    const earlyMark: TaskSubmissionUpdate = {
+      title: 'Midterm Exam', courseName: 'Physics 1', courseCode: '1430 115', submissionStatus: 'graded',
+      score: 18, maxScore: 20, sourceId: 'gb:_mid_mock', gradedAt: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString()
+    };
+    await runScanPipeline({
+      streamAnnouncements: [],
+      courseAnnouncements: [],
+      directTasks: [],
+      submissionUpdates: [earlyMark],
+      gradebook: { courses: 1, coursesRead: 1, skipped: [] },
+      checkpoint: emptyCheckpoint(),
+      fullRescan: false,
+      isInteractive: () => false
+    });
+    const tasks = store.bbs_tasks as DeadlineTask[];
+    // Future midterm still has no score
+    const midterm = tasks.find(t => t.id === 'task_midterm');
+    expect(midterm?.score).toBeUndefined();
+    expect(midterm?.gradeSourcesBefore).toContain('gb:_mid_mock');
+    // But the early mark is preserved as a gbcol_ task so the score is not lost
+    const mockTask = tasks.find(t => t.gradeSourceId === 'gb:_mid_mock');
+    expect(mockTask).toBeDefined();
+    expect(mockTask?.score).toBe(18);
+    expect(mockTask?.status).toBe('completed');
   });
 });

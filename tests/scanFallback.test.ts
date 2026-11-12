@@ -48,6 +48,11 @@ describe('when the HTTP scan falls back to the tab scanner', () => {
     expect(describePartialFailures(noStream)).toContain('activity stream could not be read');
   });
 
+  it('stream failed with 403 (XSRF token failure): falls back to tab scanner', () => {
+    const s = sources({ stream: { ok: false, status: 403, error: 'HTTP 403' } });
+    expect(decideFallback(s)).toEqual({ fallback: true, reason: 'no-data' });
+  });
+
   it('a full read adds nothing to the message', () => {
     expect(describePartialFailures(sources())).toBe('');
     expect(describePartialFailures(undefined)).toBe('');

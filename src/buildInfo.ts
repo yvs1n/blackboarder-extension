@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
-  "build": "40d2bf27672f",
-  "commit": "ab36e5698a2f62873b1b7b94cd3d95c02897dd4b",
-  "shortCommit": "ab36e56",
-  "timestamp": "2026-11-12T14:33:01.661Z",
-  "message": "feat: photo-overlay lock screen wallpaper workflow, iOS widget documentation, and multi-platform companion links",
+  "build": "9862c4008eb1",
+  "commit": "8bc157f52f4924b603e4633ef945949d87e0a9bb",
+  "shortCommit": "8bc157f",
+  "timestamp": "2026-11-12T17:10:11.637Z",
+  "message": "feat: device-aware widgets download section on landing page and extension popup, fix hero tab wrapping",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

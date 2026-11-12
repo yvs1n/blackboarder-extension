@@ -12,6 +12,15 @@
 const VAULT_SALT = 'blackboarder_vault_salt_v1';
 const VAULT_INFO = 'blackboarder_vault_encryption';
 
+const vaultKeyCache = new Map<string, CryptoKey>();
+
+/**
+ * Clears the in-memory cache of derived CryptoKeys (useful for testing or unpairing).
+ */
+export function clearVaultKeyCache(): void {
+  vaultKeyCache.clear();
+}
+
 function getCryptoSubtle(): SubtleCrypto {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) {
@@ -49,11 +58,16 @@ export function base64UrlToBytes(str: string): Uint8Array {
 
 /**
  * Derives a 256-bit AES-GCM CryptoKey from the secret sync key using HKDF-SHA256.
+ * Caches derived keys in-memory so subsequent calls within a session avoid redundant HKDF computations.
  */
 export async function deriveVaultCryptoKey(syncKey: string): Promise<CryptoKey> {
   const cleanKey = (syncKey || '').trim();
   if (!cleanKey) {
     throw new Error('Cannot derive vault key: syncKey is empty');
+  }
+  const cached = vaultKeyCache.get(cleanKey);
+  if (cached) {
+    return cached;
   }
   const subtle = getCryptoSubtle();
   const enc = new TextEncoder();
@@ -64,7 +78,7 @@ export async function deriveVaultCryptoKey(syncKey: string): Promise<CryptoKey> 
     false,
     ['deriveKey']
   );
-  return subtle.deriveKey(
+  const derivedKey = await subtle.deriveKey(
     {
       name: 'HKDF',
       hash: 'SHA-256',
@@ -76,6 +90,8 @@ export async function deriveVaultCryptoKey(syncKey: string): Promise<CryptoKey> 
     false,
     ['encrypt', 'decrypt']
   );
+  vaultKeyCache.set(cleanKey, derivedKey);
+  return derivedKey;
 }
 
 /**
