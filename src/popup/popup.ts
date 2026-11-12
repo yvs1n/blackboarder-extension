@@ -92,6 +92,7 @@ const legendChipsContainer = document.getElementById('legend-chips-container') a
 const selectedDayTitle = document.getElementById('selected-day-title') as HTMLElement;
 const selectedDayList = document.getElementById('selected-day-list') as HTMLDivElement;
 const btnAddOnDate = document.getElementById('btn-add-on-date') as HTMLButtonElement;
+const btnExpandDay = document.getElementById('btn-expand-day') as HTMLButtonElement | null;
 
 // Expanded Day View Drawer Elements
 const dayExpandedBackdrop = document.getElementById('day-expanded-backdrop') as HTMLDivElement;
@@ -690,10 +691,10 @@ function createDayCell(
       chip.title = `${resolved.courseName}: ${task.title} ${task.weightDisplay ? `(${task.weightDisplay})` : ''} - ${timeStr} - Click to expand day view`;
     }
 
-    // Clicking directly on chip expands the view of this day
+    // Clicking directly on chip selects the day and shows details inline
     chip.addEventListener('click', e => {
       e.stopPropagation();
-      selectDay(dateKey, true);
+      selectDay(dateKey, false);
     });
 
     chipsContainer.appendChild(chip);
@@ -712,10 +713,10 @@ function createDayCell(
       chip.style.borderLeftWidth = '3px';
       chip.style.borderLeftStyle = 'solid';
       chip.innerHTML = `${getSvgIcon('clock')} <span>${escapeHtml(c.courseName)}</span>`;
-      chip.title = `Class: ${c.courseName} (${formatClock(c.start)} - ${formatClock(c.end)})${c.room ? ' in ' + c.room : ''} - Click to expand day view`;
+      chip.title = `Class: ${c.courseName} (${formatClock(c.start)} - ${formatClock(c.end)})${c.room ? ' in ' + c.room : ''} - Click to select day`;
       chip.addEventListener('click', e => {
         e.stopPropagation();
-        selectDay(dateKey, true);
+        selectDay(dateKey, false);
       });
       chipsContainer.appendChild(chip);
     });
@@ -728,23 +729,23 @@ function createDayCell(
     more.textContent = `+${totalEvents - maxVisibleChips}`;
     more.addEventListener('click', e => {
       e.stopPropagation();
-      selectDay(dateKey, true);
+      openDayExpandedDrawer(dateKey);
     });
     header.appendChild(more);
   }
 
   cell.appendChild(chipsContainer);
 
-  // Click handler on day cell to select this day and expand its view
+  // Click handler on day cell to select this day inline
   cell.addEventListener('click', () => {
-    selectDay(dateKey, true);
+    selectDay(dateKey, false);
   });
 
   // Keyboard accessibility
   cell.addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      selectDay(dateKey, true);
+      selectDay(dateKey, false);
     }
   });
 
@@ -752,7 +753,7 @@ function createDayCell(
 }
 
 // Select a day in the calendar and optionally open the expanded day drawer
-function selectDay(dateKey: string, openDrawer: boolean = true) {
+function selectDay(dateKey: string, openDrawer: boolean = false) {
   selectedDateStr = dateKey;
   document.querySelectorAll('.cal-day.is-selected').forEach(el => el.classList.remove('is-selected'));
   const activeEl = document.querySelector(`.cal-day[data-date="${dateKey}"]`);
@@ -949,6 +950,10 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   card.style.borderLeft = `4px solid ${courseHex}`;
   card.style.setProperty('border-left-color', courseHex, 'important');
 
+  const hasRoom = !isHwOrProject && Boolean(task.room);
+  const hasWeight = Boolean(task.weightDisplay || task.weight);
+  const hasSubmitted = task.submissionStatus === 'submitted';
+
   card.innerHTML = `
     <div class="day-card-header">
       <span class="day-card-course-badge" style="background: ${courseTheme.bgLight}; color: ${courseTheme.textDark}; border: 1px solid ${courseTheme.border};" title="${escapeHtml(resolved.courseName)} ${resolved.courseCode ? `(${escapeHtml(resolved.courseCode)})` : ''}">
@@ -963,71 +968,81 @@ function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
         <span class="day-card-status-badge ${isCompleted ? 'status-done' : countdown.urgency}">
           ${isCompleted ? `${getSvgIcon('check', 'mr-1')} Completed` : countdown.label}
         </span>
+        ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
+          <span class="task-grade-pill" title="Grade / Score released on Blackboard">
+            ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
+          </span>
+        ` : ''}
       </div>
     </div>
 
-    <div class="day-card-title-row">
-      <div class="day-card-title ${isCompleted ? 'title-completed' : ''}">
+    <div class="day-card-title-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div class="day-card-title ${isCompleted ? 'title-completed' : ''}" style="flex: 1;">
         ${escapeHtml(task.title)}
       </div>
+      <button type="button" class="btn-card-action btn-card-toggle ${isCompleted ? 'btn-is-completed' : ''}" style="flex-shrink: 0; min-height: 24px; padding: 2px 8px; font-size: 10px;" title="${isCompleted ? 'Mark as Pending' : 'Mark as Done'}">
+        ${isCompleted ? `${getSvgIcon('check', 'mr-1')} Done` : `${getSvgIcon('circle', 'mr-1')} Mark Done`}
+      </button>
     </div>
 
-    <div class="day-card-meta-row">
+    <div class="day-card-meta-row" style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted);">
       <div class="day-card-time" title="Scheduled / Due Time">
         ${getSvgIcon('clock', 'mr-1')} <span class="day-card-time-text">${escapeHtml(timeDisplay)}</span>
       </div>
-      ${(!isHwOrProject && task.room) ? `
-        <div class="day-card-room" title="Classroom / Exam Hall" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #4338ca; background: #e0e7ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #c7d2fe;">
-          ${getSvgIcon('pin', 'mr-1')} <span class="day-card-room-text">${escapeHtml(task.room)}</span>
+      ${hasRoom ? `
+        <div class="day-card-room" title="Classroom / Exam Hall" style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; color: #4338ca; background: #e0e7ff; padding: 1px 6px; border-radius: 4px; border: 1px solid #c7d2fe;">
+          ${getSvgIcon('pin', 'mr-1')} <span class="day-card-room-text">${escapeHtml(task.room!)}</span>
         </div>
       ` : ''}
-      ${task.weightDisplay ? `
-        <div class="day-card-weight" title="${task.syllabusNote ? escapeHtml(task.syllabusNote) : 'Syllabus grade weight'}">
-          ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(task.weightDisplay)}</span>
-        </div>
-      ` : ''}
-      ${targetBadgeHtml}
-      ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
-        <div class="task-grade-pill" title="Grade / Score released on Blackboard">
-          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
-        </div>
-      ` : ''}
-      ${task.submissionStatus === 'submitted' ? `
-        <div class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
-          ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+      ${hasWeight ? `
+        <div class="day-card-weight" style="font-size: 10.5px;" title="${task.syllabusNote ? escapeHtml(task.syllabusNote) : 'Syllabus grade weight'}">
+          ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(task.weightDisplay || `${task.weight}%`)}</span>
         </div>
       ` : ''}
     </div>
 
-    ${renderDoctorQuoteHtml(task, resolved.courseName, resolved.courseCode, 'quote-body-day-')}
-
-    ${task.notes ? `
-      <div class="day-card-student-notes" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 0;">
-        <span style="font-size: 10px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;">
-          ${getSvgIcon('pencil')}
-          <span>Student Notes:</span>
-        </span>
-        <div style="font-size: 11px; color: var(--text-main); margin-top: 2px; white-space: pre-wrap;">${escapeHtml(task.notes)}</div>
+    <details class="day-card-details">
+      <summary class="day-card-details-summary">
+        <span>Details &amp; Actions</span>
+        <svg class="ui-icon details-chevron"><use href="#icon-chevron-right"></use></svg>
+      </summary>
+      <div class="day-card-details-content">
+        ${targetBadgeHtml || hasSubmitted ? `
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            ${targetBadgeHtml}
+            ${hasSubmitted ? `
+              <div class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
+                ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+        ${renderDoctorQuoteHtml(task, resolved.courseName, resolved.courseCode, 'quote-body-day-')}
+        ${task.notes ? `
+          <div class="day-card-student-notes" style="margin-top: 4px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 0;">
+            <span style="font-size: 10px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;">
+              ${getSvgIcon('pencil')}
+              <span>Student Notes:</span>
+            </span>
+            <div style="font-size: 11px; color: var(--text-main); margin-top: 2px; white-space: pre-wrap;">${escapeHtml(task.notes)}</div>
+          </div>
+        ` : ''}
+        <div class="day-card-actions">
+          <button type="button" class="btn-card-action btn-card-share" title="Share / Copy Task Details">
+            ${getSvgIcon('share', 'mr-1')} Share
+          </button>
+          <button type="button" class="btn-card-action btn-card-edit" title="Edit Deadline">
+            ${getSvgIcon('pencil', 'mr-1')} Edit
+          </button>
+          <a class="btn-card-action btn-card-gcal" href="${createGoogleCalendarUrl(task)}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
+            ${getSvgIcon('calendar', 'mr-1')} G-Cal
+          </a>
+          <button type="button" class="btn-card-action btn-card-delete" title="Delete Deadline">
+            ${getSvgIcon('trash')}
+          </button>
+        </div>
       </div>
-    ` : ''}
-
-    <div class="day-card-actions">
-      <button type="button" class="btn-card-action btn-card-toggle ${isCompleted ? 'btn-is-completed' : ''}" title="${isCompleted ? 'Mark as Pending' : 'Mark as Done'}">
-        ${isCompleted ? `${getSvgIcon('check', 'mr-1')} Completed` : `${getSvgIcon('circle', 'mr-1')} Mark Done`}
-      </button>
-      <button type="button" class="btn-card-action btn-card-share" title="Share / Copy Task Details">
-        ${getSvgIcon('share', 'mr-1')} Share
-      </button>
-      <button type="button" class="btn-card-action btn-card-edit" title="Edit Deadline">
-        ${getSvgIcon('pencil', 'mr-1')} Edit
-      </button>
-      <a class="btn-card-action btn-card-gcal" href="${createGoogleCalendarUrl(task)}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
-        ${getSvgIcon('calendar', 'mr-1')} G-Cal
-      </a>
-      <button type="button" class="btn-card-action btn-card-delete" title="Delete Deadline">
-        ${getSvgIcon('trash')}
-      </button>
-    </div>
+    </details>
   `;
 
   // Attach event listeners
@@ -2368,6 +2383,16 @@ function renderTasks() {
             ${getTaskTypeIcon(task.type)}
             <span>${(task.type || 'assignment').toUpperCase()}</span>
           </span>
+          <span class="urgency-badge ${countdown.urgency}">
+            ${countdown.urgency === 'completed'
+              ? `${getSvgIcon('check', 'mr-1')} ${countdown.label}`
+              : (countdown.urgency === 'overdue' ? `${getSvgIcon('urgent', 'mr-1')} ${countdown.label}` : `${getSvgIcon('clock', 'mr-1')} ${countdown.label}`)}
+          </span>
+          ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
+            <span class="task-grade-pill" title="Grade / Score released on Blackboard">
+              ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
+            </span>
+          ` : ''}
         </div>
       </div>
 
@@ -2377,55 +2402,53 @@ function renderTasks() {
           ${isCompleted ? '✓' : ''}
         </button>
         <div class="task-title-text">${escapeHtml(task.title)}</div>
+        ${task.priority === 'high' ? '<span class="high-priority-tag" style="margin-left: auto;">HIGH</span>' : ''}
       </div>
 
-      <div class="task-due-row">
-        <span class="urgency-badge ${countdown.urgency}">
-          ${countdown.urgency === 'completed'
-            ? `${getSvgIcon('check', 'mr-1')} ${countdown.label}`
-            : (countdown.urgency === 'overdue' ? `${getSvgIcon('urgent', 'mr-1')} ${countdown.label}` : `${getSvgIcon('clock', 'mr-1')} ${countdown.label}`)}
-        </span>
-        ${roomBadgeHtml}
-        ${weightBadgeHtml}
-        ${classTimeBadgeHtml}
-        ${targetBadgeHtml}
-        ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
-          <span class="task-grade-pill" title="Grade / Score released on Blackboard">
-            ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
-          </span>
-        ` : ''}
-        ${task.submissionStatus === 'submitted' ? `
-          <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
-            ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
-          </span>
-        ` : ''}
-      </div>
+      <!-- Collapsible Secondary Metadata & Actions -->
+      <details class="task-card-details">
+        <summary class="task-card-details-summary">
+          <span>Details &amp; Actions</span>
+          <svg class="ui-icon details-chevron"><use href="#icon-chevron-right"></use></svg>
+        </summary>
+        <div class="task-card-details-content">
+          <div class="task-due-row" style="margin: 0; display: flex; flex-wrap: wrap; gap: 6px;">
+            ${roomBadgeHtml}
+            ${weightBadgeHtml}
+            ${classTimeBadgeHtml}
+            ${targetBadgeHtml}
+            ${task.submissionStatus === 'submitted' ? `
+              <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
+                ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+              </span>
+            ` : ''}
+          </div>
 
-      ${task.priority === 'high' ? '<div class="priority-label-row"><span class="high-priority-tag">HIGH PRIORITY</span></div>' : ''}
+          ${doctorQuoteHtml}
+          ${studentNotesHtml}
 
-      ${doctorQuoteHtml}
-      ${studentNotesHtml}
-
-      <!-- Card Action Buttons matching website -->
-      <div class="task-card-footer">
-        <button type="button" class="btn-card-action btn-share-card" data-id="${escapeHtml(task.id)}" title="Share task details">
-          ${getSvgIcon('share', 'mr-1')} <span class="btn-responsive-label">Share</span>
-        </button>
-        <button type="button" class="btn-card-action btn-edit-card" data-id="${escapeHtml(task.id)}" title="Edit deadline">
-          ${getSvgIcon('pencil', 'mr-1')} <span class="btn-responsive-label">Edit</span>
-        </button>
-        <a class="btn-card-action btn-gcal" href="${gcalUrl}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
-          ${getSvgIcon('calendar', 'mr-1')} <span class="btn-responsive-label">G-Calendar</span>
-        </a>
-        <button type="button" class="btn-card-action btn-card-toggle" data-id="${escapeHtml(task.id)}">
-          ${isCompleted ? `${getSvgIcon('refresh', 'mr-1')} <span class="btn-responsive-label">Mark Pending</span>` : `${getSvgIcon('check', 'mr-1')} <span class="btn-responsive-label">Mark Done</span>`}
-        </button>
-      </div>
+          <!-- Card Action Buttons matching website -->
+          <div class="task-card-footer">
+            <button type="button" class="btn-card-action btn-share-card" data-id="${escapeHtml(task.id)}" title="Share task details">
+              ${getSvgIcon('share', 'mr-1')} <span class="btn-responsive-label">Share</span>
+            </button>
+            <button type="button" class="btn-card-action btn-edit-card" data-id="${escapeHtml(task.id)}" title="Edit deadline">
+              ${getSvgIcon('pencil', 'mr-1')} <span class="btn-responsive-label">Edit</span>
+            </button>
+            <a class="btn-card-action btn-gcal" href="${gcalUrl}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
+              ${getSvgIcon('calendar', 'mr-1')} <span class="btn-responsive-label">G-Calendar</span>
+            </a>
+            <button type="button" class="btn-card-action btn-card-toggle" data-id="${escapeHtml(task.id)}">
+              ${isCompleted ? `${getSvgIcon('refresh', 'mr-1')} <span class="btn-responsive-label">Mark Pending</span>` : `${getSvgIcon('check', 'mr-1')} <span class="btn-responsive-label">Mark Done</span>`}
+            </button>
+          </div>
+        </div>
+      </details>
     `;
 
     // Card body click opens reading sheet
     card.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+      if ((e.target as HTMLElement).closest('button, a, input, select, details, summary')) return;
       openReadingSheet(task);
     });
 
@@ -3688,6 +3711,11 @@ function setupEvents() {
     switchView('add');
   });
 
+  // Explicitly expand day drawer on demand
+  btnExpandDay?.addEventListener('click', () => {
+    openDayExpandedDrawer(selectedDateStr);
+  });
+
   // Expanded Day View Drawer Controls
   btnDrawerClose?.addEventListener('click', closeDayExpandedDrawer);
   dayExpandedBackdrop?.addEventListener('click', closeDayExpandedDrawer);
@@ -4280,15 +4308,15 @@ function setupEvents() {
     showToast(settingAutoScan.checked ? 'Auto-scan on' : 'Auto-scan off');
   });
 
-  // Settings Form Submit
-  formSettings.addEventListener('submit', async e => {
-    e.preventDefault();
-    const apiKey = (document.getElementById('setting-apikey') as HTMLInputElement).value;
-    const model = (document.getElementById('setting-model') as HTMLSelectElement).value;
-    const useAi = (document.getElementById('setting-use-ai') as HTMLInputElement).checked;
-    const autoScan = (document.getElementById('setting-autoscan') as HTMLInputElement).checked;
-    const badgeNotif = (document.getElementById('setting-badge-notif') as HTMLInputElement).checked;
-    const reminderHours = parseInt((document.getElementById('setting-reminder-hours') as HTMLSelectElement).value, 10);
+  let autoSaveSettingsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function persistSettingsForm(showToastFeedback: boolean = true) {
+    const apiKey = (document.getElementById('setting-apikey') as HTMLInputElement)?.value || '';
+    const model = (document.getElementById('setting-model') as HTMLSelectElement)?.value || 'google/gemini-3.8-flash';
+    const useAi = (document.getElementById('setting-use-ai') as HTMLInputElement)?.checked ?? false;
+    const autoScan = (document.getElementById('setting-autoscan') as HTMLInputElement)?.checked ?? false;
+    const badgeNotif = (document.getElementById('setting-badge-notif') as HTMLInputElement)?.checked ?? false;
+    const reminderHours = parseInt((document.getElementById('setting-reminder-hours') as HTMLSelectElement)?.value || '24', 10);
 
     const syncMidnight = (document.getElementById('setting-sync-midnight') as HTMLInputElement)?.checked ?? true;
     const syncOnScan = (document.getElementById('setting-sync-onscan') as HTMLInputElement)?.checked ?? true;
@@ -4338,8 +4366,44 @@ function setupEvents() {
       channel.close();
     } catch {}
 
-    alert('Settings saved successfully!');
-    switchView('calendar');
+    if (showToastFeedback) {
+      showToast('Settings saved');
+    }
+  }
+
+  function queueAutoSaveSettings(): void {
+    if (autoSaveSettingsTimer) clearTimeout(autoSaveSettingsTimer);
+    autoSaveSettingsTimer = setTimeout(() => {
+      autoSaveSettingsTimer = null;
+      persistSettingsForm(true).catch(err => {
+        console.warn('[Popup] Auto-save settings failed:', err);
+      });
+    }, 450);
+  }
+
+  // Settings Form Submit
+  formSettings.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (autoSaveSettingsTimer) {
+      clearTimeout(autoSaveSettingsTimer);
+      autoSaveSettingsTimer = null;
+    }
+    await persistSettingsForm(true);
+  });
+
+  // Auto-save settings on toggle, select, and input changes
+  formSettings.addEventListener('change', (e) => {
+    const target = e.target as HTMLElement;
+    if (target && target.matches('input[type="checkbox"], select, input[type="radio"]')) {
+      queueAutoSaveSettings();
+    }
+  });
+
+  formSettings.addEventListener('input', (e) => {
+    const target = e.target as HTMLElement;
+    if (target && target.matches('input[type="text"], input[type="password"], input[type="url"], textarea')) {
+      queueAutoSaveSettings();
+    }
   });
 
   // Scanner Maintenance Actions
@@ -5980,8 +6044,6 @@ async function initWalkthroughModal() {
   const btnBack = document.getElementById('btn-walkthrough-back');
   const btnSkip = document.getElementById('btn-walkthrough-skip');
   const btnReplay = document.getElementById('btn-replay-walkthrough');
-  const keyDisplay = document.getElementById('wt-key-display');
-  const btnCopyKey = document.getElementById('btn-wt-copy-key');
   const stepButtons = modal.querySelectorAll<HTMLButtonElement>('.walkthrough-step-btn');
   const panes = modal.querySelectorAll<HTMLDivElement>('.walkthrough-pane');
 
@@ -5998,12 +6060,8 @@ async function initWalkthroughModal() {
     } catch {
       window.open(bbUrl, '_blank', 'noopener');
     }
+    showToast('Opening Blackboard. Click Scan at the top right or press Alt+B once loaded.');
   });
-
-  const settings = await getSettings();
-  if (keyDisplay && settings.syncKey) {
-    keyDisplay.textContent = settings.syncKey;
-  }
 
   function setStep(step: number) {
     currentStep = Math.max(1, Math.min(totalSteps, step));
@@ -6030,9 +6088,6 @@ async function initWalkthroughModal() {
 
   function openModal() {
     if (!modal) return;
-    getSettings().then(s => {
-      if (keyDisplay && s.syncKey) keyDisplay.textContent = s.syncKey;
-    }).catch(() => {});
     setStep(1);
     modal.style.display = 'flex';
     modal.classList.remove('hidden');
@@ -6081,19 +6136,6 @@ async function initWalkthroughModal() {
       const s = parseInt(btn.getAttribute('data-step') || '1', 10);
       setStep(s);
     });
-  });
-
-  btnCopyKey?.addEventListener('click', async () => {
-    const s = await getSettings();
-    const key = s.syncKey;
-    if (key) {
-      try {
-        await navigator.clipboard.writeText(key);
-        showToast(`Copied Sync Key: ${key}`);
-      } catch {
-        showToast(`Sync Key: ${key}`);
-      }
-    }
   });
 
   // Same as Settings > Sync > Copy Phone Pairing Link (it carries the AI pass)

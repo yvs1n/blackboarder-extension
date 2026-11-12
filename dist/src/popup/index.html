@@ -6,8 +6,8 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-DIUvTi7l.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-BNl2UkHH.css">
+  <script type="module" crossorigin src="../../assets/popup-DLIa2Nhq.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-DJbdNe8m.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -387,10 +387,16 @@
           <svg class="ui-icon mr-1"><use href="#icon-calendar"></use></svg>
           <span>Deadlines for Today</span>
         </div>
-        <button class="btn-xs-add" id="btn-add-on-date" title="Add deadline on this date">
-          <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
-          <span>Add</span>
-        </button>
+        <div class="selected-day-actions">
+          <button type="button" class="btn-xs-expand" id="btn-expand-day" title="Open expanded day view">
+            <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
+            <span>Expand</span>
+          </button>
+          <button class="btn-xs-add" id="btn-add-on-date" title="Add deadline on this date">
+            <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+            <span>Add</span>
+          </button>
+        </div>
       </div>
       <!-- That day's classes, from each course's meeting times -->
       <div class="selected-day-classes" id="selected-day-classes" aria-label="Classes" style="display: none;"></div>
@@ -2065,7 +2071,7 @@
             </div>
             <div>
               <h4 class="walkthrough-hero-title">2. Scan Blackboard</h4>
-              <p class="walkthrough-hero-desc">Click Scan Blackboard at the bottom right of the page, or press Alt+B to find your quizzes, assignments and exams automatically.</p>
+              <p class="walkthrough-hero-desc">Click Scan at the top right of this popup, or the button at the bottom right of any Blackboard page (or press Alt+B) to find your deadlines and marks automatically.</p>
             </div>
           </div>
 
