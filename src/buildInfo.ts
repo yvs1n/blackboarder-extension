@@ -14,10 +14,10 @@ export interface BuildInfo {
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
   "build": "40d2bf27672f",
-  "commit": "ab36e5698a2f62873b1b7b94cd3d95c02897dd4b",
-  "shortCommit": "ab36e56",
-  "timestamp": "2026-11-12T14:33:01.661Z",
-  "message": "feat: photo-overlay lock screen wallpaper workflow, iOS widget documentation, and multi-platform companion links",
+  "commit": "24ab1ff444266ef010222623fe2ff77c728e22f0",
+  "shortCommit": "24ab1ff",
+  "timestamp": "2026-11-12T19:19:47.005Z",
+  "message": "ci: trigger sync with public extension repository",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
