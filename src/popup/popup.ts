@@ -4807,6 +4807,18 @@ function setupEvents() {
     }
   });
 
+  // macOS: Copy 1-Line Terminal Setup Command
+  document.getElementById('btn-popup-copy-mac-cmd')?.addEventListener('click', async () => {
+    const s = await getSettings();
+    const cmd = `curl -fsSL ${SITE_URL}/install-mac.sh | bash -s "${s.syncKey || ''}"`;
+    try {
+      await navigator.clipboard.writeText(cmd);
+      showToast('Copied 1-Line Terminal Command!');
+    } catch {
+      prompt('Mac Terminal Command:', cmd);
+    }
+  });
+
   // macOS: Copy Dynamic Desktop Picture Wallpaper URL
   document.getElementById('btn-popup-copy-mac-wp')?.addEventListener('click', async () => {
     const s = await getSettings();

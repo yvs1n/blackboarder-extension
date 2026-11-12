@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.7.1",
-  "build": "79fd89587528",
-  "commit": "1ed192c1ef48068e61eae40790d813e77a90d388",
-  "shortCommit": "1ed192c",
-  "timestamp": "2026-11-12T14:28:18.159Z",
-  "message": "feat: multi-platform liquid glass widgets, dynamic wallpapers, and device detection for iOS, Android, macOS, and Windows",
+  "build": "40d2bf27672f",
+  "commit": "ab36e5698a2f62873b1b7b94cd3d95c02897dd4b",
+  "shortCommit": "ab36e56",
+  "timestamp": "2026-11-12T14:33:01.661Z",
+  "message": "feat: photo-overlay lock screen wallpaper workflow, iOS widget documentation, and multi-platform companion links",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
