@@ -12,12 +12,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.0",
-  "build": "c6c3de02a174",
-  "commit": "7ea32e064d72287d593b5601562541fba485df64",
-  "shortCommit": "7ea32e0",
-  "timestamp": "2026-11-13T19:29:34.072Z",
-  "message": "v1.8.0: feat: promote iOS Scriptable widget as primary mobile option and align popup sync key injection",
+  "version": "1.8.1",
+  "build": "61ee47d60eb9",
+  "commit": "3cdb44314537997e8595be6dbeb80536b4af9dbe",
+  "shortCommit": "3cdb443",
+  "timestamp": "2026-11-13T22:14:21.509Z",
+  "message": "v1.8.0: build: update generated files for 73d58a0",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

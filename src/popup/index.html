@@ -294,7 +294,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.0</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.1</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -874,6 +874,56 @@
             <span>Replay Setup Guide</span>
           </button>
         </div>
+
+        <!-- Card: Desktop Companion App -->
+        <div class="settings-card" id="card-desktop-companion">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-terminal"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Desktop Companion App</h3>
+                <p class="settings-card-subtitle">Live lock screen &amp; desktop widget</p>
+              </div>
+            </div>
+            <span class="settings-pill pill-blue" id="popup-detected-device-badge">Desktop</span>
+          </div>
+
+          <p class="settings-card-desc">Display real-time frosted glass deadline cards on your lock screen and desktop background.</p>
+
+          <!-- Windows Panel -->
+          <div id="popup-widget-panel-windows" class="popup-widget-platform-panel">
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+              Standalone desktop &amp; lock screen widget app. Connects using your private Sync Key.
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest/download/BlackboarderWidget.exe" target="_blank" rel="noopener noreferrer" class="btn-outline-action" style="flex: 1; min-width: 140px; text-decoration: none; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                <svg class="ui-icon"><use href="#icon-download"></use></svg>
+                <span>Download Windows App (.exe)</span>
+              </a>
+              <button type="button" class="btn-outline-action" id="btn-popup-copy-sync-key" style="flex: 1; min-width: 120px;">
+                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
+                <span id="txt-popup-copy-sync-key">Copy Sync Key</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- macOS Panel -->
+          <div id="popup-widget-panel-mac" class="popup-widget-platform-panel" style="display: none;">
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+              Native 1-line Terminal setup or dynamic desktop wallpaper via Apple Shortcuts.
+            </p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn-outline-action" id="btn-popup-copy-mac-cmd" style="flex: 1; min-width: 140px;">
+                <svg class="ui-icon mr-1"><use href="#icon-terminal"></use></svg>
+                <span id="txt-popup-copy-mac-cmd">Copy 1-Line Setup</span>
+              </button>
+              <button type="button" class="btn-outline-action" id="btn-popup-copy-mac-wp" style="flex: 1; min-width: 120px;">
+                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
+                <span id="txt-popup-copy-mac-wp">Copy Wallpaper URL</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-page" id="settings-page-sync" role="tabpanel" aria-labelledby="settings-tab-sync" hidden>
@@ -1016,100 +1066,6 @@
               <span>Copy Calendar Link</span>
             </button>
         </div>
-
-        <!-- Widgets and Dynamic Wallpapers -->
-        <div class="settings-card" id="card-extension-widgets">
-          <div class="settings-card-header">
-            <div class="settings-icon-title">
-              <span class="card-icon"><svg class="ui-icon"><use href="#icon-smartphone"></use></svg></span>
-              <div>
-                <h3 class="settings-card-title">Widgets &amp; Dynamic Wallpapers</h3>
-                <p class="settings-card-subtitle">Live deadline cards for iPhone, Android, Windows &amp; Mac</p>
-              </div>
-            </div>
-            <span class="settings-pill pill-blue" id="popup-detected-device-badge">Desktop</span>
-          </div>
-
-          <p class="settings-card-desc">Display real-time frosted glass deadline cards on your lock screen, home screen, or desktop background.</p>
-
-          <div class="form-group" style="margin: 0 0 10px;">
-            <label class="form-label" for="select-popup-widget-platform">Your Platform</label>
-            <select id="select-popup-widget-platform" class="form-select">
-              <option value="windows">Windows 11 / 10</option>
-              <option value="ios">iPhone &amp; iPad</option>
-              <option value="android">Android</option>
-              <option value="mac">macOS</option>
-            </select>
-          </div>
-
-          <!-- Windows Panel -->
-          <div id="popup-widget-panel-windows" class="popup-widget-platform-panel">
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-              Standalone desktop &amp; lock screen widget app. Connects using your private Sync Key.
-            </p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest/download/BlackboarderWidget.exe" target="_blank" rel="noopener noreferrer" class="btn-outline-action" style="flex: 1; min-width: 140px; text-decoration: none; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                <svg class="ui-icon"><use href="#icon-download"></use></svg>
-                <span>Download Windows App (.exe)</span>
-              </a>
-              <button type="button" class="btn-outline-action" id="btn-popup-copy-sync-key" style="flex: 1; min-width: 120px;">
-                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
-                <span id="txt-popup-copy-sync-key">Copy Sync Key</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- iOS Panel -->
-          <div id="popup-widget-panel-ios" class="popup-widget-platform-panel" style="display: none;">
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-              Dynamic lock screen wallpaper via Apple Shortcuts, or interactive home widget via Scriptable.
-            </p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn-outline-action" id="btn-popup-copy-ios-wp" style="flex: 1; min-width: 140px;">
-                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
-                <span id="txt-popup-copy-ios-wp">Copy Wallpaper URL</span>
-              </button>
-              <button type="button" class="btn-outline-action" id="btn-popup-download-scriptable" style="flex: 1; min-width: 120px;">
-                <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
-                <span id="txt-popup-download-scriptable">Download Script (.js)</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Android Panel -->
-          <div id="popup-widget-panel-android" class="popup-widget-platform-panel" style="display: none;">
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-              Live Web Widget card for 1-tap home screen setup, or KWGT preset file.
-            </p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn-outline-action" id="btn-popup-copy-android-web" style="flex: 1; min-width: 140px;">
-                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
-                <span id="txt-popup-copy-android-web">Copy Widget URL</span>
-              </button>
-              <a href="https://blackboarder.pages.dev/widgets/blackboarder-kwgt.json" download="blackboarder-kwgt.json" class="btn-outline-action" style="flex: 1; min-width: 120px; text-decoration: none; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
-                <svg class="ui-icon"><use href="#icon-download"></use></svg>
-                <span>KWGT Preset (.json)</span>
-              </a>
-            </div>
-          </div>
-
-          <!-- macOS Panel -->
-          <div id="popup-widget-panel-mac" class="popup-widget-platform-panel" style="display: none;">
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
-              Native 1-line Terminal setup or dynamic desktop wallpaper via Apple Shortcuts.
-            </p>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn-outline-action" id="btn-popup-copy-mac-cmd" style="flex: 1; min-width: 140px;">
-                <svg class="ui-icon mr-1"><use href="#icon-terminal"></use></svg>
-                <span id="txt-popup-copy-mac-cmd">Copy 1-Line Setup</span>
-              </button>
-              <button type="button" class="btn-outline-action" id="btn-popup-copy-mac-wp" style="flex: 1; min-width: 120px;">
-                <svg class="ui-icon mr-1"><use href="#icon-copy"></use></svg>
-                <span id="txt-popup-copy-mac-wp">Copy Wallpaper URL</span>
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="settings-page" id="settings-page-alerts" role="tabpanel" aria-labelledby="settings-tab-alerts" hidden>
@@ -1229,7 +1185,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.0</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.1</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

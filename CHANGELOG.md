@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.1] - 2026-11-14
+
+### Changed
+
+- **Widget Visual Alignment & Hierarchy Across iOS and Windows:**
+  - Restored preferred frosted liquid-glass aesthetic in iOS Scriptable widget (`widgets/blackboarder-widget.js`) with course color accent bars, header with student ID, and summary pill (`2 Quizzes • 1 HW • 1 Exam`).
+  - Aligned assessment text hierarchy across iOS Scriptable and Windows/desktop widget (`src/worker/01-widgets-wallpaper.js`): assessment title displayed in large bold text on top, with course name and room number in small secondary text underneath.
+  - Standardized status indicators (due day on top, due time or `✓ Done` on bottom) across mobile and desktop widgets.
+- **Mobile Companion Settings Streamlining:**
+  - Removed obsolete wallpaper URL section from the companion app (`mobile-web/companion/`).
+  - Adapted widget setup dynamically to the student's detected device model (Scriptable for iOS, Google Play Web Widget & KWGT for Android).
+- **Extension Desktop Companion Setup:**
+  - Moved desktop companion app setup to **Settings > General** (`#settings-page-general`) in the extension and removed widget cards from Calendar settings.
+  - Automatically identifies whether the user is on Windows or macOS, displaying download and setup instructions exclusively for their active operating system.
+
+---
+
 ## [1.8.0] - 2026-11-13 (Milestone Release)
 
 ### Added

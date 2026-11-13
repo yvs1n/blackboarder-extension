@@ -196,39 +196,19 @@ async function activateNewSyncKey(newKey: string, pushReason: string): Promise<v
 }
 
 function setupWidgetPlatformCards(): void {
-  const selectWidgetPlatform = document.getElementById('select-popup-widget-platform') as HTMLSelectElement | null;
   const widgetDeviceBadge = document.getElementById('popup-detected-device-badge');
-  const widgetPanels: Record<string, HTMLElement | null> = {
-    windows: document.getElementById('popup-widget-panel-windows'),
-    ios: document.getElementById('popup-widget-panel-ios'),
-    android: document.getElementById('popup-widget-panel-android'),
-    mac: document.getElementById('popup-widget-panel-mac')
-  };
+  const panelWindows = document.getElementById('popup-widget-panel-windows');
+  const panelMac = document.getElementById('popup-widget-panel-mac');
   const detectedDev = detectUserDevice();
-  let defaultPlat = 'windows';
-  let badgeLabel = 'Windows PC';
-  if (detectedDev.isIos) {
-    defaultPlat = 'ios';
-    badgeLabel = detectedDev.isIPhone ? 'iPhone' : (detectedDev.isIPad ? 'iPad' : 'iOS');
-  } else if (detectedDev.isAndroid) {
-    defaultPlat = 'android';
-    badgeLabel = 'Android';
-  } else if (detectedDev.isMac) {
-    defaultPlat = 'mac';
-    badgeLabel = 'macOS';
-  }
-  if (widgetDeviceBadge) widgetDeviceBadge.textContent = badgeLabel;
-  if (selectWidgetPlatform) {
-    selectWidgetPlatform.value = defaultPlat;
-    const updateWidgetPanels = () => {
-      const val = selectWidgetPlatform.value;
-      Object.keys(widgetPanels).forEach(k => {
-        const p = widgetPanels[k];
-        if (p) p.style.display = (k === val) ? 'block' : 'none';
-      });
-    };
-    selectWidgetPlatform.addEventListener('change', updateWidgetPanels);
-    updateWidgetPanels();
+
+  if (detectedDev.isMac) {
+    if (widgetDeviceBadge) widgetDeviceBadge.textContent = 'macOS';
+    if (panelMac) panelMac.style.display = 'block';
+    if (panelWindows) panelWindows.style.display = 'none';
+  } else {
+    if (widgetDeviceBadge) widgetDeviceBadge.textContent = 'Windows PC';
+    if (panelWindows) panelWindows.style.display = 'block';
+    if (panelMac) panelMac.style.display = 'none';
   }
 
   document.getElementById('btn-popup-copy-sync-key')?.addEventListener('click', async () => {
@@ -240,42 +220,13 @@ function setupWidgetPlatformCards(): void {
       popupActions.showToast('No Sync Key found. Set up sync first.');
     }
   });
-  document.getElementById('btn-popup-copy-ios-wp')?.addEventListener('click', async () => {
-    const s = await getSettings();
-    const url = `${SITE_URL}/api/wallpaper?key=${s.syncKey || ''}`;
-    try { await navigator.clipboard.writeText(url); popupActions.showToast('Copied Dynamic Wallpaper URL!'); } catch { prompt('Dynamic Wallpaper URL:', url); }
-  });
-  document.getElementById('btn-popup-download-scriptable')?.addEventListener('click', async () => {
-    const s = await getSettings();
-    const key = s.syncKey || '';
-    try {
-      const res = await fetch(`${SITE_URL}/widgets/blackboarder-widget.js`);
-      let code = await res.text();
-      if (key) code = code.replace(/(?:let|const)\s+SYNC_KEY\s*=\s*["'][^"']*["'];?/, `let SYNC_KEY = ${JSON.stringify(key)};`);
-      const blob = new Blob([code], { type: 'application/javascript' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'blackboarder-widget.js';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      popupActions.showToast('Downloaded Scriptable script with your sync key!');
-    } catch {
-      window.open(`${SITE_URL}/widgets/blackboarder-widget.js`, '_blank');
-    }
-  });
-  document.getElementById('btn-popup-copy-android-web')?.addEventListener('click', async () => {
-    const s = await getSettings();
-    const url = `${SITE_URL}/widget?key=${s.syncKey || ''}`;
-    try { await navigator.clipboard.writeText(url); popupActions.showToast('Copied Live Web Widget URL!'); } catch { prompt('Widget URL:', url); }
-  });
+
   document.getElementById('btn-popup-copy-mac-cmd')?.addEventListener('click', async () => {
     const s = await getSettings();
     const cmd = `curl -fsSL ${SITE_URL}/install-mac.sh | bash -s "${s.syncKey || ''}"`;
     try { await navigator.clipboard.writeText(cmd); popupActions.showToast('Copied 1-Line Terminal Command!'); } catch { prompt('Mac Terminal Command:', cmd); }
   });
+
   document.getElementById('btn-popup-copy-mac-wp')?.addEventListener('click', async () => {
     const s = await getSettings();
     const url = `${SITE_URL}/api/wallpaper?key=${s.syncKey || ''}&w=3024&h=1964&pos=bottom`;
