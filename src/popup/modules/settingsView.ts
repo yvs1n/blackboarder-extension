@@ -33,7 +33,9 @@ import { getLocalTombstones } from '../../utils/tombstones';
 import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/updateBanner';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../../utils/updateChecker';
+import { createArmedAction } from '../../core/stateMachine';
 import { getCachedProfile } from '../universitySettings';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { dom, popupActions, popupState } from './state';
 import { applyTheme, setThemeNow } from './theme';
 
@@ -565,16 +567,11 @@ export function setupSettingsEvents() {
   const regenModal = document.getElementById('modal-regen-key-confirm');
   const btnConfirmRegenKey = document.getElementById('btn-confirm-regen-key') as HTMLButtonElement | null;
   const closeRegenModal = () => {
-    if (regenModal) {
-      regenModal.style.display = 'none';
-      regenModal.classList.add('hidden');
-    }
+    closeModalEl('modal-regen-key-confirm', regenModal);
   };
+  registerOverlayCloseHandler('modal-regen-key-confirm', closeRegenModal);
   document.getElementById('btn-regen-sync-key')?.addEventListener('click', () => {
-    if (regenModal) {
-      regenModal.style.display = 'flex';
-      regenModal.classList.remove('hidden');
-    }
+    openModalEl('modal-regen-key-confirm', regenModal);
   });
   document.getElementById('btn-close-regen-modal')?.addEventListener('click', closeRegenModal);
   document.getElementById('btn-cancel-regen-key')?.addEventListener('click', closeRegenModal);
@@ -655,65 +652,63 @@ export function setupSettingsEvents() {
 
   const btnDeleteCloud = document.getElementById('btn-delete-cloud-data') as HTMLButtonElement | null;
   const deleteCloudStatus = document.getElementById('delete-cloud-status');
-  let deleteArmedTimer: ReturnType<typeof setTimeout> | null = null;
-  const disarmDeleteCloud = () => {
-    if (deleteArmedTimer) clearTimeout(deleteArmedTimer);
-    deleteArmedTimer = null;
-    const label = btnDeleteCloud?.querySelector('span');
-    if (label) label.textContent = 'Delete My Online Data';
-  };
-  btnDeleteCloud?.addEventListener('click', async () => {
-    const label = btnDeleteCloud.querySelector('span');
-    if (!deleteArmedTimer) {
-      if (label) label.textContent = 'Click again to confirm';
-      deleteArmedTimer = setTimeout(disarmDeleteCloud, 6000);
-      return;
-    }
-    disarmDeleteCloud();
-    btnDeleteCloud.disabled = true;
-    const settings = await getSettings();
-    const oldKey = (settings.syncKey || '').trim();
-    const result = await deleteSyncDataFromFirebase(oldKey);
-    if (result.success) {
-      const newKey = generateUniqueSyncKey();
-      await saveSettings({ syncKey: newKey });
-      safeSetLocalStorage('bbs_persistent_sync_key', newKey);
-      safeSetLocalStorage('bbs_sync_key', newKey);
-      const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
-      if (input) input.value = newKey;
+  const deleteCloudAction = btnDeleteCloud ? createArmedAction({
+    timeoutMs: 6000,
+    idleLabel: 'Delete My Online Data',
+    armedLabel: 'Click again to confirm',
+    runningLabel: 'Deleting...',
+    onStateChange(armState, labelText) {
+      btnDeleteCloud.dataset.armState = armState;
+      btnDeleteCloud.disabled = armState === 'running';
+      const label = btnDeleteCloud.querySelector('span');
+      if (label) label.textContent = labelText;
+    },
+    async onExecute() {
+      const settings = await getSettings();
+      const oldKey = (settings.syncKey || '').trim();
+      const result = await deleteSyncDataFromFirebase(oldKey);
+      if (result.success) {
+        const newKey = generateUniqueSyncKey();
+        await saveSettings({ syncKey: newKey });
+        safeSetLocalStorage('bbs_persistent_sync_key', newKey);
+        safeSetLocalStorage('bbs_sync_key', newKey);
+        const input = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+        if (input) input.value = newKey;
 
-      try {
-        const [tasks, tombstones, coursesUpdatedAt, linksUpdatedAt] = await Promise.all([
-          getTasks(), getLocalTombstones(), getCoursesUpdatedAt(), getQuickLinksUpdatedAt()
-        ]);
-        await pushTasksToFirebase(
-          tasks, 'Chrome Extension (Reset Data)', newKey, popupState.currentQuickLinks,
-          tombstones, popupState.currentUserCourses, coursesUpdatedAt || undefined, linksUpdatedAt || undefined
-        );
-      } catch (err) {
-        console.warn('[Sync] Failed to initialize new cloud bucket after delete:', err);
-      }
-
-      void refreshAiKeyLock(true);
-      try {
-        const aiPass = await ensureAiPass();
-        const pairUrl = pairingLink(COMPANION_URL, newKey, aiPass);
-        const qrHolder = document.getElementById('pairing-qr-code');
-        if (qrHolder && !qrHolder.closest('#pairing-qr-panel')?.hasAttribute('hidden')) {
-          qrHolder.innerHTML = qrSvg(pairUrl, { label: 'Phone pairing QR code' });
+        try {
+          const [tasks, tombstones, coursesUpdatedAt, linksUpdatedAt] = await Promise.all([
+            getTasks(), getLocalTombstones(), getCoursesUpdatedAt(), getQuickLinksUpdatedAt()
+          ]);
+          await pushTasksToFirebase(
+            tasks, 'Chrome Extension (Reset Data)', newKey, popupState.currentQuickLinks,
+            tombstones, popupState.currentUserCourses, coursesUpdatedAt || undefined, linksUpdatedAt || undefined
+          );
+        } catch (err) {
+          console.warn('[Sync] Failed to initialize new cloud bucket after delete:', err);
         }
-      } catch {}
 
-      popupActions.showToast('Online data deleted. You have a new sync key.');
+        void refreshAiKeyLock(true);
+        try {
+          const aiPass = await ensureAiPass();
+          const pairUrl = pairingLink(COMPANION_URL, newKey, aiPass);
+          const qrHolder = document.getElementById('pairing-qr-code');
+          if (qrHolder && !qrHolder.closest('#pairing-qr-panel')?.hasAttribute('hidden')) {
+            qrHolder.innerHTML = qrSvg(pairUrl, { label: 'Phone pairing QR code' });
+          }
+        } catch {}
+
+        popupActions.showToast('Online data deleted. You have a new sync key.');
+      }
+      if (deleteCloudStatus) {
+        deleteCloudStatus.style.display = 'block';
+        deleteCloudStatus.textContent = result.success
+          ? 'Done. Everything stored online under your old key is gone. Pair your phone again from the Sync page.'
+          : result.message;
+      }
     }
-    if (deleteCloudStatus) {
-      deleteCloudStatus.style.display = 'block';
-      deleteCloudStatus.textContent = result.success
-        ? 'Done. Everything stored online under your old key is gone. Pair your phone again from the Sync page.'
-        : result.message;
-    }
-    btnDeleteCloud.disabled = false;
-  });
+  }) : null;
+  if (btnDeleteCloud) btnDeleteCloud.dataset.armState = 'idle';
+  btnDeleteCloud?.addEventListener('click', () => { void deleteCloudAction?.trigger(); });
 
   document.getElementById('btn-copy-pairing-link')?.addEventListener('click', async () => {
     const aiPass = await ensureAiPass();
@@ -953,14 +948,12 @@ export async function initWalkthroughModal() {
       if (keyDisplay && s.syncKey) keyDisplay.textContent = s.syncKey;
     }).catch(() => {});
     setStep(1);
-    modal.style.display = 'flex';
-    modal.classList.remove('hidden');
+    registerOverlayCloseHandler('modal-walkthrough', () => closeModal(true));
+    openModalEl('modal-walkthrough', modal);
   }
 
   function closeModal(markSeen = true) {
-    if (!modal) return;
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
+    closeModalEl('modal-walkthrough', modal);
     if (markSeen) {
       try { localStorage.setItem('bbs_walkthrough_seen', 'true'); } catch {}
     }

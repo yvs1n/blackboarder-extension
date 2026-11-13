@@ -52,6 +52,7 @@ import {
   showSettingsPage,
   switchView,
 } from './modules/navigation';
+import { initOverlayKeyboardHandler } from './modules/overlayController';
 import {
   initQuickLinksModal,
   openQuickLinkUrl,
@@ -70,6 +71,7 @@ import {
 } from './modules/readingModal';
 import {
   hideScanBanner,
+  isScanUiActive,
   renderScanStatus,
   resetScanButton,
   scanActiveTab,
@@ -158,6 +160,7 @@ Object.assign(popupActions, {
 });
 
 function setupEvents() {
+  initOverlayKeyboardHandler();
   initLegendScroll();
   initCalendarGestures();
   setupCalendarEvents();
@@ -171,16 +174,13 @@ function setupEvents() {
   const headerScanBanner = dom.headerScanBanner();
   document.getElementById('hsb-close')?.addEventListener('click', e => {
     e.stopPropagation();
-    const isScanRunning = btnScanTab.disabled || (headerScanBanner?.classList.contains('is-active') &&
-      !headerScanBanner?.classList.contains('is-success') &&
-      !headerScanBanner?.classList.contains('is-warning'));
-    if (isScanRunning) stopActiveScan();
+    if (isScanUiActive()) stopActiveScan();
     else hideScanBanner();
   });
   headerScanBanner?.addEventListener('click', e => {
     const target = e.target as HTMLElement;
     if (target.closest('#hsb-close')) return;
-    if (headerScanBanner.classList.contains('is-success') || headerScanBanner.classList.contains('is-warning')) {
+    if (!isScanUiActive() && (headerScanBanner.classList.contains('is-success') || headerScanBanner.classList.contains('is-warning'))) {
       hideScanBanner();
     }
   });

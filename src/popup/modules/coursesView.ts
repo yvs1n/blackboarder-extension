@@ -29,6 +29,7 @@ import {
   closeCourseImporter,
   switchImporterTab,
 } from './courseImporter';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 
 const ALL_WEEKDAYS: Weekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -221,16 +222,12 @@ export function openCourseEditor(courseId?: string) {
   }
 
   updateEditorTotalWeight();
-  modal.style.display = 'flex';
-  modal.classList.remove('hidden');
+  registerOverlayCloseHandler('modal-course-editor', closeCourseEditor);
+  openModalEl('modal-course-editor', modal);
 }
 
 export function closeCourseEditor() {
-  const modal = document.getElementById('modal-course-editor');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-  }
+  closeModalEl('modal-course-editor', document.getElementById('modal-course-editor'));
   popupState.editingCourseId = null;
 }
 
@@ -591,19 +588,6 @@ export function setupCourseEvents() {
         if (textarea && content) textarea.value = content;
       };
       reader.readAsText(file);
-    }
-  });
-
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      const editorModal = document.getElementById('modal-course-editor');
-      if (editorModal && editorModal.style.display !== 'none' && !editorModal.classList.contains('hidden')) {
-        closeCourseEditor();
-      }
-      const importModal = document.getElementById('modal-course-import');
-      if (importModal && importModal.style.display !== 'none' && !importModal.classList.contains('hidden')) {
-        closeCourseImporter();
-      }
     }
   });
 }

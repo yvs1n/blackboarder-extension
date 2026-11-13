@@ -1,9 +1,68 @@
+import { createStateMachine } from '../../core/stateMachine';
 import { getScanStatus, setScanStatus, SCAN_STALE_MS, type ScanStatus } from '../../utils/storage';
 import { getSvgIcon } from '../../utils/uiCommon';
 import { dom, popupActions, popupState } from './state';
 
+export type ScanUiPhase = 'idle' | 'scanning' | 'cancelling' | 'succeeded' | 'failed';
+
+export const scanUiMachine = createStateMachine<
+  ScanUiPhase,
+  'START' | 'CANCEL' | 'SUCCEED' | 'FAIL' | 'RESET'
+>({
+  initial: 'idle',
+  transitions: {
+    idle: { START: 'scanning', SUCCEED: 'succeeded', FAIL: 'failed' },
+    scanning: { START: 'scanning', CANCEL: 'cancelling', SUCCEED: 'succeeded', FAIL: 'failed', RESET: 'idle' },
+    cancelling: { RESET: 'idle', START: 'scanning' },
+    succeeded: { START: 'scanning', RESET: 'idle', SUCCEED: 'succeeded', FAIL: 'failed' },
+    failed: { START: 'scanning', RESET: 'idle', SUCCEED: 'succeeded', FAIL: 'failed' }
+  }
+});
+
 let scanBannerTimer: ReturnType<typeof setTimeout> | null = null;
 let scanButtonResetTimer: ReturnType<typeof setTimeout> | null = null;
+let scanWatchTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearBannerTimer() {
+  if (scanBannerTimer !== null) {
+    clearTimeout(scanBannerTimer);
+    scanBannerTimer = null;
+  }
+}
+
+function clearButtonResetTimer() {
+  if (scanButtonResetTimer !== null) {
+    clearTimeout(scanButtonResetTimer);
+    scanButtonResetTimer = null;
+  }
+}
+
+function clearWatchTimer() {
+  if (scanWatchTimer !== null) {
+    clearTimeout(scanWatchTimer);
+    scanWatchTimer = null;
+  }
+}
+
+function clearAllScanTimers() {
+  clearBannerTimer();
+  clearButtonResetTimer();
+  clearWatchTimer();
+}
+
+function scheduleScanButtonReset(delayMs: number) {
+  clearButtonResetTimer();
+  scanButtonResetTimer = setTimeout(() => {
+    scanButtonResetTimer = null;
+    if (scanUiMachine.matches('scanning')) return;
+    resetScanButton();
+  }, delayMs);
+}
+
+/** True when an interactive or background-synced scan is actively running in the popup UI. */
+export function isScanUiActive(): boolean {
+  return scanUiMachine.matches('scanning') || Boolean(dom.btnScanTab()?.disabled);
+}
 
 export function showScanBanner(
   text: string,
@@ -14,10 +73,7 @@ export function showScanBanner(
   const hsbText = dom.hsbText();
   const hsbIcon = dom.hsbIcon();
   if (!headerScanBanner || !hsbText) return;
-  if (scanBannerTimer) {
-    clearTimeout(scanBannerTimer);
-    scanBannerTimer = null;
-  }
+  clearBannerTimer();
 
   const closeBtn = document.getElementById('hsb-close');
   if (closeBtn) {
@@ -47,6 +103,7 @@ export function showScanBanner(
 
   if (autoHideMs && autoHideMs > 0) {
     scanBannerTimer = setTimeout(() => {
+      scanBannerTimer = null;
       hideScanBanner();
     }, autoHideMs);
   }
@@ -55,17 +112,17 @@ export function showScanBanner(
 export function hideScanBanner() {
   const headerScanBanner = dom.headerScanBanner();
   if (!headerScanBanner) return;
-  if (scanBannerTimer) {
-    clearTimeout(scanBannerTimer);
-    scanBannerTimer = null;
-  }
+  clearBannerTimer();
   headerScanBanner.classList.remove('is-active');
   const spinner = headerScanBanner.querySelector('.hsb-spinner');
   spinner?.classList.remove('is-spinning');
 }
 
 export function resetScanButton() {
+  clearButtonResetTimer();
+  scanUiMachine.send('RESET');
   const btnScanTab = dom.btnScanTab();
+  if (!btnScanTab) return;
   btnScanTab.disabled = false;
   btnScanTab.style.background = '';
   btnScanTab.innerHTML = `${getSvgIcon('bolt', 'mr-1')}<span>Scan</span>`;
@@ -73,12 +130,10 @@ export function resetScanButton() {
 
 export function stopActiveScan() {
   popupState.scanCancelledByUser = true;
+  clearAllScanTimers();
+  scanUiMachine.send('CANCEL');
   hideScanBanner();
   resetScanButton();
-  if (scanButtonResetTimer) {
-    clearTimeout(scanButtonResetTimer);
-    scanButtonResetTimer = null;
-  }
   try {
     if (chrome.runtime?.sendMessage) {
       chrome.runtime.sendMessage({ type: 'ABORT_SCAN' }, () => {
@@ -97,10 +152,7 @@ export function renderScanStatus(status: ScanStatus | null) {
     return;
   }
   const age = Date.now() - new Date(status.updatedAt).getTime();
-  if (scanButtonResetTimer) {
-    clearTimeout(scanButtonResetTimer);
-    scanButtonResetTimer = null;
-  }
+  clearButtonResetTimer();
 
   if (status.state === 'running') {
     if (age > SCAN_STALE_MS) {
@@ -108,6 +160,7 @@ export function renderScanStatus(status: ScanStatus | null) {
       resetScanButton();
       return;
     }
+    scanUiMachine.send('START');
     btnScanTab.disabled = true;
     const label = status.total ? 'Parse...' : 'Scan...';
     btnScanTab.innerHTML = `${getSvgIcon(status.total ? 'sparkles' : 'refresh', 'mr-1 is-spinning')}<span>${label}</span>`;
@@ -121,7 +174,9 @@ export function renderScanStatus(status: ScanStatus | null) {
     return;
   }
 
+  clearWatchTimer();
   if (status.state === 'done') {
+    scanUiMachine.send('SUCCEED');
     const added = status.newCount || 0;
     btnScanTab.disabled = false;
     btnScanTab.style.background = '';
@@ -131,13 +186,14 @@ export function renderScanStatus(status: ScanStatus | null) {
     if (added > 0) {
       popupActions.switchView('calendar');
     }
-    scanButtonResetTimer = setTimeout(resetScanButton, 2200);
+    scheduleScanButtonReset(2200);
   } else if (status.state === 'error') {
+    scanUiMachine.send('FAIL');
     btnScanTab.disabled = false;
     btnScanTab.style.background = '';
     btnScanTab.innerHTML = `${getSvgIcon('urgent', 'mr-1')}<span>Failed</span>`;
     showScanBanner(status.message || 'Scan could not complete. Try again.', 'warning', 4000);
-    scanButtonResetTimer = setTimeout(resetScanButton, 3000);
+    scheduleScanButtonReset(3000);
   } else {
     hideScanBanner();
     resetScanButton();
@@ -147,10 +203,9 @@ export function renderScanStatus(status: ScanStatus | null) {
 export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBackground: () => Promise<void>) {
   const btnScanTab = dom.btnScanTab();
   popupState.scanCancelledByUser = false;
-  if (scanButtonResetTimer) {
-    clearTimeout(scanButtonResetTimer);
-    scanButtonResetTimer = null;
-  }
+  clearAllScanTimers();
+  scanUiMachine.send('START');
+
   btnScanTab.disabled = true;
   btnScanTab.style.background = '';
   btnScanTab.innerHTML = `${getSvgIcon('refresh', 'mr-1 is-spinning')}<span>Scan...</span>`;
@@ -160,12 +215,15 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
   );
 
   const fail = (message: string) => {
+    clearWatchTimer();
+    scanUiMachine.send('FAIL');
+    btnScanTab.disabled = false;
     btnScanTab.innerHTML = `${getSvgIcon('urgent', 'mr-1')}<span>Error</span>`;
     showScanBanner(message, 'warning', 4500);
-    setTimeout(resetScanButton, 3500);
+    scheduleScanButtonReset(3500);
   };
 
-  if (!chrome.runtime?.sendMessage) {
+  if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
     fail('Background scanner unavailable.');
     return;
   }
@@ -216,9 +274,12 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
           if (status && new Date(status.updatedAt).getTime() >= startedAt) {
             renderScanStatus(status);
           } else if (res?.ok) {
+            clearWatchTimer();
+            scanUiMachine.send('SUCCEED');
+            btnScanTab.disabled = false;
             btnScanTab.innerHTML = `${getSvgIcon('check', 'mr-1')}<span>Done</span>`;
             showScanBanner(res.message || 'Exam schedule scanned.', 'success', 4000);
-            setTimeout(resetScanButton, 3500);
+            scheduleScanButtonReset(3500);
           } else {
             resetScanButton();
             hideScanBanner();
@@ -252,18 +313,18 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
 }
 
 export function watchScanEnd(startedAt: number, refreshDataInBackground: () => Promise<void>) {
-  const btnScanTab = dom.btnScanTab();
   const check = () => {
-    if (popupState.scanCancelledByUser || !btnScanTab.disabled || scanButtonResetTimer) return;
+    scanWatchTimer = null;
+    if (popupState.scanCancelledByUser || !scanUiMachine.matches('scanning') || scanButtonResetTimer) return;
     chrome.runtime.sendMessage({ type: 'PING_HTTP_SCANNER' }, async res => {
-      if (popupState.scanCancelledByUser) return;
+      if (popupState.scanCancelledByUser || !scanUiMachine.matches('scanning')) return;
       const lost = Boolean(chrome.runtime.lastError) || !res?.ok;
       if (!lost && res.scanning) {
-        setTimeout(check, 1500);
+        scanWatchTimer = setTimeout(check, 1500);
         return;
       }
       const status = await getScanStatus().catch(() => null);
-      if (popupState.scanCancelledByUser || !btnScanTab.disabled || scanButtonResetTimer) return;
+      if (popupState.scanCancelledByUser || !scanUiMachine.matches('scanning') || scanButtonResetTimer) return;
       if (status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt) {
         renderScanStatus(status);
         await refreshDataInBackground();
@@ -276,5 +337,13 @@ export function watchScanEnd(startedAt: number, refreshDataInBackground: () => P
       }
     });
   };
-  setTimeout(check, 1500);
+  clearWatchTimer();
+  scanWatchTimer = setTimeout(check, 1500);
+}
+
+/** Resets in-memory scan UI machine and timers (for isolated unit tests). */
+export function resetScanBannerState() {
+  clearAllScanTimers();
+  popupState.scanCancelledByUser = false;
+  scanUiMachine.reset();
 }

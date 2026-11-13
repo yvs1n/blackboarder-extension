@@ -17,6 +17,7 @@ import {
 import { getLocalTombstones } from '../../utils/tombstones';
 import { escapeHtml } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 
 export function openQuickLinkUrl(rawUrl: string) {
@@ -304,17 +305,14 @@ export function initQuickLinksModal() {
 
   const openModal = () => {
     if (modal) {
-      modal.style.display = 'flex';
-      modal.classList.remove('hidden');
+      registerOverlayCloseHandler('modal-quick-links', closeModal);
+      openModalEl('modal-quick-links', modal);
       renderQuickLinksManager();
     }
   };
 
   const closeModal = () => {
-    if (modal) {
-      modal.style.display = 'none';
-      modal.classList.add('hidden');
-    }
+    closeModalEl('modal-quick-links', modal);
     if (form) {
       form.reset();
       form.style.display = 'none';
@@ -325,6 +323,7 @@ export function initQuickLinksModal() {
       renderQuickLinkIconPicker('');
     }
   };
+  registerOverlayCloseHandler('modal-quick-links', closeModal);
 
   btnToggle?.addEventListener('click', openModal);
   btnBarManage?.addEventListener('click', openModal);

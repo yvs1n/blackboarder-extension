@@ -12,6 +12,7 @@ import { recordLocalTombstone, removeLocalTombstone } from '../../utils/tombston
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { isCalendarDeadline } from './calendarView';
+import { closeDayDrawerShell, openDayDrawerShell, registerOverlayCloseHandler } from './overlayController';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function selectDay(dateKey: string, openDrawer: boolean = true) {
@@ -103,24 +104,12 @@ export function openDayExpandedDrawer(dateKey: string) {
     });
   }
 
-  dayExpandedBackdrop.classList.remove('hidden');
-  dayExpandedDrawer.classList.remove('hidden');
-  requestAnimationFrame(() => {
-    dayExpandedBackdrop.classList.add('open');
-    dayExpandedDrawer.classList.add('open');
-  });
+  registerOverlayCloseHandler('day-expanded-drawer', closeDayExpandedDrawer);
+  openDayDrawerShell();
 }
 
 export function closeDayExpandedDrawer() {
-  const dayExpandedDrawer = dom.dayExpandedDrawer();
-  const dayExpandedBackdrop = dom.dayExpandedBackdrop();
-  if (!dayExpandedDrawer || !dayExpandedBackdrop) return;
-  dayExpandedBackdrop.classList.remove('open');
-  dayExpandedDrawer.classList.remove('open');
-  setTimeout(() => {
-    dayExpandedBackdrop.classList.add('hidden');
-    dayExpandedDrawer.classList.add('hidden');
-  }, 220);
+  closeDayDrawerShell();
 }
 
 export function renderDoctorQuoteHtml(

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.1] - 2026-11-13
+
+### Added
+
+- **Shared Explicit State Machine Primitives (`src/core/stateMachine.ts`, exported in `BBCore`):** Added zero-dependency `createStateMachine()` and `createArmedAction()` helpers with validated transition tables so UI workflows cannot enter invalid states or leave dangling timers.
+- **Popup Overlay Stack & Day Drawer Controller (`src/popup/modules/overlayController.ts`):** Unified modal and Day Drawer lifecycle management with strict LIFO overlay stacking and automatic keyboard focus restoration on dismissal.
+- **Companion Global `Escape` Dismissal (`src/mobile/app/00-state.js`):** Added `closeTopMobileOverlay()` so hardware-keyboard, tablet, and desktop Companion users can close `#modal-qr-scanner`, `#day-sheet-drawer`, and all companion modals in top-most priority order.
+
+### Changed
+
+- **Explicit Scan Banner UI Machine (`src/popup/modules/scanBanner.ts`):** Replaced DOM class and disabled-attribute reverse engineering (`isScanUiActive()`) with an explicit `scanUiMachine` (`idle | scanning | cancelling | succeeded | failed`) and centralized timer cleanup.
+- **Two-Step Destructive Cloud Delete (`src/popup/modules/settingsView.ts`):** Replaced manual `deleteArmedTimer` and button text inspection on `#btn-delete-cloud-data` with `createArmedAction`, exposing `data-arm-state` and guaranteeing safe disarming and re-enabling.
+
+### Fixed
+
+- **Day Drawer Rapid Reopen Race:** Opening the Calendar Day Drawer within 220ms of closing it cleanly cancels the pending hide timer instead of hiding the newly reopened drawer mid-transition.
+- **Nested Modal `Escape` & Missing Escapes:** Pressing `Escape` in the popup now closes only the topmost overlay while running module cleanup (`rememberDraft()`, `activeRoomPickerTaskId`), and covers `#modal-ai-extract` and `#modal-walkthrough`.
+- **Orphaned Scan Reset Timers:** Restarting a scan within 3.5 seconds of a scan failure or exam-schedule completion no longer lets the previous scan's reset timer clear the active scan button.
+
+---
+
 ## [1.8.0] - 2026-11-13
 
 ### Added

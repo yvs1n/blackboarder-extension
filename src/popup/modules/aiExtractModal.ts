@@ -4,6 +4,7 @@ import { extractDeadlinesLocally } from '../../engine/localExtractor';
 import { compareTasksByTime } from '../../utils/calendar';
 import { addTask, saveTasksMergingLatest } from '../../utils/storage';
 import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { applyRoomChange, closeReadingSheet, closeRoomPicker } from './readingModal';
 import { popupActions, popupState } from './state';
 
@@ -20,11 +21,9 @@ export function initAiExtractModal() {
   });
 
   function closeExtractModal() {
-    if (extractModal) {
-      extractModal.style.display = 'none';
-      extractModal.classList.add('hidden');
-    }
+    closeModalEl('modal-ai-extract', extractModal);
   }
+  registerOverlayCloseHandler('modal-ai-extract', closeExtractModal);
 
   btnOpen?.addEventListener('click', () => {
     if (extractModal) {
@@ -35,8 +34,7 @@ export function initAiExtractModal() {
           .map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
         hint.value = chosen;
       }
-      extractModal.style.display = 'flex';
-      extractModal.classList.remove('hidden');
+      openModalEl('modal-ai-extract', extractModal);
       const input = document.getElementById('input-extract-text') as HTMLTextAreaElement;
       if (input) input.focus();
     }

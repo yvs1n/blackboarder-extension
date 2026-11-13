@@ -11,6 +11,7 @@ import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { findPickedCourse } from '../coursePicker';
 import { getCachedProfile } from '../universitySettings';
 import { getTaskTargetBadgeHtml } from './dayDrawer';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function updateAddRoomVisibility() {
@@ -180,16 +181,12 @@ export function openReadingSheet(task: DeadlineTask) {
     openEditModal(task);
   });
 
-  modal.style.display = 'flex';
-  modal.classList.remove('hidden');
+  registerOverlayCloseHandler('modal-reading-sheet', closeReadingSheet);
+  openModalEl('modal-reading-sheet', modal);
 }
 
 export function closeReadingSheet() {
-  const modal = document.getElementById('modal-reading-sheet');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-  }
+  closeModalEl('modal-reading-sheet', document.getElementById('modal-reading-sheet'));
 }
 
 export function openRoomPicker(taskId: string) {
@@ -233,16 +230,12 @@ export function openRoomPicker(taskId: string) {
     });
   });
 
-  modal.style.display = 'flex';
-  modal.classList.remove('hidden');
+  registerOverlayCloseHandler('modal-room-picker', closeRoomPicker);
+  openModalEl('modal-room-picker', modal);
 }
 
 export function closeRoomPicker() {
-  const modal = document.getElementById('modal-room-picker');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-  }
+  closeModalEl('modal-room-picker', document.getElementById('modal-room-picker'));
   popupState.activeRoomPickerTaskId = null;
 }
 
@@ -305,12 +298,13 @@ export function openEditModal(task: DeadlineTask) {
     editIsBonusInput.checked = Boolean(task.isBonus);
   }
 
-  modalEditTask.style.display = 'flex';
+  registerOverlayCloseHandler('modal-edit-task', closeEditModal);
+  openModalEl('modal-edit-task', modalEditTask);
   popupActions.rememberDraft();
 }
 
 export function closeEditModal() {
-  dom.modalEditTask().style.display = 'none';
+  closeModalEl('modal-edit-task', dom.modalEditTask());
   popupState.editingTaskId = null;
   popupActions.rememberDraft();
 }

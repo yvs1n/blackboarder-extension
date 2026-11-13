@@ -325,39 +325,6 @@ export function setupStorageAndSyncListeners() {
     };
   } catch {}
 
-  window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      const editModal = document.getElementById('modal-edit-task');
-      if (editModal && editModal.style.display !== 'none') {
-        editModal.style.display = 'none';
-      }
-      const readingSheet = document.getElementById('modal-reading-sheet');
-      if (readingSheet && !readingSheet.classList.contains('hidden') && readingSheet.style.display !== 'none') {
-        readingSheet.style.display = 'none';
-        readingSheet.classList.add('hidden');
-      }
-      const quickLinks = document.getElementById('modal-quick-links');
-      if (quickLinks && !quickLinks.classList.contains('hidden') && quickLinks.style.display !== 'none') {
-        quickLinks.style.display = 'none';
-        quickLinks.classList.add('hidden');
-      }
-      const roomPicker = document.getElementById('modal-room-picker');
-      if (roomPicker && !roomPicker.classList.contains('hidden') && roomPicker.style.display !== 'none') {
-        roomPicker.style.display = 'none';
-        roomPicker.classList.add('hidden');
-      }
-      const regenModal = document.getElementById('modal-regen-key-confirm');
-      if (regenModal && !regenModal.classList.contains('hidden') && regenModal.style.display !== 'none') {
-        regenModal.style.display = 'none';
-        regenModal.classList.add('hidden');
-      }
-      const drawer = document.getElementById('day-expanded-drawer');
-      if (drawer && !drawer.classList.contains('hidden')) {
-        drawer.classList.add('hidden');
-      }
-    }
-  });
-
   window.addEventListener('focus', () => {
     pullTasksFromFirebaseIfNewer();
   });

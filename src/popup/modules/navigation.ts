@@ -9,6 +9,7 @@ import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { attachCoursePicker } from '../coursePicker';
 import { applyFields, clearDraft, collectFields, loadDraft, saveDraft } from '../popupDraft';
 import { parsePickedCourse } from './readingModal';
+import { isOverlayOpen } from './overlayController';
 import { AppView, dom, popupActions, popupState } from './state';
 
 function currentSettingsPage(): string {
@@ -18,7 +19,7 @@ function currentSettingsPage(): string {
 export function rememberDraft() {
   if (!popupState.draftReady) return;
   const modalEditTask = dom.modalEditTask();
-  if (modalEditTask.style.display === 'flex' && popupState.editingTaskId) {
+  if ((isOverlayOpen('modal-edit-task') || modalEditTask.style.display === 'flex') && popupState.editingTaskId) {
     saveDraft({ view: 'edit', taskId: popupState.editingTaskId, fields: collectFields(dom.formEditTask()) });
   } else if (dom.viewAdd().classList.contains('active')) {
     saveDraft({ view: 'add', fields: collectFields(dom.formAddTask()) });

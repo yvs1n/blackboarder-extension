@@ -5,6 +5,7 @@ import { fileToText, type PdfJsLike } from '../../core/documentText';
 import { findCoursesInDocument } from '../../engine/aiCourseImport';
 import { resolveAiEndpoint } from '../../engine/aiProviders';
 import { getSettings, saveUserCourses } from '../../utils/storage';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 
 let detectedImportCourses: CourseDraft[] = [];
@@ -41,16 +42,12 @@ export async function openCourseImporter() {
   if (aiRow) aiRow.hidden = !resolveAiEndpoint(await getSettings());
 
   switchImporterTab('banner');
-  modal.style.display = 'flex';
-  modal.classList.remove('hidden');
+  registerOverlayCloseHandler('modal-course-import', closeCourseImporter);
+  openModalEl('modal-course-import', modal);
 }
 
 export function closeCourseImporter() {
-  const modal = document.getElementById('modal-course-import');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.classList.add('hidden');
-  }
+  closeModalEl('modal-course-import', document.getElementById('modal-course-import'));
 }
 
 export function switchImporterTab(tab: 'banner' | 'json') {
