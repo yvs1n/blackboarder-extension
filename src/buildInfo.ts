@@ -14,10 +14,10 @@ export interface BuildInfo {
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.0",
   "build": "c6c3de02a174",
-  "commit": "1f490a4e59ce4f7781c31a9c6f940d5695954f2a",
-  "shortCommit": "1f490a4",
-  "timestamp": "2026-11-13T18:29:51.176Z",
-  "message": "v1.8.0: build: update generated files for 7129254",
+  "commit": "7ea32e064d72287d593b5601562541fba485df64",
+  "shortCommit": "7ea32e0",
+  "timestamp": "2026-11-13T19:29:34.072Z",
+  "message": "v1.8.0: feat: promote iOS Scriptable widget as primary mobile option and align popup sync key injection",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
