@@ -64,7 +64,19 @@ if (HAS_WEB) {
 
 // 2. Swiss Grid 0px border-radius check
 console.log('\n--- Checking Swiss Grid 0px Compliance ---');
-const popupCss = fs.readFileSync(path.join(ROOT, 'src/popup/popup.css'), 'utf8');
+function readPopupCss() {
+  let css = fs.readFileSync(path.join(ROOT, 'src/popup/popup.css'), 'utf8');
+  const stylesDir = path.join(ROOT, 'src/popup/styles');
+  if (fs.existsSync(stylesDir)) {
+    for (const file of fs.readdirSync(stylesDir).sort()) {
+      if (file.endsWith('.css')) {
+        css += '\n' + fs.readFileSync(path.join(stylesDir, file), 'utf8');
+      }
+    }
+  }
+  return css;
+}
+const popupCss = readPopupCss();
 const mobileCss = HAS_WEB ? fs.readFileSync(path.join(ROOT, 'mobile-web/companion/styles.css'), 'utf8') : '';
 
 if (popupCss.includes('*, *::before, *::after') && popupCss.includes('border-radius: 0 !important;')) {

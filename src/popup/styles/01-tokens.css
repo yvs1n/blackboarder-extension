@@ -1,0 +1,470 @@
+:root {
+  --primary: #18181b;
+  --primary-hover: #27272a;
+  --primary-light: #f4f4f5;
+  --primary-border: #e4e4e7;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-hover: #f4f4f5;
+  --surface-border: #e4e4e7;
+  --surface-border-strong: #d4d4d8;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --danger: #18181b;
+  --danger-light: #f4f4f5;
+  --warning: #71717a;
+  --warning-light: #f4f4f5;
+  /* The stats row keeps its colours: red for urgent, amber for this week */
+  --stat-urgent: #ef4444;
+  --stat-week: #f59e0b;
+  --success: #18181b;
+  --success-light: #f4f4f5;
+  --success-border: #e4e4e7;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-full: 0px;
+  --shadow-sm: 0 0 0 0 transparent;
+  --shadow-md: 0 0 0 0 transparent;
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.12);
+  --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --accent: #18181b;
+  --accent-hover: #27272a;
+  --on-accent: #ffffff;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 32px;
+  --font-display: "Inter Tight", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+[data-theme="dark"] {
+  --primary: #f4f4f6;
+  --primary-hover: #ffffff;
+  --primary-light: rgba(255, 255, 255, 0.08);
+  --primary-border: rgba(255, 255, 255, 0.16);
+
+  --bg: #121215;
+  --surface: #1a1a1f;
+  --surface-hover: #24242b;
+  --surface-border: #2c2c36;
+  --surface-border-strong: #3f3f4c;
+
+  --text-main: #f4f4f6;
+  --text-muted: #a1a1aa;
+  --text-subtle: #71717a;
+
+  --danger: #f4f4f6;
+  --danger-light: rgba(113, 113, 122, 0.15);
+  --danger-border: rgba(113, 113, 122, 0.3);
+
+  --warning: #a1a1aa;
+  --warning-light: rgba(113, 113, 122, 0.15);
+  --stat-urgent: #f87171;
+  --stat-week: #fbbf24;
+
+  --success: #f4f4f6;
+  --success-light: rgba(255, 255, 255, 0.08);
+  --success-border: rgba(255, 255, 255, 0.16);
+
+  --shadow-sm: 0 0 0 0 transparent;
+  --shadow-md: 0 0 0 0 transparent;
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.65);
+  --accent: #f4f4f6;
+  --accent-hover: #ffffff;
+  --on-accent: #121215;
+}
+
+/* Dark theme specific component overrides */
+[data-theme="dark"] * {
+  scrollbar-color: #3f3f4c transparent;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #3f3f4c;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #525260;
+}
+
+[data-theme="dark"] .icon-btn {
+  border-color: var(--surface-border);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+}
+
+[data-theme="dark"] .main-nav-tabs {
+  background: #141417;
+  border: 1px solid var(--surface-border);
+}
+[data-theme="dark"] .nav-tab {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .nav-tab:hover {
+  color: var(--text-main);
+}
+[data-theme="dark"] .nav-tab.active {
+  background: #24242b;
+  color: #f4f4f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .calendar-grid {
+  background: var(--surface-border);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .cal-day {
+  background: var(--surface);
+}
+[data-theme="dark"] .cal-day:hover {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1.5px var(--surface-border-strong);
+}
+[data-theme="dark"] .cal-day.other-month {
+  background: #141417;
+  opacity: 0.35;
+}
+[data-theme="dark"] .cal-day.is-today {
+  box-shadow: inset 0 0 0 2px var(--primary) !important;
+  background: var(--surface-hover);
+}
+[data-theme="dark"] .cal-day.is-today .cal-day-num {
+  color: var(--text-main);
+  font-weight: 800;
+}
+[data-theme="dark"] .cal-day.is-selected {
+  box-shadow: inset 0 0 0 2px var(--primary) !important;
+  background: var(--surface-hover);
+}
+
+[data-theme="dark"] .calendar-today-btn,
+[data-theme="dark"] .calendar-nav-btn {
+  background: var(--surface);
+  border-color: var(--surface-border);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .calendar-today-btn:hover,
+[data-theme="dark"] .calendar-nav-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+}
+
+[data-theme="dark"] .course-legend-bar,
+[data-theme="dark"] .selected-day-container {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .legend-chip {
+  background: var(--surface-hover);
+  border-color: var(--surface-border);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .legend-chip:hover {
+  background: var(--surface-border);
+  color: var(--text-main);
+}
+[data-theme="dark"] .legend-chip.is-active {
+  background: var(--primary-light);
+  border-color: var(--primary-border);
+  color: #ffffff;
+}
+[data-theme="dark"] .selected-day-item {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .selected-day-item:hover {
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
+}
+[data-theme="dark"] .btn-xs-add {
+  background: #24242b;
+  border-color: var(--surface-border-strong);
+  color: var(--text-main);
+}
+[data-theme="dark"] .btn-xs-add:hover {
+  background: #2c2c34;
+}
+
+[data-theme="dark"] .day-expanded-drawer {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .day-drawer-handle {
+  background: #3f3f4c;
+}
+[data-theme="dark"] .day-drawer-header {
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .day-drawer-title {
+  color: var(--text-main, #f4f4f6);
+}
+[data-theme="dark"] .day-drawer-subtitle {
+  color: var(--text-muted, #a1a1aa);
+}
+[data-theme="dark"] .btn-drawer-add {
+  background: #24242b;
+  border-color: var(--surface-border-strong);
+  color: var(--text-main);
+}
+[data-theme="dark"] .btn-drawer-add:hover {
+  background: #2c2c34;
+}
+[data-theme="dark"] .btn-drawer-close {
+  background: #24242b;
+  border-color: var(--surface-border);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .btn-drawer-close:hover {
+  background: #2c2c34;
+  border-color: var(--surface-border-strong);
+  color: var(--text-main);
+}
+[data-theme="dark"] .day-summary-card {
+  background: var(--surface);
+  border-color: var(--surface-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .day-summary-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
+}
+[data-theme="dark"] .day-summary-card.is-completed {
+  background: rgba(26, 26, 31, 0.7);
+  border-color: var(--surface-border);
+  opacity: 0.8;
+}
+[data-theme="dark"] .day-card-course-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f4f4f6 !important;
+}
+[data-theme="dark"] .day-card-title {
+  color: var(--text-main, #f4f4f6);
+}
+[data-theme="dark"] .day-card-title.title-completed {
+  color: #71717a;
+}
+[data-theme="dark"] .day-card-meta-row {
+  color: var(--text-muted, #a1a1aa);
+}
+[data-theme="dark"] .day-card-time {
+  background: var(--surface-hover);
+  color: #d4d4d8;
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .day-card-room {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e4e4e7 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+[data-theme="dark"] .day-card-weight {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e4e4e7;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+[data-theme="dark"] .day-card-announcement {
+  background: #141417;
+  color: #a1a1aa;
+  border-left-color: #52525b;
+}
+[data-theme="dark"] .day-card-announcement-label {
+  color: #d4d4d8;
+}
+[data-theme="dark"] .day-card-actions {
+  border-top-color: var(--surface-border);
+}
+[data-theme="dark"] .day-card-actions .btn-card-action {
+  background: var(--surface-hover);
+  border-color: var(--surface-border);
+  color: var(--text-main, #f4f4f6);
+}
+[data-theme="dark"] .day-card-actions .btn-card-action:hover {
+  background: #2c2c34;
+  border-color: var(--surface-border-strong);
+}
+[data-theme="dark"] .day-card-actions .btn-card-delete {
+  background: var(--surface-hover);
+  border-color: rgba(113, 113, 122, 0.4);
+  color: #f4f4f6;
+}
+[data-theme="dark"] .day-card-actions .btn-card-delete:hover {
+  background: rgba(113, 113, 122, 0.2);
+  border-color: rgba(113, 113, 122, 0.6);
+}
+[data-theme="dark"] .day-drawer-empty {
+  color: var(--text-muted, #a1a1aa);
+}
+
+[data-theme="dark"] .task-card {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .task-card:hover {
+  border-color: var(--surface-border-strong);
+}
+[data-theme="dark"] .task-card.status-completed {
+  background: rgba(17, 24, 39, 0.7);
+  opacity: 0.75;
+}
+
+[data-theme="dark"] .doctor-quote-box,
+[data-theme="dark"] .reading-announcement-box,
+[data-theme="dark"] .reading-box-content {
+  --quote-fade-bg: #141417;
+  background: #141417;
+  border-color: #2c2c36;
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .quote-label {
+  color: #d4d4d8;
+}
+[data-theme="dark"] .reading-meta-section {
+  border-color: var(--surface-border);
+}
+
+[data-theme="dark"] .task-weight-pill {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .task-weight-pill.weight-major {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+}
+[data-theme="dark"] .task-weight-pill.weight-medium {
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  border-color: var(--surface-border);
+}
+
+.task-target-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 0 !important;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+[data-theme="dark"] .task-target-pill {
+  background: var(--surface-hover);
+  color: var(--text-main);
+  border-color: var(--surface-border);
+}
+
+[data-theme="dark"] .btn-card-action,
+[data-theme="dark"] .btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+}
+[data-theme="dark"] .btn-card-action:hover,
+[data-theme="dark"] .btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+}
+
+[data-theme="dark"] .room-pill-btn {
+  background: #24242b;
+  border-color: #3f3f4c;
+  color: var(--text-main);
+}
+[data-theme="dark"] .room-pill-btn:hover {
+  background: #2c2c34;
+}
+
+[data-theme="dark"] .course-badge-main {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+[data-theme="dark"] .course-name-text {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .form-input,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-textarea,
+[data-theme="dark"] .search-input {
+  background-color: #1a1a1f;
+  border-color: #3f3f4c;
+  color: #f4f4f6;
+}
+[data-theme="dark"] .form-input::placeholder,
+[data-theme="dark"] .form-textarea::placeholder,
+[data-theme="dark"] .search-input::placeholder {
+  color: #71717a;
+}
+[data-theme="dark"] .form-input:focus,
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] .form-textarea:focus,
+[data-theme="dark"] .search-input:focus {
+  border-color: #a1a1aa;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .reading-sheet-card {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .modal-footer {
+  border-color: var(--surface-border);
+}
+
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .filter-bar {
+  background: var(--surface);
+  border-color: var(--surface-border);
+}
+
+[data-theme="dark"] .tab-btn {
+  background: transparent;
+  color: var(--text-muted);
+}
+[data-theme="dark"] .tab-btn.active {
+  background: #24242b;
+  color: #f4f4f6;
+}
+
+[data-theme="dark"] .syllabus-course-card {
+  background: #141417;
+  border-color: var(--surface-border);
+}
+[data-theme="dark"] .syllabus-comp-item {
+  background: #1e1e24;
+  border-color: var(--surface-border);
+}
+
+[data-theme="dark"] .room-preset-btn {
+  background: #1e1e24;
+  border-color: #3f3f4c;
+  color: var(--text-main);
+}
+[data-theme="dark"] .room-preset-btn:hover {
+  background: #272730;
+  border-color: #525260;
+}
+[data-theme="dark"] .room-preset-btn.is-active {
+  background: #2c2c36;
+  border-color: #f4f4f6;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .toast {
+  background: #1e1e24;
+  color: #f4f4f6;
+  border: 1px solid #3f3f4c;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+

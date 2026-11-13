@@ -523,6 +523,20 @@ function syncAllComponents(version) {
   }
 }
 
+function assembleDir(srcDir, ext, destFile) {
+  if (!fs.existsSync(srcDir)) return;
+  const parts = fs.readdirSync(srcDir)
+    .filter(f => f.endsWith(ext))
+    .sort()
+    .map(f => readText(path.join(srcDir, f)));
+  if (parts.length > 0) writeIfChanged(destFile, parts.join(''));
+}
+
+function assembleCompanionAssets() {
+  assembleDir(r('src', 'mobile', 'app'), '.js', r('mobile-web', 'companion', 'app.js'));
+  assembleDir(r('src', 'mobile', 'styles'), '.css', r('mobile-web', 'companion', 'styles.css'));
+}
+
 async function main() {
   console.log('Building Blackboarder...');
   const git = gitInfo();
@@ -539,6 +553,7 @@ async function main() {
   const viteDefines = { 'process.env.NODE_ENV': '"production"', __STORE_BUILD__: 'false' };
 
   if (HAS_WEB) {
+    assembleCompanionAssets();
     await buildWebCore(viteDefines);
     await buildQrScanner(viteDefines);
     copyWidget();

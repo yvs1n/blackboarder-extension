@@ -64,7 +64,11 @@ describe('scan noise', () => {
 
   it('the extension never fills in student notes by itself', () => {
     expect(fs.readFileSync('src/engine/aiExtractor.ts', 'utf8')).not.toMatch(/^\s*notes:/m);
-    expect(fs.readFileSync('src/popup/popup.ts', 'utf8')).not.toContain("notes: (t as any).notes");
+    const popupAll = [
+      fs.readFileSync('src/popup/popup.ts', 'utf8'),
+      ...fs.readdirSync('src/popup/modules').map(f => fs.readFileSync(`src/popup/modules/${f}`, 'utf8'))
+    ].join('\n');
+    expect(popupAll).not.toContain("notes: (t as any).notes");
     const tasks = extractDeadlinesLocally(ann('Quiz 2', 'Quiz 2 will be held on 12 November 2026 at 11:00 AM.'));
     expect(tasks.length).toBeGreaterThan(0);
     for (const t of tasks) expect(t.notes).toBeUndefined();

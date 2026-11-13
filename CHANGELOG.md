@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.8.0] - 2026-11-13
 
 ### Added
 
+- **Modular Extension Popup, Companion App, and Worker Architecture:**
+  - Decomposed `src/popup/popup.ts` and `src/popup/popup.css` into focused modules under `src/popup/modules/` (15 files) and `src/popup/styles/` (11 cascade-ordered stylesheets).
+  - Decomposed `mobile-web/companion/app.js`, `mobile-web/companion/styles.css`, and `mobile-web/_worker.js` into modular sources under `src/mobile/app/`, `src/mobile/styles/`, and `src/worker/`, assembled deterministically during `npm run build` and `npm run bundle:worker`.
 - **Multi-Platform Liquid Glass Widgets & Dynamic Wallpapers:** Introduced cross-platform frosted glass widgets and dynamic wallpaper automation across iOS, Android, macOS, and Windows.
   - **iPhone and iPad (iOS):** Live vector SVG dynamic wallpaper generation (`/api/wallpaper?key=...`) automated via Apple Shortcuts, with course color pills, strike-throughs for finished tasks, and pending counters; updated Scriptable accessory widgets with active task filtering and completion checkmarks.
   - **Android:** Instant Live Web Widget frosted glass cards (`/widget?key=...`), KWGT custom widget integration (`widgets/android/blackboarder-kwgt.json`), and lock screen dynamic wallpaper automation.
@@ -19,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Smooth 60fps Popup Scrolling:** Moved extension popup scrolling into a dedicated flex viewport shell (`.popup-views-scroll`), eliminated `position: sticky` header thrashing, replaced `content-visibility: auto` height estimation jitter with `contain: layout style paint`, and removed costly card `box-shadow` hover repaints.
+- **Unified Action Button Styling:** Standardized `.btn-secondary` and `.btn-card-action` across light and dark themes to match the bordered `.btn-outline-action` aesthetic used by Copy Phone Pairing Link.
 - **Chronological Marks Sorting:** Completed assessments and tasks in the Grades card are now ranked from newest to oldest by posting, due, or completion date (`dueDate`, `submittedAt`, `completedAt`, `createdAt`), rather than by when the mark was released.
 
 ### Fixed

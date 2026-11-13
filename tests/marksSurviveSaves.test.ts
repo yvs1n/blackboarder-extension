@@ -17,7 +17,10 @@ describe('a scan\'s marks survive the popup saving an older copy', () => {
   });
 
   it('popup and scan saves go through the merging save', () => {
-    const popup = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    const popup = [
+      fs.readFileSync('src/popup/popup.ts', 'utf8'),
+      ...fs.readdirSync('src/popup/modules').map(f => fs.readFileSync(`src/popup/modules/${f}`, 'utf8'))
+    ].join('\n');
     expect(popup.match(/saveTasksMergingLatest\(/g)!.length).toBeGreaterThanOrEqual(2);
     expect(popup).toContain('resolved.weight !== undefined && resolved.weight !== task.weight)');
     expect(fs.readFileSync('src/content/scraper.ts', 'utf8')).toContain('await saveTasksMergingLatest(finalTasks);');
@@ -211,7 +214,10 @@ describe('unannounced gradebook marks survive popup open, background refresh, an
   });
 
   it('verifies that popup.ts contains zero unmerged saveTasks calls in synthetic purge handlers', () => {
-    const popupContent = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    const popupContent = [
+      fs.readFileSync('src/popup/popup.ts', 'utf8'),
+      ...fs.readdirSync('src/popup/modules').map(f => fs.readFileSync(`src/popup/modules/${f}`, 'utf8'))
+    ].join('\n');
     // Lines around purgeSyntheticGradebookTasks must not use bare saveTasks
     const purgeMatches = popupContent.match(/purgeSyntheticGradebookTasks[\s\S]{1,150}saveTasks\(/g);
     expect(purgeMatches).toBeNull();

@@ -60,9 +60,10 @@ describe('when the popup checks GitHub again', () => {
   });
 
   it('keeps render pure with zero duplicate side-effect toasts in popup update section', () => {
-    const popupSrc = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    const settingsSrc = fs.readFileSync('src/popup/modules/settingsView.ts', 'utf8');
+    const tasksSrc = fs.readFileSync('src/popup/modules/tasksView.ts', 'utf8');
     // Ensure render() in initExtensionUpdateSystem does not trigger showToast side-effects
-    const autoUpdateSectionMatch = popupSrc.match(/function initExtensionUpdateSystem\(\) \{([\s\S]*?)\n\}\n\n\/\*/);
+    const autoUpdateSectionMatch = settingsSrc.match(/function initExtensionUpdateSystem\(\) \{([\s\S]*)\n\}/);
     expect(autoUpdateSectionMatch).not.toBeNull();
     const sectionBody = autoUpdateSectionMatch ? autoUpdateSectionMatch[1] : '';
     const renderFuncMatch = sectionBody.match(/const render = \([\s\S]*?\n  \};/);
@@ -70,6 +71,6 @@ describe('when the popup checks GitHub again', () => {
     expect(renderFuncMatch?.[0]).not.toContain('showToast');
 
     // Ensure showToast deduplicates active toasts
-    expect(popupSrc).toContain("message.includes('up to date') && text.includes('up to date')");
+    expect(tasksSrc).toContain("message.includes('up to date') && text.includes('up to date')");
   });
 });

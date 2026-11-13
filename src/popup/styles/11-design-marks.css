@@ -1,0 +1,655 @@
+/* ==========================================================================
+   Design system (docs/DESIGN_SYSTEM.md), shared with the companion and the landing page:
+   two-tone colours, Inter Tight / Inter, 0px corners, no gradients, and one primary
+   action per screen (--accent: black in light mode, white in dark mode).
+   ========================================================================== */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter Tight";
+  src: url("/fonts/inter-tight.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.btn-scan-main,
+.btn-primary,
+.btn-primary-action,
+.btn-save-action,
+[data-theme="dark"] .btn-scan-main,
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-primary-action,
+[data-theme="dark"] .btn-save-action {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.btn-scan-main:hover,
+.btn-primary:hover,
+.btn-primary-action:hover,
+.btn-save-action:hover,
+[data-theme="dark"] .btn-scan-main:hover,
+[data-theme="dark"] .btn-primary:hover,
+[data-theme="dark"] .btn-primary-action:hover,
+[data-theme="dark"] .btn-save-action:hover,
+[data-theme="dark"] .btn-primary-action:active,
+[data-theme="dark"] .btn-save-action:active {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--on-accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Overdue stands out by inverting the two tones, since the interface has no red */
+.urgency-badge.overdue,
+[data-theme="dark"] .urgency-badge.overdue {
+  background: var(--primary);
+  color: var(--on-accent);
+  border-color: var(--primary);
+}
+
+/* Marks list (shared markup from src/utils/marks.ts) */
+.marks-empty { font-size: 12px; color: var(--text-muted); padding: 8px 2px; }
+.marks-course { border: 1px solid var(--surface-border, var(--border)); padding: 5px 8px; display: flex; flex-direction: column; gap: 2px; }
+.marks-course-head { display: flex; align-items: center; gap: 6px; margin-bottom: 1px; }
+.marks-dot { width: 8px; height: 8px; flex: 0 0 8px; }
+.marks-course-name { font-size: 12px; font-weight: 700; color: var(--text-main); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marks-course-total { font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.marks-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; font-size: 11px; color: var(--text-main); padding: 2px 0; border-top: 1px solid var(--surface-border, var(--border)); }
+.marks-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marks-weight { grid-column: 1; grid-row: 2; font-size: 9.5px; color: var(--text-muted); line-height: 1.2; }
+.marks-right { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.marks-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.marks-pct { font-size: 10.5px; color: var(--text-muted); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.marks-awaiting { font-size: 10.5px; color: var(--text-muted); }
+.marks-awaiting.waiting {
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--surface-border-strong);
+  padding: 1px 5px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: 0;
+}
+
+/* Syllabus Progress bars (shared markup from src/utils/syllabusProgress.ts) */
+.syl-bar { display: flex; width: 100%; height: 6px; background: var(--surface-border); overflow: hidden; margin: 2px 0; }
+.syl-done { background: var(--text-main); height: 100%; }
+.syl-pending { background: var(--text-muted); opacity: 0.55; height: 100%; }
+.syl-legend { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--text-muted); }
+
+/* Course picker under the Add / Edit course field (src/popup/coursePicker.ts) */
+.course-picker { position: relative; }
+.course-picker-list { position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 50; margin: 0; padding: 0; list-style: none; max-height: 196px; overflow-y: auto; background: var(--surface); border: 1px solid var(--text-muted); }
+.course-picker-list[hidden] { display: none; }
+.course-picker-list li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12.5px; color: var(--text-main); cursor: pointer; }
+.course-picker-list li + li { border-top: 1px solid var(--surface-border); }
+.course-picker-list li.active, .course-picker-list li:hover { background: var(--surface-border); }
+.course-picker-dot { width: 8px; height: 8px; flex: 0 0 8px; }
+.course-picker-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-picker-code { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* AI provider picker (settings) */
+.ai-provider-field[hidden] { display: none !important; }
+.ai-provider-hint { font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px; }
+.ai-test-row { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; }
+.ai-test-status { font-size: 11px; color: var(--text-muted); }
+.ai-test-status.is-ok { color: var(--text-main); font-weight: 600; }
+
+/* GPA card */
+.gpa-head { display: flex; align-items: baseline; gap: 10px; padding: 2px 2px 8px; border-bottom: 1px solid var(--surface-border); }
+.gpa-value { font-family: 'Inter Tight', var(--font-sans, sans-serif); font-size: 26px; font-weight: 800; color: var(--text-main); line-height: 1; }
+.gpa-caption { font-size: 11px; color: var(--text-muted); }
+.gpa-letter { display: inline-block; min-width: 26px; padding: 1px 5px; margin-left: 6px; text-align: center; font-size: 11px; font-weight: 800; background: var(--text-main); color: var(--bg); }
+.gpa-detail { font-size: 10.5px; color: var(--text-muted); padding-left: 14px; }
+.gpa-note { font-size: 10px; color: var(--text-muted); padding: 6px 2px 0; border-top: 1px solid var(--surface-border); }
+
+/* GPA Target Grade & Exam Score Calculator */
+.gpa-target-wrap { margin-top: 6px; padding: 6px 8px; background: var(--surface-hover); border: 1px solid var(--surface-border); }
+.gpa-target-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.gpa-target-label { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.gpa-target-chips { display: flex; gap: 3px; }
+.target-chip { border: 1px solid var(--surface-border); background: var(--surface); color: var(--text-muted); font-size: 10px; font-weight: 700; padding: 1px 5px; cursor: pointer; border-radius: 0 !important; font-family: inherit; }
+.target-chip:hover { color: var(--text-main); border-color: var(--text-main); }
+.target-chip.is-active { background: var(--text-main); color: var(--bg); border-color: var(--text-main); }
+.target-chip.is-unattainable { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+.target-chip.is-guaranteed { border-color: var(--text-main); font-weight: 800; }
+.gpa-target-desc { font-size: 10.5px; color: var(--text-muted); line-height: 1.35; }
+.target-highlight { color: var(--text-main); font-weight: 700; }
+
+/* Courses tab: Grades and Syllabus Progress cards (same markup in both apps) */
+.grade-tracker-widget.course-summary-card { background: var(--surface); border: 1px solid var(--surface-border); padding: 0; margin: 0 0 10px; box-shadow: none; }
+.course-summary-card .grade-tracker-header { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: transparent; border: 0; color: var(--text-main); font: inherit; text-align: left; cursor: pointer; }
+.course-summary-card .grade-tracker-header:focus-visible { outline: 2px solid var(--text-main); outline-offset: -2px; }
+.course-summary-title { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+.course-summary-right { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.course-summary-right .info-badge { font-size: 11px; }
+.course-summary-arrow { width: 14px; height: 14px; transition: transform 0.2s; }
+.course-summary-card .grade-tracker-header[aria-expanded="true"] .course-summary-arrow { transform: rotate(90deg); }
+.course-summary-card .grade-tracker-breakdown { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0 12px 12px; }
+.course-summary-card .grade-tracker-breakdown[hidden] { display: none; }
+.course-summary-card .marks-row { margin-left: 0; }
+
+/* Marks Tab: Standalone Full-Width Structure */
+#view-marks #grades-tracker {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0 0 8px;
+  box-shadow: none;
+}
+#view-marks #grades-tracker-toggle-btn {
+  display: none !important;
+}
+#view-marks #grades-tracker-breakdown {
+  display: flex !important;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+}
+
+/* Dual-Column GPA Overview */
+.marks-gpa-overview {
+  margin-bottom: 8px;
+}
+.gpa-head-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.marks-gpa-stat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.marks-gpa-stat-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.marks-gpa-col {
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+.marks-gpa-col-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.marks-gpa-big {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1;
+}
+.marks-gpa-big.is-target {
+  color: var(--primary);
+}
+.marks-gpa-cgpa-row {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.marks-gpa-cgpa-val {
+  color: var(--text-main);
+  font-weight: 700;
+}
+.marks-gpa-goal-bar {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+}
+.target-rounding-note {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  padding: 4px 6px;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+}
+.target-rounding-title {
+  color: var(--text-main);
+  font-weight: 600;
+  display: block;
+}
+.target-rounding-sub {
+  display: block;
+  font-size: 9.5px;
+  margin-top: 2px;
+}
+.target-plan-unattainable {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  font-size: 10.5px;
+  line-height: 1.35;
+  border-radius: 0 !important;
+}
+.target-unattainable-title {
+  color: var(--text-main);
+  font-weight: 700;
+  display: block;
+}
+.target-unattainable-sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+.btn-target-chip-val {
+  padding: 1px 6px;
+  font-size: 10px;
+  height: 22px;
+  min-height: 22px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 0 !important;
+  font-family: inherit;
+}
+.btn-target-chip-val:hover {
+  color: var(--text-main);
+  border-color: var(--text-main);
+}
+.btn-target-chip-val.is-active {
+  background: var(--text-main) !important;
+  color: var(--bg) !important;
+  border-color: var(--text-main) !important;
+  font-weight: 700;
+}
+.btn-set-max-gpa,
+.btn-set-max-cgpa {
+  border-radius: 0 !important;
+  font-family: inherit;
+  margin-top: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.marks-goal-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--surface-border);
+  flex-wrap: wrap;
+}
+.marks-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-hover);
+  border-radius: 0 !important;
+}
+.btn-goal-mode {
+  border-radius: 0 !important;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.btn-goal-mode.is-active {
+  background: var(--text-main) !important;
+  color: var(--bg) !important;
+  font-weight: 700 !important;
+}
+.gpa-guide-panel {
+  border-radius: 0 !important;
+  animation: fadeIn 0.15s ease-out;
+}
+.gpa-guide-step {
+  margin-bottom: 8px;
+}
+.gpa-guide-step:last-child {
+  margin-bottom: 0;
+}
+.gpa-guide-step-title {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.gpa-guide-step-body {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.gpa-guide-step-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  padding: 1px 4px;
+}
+.btn-add-course-bonus,
+.btn-add-bonus-trigger {
+  min-height: 20px !important;
+  height: 20px !important;
+  width: auto !important;
+  padding: 1px 7px !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0 !important;
+}
+.marks-row-bonus {
+  background: rgba(34, 197, 94, 0.05);
+  border-left: 2px solid var(--text-main);
+  padding-left: 4px;
+}
+[data-theme="dark"] .marks-row-bonus {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: var(--primary);
+}
+.marks-course {
+  border-radius: 0 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.marks-course:hover {
+  border-color: var(--surface-border-strong);
+}
+.marks-grade-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.marks-course-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  padding: 2px 6px;
+  border-radius: 0 !important;
+}
+.marks-course-letter {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--bg);
+  background: var(--text-main);
+  padding: 2px 7px;
+  min-width: 18px;
+  text-align: center;
+  border-radius: 0 !important;
+}
+.marks-course-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 5px;
+  border-top: 1px dashed var(--surface-border);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.marks-drop-notice {
+  font-size: 10px;
+  color: var(--warning, #e6a23c);
+  background: var(--surface-hover);
+  padding: 3px 6px;
+  border-left: 2px solid var(--warning, #e6a23c);
+  border-radius: 0 !important;
+}
+
+/* Target Grade Breakdown & Course Cards */
+.target-breakdown-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  box-shadow: none;
+}
+.target-breakdown-header {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0 !important;
+}
+.target-breakdown-header:focus-visible {
+  outline: 2px solid var(--text-main);
+  outline-offset: -2px;
+}
+.target-breakdown-header[aria-expanded="true"] .course-summary-arrow {
+  transform: rotate(90deg);
+}
+.target-breakdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 10px 10px;
+}
+.target-breakdown-content[hidden] {
+  display: none !important;
+}
+.marks-section-wrap {
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+.target-course-card {
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  margin-bottom: 6px;
+  border-radius: 0 !important;
+}
+.target-course-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.target-trend-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  border-radius: 0 !important;
+}
+.target-trend-pill[data-trend="improving"] {
+  color: var(--text-main);
+  font-weight: 700;
+}
+.target-trend-pill[data-trend="needs-focus"] {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+.trajectory-graph-wrap {
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+}
+.trajectory-bar-track {
+  position: relative;
+  height: 6px;
+  background: var(--surface-border);
+  width: 100%;
+  border-radius: 0 !important;
+}
+.trajectory-bar-earned {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--primary);
+  border-radius: 0 !important;
+}
+.trajectory-bar-needed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--text-muted);
+  opacity: 0.65;
+  border-radius: 0 !important;
+}
+.target-task-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.target-task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  padding: 3px 0;
+  border-top: 1px solid var(--surface-border);
+}
+.target-task-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.target-task-score {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* Pairing QR code (Settings > Sync) */
+.pairing-qr-panel { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 1px solid var(--surface-border); background: var(--surface); }
+.pairing-qr-panel[hidden] { display: none !important; }
+.pairing-qr-code { width: 200px; max-width: 100%; aspect-ratio: 1; line-height: 0; }
+.pairing-qr-code svg { width: 100%; height: 100%; display: block; }
+.pairing-qr-help { margin: 0; font-size: 11px; line-height: 1.4; color: var(--text-muted); text-align: center; }
+
+/* Quick Link icons: line icons in the text colour, no category colours */
+.ql-chip-icon { width: 13px; height: 13px; flex-shrink: 0; color: var(--text-main); display: inline-block; vertical-align: middle; }
+.ql-item-icon-box { background: var(--surface-hover); color: var(--text-main); border: 1px solid var(--surface-border); border-radius: 0 !important; }
+.ql-item-icon-box .ql-icon { width: 16px; height: 16px; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+.ql-category-badge { background: var(--surface-hover); color: var(--text-muted); }
+
+/* Your University card: grading scale editor and added Blackboard addresses */
+.grade-scale-editor { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.grade-scale-row { display: flex; align-items: center; gap: 4px; }
+.grade-scale-row .form-input { padding: 4px 6px; font-size: 12px; min-height: 0; }
+.grade-scale-letter { width: 48px; flex: 0 0 48px; font-weight: 700; }
+.grade-scale-min, .grade-scale-points { width: 64px; flex: 0 0 64px; }
+.grade-scale-unit { font-size: 11px; color: var(--text-muted); }
+.grade-scale-remove { margin-left: auto; background: none; border: 1px solid var(--surface-border); color: var(--text-muted); cursor: pointer; font-size: 11px; width: 24px; height: 24px; padding: 0; }
+.grade-scale-remove:disabled { visibility: hidden; }
+.grade-scale-remove:hover:not(:disabled) { color: var(--text-main); border-color: var(--text-main); }
+.grade-scale-actions { display: flex; gap: 6px; margin-top: 6px; }
+.grade-scale-actions .btn-secondary { font-size: 11px; padding: 4px 8px; }
+.blackboard-site-add { display: flex; gap: 6px; }
+.blackboard-site-add .form-input { flex: 1; min-width: 0; }
+.blackboard-sites-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.blackboard-site-row { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 6px; border: 1px solid var(--surface-border); }
+.blackboard-site-host { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blackboard-site-state { color: var(--text-muted); font-size: 11px; }
+.blackboard-site-row .btn-secondary { font-size: 11px; padding: 2px 8px; }
+
+/* Classes list (src/core/classSchedule.ts todaysClassesHtml), shared by both apps */
+.selected-day-classes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.selected-day-classes[hidden] { display: none; }
+.selected-day-classes-title { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.classes-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
+.class-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--surface-border, var(--border-color)); font-size: 12px; }
+.class-row.is-done { opacity: 0.55; }
+.class-row.is-live, .class-row.is-next { border-color: var(--text-main); }
+.class-time { display: flex; flex-direction: column; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 40px; line-height: 1.2; }
+.class-time-end { font-weight: 400; font-size: 10.5px; color: var(--text-muted); }
+.class-main { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.25; }
+.class-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.class-room { font-size: 11px; color: var(--text-muted); }
+.class-state { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.class-row.is-live .class-state { background: var(--text-main); color: var(--bg-main, var(--surface)); padding: 1px 6px; }
+
+/* Course import (syllabus or schedule file): same classes in the popup and the phone app */
+.import-intro { font-size: 11.5px; color: var(--text-muted); margin: 0 0 8px; line-height: 1.45; }
+.import-file-drop { display: flex; align-items: center; gap: 8px; padding: 12px; margin-bottom: 8px; border: 1px dashed var(--text-muted); cursor: pointer; font-size: 12px; font-weight: 600; }
+.import-file-drop:hover, .import-file-drop:focus-within { border-style: solid; border-color: var(--text-main); }
+.import-file-drop input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.import-file-drop span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.import-ai-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11.5px; cursor: pointer; }
+.import-ai-row[hidden] { display: none; }
+.import-status { font-size: 11.5px; margin-top: 6px; min-height: 1em; color: var(--text-main); }
+.import-status:empty { display: none; }
+.import-review-title { font-size: 12px; font-weight: 700; margin: 12px 0 4px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.courses-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ci-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.ci-card { border: 1px solid var(--surface-border, var(--border-color)); padding: 8px 10px; font-size: 11.5px; }
+.ci-keep-row { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer; }
+.ci-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.ci-field { display: flex; flex-direction: column; gap: 2px; font-size: 10.5px; color: var(--text-muted); min-width: 0; }
+.ci-field input, .ci-field select { width: 100%; box-sizing: border-box; font-size: 12px; }
+.ci-field-wide { grid-column: 1 / -1; }
+.ci-found { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1.4; }
+.ci-found .is-missing, .ci-found .ci-note { color: var(--text-muted); }
+.ci-warn { font-weight: 700; }
+
+/* Small grey help text under a setting */
+.setting-desc { display: block; margin-top: 3px; font-size: 10.5px; line-height: 1.4; color: var(--text-muted); }
+.setting-desc:empty { display: none; }
+.ci-keep, .import-ai-row input { accent-color: var(--text-main); }
+
+/* Student Academic Profile Identity (Popup & Courses Tab) */
+.student-profile-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--surface-border); margin-bottom: 10px; }
+.student-profile-avatar { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--primary); color: var(--bg); font-weight: 700; font-size: 13px; flex: none; }
+[data-theme="dark"] .student-profile-avatar { background: var(--primary-hover); color: var(--bg); }
+.student-profile-info { display: flex; flex-direction: column; min-width: 0; }
+.student-profile-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.student-profile-name { font-size: 12px; font-weight: 700; color: var(--text-main); }
+.student-profile-id { font-size: 10.5px; font-weight: 600; background: var(--surface-hover); color: var(--text-muted); padding: 1px 5px; border: 1px solid var(--surface-border); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.student-profile-uni { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
+.student-identity-banner { display: flex; align-items: center; justify-content: space-between; }
+

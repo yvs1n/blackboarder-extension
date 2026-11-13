@@ -38,7 +38,7 @@ describe('course picker', () => {
   });
 
   it('is attached to the Add and Edit course fields', () => {
-    const src = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    const src = fs.readFileSync('src/popup/modules/navigation.ts', 'utf8');
     expect(src).toContain("attachCoursePicker(document.getElementById('add-course') as HTMLInputElement");
     expect(src).toContain('attachCoursePicker(editCourseInput');
     expect(src.match(/const parsedCourse = parsePickedCourse\(course\);/g)).toHaveLength(2);
@@ -56,7 +56,7 @@ describe('popup reopens unfinished work', () => {
   });
 
   it('the calendar and details views clear the draft; opening restores it', () => {
-    const src = fs.readFileSync('src/popup/popup.ts', 'utf8');
+    const src = fs.readFileSync('src/popup/popup.ts', 'utf8') + '\n' + fs.readFileSync('src/popup/modules/navigation.ts', 'utf8');
     expect(src).toContain('restoreDraft();');
     expect(src).toMatch(/function switchView[\s\S]*?rememberDraft\(\);\r?\n\}/);
   });
