@@ -251,7 +251,7 @@ function setupWidgetPlatformCards(): void {
     try {
       const res = await fetch(`${SITE_URL}/widgets/blackboarder-widget.js`);
       let code = await res.text();
-      if (key) code = code.replace(/const SYNC_KEY = '';/, `const SYNC_KEY = '${key}';`);
+      if (key) code = code.replace(/(?:let|const)\s+SYNC_KEY\s*=\s*["'][^"']*["'];?/, `let SYNC_KEY = ${JSON.stringify(key)};`);
       const blob = new Blob([code], { type: 'application/javascript' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

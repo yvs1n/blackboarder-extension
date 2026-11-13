@@ -13,11 +13,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.0",
-  "build": "caf91b31f64c",
-  "commit": "2e8fa7a2ea0bfc272457f45752fda1944e4922ff",
-  "shortCommit": "2e8fa7a",
-  "timestamp": "2026-11-13T17:58:54.113Z",
-  "message": "v1.8.0: Restore Companion 2-column desktop dashboard with 4-tab bar and fixed calendar shape",
+  "build": "c6c3de02a174",
+  "commit": "1f490a4e59ce4f7781c31a9c6f940d5695954f2a",
+  "shortCommit": "1f490a4",
+  "timestamp": "2026-11-13T18:29:51.176Z",
+  "message": "v1.8.0: build: update generated files for 7129254",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };
