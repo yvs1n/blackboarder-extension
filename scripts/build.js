@@ -580,6 +580,14 @@ async function main() {
     execSync('node scripts/bundle-worker.js', { cwd: ROOT, stdio: 'inherit' });
   }
 
+  if (HAS_WEB && fs.existsSync(r('scripts', 'package-mac-app.py'))) {
+    try {
+      execSync('python scripts/package-mac-app.py', { cwd: ROOT, stdio: 'inherit' });
+    } catch (err) {
+      console.warn('Could not package Mac app zip:', err.message);
+    }
+  }
+
   console.log(HAS_WEB ? 'Build complete: dist/ (extension), dist-store/ (store build) and the web app files.' : 'Build complete: dist/ (extension) and dist-store/ (store build).');
 }
 
