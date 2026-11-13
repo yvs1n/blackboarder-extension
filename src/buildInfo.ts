@@ -14,10 +14,10 @@ export interface BuildInfo {
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.0",
   "build": "caf91b31f64c",
-  "commit": "66b15de3408ec3ea84b8bb014830505126c7007e",
-  "shortCommit": "66b15de",
-  "timestamp": "2026-11-13T11:29:49.800Z",
-  "message": "v1.8.1: chore(release): v1.8.1 explicit UI state machines, LIFO overlay stack, and timer-race fixes",
+  "commit": "5044a9e7ccf276803f3e77cce926ac6c3ed91280",
+  "shortCommit": "5044a9e",
+  "timestamp": "2026-11-13T13:04:16.761Z",
+  "message": "v1.8.0: chore(release): v1.8.0 modularize storage & settings, consolidate release history, and sync docs",
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

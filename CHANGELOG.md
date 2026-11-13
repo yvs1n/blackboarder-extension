@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unified Action Button Styling:** Standardized `.btn-secondary` and `.btn-card-action` across light and dark themes to match the bordered `.btn-outline-action` aesthetic used by Copy Phone Pairing Link.
 - **Chronological Marks Sorting:** Completed assessments and tasks in the Grades card are now ranked from newest to oldest by posting, due, or completion date (`dueDate`, `submittedAt`, `completedAt`, `createdAt`), rather than by when the mark was released.
 - **Documentation & Landing Page Accuracy:** Corrected phone app URLs (`blackboarder.pages.dev/companion/`), Firefox extension helper path (`about:debugging#/runtime/this-firefox`), performance implementation details, settings tab labels, and modular file trees across `README.md`, `export/extension/README.md`, `AGENTS.md`, `docs/`, and `mobile-web/index.html`.
+- **Companion Desktop Extension Parity & Fixed Calendar Shape:** Updated the desktop Companion view (`>= 641px`) to share the extension's 4-tab sections bar (Calendar, Deadlines, Marks, Courses) and header action order (`Refresh`, `+`, `Settings`), while keeping the `900px+` two-column dashboard (fixed `496x356` calendar + Up Next on the left beside sticky Deadlines on the right).
 
 ### Fixed
 
