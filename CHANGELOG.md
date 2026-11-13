@@ -7,35 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.8.1] - 2026-11-13
+## [1.8.0] - 2026-11-13 (Milestone Release)
 
 ### Added
 
-- **Shared Explicit State Machine Primitives (`src/core/stateMachine.ts`, exported in `BBCore`):** Added zero-dependency `createStateMachine()` and `createArmedAction()` helpers with validated transition tables so UI workflows cannot enter invalid states or leave dangling timers.
-- **Popup Overlay Stack & Day Drawer Controller (`src/popup/modules/overlayController.ts`):** Unified modal and Day Drawer lifecycle management with strict LIFO overlay stacking and automatic keyboard focus restoration on dismissal.
-- **Companion Global `Escape` Dismissal (`src/mobile/app/00-state.js`):** Added `closeTopMobileOverlay()` so hardware-keyboard, tablet, and desktop Companion users can close `#modal-qr-scanner`, `#day-sheet-drawer`, and all companion modals in top-most priority order.
-
-### Changed
-
-- **Explicit Scan Banner UI Machine (`src/popup/modules/scanBanner.ts`):** Replaced DOM class and disabled-attribute reverse engineering (`isScanUiActive()`) with an explicit `scanUiMachine` (`idle | scanning | cancelling | succeeded | failed`) and centralized timer cleanup.
-- **Two-Step Destructive Cloud Delete (`src/popup/modules/settingsView.ts`):** Replaced manual `deleteArmedTimer` and button text inspection on `#btn-delete-cloud-data` with `createArmedAction`, exposing `data-arm-state` and guaranteeing safe disarming and re-enabling.
-
-### Fixed
-
-- **Day Drawer Rapid Reopen Race:** Opening the Calendar Day Drawer within 220ms of closing it cleanly cancels the pending hide timer instead of hiding the newly reopened drawer mid-transition.
-- **Nested Modal `Escape` & Missing Escapes:** Pressing `Escape` in the popup now closes only the topmost overlay while running module cleanup (`rememberDraft()`, `activeRoomPickerTaskId`), and covers `#modal-ai-extract` and `#modal-walkthrough`.
-- **Orphaned Scan Reset Timers:** Restarting a scan within 3.5 seconds of a scan failure or exam-schedule completion no longer lets the previous scan's reset timer clear the active scan button.
-
----
-
-## [1.8.0] - 2026-11-13
-
-### Added
-
-- **Modular Extension Popup, Companion App, and Worker Architecture:**
-  - Decomposed `src/popup/popup.ts` and `src/popup/popup.css` into focused modules under `src/popup/modules/` (15 files) and `src/popup/styles/` (11 cascade-ordered stylesheets).
+- **Modular Extension Popup, Storage, Companion App, and Worker Architecture:**
+  - Decomposed `src/popup/popup.ts` and `src/popup/popup.css` into focused modules under `src/popup/modules/` (18 files including split `settingsSync.ts`, `settingsUpdates.ts`, `settingsWalkthrough.ts`, and `overlayController.ts`) and `src/popup/styles/` (11 cascade-ordered stylesheets).
+  - Decomposed `src/utils/storage.ts` into single-purpose submodules under `src/utils/storage/` (`env.ts`, `settingsStorage.ts`, `tasksStorage.ts`, `scanStorage.ts`, `quickLinksStorage.ts`, `coursesStorage.ts`) behind a backwards-compatible `storage.ts` barrel export.
   - Decomposed `mobile-web/companion/app.js`, `mobile-web/companion/styles.css`, and `mobile-web/_worker.js` into modular sources under `src/mobile/app/`, `src/mobile/styles/`, and `src/worker/`, assembled deterministically during `npm run build` and `npm run bundle:worker`.
-- **Multi-Platform Liquid Glass Widgets & Dynamic Wallpapers:** Introduced cross-platform frosted glass widgets and dynamic wallpaper automation across iOS, Android, macOS, and Windows.
+- **Shared Explicit State Machine Primitives (`src/core/stateMachine.ts`, exported in `BBCore`):** Added zero-dependency `createStateMachine()` and `createArmedAction()` helpers with validated transition tables so UI workflows cannot enter invalid states or leave dangling timers.
+- **Popup Overlay Stack & Companion Global `Escape` Dismissal:** Unified modal and Day Drawer lifecycle management in `src/popup/modules/overlayController.ts` with strict LIFO overlay stacking and automatic focus restoration, plus `closeTopMobileOverlay()` in `src/mobile/app/00-state.js`.
+- **Multi-Platform Liquid Glass Widgets & Dynamic Wallpapers:** Introduced cross-platform frosted glass widgets and dynamic wallpaper automation across iOS, Android, macOS, and Windows:
   - **iPhone and iPad (iOS):** Live vector SVG dynamic wallpaper generation (`/api/wallpaper?key=...`) automated via Apple Shortcuts, with course color pills, strike-throughs for finished tasks, and pending counters; updated Scriptable accessory widgets with active task filtering and completion checkmarks.
   - **Android:** Instant Live Web Widget frosted glass cards (`/widget?key=...`), KWGT custom widget integration (`widgets/android/blackboarder-kwgt.json`), and lock screen dynamic wallpaper automation.
   - **Windows and Mac Desktop:** Native Windows 11/10 companion application (`BlackboarderWidget.exe`) connecting via personal Sync Key; high-resolution desktop dynamic wallpaper generation (`/api/wallpaper?key=...&w=...&h=...&pos=bottom`) automated via macOS Shortcuts.
@@ -44,25 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Smooth 60fps Popup Scrolling:** Moved extension popup scrolling into a dedicated flex viewport shell (`.popup-views-scroll`), eliminated `position: sticky` header thrashing, replaced `content-visibility: auto` height estimation jitter with `contain: layout style paint`, and removed costly card `box-shadow` hover repaints.
+- **Explicit Scan Banner & Two-Step Cloud Delete Machines:** Replaced implicit DOM class/timer checks in `src/popup/modules/scanBanner.ts` with an explicit `scanUiMachine` (`idle | scanning | cancelling | succeeded | failed`), and replaced `deleteArmedTimer` on `#btn-delete-cloud-data` with `createArmedAction`.
 - **Unified Action Button Styling:** Standardized `.btn-secondary` and `.btn-card-action` across light and dark themes to match the bordered `.btn-outline-action` aesthetic used by Copy Phone Pairing Link.
 - **Chronological Marks Sorting:** Completed assessments and tasks in the Grades card are now ranked from newest to oldest by posting, due, or completion date (`dueDate`, `submittedAt`, `completedAt`, `createdAt`), rather than by when the mark was released.
+- **Documentation & Landing Page Accuracy:** Corrected phone app URLs (`blackboarder.pages.dev/companion/`), Firefox extension helper path (`about:debugging#/runtime/this-firefox`), performance implementation details, settings tab labels, and modular file trees across `README.md`, `export/extension/README.md`, `AGENTS.md`, `docs/`, and `mobile-web/index.html`.
 
 ### Fixed
 
+- **Overlay, Drawer & Timer Races:** Cancelling a scan no longer leaves stale 3.5s reset timers active on rapid re-scans, reopening the Calendar Day Drawer within 220ms of closing no longer hides it mid-transition, and pressing `Escape` closes only the topmost popup overlay (including `#modal-ai-extract` and `#modal-walkthrough`) with module cleanup intact.
 - **Shorthand Lab Assessment Matching:** Improved component name matching for shorthand assessment names (e.g. `Q1. Density-Errors`, `R-Density`) to correctly attach scores to their respective course syllabus components.
 - **Push Notification Stale Acknowledgment and Foreground Throttling:** Throttled foreground alert toasts and ensured stale past deadlines are acknowledged cleanly without duplicate notifications when opening the app.
-
----
-
-## [1.7.1] - 2026-11-05
-
-### Fixed
-
-- **Completed Assessment "Waiting" Marks Deduplication:** Fixed a bug in `buildMarksSummary` where assessments first recorded as `waiting` or `submitted` with a known syllabus weight and later matched to a graded entry did not accumulate their earned weight into the course total.
-- **Target GPA Downward Relaxation & Dual-Input Sync:** Fixed `calculateTrajectoryTargetPlan` so selecting a target GPA below the current baseline projection relaxes non-guaranteed courses downward toward the requested target. Synchronized the secondary GPA input field and preserved the inline adjustment note when auto-snapping custom GPA inputs.
-- **Mobile Companion GPA Snapping & Trajectory Badges:** Resolved a `ReferenceError` in `snapTargetGpa` when operating in Term SGPA mode on the mobile web app and connected `getCurrentTrajectoryPlan` and `snapTargetGpa` to `activeSyllabi`.
-- **Popup Semester Persistence & In-Place Task Toggling:** Loaded archived semesters (`bbs_semesters`) on popup startup and storage updates, rendered initial views synchronously before draft restoration, and fixed repeated in-place status toggling in the `All` filter view.
-- **Syllabus Table Gutter Detection & Arabic Regex Boundaries:** Prevented two-column syllabus assessment tables from being split vertically by column gutter detection in `documentText.ts`, and removed ASCII `\b` word boundaries around Arabic month names and syllabus keywords in `localExtractor.ts` and `courseDocument.ts`.
 
 ---
 
@@ -89,6 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Completed Assessment "Waiting" Marks Deduplication:** Fixed a bug in `buildMarksSummary` where assessments first recorded as `waiting` or `submitted` with a known syllabus weight and later matched to a graded entry did not accumulate their earned weight into the course total.
+- **Target GPA Downward Relaxation & Companion GPA Snapping:** Fixed `calculateTrajectoryTargetPlan` so selecting a target GPA below the current baseline relaxes non-guaranteed courses downward toward the target, synchronized secondary GPA inputs, resolved a `ReferenceError` in `snapTargetGpa` in Term SGPA mode on mobile, and connected `getCurrentTrajectoryPlan` and `snapTargetGpa` to `activeSyllabi`.
+- **Popup Semester Persistence & In-Place Task Toggling:** Loaded archived semesters (`bbs_semesters`) on popup startup and storage updates, rendered initial views synchronously before draft restoration, and fixed repeated in-place status toggling in the `All` filter view.
+- **Syllabus Table Gutter Detection & Arabic Regex Boundaries:** Prevented two-column syllabus assessment tables from being split vertically by column gutter detection in `documentText.ts`, and removed ASCII `\b` word boundaries around Arabic month names and syllabus keywords in `localExtractor.ts` and `courseDocument.ts`.
 - **Restored Missing SVG Sprites:** Added definitions for `#icon-help-circle` and `#icon-award` across extension and companion SVG sprites.
 - **Scraper Lifecycle Guard:** Added top-level window guard (`__BBS_SCRAPER_INITIALIZED__`) preventing duplicate MutationObservers, event listeners, or profile badges on extension reloads.
 - **Codebase Simplification and Cleanup (Phases 1-3):** Pruned dead code, deduplicated helper functions, consolidated notification logic, and eliminated orphaned test fixtures.

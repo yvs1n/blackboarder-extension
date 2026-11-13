@@ -60,7 +60,7 @@ describe('when the popup checks GitHub again', () => {
   });
 
   it('keeps render pure with zero duplicate side-effect toasts in popup update section', () => {
-    const settingsSrc = fs.readFileSync('src/popup/modules/settingsView.ts', 'utf8');
+    const settingsSrc = fs.readFileSync('src/popup/modules/settingsUpdates.ts', 'utf8');
     const tasksSrc = fs.readFileSync('src/popup/modules/tasksView.ts', 'utf8');
     // Ensure render() in initExtensionUpdateSystem does not trigger showToast side-effects
     const autoUpdateSectionMatch = settingsSrc.match(/function initExtensionUpdateSystem\(\) \{([\s\S]*)\n\}/);

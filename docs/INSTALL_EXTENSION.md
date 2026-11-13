@@ -71,7 +71,7 @@ Your deadlines, courses, custom syllabus weights, and Personal Sync Key are **pe
 3. The script downloads the latest version into the folder and registers a small update helper with your browser.
 4. The first time only: open `chrome://extensions` and click the reload arrow on Blackboarder.
 
-From then on Blackboarder checks GitHub every 15 minutes, like an extension from the Chrome Web Store. When a new version is pushed it downloads it into the folder and restarts itself as soon as the popup is closed. **Settings → Extension Updates** shows whether automatic updates are on, and **Check for Updates** checks right away.
+From then on Blackboarder checks GitHub every 15 minutes, like an extension from the Chrome Web Store. When a new version is pushed it downloads it into the folder and restarts itself as soon as the popup is closed. **Settings > Updates** shows whether automatic updates are on, and **Check for Updates** checks right away.
 
 ### Without the helper
 If you skip the step above, the popup shows an **Update Available** banner when a new version is on GitHub. Run `update.bat` / `update.sh` then, or download the zip, extract it over your folder and click **Reload**.

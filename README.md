@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.1-blue?logo=github&logoColor=white" alt="Version v1.8.1" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.0-blue?logo=github&logoColor=white" alt="Version v1.8.0" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
@@ -28,7 +28,7 @@ It was built at the **University of Sharjah** and works for any university on Bl
 | Part | What it does |
 | :--- | :--- |
 | **Browser extension** | Scans Blackboard, finds deadlines, and shows them in a popup or the browser's side panel. This repository is the extension. |
-| **Phone app (PWA)** | The same calendar and deadlines on your phone, at [blackboarder.pages.dev](https://blackboarder.pages.dev). Installs to the home screen and works offline. Sends deadline reminders. |
+| **Phone app (PWA)** | The same calendar and deadlines on your phone, at [blackboarder.pages.dev/companion](https://blackboarder.pages.dev/companion/). Installs to the home screen and works offline. Sends deadline reminders. |
 | **Calendar feed** | A live `.ics` link for Apple Calendar, Google Calendar or Outlook. |
 
 Data syncs through **Firebase**, each student under their own private sync key. No account or sign-in is needed.
@@ -64,7 +64,7 @@ Data syncs through **Firebase**, each student under their own private sync key. 
   - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe`) connecting directly via personal Sync Key, and Mac high-resolution desktop dynamic wallpaper automation via Shortcuts.
   - **Hardware Detection**: Automatically detects your device model (iPhone 16 Pro, Samsung Galaxy, MacBook, Windows PC) to tailor setup options and one-tap copy buttons in Settings > Calendar and the setup wizard.
 - **Live scan cancellation.** Click the close button (`✕`) on the live scan banner to cancel active scans across background HTTP and tab scanners immediately.
-- **Fast, responsive performance.** Smooth hardware-accelerated CSS view transitions, font preloading (`inter.woff2`, `inter-tight.woff2`), virtualized card rendering (`content-visibility: auto`), and debounced search filtering.
+- **Fast, responsive performance.** Smooth hardware-accelerated CSS view transitions, font preloading (`inter.woff2`, `inter-tight.woff2`), CSS containment (`contain: layout style paint`), and debounced search filtering.
 - **Dark mode** for the extension, the phone app, and Blackboard itself.
 - **Activity filter**: a bar on Blackboard's Activity page shows only the courses and kinds of item you pick (Exams & quizzes, Assignments & labs, Grades, Materials, Announcements), and keeps loading older items while a filter is on.
 - **Course colours on Blackboard**: each course keeps the colour you set in Blackboarder on Blackboard too (Activity, calendar, Grades, Messages, the course banner and tabs). New courses start with Blackboard's own colour.
@@ -170,12 +170,13 @@ This repository is published from a private source repository, so changes made d
 ```text
 blackboarder-extension/
 |-- src/                  Extension source (TypeScript)
-|   |-- popup/            Popup and side panel
+|   |-- popup/            Popup and side panel (modules/, styles/)
 |   |-- content/          Scraper and dark mode for Blackboard pages
 |   |-- background/       Background worker: sync, reminders, automatic updates
+|   |-- scan/             Shared Blackboard API readers and scan pipeline
 |   |-- engine/           Deadline detection: local parser, then an optional AI model
 |   |-- core/             Courses, weights, schedules
-|   `-- utils/            Storage, Firebase sync, calendar, task merging
+|   `-- utils/            Storage (storage/), Firebase sync, calendar, task merging
 |
 |-- dist/                 Built extension; load this folder (generated)
 |-- updater/              Update helper (copied into dist/ by the build)
@@ -195,4 +196,4 @@ blackboarder-extension/
 
 ## 📄 License
 
-The extension is open source under the [MIT License](LICENSE). The phone app and website at blackboarder.pages.dev are a separate hosted service.
+The extension is open source under the [MIT License](LICENSE). The website ([blackboarder.pages.dev](https://blackboarder.pages.dev)) and phone app ([blackboarder.pages.dev/companion](https://blackboarder.pages.dev/companion/)) are a separate hosted service.
