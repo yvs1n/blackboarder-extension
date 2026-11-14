@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,6 +20,14 @@ public class SyncResult
     public string Summary { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; } = DateTime.Now;
 }
+
+public record FetchTasksResult(
+    List<TaskItem> Tasks,
+    List<CourseItem> Courses,
+    StudentProfile? Profile,
+    WidgetStyleConfig? WidgetConfig,
+    bool IsOffline
+);
 
 public class RenderState
 {
@@ -54,7 +64,10 @@ public class SyncEngine : IDisposable
         int intervalMinutes = Math.Clamp(Config.PollIntervalMinutes, 1, 60);
         _pollTimer?.Dispose();
         _pollTimer = new System.Threading.Timer(
-            async _ => await SafeUpdateAsync(force: false),
+            _ => _ = Task.Run(async () =>
+            {
+                if (!_isDisposed) await SafeUpdateAsync(force: false);
+            }),
             null,
             TimeSpan.FromSeconds(2), // Initial run after 2s
             TimeSpan.FromMinutes(intervalMinutes)
@@ -75,25 +88,37 @@ public class SyncEngine : IDisposable
 
     private async void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
-        if (e.Mode == PowerModes.Resume)
+        try
         {
-            // Delay 15 seconds to allow Wi-Fi to establish connection
-            await Task.Delay(TimeSpan.FromSeconds(15));
-            await SafeUpdateAsync(force: true);
+            if (e.Mode == PowerModes.Resume && !_isDisposed)
+            {
+                // Delay 15 seconds to allow Wi-Fi to establish connection
+                await Task.Delay(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                if (!_isDisposed) await SafeUpdateAsync(force: true).ConfigureAwait(false);
+            }
         }
+        catch { }
     }
 
     private async void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
     {
-        if (e.Reason == SessionSwitchReason.SessionUnlock || e.Reason == SessionSwitchReason.SessionLogon)
+        try
         {
-            await SafeUpdateAsync(force: false);
+            if ((e.Reason == SessionSwitchReason.SessionUnlock || e.Reason == SessionSwitchReason.SessionLogon) && !_isDisposed)
+            {
+                await SafeUpdateAsync(force: false).ConfigureAwait(false);
+            }
         }
+        catch { }
     }
 
     private async void OnDisplaySettingsChanged(object? sender, EventArgs e)
     {
-        await SafeUpdateAsync(force: true);
+        try
+        {
+            if (!_isDisposed) await SafeUpdateAsync(force: true).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private async Task SafeUpdateAsync(bool force)
@@ -123,7 +148,12 @@ public class SyncEngine : IDisposable
     public async Task<SyncResult> UpdateWidgetAsync(bool force = false)
     {
         var result = new SyncResult();
-        var (tasks, courses, isOffline) = await FetchTasksAsync(Config.SyncKey);
+        var fetched = await FetchTasksAsync(Config.SyncKey).ConfigureAwait(false);
+        var tasks = fetched.Tasks;
+        var courses = fetched.Courses;
+        var profile = fetched.Profile;
+        var widgetConfig = fetched.WidgetConfig;
+        bool isOffline = fetched.IsOffline;
 
         var activePending = new List<TaskItem>();
         var nowUtc = DateTime.UtcNow;
@@ -160,7 +190,16 @@ public class SyncEngine : IDisposable
         {
             sigParts.Add($"{t.Id}|{t.DueDate}|{t.IsDone}|{t.Status}");
         }
-        string currentSig = string.Join("##", sigParts) + "::" + summaryText + $"::Pos={Config.Position}::Tasks={Config.MaxTasks}::Lock={Config.SetLockScreen}::Desk={Config.SetDesktop}::Blur={Config.BlurRadius}";
+        string studentId = profile != null
+            ? (!string.IsNullOrWhiteSpace(profile.StudentId) ? profile.StudentId : profile.Id)
+            : string.Empty;
+        string styleSig = widgetConfig != null ? JsonSerializer.Serialize(widgetConfig) : "";
+        string styleHash = string.IsNullOrEmpty(styleSig)
+            ? ""
+            : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(styleSig)))[..12];
+        string currentSig = string.Join("##", sigParts)
+            + "::" + summaryText
+            + $"::Stu={studentId}::Style={styleHash}::Pos={Config.Position}::Tasks={Config.MaxTasks}::Lock={Config.SetLockScreen}::Desk={Config.SetDesktop}::Blur={Config.BlurRadius}";
 
         bool hasChanged = force;
         if (!hasChanged && File.Exists(AppConfig.LastStatePath))
@@ -201,9 +240,9 @@ public class SyncEngine : IDisposable
         }
 
         // Render widget
-        var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
-        int w = screen.Bounds.Width;
-        int h = screen.Bounds.Height;
+        var screen = Screen.PrimaryScreen ?? (Screen.AllScreens.Length > 0 ? Screen.AllScreens[0] : null);
+        int w = screen != null && screen.Bounds.Width > 0 ? screen.Bounds.Width : 1920;
+        int h = screen != null && screen.Bounds.Height > 0 ? screen.Bounds.Height : 1080;
 
         using var bitmap = LiquidGlassRenderer.RenderWidget(
             wallpaper,
@@ -212,7 +251,9 @@ public class SyncEngine : IDisposable
             Config,
             w,
             h,
-            isOffline
+            isOffline,
+            profile,
+            widgetConfig
         );
 
         bitmap.Save(AppConfig.LockscreenImagePath, System.Drawing.Imaging.ImageFormat.Png);
@@ -266,7 +307,7 @@ public class SyncEngine : IDisposable
         return result;
     }
 
-    public static async Task<(List<TaskItem> Tasks, List<CourseItem> Courses, bool IsOffline)> FetchTasksAsync(string syncKey)
+    public static async Task<FetchTasksResult> FetchTasksAsync(string syncKey)
     {
         if (string.IsNullOrWhiteSpace(syncKey))
         {
@@ -276,21 +317,27 @@ public class SyncEngine : IDisposable
         try
         {
             string url = $"https://blackboarder.pages.dev/api/tasks?key={Uri.EscapeDataString(syncKey.Trim())}";
-            var response = await Http.GetAsync(url);
+            var response = await Http.GetAsync(url).ConfigureAwait(false);
             if (response.IsSuccessStatusCode)
             {
-                string json = await response.Content.ReadAsStringAsync();
+                string json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var apiRes = JsonSerializer.Deserialize<TasksApiResponse>(json);
                 if (apiRes != null && apiRes.Tasks != null)
                 {
-                    // Cache locally
+                    // Cache locally (includes tasks, courses, profile & website widgetConfig for offline parity)
                     try
                     {
                         File.WriteAllText(AppConfig.TasksCachePath, json);
                     }
                     catch { }
 
-                    return (apiRes.Tasks, apiRes.Courses ?? new(), false);
+                    return new FetchTasksResult(
+                        apiRes.Tasks,
+                        apiRes.Courses ?? new(),
+                        apiRes.Profile,
+                        apiRes.WidgetConfig,
+                        false
+                    );
                 }
             }
         }
@@ -299,7 +346,7 @@ public class SyncEngine : IDisposable
         return LoadFromCache();
     }
 
-    private static (List<TaskItem> Tasks, List<CourseItem> Courses, bool IsOffline) LoadFromCache()
+    private static FetchTasksResult LoadFromCache()
     {
         if (File.Exists(AppConfig.TasksCachePath))
         {
@@ -309,12 +356,19 @@ public class SyncEngine : IDisposable
                 var apiRes = JsonSerializer.Deserialize<TasksApiResponse>(json);
                 if (apiRes != null && apiRes.Tasks != null)
                 {
-                    return (apiRes.Tasks, apiRes.Courses ?? new(), true);
+                    return new FetchTasksResult(
+                        apiRes.Tasks,
+                        apiRes.Courses ?? new(),
+                        apiRes.Profile,
+                        apiRes.WidgetConfig,
+                        true
+                    );
                 }
             }
             catch { }
         }
-        return (new List<TaskItem>(), new List<CourseItem>(), true);
+
+        return new FetchTasksResult(new(), new(), null, null, true);
     }
 
     public void Dispose()

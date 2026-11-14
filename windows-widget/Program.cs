@@ -10,12 +10,35 @@ internal static class Program
 {
     private const string MutexName = "BlackboarderWidget-SingleInstance-Mutex-Global";
 
+    private static string AppDataDir => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Blackboarder"
+    );
+
     private static void Log(string msg)
     {
         try
         {
-            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blackboarder", "startup.log");
+            Directory.CreateDirectory(AppDataDir);
+            string logPath = Path.Combine(AppDataDir, "startup.log");
+            if (File.Exists(logPath) && new FileInfo(logPath).Length > 262144)
+            {
+                File.WriteAllText(logPath, string.Empty);
+            }
             File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}{Environment.NewLine}");
+        }
+        catch { }
+    }
+
+    private static void RecordCrash(string source, Exception? ex)
+    {
+        if (ex == null) return;
+        try
+        {
+            Directory.CreateDirectory(AppDataDir);
+            string errPath = Path.Combine(AppDataDir, "crash.log");
+            File.AppendAllText(errPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{source}] {ex}{Environment.NewLine}{Environment.NewLine}");
+            Log($"Crash [{source}]: {ex.Message}");
         }
         catch { }
     }
@@ -59,9 +82,17 @@ internal static class Program
 
         Log("Initializing ApplicationConfiguration...");
         ApplicationConfiguration.Initialize();
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) => RecordCrash("UIThread", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => RecordCrash("AppDomain", e.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            RecordCrash("TaskScheduler", e.Exception);
+            e.SetObserved();
+        };
 
         var config = AppConfig.Load();
-        var syncEngine = new SyncEngine(config);
+        using var syncEngine = new SyncEngine(config);
 
         bool isMinimized = args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
         bool openSettings = !isMinimized || string.IsNullOrWhiteSpace(config.SyncKey);
@@ -74,9 +105,7 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Log($"Exception in Application.Run: {ex}");
-            string errPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blackboarder", "crash.log");
-            File.WriteAllText(errPath, ex.ToString());
+            RecordCrash("Application.Run", ex);
             MessageBox.Show(ex.ToString(), "Blackboarder Widget Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }

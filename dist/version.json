@@ -1,19 +1,20 @@
 {
-  "version": "1.8.3",
-  "build": "cbb307e4ce54",
-  "commit": "38d100e5fae5faaeb8810e27d381a25e0eae64f3",
-  "shortCommit": "38d100e",
-  "timestamp": "2026-11-14T09:46:10.215Z",
-  "message": "v1.8.2: Release v1.8.2: extension auto-update, post-update changelog, stale file cleanup, dead file removal",
+  "version": "1.8.4",
+  "build": "d5ee003f181a",
+  "commit": "d2cc44955e386813d4beef66f27edc1a92a7a34e",
+  "shortCommit": "d2cc449",
+  "timestamp": "2026-11-14T10:48:46.615Z",
+  "message": "v1.8.3: Release v1.8.3: publish BlackboarderWidget.exe in releases and align docs with Settings > Updates",
   "changelog": [
-    "Windows Desktop Companion Release Packaging (windows-widget/, export/extension/workflows/release.yml): Added the .NET 8 BlackboarderWidget Windows desktop and lock screen companion source into windows-widget/ and updated the public release workflow to compile and attach BlackboarderWidget.exe on every GitHub release so in-app download links work without 404 errors.",
-    "Documentation, Landing Page, & Guide Alignment (README.md, export/extension/README.md, docs/, AGENTS.md, mobile-web/index.html): Updated installation, quick-start, and FAQ docs across both repositories and the landing page to point to Settings > Updates (Automatic Updates & Show Changelog After Update toggles) instead of the old manual update.bat / update.sh setup step, fixed the desktop widget reference to Settings > General, and removed stale wallpaper / shortcut copy."
+    "Windows Widget Crash & Hang Fix (windows-widget/): Fixed a WinForms UI-thread deadlock when loading Settings live preview (SettingsForm.RenderLivePreviewAsync), guarded Gaussian blur dimensions against small-bitmap out-of-bounds reads (FastBlurEngine), added deterministic theme fingerprinting (SyncEngine), protected background power/session handlers, and wired global unhandled exception logging to crash.log (Program.cs).",
+    "Windows Widget Student ID Header (windows-widget/SyncEngine.cs, windows-widget/SettingsForm.cs): Passed profile from /api/tasks and offline tasks_cache.json through to LiquidGlassRenderer.RenderWidget and live preview so Blackboarder • <studentId> renders consistently on desktop, lock screen, and mobile.",
+    "Website-Synced Auto-Updating Widgets for Mobile & Windows (src/worker/05-router.js, src/mobile/app/12-settings.js, widgets/blackboarder-widget.js, windows-widget/): Added shared widgetConfig schema on /api/tasks and /api/widget-config so theme colors, glass opacities, spacing, radii, and copy update live from website deployments and cache offline on both platforms. Updated iOS Scriptable Copy Widget Script to copy a tiny one-time loader that fetches and caches /companion/widget.js locally on the iPhone (blackboarder_cache/widget_code.js) so users never need to re-paste on widget updates."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
     "assets/popup-C8XZN2fV.css",
-    "assets/popup-Cv4FO7fQ.js",
+    "assets/popup-DkRt9lck.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

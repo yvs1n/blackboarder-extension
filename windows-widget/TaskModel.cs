@@ -202,6 +202,9 @@ public class TasksApiResponse
 
     [JsonPropertyName("profile")]
     public StudentProfile? Profile { get; set; }
+
+    [JsonPropertyName("widgetConfig")]
+    public WidgetStyleConfig? WidgetConfig { get; set; }
 }
 
 public class StudentProfile
@@ -217,4 +220,118 @@ public class StudentProfile
 
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
+}
+
+public class WidgetStyleConfig
+{
+    [JsonPropertyName("version")]
+    public int Version { get; set; } = 1;
+
+    [JsonPropertyName("brandName")]
+    public string BrandName { get; set; } = "Blackboarder";
+
+    [JsonPropertyName("offlineLabel")]
+    public string OfflineLabel { get; set; } = "Offline";
+
+    [JsonPropertyName("showStudentId")]
+    public bool ShowStudentId { get; set; } = true;
+
+    [JsonPropertyName("emptyText")]
+    public string EmptyText { get; set; } = "All caught up! No pending deadlines";
+
+    [JsonPropertyName("emptyOfflineText")]
+    public string EmptyOfflineText { get; set; } = "Offline \u2022 No cached deadlines";
+
+    [JsonPropertyName("caughtUpSummary")]
+    public string CaughtUpSummary { get; set; } = "All Caught Up";
+
+    [JsonPropertyName("theme")]
+    public WidgetThemeConfig? Theme { get; set; }
+}
+
+public class WidgetThemeConfig
+{
+    [JsonPropertyName("bgTop")]
+    public string? BgTop { get; set; }
+
+    [JsonPropertyName("bgMid")]
+    public string? BgMid { get; set; }
+
+    [JsonPropertyName("bgBottom")]
+    public string? BgBottom { get; set; }
+
+    [JsonPropertyName("glassTopOpacity")]
+    public double? GlassTopOpacity { get; set; }
+
+    [JsonPropertyName("glassBottomOpacity")]
+    public double? GlassBottomOpacity { get; set; }
+
+    [JsonPropertyName("specularTopOpacity")]
+    public double? SpecularTopOpacity { get; set; }
+
+    [JsonPropertyName("specularBottomOpacity")]
+    public double? SpecularBottomOpacity { get; set; }
+
+    [JsonPropertyName("borderColor")]
+    public string? BorderColor { get; set; }
+
+    [JsonPropertyName("borderOpacity")]
+    public double? BorderOpacity { get; set; }
+
+    [JsonPropertyName("headerBgOpacity")]
+    public double? HeaderBgOpacity { get; set; }
+
+    [JsonPropertyName("headerBorderOpacity")]
+    public double? HeaderBorderOpacity { get; set; }
+
+    [JsonPropertyName("rowBgOpacity")]
+    public double? RowBgOpacity { get; set; }
+
+    [JsonPropertyName("rowBorderOpacity")]
+    public double? RowBorderOpacity { get; set; }
+
+    [JsonPropertyName("accentColor")]
+    public string? AccentColor { get; set; }
+
+    [JsonPropertyName("textPrimary")]
+    public string? TextPrimary { get; set; }
+
+    [JsonPropertyName("textSecondary")]
+    public string? TextSecondary { get; set; }
+
+    [JsonPropertyName("textHeader")]
+    public string? TextHeader { get; set; }
+
+    [JsonPropertyName("textDate")]
+    public string? TextDate { get; set; }
+
+    [JsonPropertyName("pillBgOpacity")]
+    public double? PillBgOpacity { get; set; }
+
+    [JsonPropertyName("pillBorderOpacity")]
+    public double? PillBorderOpacity { get; set; }
+
+    [JsonPropertyName("cardRadius")]
+    public float? CardRadius { get; set; }
+
+    [JsonPropertyName("rowRadius")]
+    public float? RowRadius { get; set; }
+
+    [JsonPropertyName("headerRadius")]
+    public float? HeaderRadius { get; set; }
+
+    [JsonPropertyName("padding")]
+    public int? Padding { get; set; }
+
+    [JsonPropertyName("rowHeight")]
+    public int? RowHeight { get; set; }
+
+    [JsonPropertyName("rowGap")]
+    public int? RowGap { get; set; }
+
+    [JsonPropertyName("headerHeight")]
+    public int? HeaderHeight { get; set; }
+
+    [JsonPropertyName("headerGap")]
+    public int? HeaderGap { get; set; }
 }

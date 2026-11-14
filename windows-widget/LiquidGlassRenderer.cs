@@ -66,6 +66,25 @@ public static class LiquidGlassRenderer
         return string.Join($" {BulletChar} ", parts);
     }
 
+    private static Color ParseColor(string? hex, Color fallback)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return fallback;
+        try
+        {
+            return ColorTranslator.FromHtml(hex.Trim());
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private static int AlphaFromOpacity(double? opacity, int fallbackAlpha)
+    {
+        if (!opacity.HasValue || double.IsNaN(opacity.Value)) return fallbackAlpha;
+        return Math.Clamp((int)Math.Round(opacity.Value * 255.0), 0, 255);
+    }
+
     public static Bitmap RenderWidget(
         string? wallpaperPath,
         List<TaskItem> tasks,
@@ -74,8 +93,13 @@ public static class LiquidGlassRenderer
         int screenWidth,
         int screenHeight,
         bool isOffline = false,
-        StudentProfile? profile = null)
+        StudentProfile? profile = null,
+        WidgetStyleConfig? styleConfig = null)
     {
+        screenWidth = Math.Max(480, screenWidth);
+        screenHeight = Math.Max(320, screenHeight);
+        var theme = styleConfig?.Theme;
+
         var bmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb);
         using var g = Graphics.FromImage(bmp);
         g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -102,7 +126,7 @@ public static class LiquidGlassRenderer
 
         if (!baseDrawn)
         {
-            g.Clear(Color.FromArgb(7, 10, 18)); // Deep obsidian matching mobile Scriptable widget
+            g.Clear(ParseColor(theme?.BgMid, Color.FromArgb(7, 10, 18))); // Deep obsidian matching mobile Scriptable widget
         }
 
         // 2. Prepare tasks for display (exclude completed/done/submitted/graded tasks)
@@ -127,25 +151,28 @@ public static class LiquidGlassRenderer
         int limit = Math.Clamp(config.MaxTasks, 1, 9);
         var displayTasks = activePending.Count > limit ? activePending.GetRange(0, limit) : activePending;
 
+        string caughtUpLabel = !string.IsNullOrWhiteSpace(styleConfig?.CaughtUpSummary)
+            ? styleConfig.CaughtUpSummary
+            : "All Caught Up";
         string summaryText = GetPendingSummary(activePending);
         if (string.IsNullOrWhiteSpace(summaryText))
         {
-            summaryText = "All Caught Up";
+            summaryText = caughtUpLabel;
         }
 
-        // 3. Layout geometry (matches Mobile Scriptable Frosted Row & Pill design)
+        // 3. Layout geometry (matches Mobile Scriptable Frosted Row & Pill design + remote website styleConfig)
         float scaleW = screenWidth / 1920f;
         float scaleH = screenHeight / 1080f;
 
         int widgetW = Math.Max(460, (int)(540 * scaleW));
-        float widgetRadius = 22f * Math.Min(scaleW, scaleH);
-        if (widgetRadius < 16f) widgetRadius = 16f;
-        int padding = 18;
-        int margin = (int)(45 * scaleH);
-        int headerH = 34;
-        int headerGap = 10;
-        int rowH = 54;
-        int rowGap = 6;
+        float baseCardRadius = theme?.CardRadius is > 4f and <= 40f ? theme.CardRadius.Value : 22f;
+        float widgetRadius = Math.Max(16f, baseCardRadius * Math.Min(scaleW, scaleH));
+        int padding = Math.Clamp(theme?.Padding ?? 18, 10, 32);
+        int margin = Math.Max(16, (int)(45 * scaleH));
+        int headerH = Math.Clamp(theme?.HeaderHeight ?? 34, 24, 52);
+        int headerGap = Math.Clamp(theme?.HeaderGap ?? 10, 4, 20);
+        int rowH = Math.Clamp(theme?.RowHeight ?? 54, 40, 76);
+        int rowGap = Math.Clamp(theme?.RowGap ?? 6, 2, 16);
         int emptyH = 52;
         int contentH = displayTasks.Count > 0
             ? (displayTasks.Count * rowH) + ((displayTasks.Count - 1) * rowGap)
@@ -168,6 +195,9 @@ public static class LiquidGlassRenderer
             "TopRight" => margin,
             _ => screenHeight - widgetH - margin // BottomCenter, BottomRight, BottomLeft
         };
+
+        widgetX = Math.Clamp(widgetX, 0, Math.Max(0, screenWidth - widgetW));
+        widgetY = Math.Clamp(widgetY, 0, Math.Max(0, screenHeight - widgetH));
 
         var widgetRect = new RectangleF(widgetX, widgetY, widgetW, widgetH);
 
@@ -192,7 +222,12 @@ public static class LiquidGlassRenderer
         int cropW = Math.Min(bmp.Width - cropX, (int)widgetRect.Width);
         int cropH = Math.Min(bmp.Height - cropY, (int)widgetRect.Height);
 
-        if (cropW > 0 && cropH > 0)
+        Color borderColorBase = ParseColor(theme?.BorderColor, Color.White);
+        Color accentBase = ParseColor(theme?.AccentColor, Color.FromArgb(56, 189, 248));
+        Color bgTopBase = ParseColor(theme?.BgTop, Color.FromArgb(15, 23, 42));
+        Color bgMidBase = ParseColor(theme?.BgMid, Color.FromArgb(7, 10, 18));
+
+        if (cropW > 4 && cropH > 4)
         {
             using var cropped = bmp.Clone(new Rectangle(cropX, cropY, cropW, cropH), PixelFormat.Format32bppArgb);
             FastBlurEngine.ApplyGaussian(cropped, Math.Max(4, config.BlurRadius));
@@ -204,8 +239,8 @@ public static class LiquidGlassRenderer
 
             using (var glassWash = new LinearGradientBrush(
                 widgetRect,
-                Color.FromArgb(170, 15, 23, 42),
-                Color.FromArgb(205, 7, 10, 18),
+                Color.FromArgb(AlphaFromOpacity(theme?.GlassTopOpacity, 170), bgTopBase),
+                Color.FromArgb(AlphaFromOpacity(theme?.GlassBottomOpacity, 205), bgMidBase),
                 LinearGradientMode.Vertical))
             {
                 g.FillRectangle(glassWash, widgetRect);
@@ -213,14 +248,14 @@ public static class LiquidGlassRenderer
 
             using (var specularBrush = new LinearGradientBrush(
                 widgetRect,
-                Color.FromArgb(30, 255, 255, 255),
-                Color.FromArgb(4, 255, 255, 255),
+                Color.FromArgb(AlphaFromOpacity(theme?.SpecularTopOpacity, 30), borderColorBase),
+                Color.FromArgb(AlphaFromOpacity(theme?.SpecularBottomOpacity, 4), borderColorBase),
                 LinearGradientMode.Vertical))
             {
                 g.FillRectangle(specularBrush, widgetRect);
             }
 
-            using (var borderPen = new Pen(Color.FromArgb(55, 255, 255, 255), 1.1f))
+            using (var borderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.BorderOpacity, 55), borderColorBase), 1.1f))
             {
                 g.DrawPath(borderPen, cardPath);
             }
@@ -237,37 +272,42 @@ public static class LiquidGlassRenderer
         using var fontDate = new Font(fontFamily, 9.5f, FontStyle.Bold);
         using var fontTime = new Font(fontFamily, 8.5f, FontStyle.Regular);
 
-        using var headerBgBrush = new SolidBrush(Color.FromArgb(15, 255, 255, 255));
-        using var headerBorderPen = new Pen(Color.FromArgb(31, 255, 255, 255), 1f);
-        using var rowBgBrush = new SolidBrush(Color.FromArgb(12, 255, 255, 255));
-        using var rowBorderPen = new Pen(Color.FromArgb(26, 255, 255, 255), 1f);
-        using var pillBgBrush = new SolidBrush(Color.FromArgb(38, 56, 189, 248));
-        using var pillBorderPen = new Pen(Color.FromArgb(90, 56, 189, 248), 1f);
+        using var headerBgBrush = new SolidBrush(Color.FromArgb(AlphaFromOpacity(theme?.HeaderBgOpacity, 15), borderColorBase));
+        using var headerBorderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.HeaderBorderOpacity, 31), borderColorBase), 1f);
+        using var rowBgBrush = new SolidBrush(Color.FromArgb(AlphaFromOpacity(theme?.RowBgOpacity, 12), borderColorBase));
+        using var rowBorderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.RowBorderOpacity, 26), borderColorBase), 1f);
+        using var pillBgBrush = new SolidBrush(Color.FromArgb(AlphaFromOpacity(theme?.PillBgOpacity, 38), accentBase));
+        using var pillBorderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.PillBorderOpacity, 90), accentBase), 1f);
 
-        using var textHeaderBrush = new SolidBrush(Color.FromArgb(148, 163, 184));
-        using var textPrimaryBrush = new SolidBrush(Color.FromArgb(248, 250, 252));
-        using var textSecondaryBrush = new SolidBrush(Color.FromArgb(203, 213, 225));
-        using var textDateBrush = new SolidBrush(Color.FromArgb(226, 232, 240));
-        using var accentBrush = new SolidBrush(Color.FromArgb(56, 189, 248));
+        using var textHeaderBrush = new SolidBrush(ParseColor(theme?.TextHeader, Color.FromArgb(148, 163, 184)));
+        using var textPrimaryBrush = new SolidBrush(ParseColor(theme?.TextPrimary, Color.FromArgb(248, 250, 252)));
+        using var textSecondaryBrush = new SolidBrush(ParseColor(theme?.TextSecondary, Color.FromArgb(203, 213, 225)));
+        using var textDateBrush = new SolidBrush(ParseColor(theme?.TextDate, Color.FromArgb(226, 232, 240)));
+        using var accentBrush = new SolidBrush(accentBase);
 
         // 7. Render Frosted Header Pill Container
         float innerX = widgetX + padding;
         float innerW = widgetW - (padding * 2);
         float curY = widgetY + padding;
+        float headerRadius = Math.Clamp(theme?.HeaderRadius ?? 9f, 4f, 16f);
+        float rowRadius = Math.Clamp(theme?.RowRadius ?? 9f, 4f, 16f);
 
         var headerRect = new RectangleF(innerX, curY, innerW, headerH);
-        using (var headerPath = GetRoundedRectanglePath(headerRect, 9f))
+        using (var headerPath = GetRoundedRectanglePath(headerRect, headerRadius))
         {
             g.FillPath(headerBgBrush, headerPath);
             g.DrawPath(headerBorderPen, headerPath);
         }
 
-        string studentId = profile != null
+        string brandName = !string.IsNullOrWhiteSpace(styleConfig?.BrandName) ? styleConfig.BrandName : "Blackboarder";
+        string offlineLabel = !string.IsNullOrWhiteSpace(styleConfig?.OfflineLabel) ? styleConfig.OfflineLabel : "Offline";
+        bool showStudentId = styleConfig?.ShowStudentId ?? true;
+        string studentId = showStudentId && profile != null
             ? (!string.IsNullOrWhiteSpace(profile.StudentId) ? profile.StudentId : profile.Id)
             : string.Empty;
         string headerTitle = !string.IsNullOrWhiteSpace(studentId)
-            ? $"Blackboarder {BulletChar} {studentId}"
-            : (isOffline ? "Blackboarder (Offline)" : "Blackboarder");
+            ? $"{brandName} {BulletChar} {studentId}"
+            : (isOffline ? $"{brandName} ({offlineLabel})" : brandName);
 
         var headerTextSize = g.MeasureString(headerTitle, fontHeader);
         g.DrawString(headerTitle, fontHeader, textHeaderBrush, innerX + 10f, curY + (headerH - headerTextSize.Height) / 2f);
@@ -292,12 +332,14 @@ public static class LiquidGlassRenderer
         if (displayTasks.Count == 0)
         {
             var emptyRect = new RectangleF(innerX, curY, innerW, emptyH);
-            using (var emptyPath = GetRoundedRectanglePath(emptyRect, 9f))
+            using (var emptyPath = GetRoundedRectanglePath(emptyRect, rowRadius))
             {
                 g.FillPath(headerBgBrush, emptyPath);
                 g.DrawPath(headerBorderPen, emptyPath);
             }
-            string emptyText = isOffline ? $"Offline {BulletChar} No cached deadlines" : "All caught up! No pending deadlines";
+            string emptyText = isOffline
+                ? (!string.IsNullOrWhiteSpace(styleConfig?.EmptyOfflineText) ? styleConfig.EmptyOfflineText : $"Offline {BulletChar} No cached deadlines")
+                : (!string.IsNullOrWhiteSpace(styleConfig?.EmptyText) ? styleConfig.EmptyText : "All caught up! No pending deadlines");
             var emptySize = g.MeasureString(emptyText, fontCourseSub);
             g.DrawString(emptyText, fontCourseSub, textSecondaryBrush, innerX + 12f, curY + (emptyH - emptySize.Height) / 2f);
         }
@@ -312,7 +354,7 @@ public static class LiquidGlassRenderer
             foreach (var t in displayTasks)
             {
                 var rowRect = new RectangleF(innerX, curY, innerW, rowH);
-                using (var rowPath = GetRoundedRectanglePath(rowRect, 9f))
+                using (var rowPath = GetRoundedRectanglePath(rowRect, rowRadius))
                 {
                     g.FillPath(rowBgBrush, rowPath);
                     g.DrawPath(rowBorderPen, rowPath);

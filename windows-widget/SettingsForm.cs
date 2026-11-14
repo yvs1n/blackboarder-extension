@@ -46,6 +46,11 @@ public class SettingsForm : Form
 
     private List<TaskItem> _cachedTasks = new();
     private List<CourseItem> _cachedCourses = new();
+    private StudentProfile? _cachedProfile;
+    private WidgetStyleConfig? _cachedWidgetConfig;
+    private bool _cachedIsOffline;
+    private bool _hasFetchedPreviewData;
+    private int _previewRenderVersion;
 
     public SettingsForm(AppConfig config, SyncEngine syncEngine)
     {
@@ -427,17 +432,42 @@ public class SettingsForm : Form
 
     private void RenderLivePreview()
     {
+        _previewDebounceTimer.Stop();
+        _ = RenderLivePreviewAsync();
+    }
+
+    private async Task RenderLivePreviewAsync()
+    {
+        int version = ++_previewRenderVersion;
         try
         {
+            if (this.IsDisposed || _previewBox.IsDisposed) return;
+
+            int boxW = _previewBox.Width;
+            int boxH = _previewBox.Height;
+            if (boxW < 10 || boxH < 10) return;
+
             var previewConfig = new AppConfig
             {
                 SyncKey = _txtSyncKey.Text.Trim(),
                 Position = _cboPosition.SelectedItem?.ToString() ?? "BottomCenter",
-                MaxTasks = _cboMaxTasks.SelectedIndex + 1,
+                MaxTasks = Math.Max(1, _cboMaxTasks.SelectedIndex + 1),
                 BlurRadius = _trackBlur.Value,
                 WallpaperPath = _rbCustomWallpaper.Checked ? _txtCustomWallpaper.Text.Trim() : "",
                 ShowLocation = true
             };
+
+            if (!_hasFetchedPreviewData)
+            {
+                var fetched = await SyncEngine.FetchTasksAsync(previewConfig.SyncKey);
+                if (this.IsDisposed || version != _previewRenderVersion) return;
+                _cachedTasks = fetched.Tasks;
+                _cachedCourses = fetched.Courses;
+                _cachedProfile = fetched.Profile;
+                _cachedWidgetConfig = fetched.WidgetConfig;
+                _cachedIsOffline = fetched.IsOffline;
+                _hasFetchedPreviewData = true;
+            }
 
             string wp = previewConfig.WallpaperPath;
             if (string.IsNullOrWhiteSpace(wp) || !File.Exists(wp))
@@ -445,27 +475,36 @@ public class SettingsForm : Form
                 wp = WallpaperManager.GetCurrentDesktopWallpaper();
             }
 
-            // If tasks cache is empty, load mock or cached
-            if (_cachedTasks.Count == 0)
+            var tasksSnapshot = new List<TaskItem>(_cachedTasks);
+            var coursesSnapshot = new List<CourseItem>(_cachedCourses);
+            var profileSnapshot = _cachedProfile;
+            var styleSnapshot = _cachedWidgetConfig;
+            bool offlineSnapshot = _cachedIsOffline;
+
+            var scaled = await Task.Run(() =>
             {
-                var (cachedT, cachedC, _) = SyncEngine.FetchTasksAsync(previewConfig.SyncKey).GetAwaiter().GetResult();
-                _cachedTasks = cachedT;
-                _cachedCourses = cachedC;
+                using var fullBitmap = LiquidGlassRenderer.RenderWidget(
+                    wp,
+                    tasksSnapshot,
+                    coursesSnapshot,
+                    previewConfig,
+                    1920,
+                    1080,
+                    offlineSnapshot,
+                    profileSnapshot,
+                    styleSnapshot
+                );
+                return new Bitmap(fullBitmap, boxW, boxH);
+            });
+
+            if (this.IsDisposed || _previewBox.IsDisposed || version != _previewRenderVersion)
+            {
+                scaled.Dispose();
+                return;
             }
 
-            // Render high-res 1920x1080 bitmap
-            using var fullBitmap = LiquidGlassRenderer.RenderWidget(
-                wp,
-                _cachedTasks,
-                _cachedCourses,
-                previewConfig,
-                1920,
-                1080
-            );
-
-            // Scale to preview box size
             var old = _previewBox.Image;
-            _previewBox.Image = new Bitmap(fullBitmap, _previewBox.Width, _previewBox.Height);
+            _previewBox.Image = scaled;
             old?.Dispose();
         }
         catch (Exception ex)
@@ -490,16 +529,22 @@ public class SettingsForm : Form
 
         try
         {
-            var (tasks, courses, isOffline) = await SyncEngine.FetchTasksAsync(key);
-            _cachedTasks = tasks;
-            _cachedCourses = courses;
+            var fetched = await SyncEngine.FetchTasksAsync(key);
+            _cachedTasks = fetched.Tasks;
+            _cachedCourses = fetched.Courses;
+            _cachedProfile = fetched.Profile;
+            _cachedWidgetConfig = fetched.WidgetConfig;
+            _cachedIsOffline = fetched.IsOffline;
+            _hasFetchedPreviewData = true;
+            int taskCount = _cachedTasks.Count;
+            int courseCount = _cachedCourses.Count;
 
-            if (tasks.Count > 0)
+            if (taskCount > 0)
             {
-                _lblConnectionStatus.Text = $"Connected! Found {tasks.Count} deadlines across {courses.Count} courses.";
+                _lblConnectionStatus.Text = $"Connected! Found {taskCount} deadlines across {courseCount} courses.";
                 _lblConnectionStatus.ForeColor = Color.FromArgb(74, 222, 128); // Green
             }
-            else if (!isOffline)
+            else if (!fetched.IsOffline)
             {
                 _lblConnectionStatus.Text = "Connected! All caught up (no pending deadlines).";
                 _lblConnectionStatus.ForeColor = Color.FromArgb(74, 222, 128);

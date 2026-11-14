@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.3-blue?logo=github&logoColor=white" alt="Version v1.8.3" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.4-blue?logo=github&logoColor=white" alt="Version v1.8.4" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
@@ -59,9 +59,9 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Zero-Knowledge Cloud Vault & Private Sync.** Synced tasks, courses, student profile, semesters, marks, and tombstones are sealed inside an authenticated, encrypted AES-256-GCM vault envelope (`v1:iv:ciphertext`) derived from your secret sync key via HKDF-SHA256 before storage in Firebase Realtime Database. Cloud administrators and database servers see zero plaintext academic records, while calendar feeds and push reminders continue working through memory-only decryption in the Cloudflare Worker. The sync key input is strictly read-only to prevent typing collisions. Generating a new key opens a confirmation modal with an instant Export JSON Backup button so you can save your data before resetting. If a phone connects to an old sync key whose data was deleted, it unpairs cleanly and returns to the pairing screen.
 - **Mobile post-pairing setup.** Pairing your phone via QR code or sync key opens an onboarding setup sheet with immediate toggles for class visibility, push alerts, Apple and Google Calendar subscription links, and widget setup instructions.
 - **Multi-Platform Widgets & Desktop Companion.** Bring your deadlines and courses to your home screen, lock screen, and desktop with a frosted glass aesthetic:
-  - **iPhone and iPad**: Native Scriptable Home and Lock Screen frosted liquid glass widgets with course color accent bars and clear assessment hierarchy.
+  - **iPhone and iPad**: Native Scriptable Home and Lock Screen frosted liquid glass widgets with student ID header, course color accent bars, and clear assessment hierarchy; auto-updates styling and layout from Blackboarder and caches locally offline.
   - **Android**: Live Web Widget frosted glass card and KWGT Kustom Widget integration.
-  - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe` from the latest release or **Settings > General**) connecting directly via personal Sync Key, and Mac desktop wallpaper 1-line Terminal setup in **Settings > General**.
+  - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe` from the latest release or **Settings > General**) connecting directly via personal Sync Key (with student ID header and website-synced styling/content cached locally for offline use), and Mac desktop wallpaper 1-line Terminal setup in **Settings > General**.
   - **Hardware Detection**: Automatically detects your OS and device model to tailor setup instructions in extension **Settings > General** and companion **Settings > Calendar**.
 - **Live scan cancellation.** Click the close button (`✕`) on the live scan banner to cancel active scans across background HTTP and tab scanners immediately.
 - **Fast, responsive performance.** Smooth hardware-accelerated CSS view transitions, font preloading (`inter.woff2`, `inter-tight.woff2`), CSS containment (`contain: layout style paint`), and debounced search filtering.

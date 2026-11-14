@@ -117,32 +117,41 @@ public class TrayApplicationContext : ApplicationContext
 
     private void OnSyncCompleted(SyncResult res)
     {
-        if (_trayIcon.ContextMenuStrip?.InvokeRequired == true)
+        try
         {
-            _trayIcon.ContextMenuStrip.Invoke(() => OnSyncCompleted(res));
-            return;
-        }
+            if (_contextMenu.IsDisposed) return;
+            if (_contextMenu.InvokeRequired)
+            {
+                _contextMenu.BeginInvoke(() => OnSyncCompleted(res));
+                return;
+            }
 
-        string time = DateTime.Now.ToString("h:mm tt");
-        if (res.Success)
-        {
-            _itemStatus.Text = $"Active: {res.ActiveCount} deadlines • {time}";
-            _itemStatus.ForeColor = Color.FromArgb(74, 222, 128); // Green
-            _trayIcon.Text = $"Blackboarder Widget ({res.ActiveCount} deadlines)";
+            string time = DateTime.Now.ToString("h:mm tt");
+            if (res.Success)
+            {
+                _itemStatus.Text = $"Active: {res.ActiveCount} deadlines • {time}";
+                _itemStatus.ForeColor = Color.FromArgb(74, 222, 128); // Green
+                _trayIcon.Text = $"Blackboarder Widget ({res.ActiveCount} deadlines)";
+            }
+            else
+            {
+                _itemStatus.Text = $"Sync paused (offline) • {time}";
+                _itemStatus.ForeColor = Color.FromArgb(251, 191, 36); // Yellow
+            }
         }
-        else
-        {
-            _itemStatus.Text = $"Sync paused (offline) • {time}";
-            _itemStatus.ForeColor = Color.FromArgb(251, 191, 36); // Yellow
-        }
+        catch { }
     }
 
     private async Task OnSyncNowClicked()
     {
-        _itemStatus.Text = "Syncing with Blackboarder...";
-        _itemStatus.ForeColor = Color.FromArgb(56, 189, 248);
-        var res = await _syncEngine.UpdateWidgetAsync(force: true);
-        OnSyncCompleted(res);
+        try
+        {
+            _itemStatus.Text = "Syncing with Blackboarder...";
+            _itemStatus.ForeColor = Color.FromArgb(56, 189, 248);
+            var res = await _syncEngine.UpdateWidgetAsync(force: true);
+            OnSyncCompleted(res);
+        }
+        catch { }
     }
 
     public void ShowSettings()

@@ -14,20 +14,30 @@ public static class FastBlurEngine
 
         int w = bmp.Width;
         int h = bmp.Height;
+        if (w < 3 || h < 3) return;
+
+        int clampedRadius = Math.Min(radius, Math.Min((w - 1) / 2, (h - 1) / 2));
+        if (clampedRadius < 1) return;
 
         BitmapData data = bmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
-        int bytes = data.Stride * h;
-        byte[] rgb = new byte[bytes];
-        byte[] temp = new byte[bytes];
-        Marshal.Copy(data.Scan0, rgb, 0, bytes);
+        try
+        {
+            int bytes = data.Stride * h;
+            byte[] rgb = new byte[bytes];
+            byte[] temp = new byte[bytes];
+            Marshal.Copy(data.Scan0, rgb, 0, bytes);
 
-        int[] boxes = BoxesForGauss(radius, 3);
-        BoxBlur(rgb, temp, w, h, data.Stride, (boxes[0] - 1) / 2);
-        BoxBlur(rgb, temp, w, h, data.Stride, (boxes[1] - 1) / 2);
-        BoxBlur(rgb, temp, w, h, data.Stride, (boxes[2] - 1) / 2);
+            int[] boxes = BoxesForGauss(clampedRadius, 3);
+            BoxBlur(rgb, temp, w, h, data.Stride, (boxes[0] - 1) / 2);
+            BoxBlur(rgb, temp, w, h, data.Stride, (boxes[1] - 1) / 2);
+            BoxBlur(rgb, temp, w, h, data.Stride, (boxes[2] - 1) / 2);
 
-        Marshal.Copy(rgb, 0, data.Scan0, bytes);
-        bmp.UnlockBits(data);
+            Marshal.Copy(rgb, 0, data.Scan0, bytes);
+        }
+        finally
+        {
+            bmp.UnlockBits(data);
+        }
     }
 
     private static int[] BoxesForGauss(float sigma, int n)
@@ -45,9 +55,11 @@ public static class FastBlurEngine
 
     private static void BoxBlur(byte[] scl, byte[] tcl, int w, int h, int stride, int r)
     {
-        if (r < 1) return;
-        BoxBlurH(scl, tcl, w, h, stride, r);
-        BoxBlurT(tcl, scl, w, h, stride, r);
+        int safeR = Math.Min(r, Math.Min((w - 1) / 2, (h - 1) / 2));
+        if (safeR < 1) return;
+        Buffer.BlockCopy(scl, 0, tcl, 0, scl.Length);
+        BoxBlurH(scl, tcl, w, h, stride, safeR);
+        BoxBlurT(tcl, scl, w, h, stride, safeR);
     }
 
     private static void BoxBlurH(byte[] scl, byte[] tcl, int w, int h, int stride, int r)

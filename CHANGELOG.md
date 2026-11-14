@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.4] - 2026-11-14
+
+### Fixed
+
+- **Windows Widget Crash & Hang Fix (`windows-widget/`):** Fixed a WinForms UI-thread deadlock when loading Settings live preview (`SettingsForm.RenderLivePreviewAsync`), guarded Gaussian blur dimensions against small-bitmap out-of-bounds reads (`FastBlurEngine`), added deterministic theme fingerprinting (`SyncEngine`), protected background power/session handlers, and wired global unhandled exception logging to `crash.log` (`Program.cs`).
+- **Windows Widget Student ID Header (`windows-widget/SyncEngine.cs`, `windows-widget/SettingsForm.cs`):** Passed `profile` from `/api/tasks` and offline `tasks_cache.json` through to `LiquidGlassRenderer.RenderWidget` and live preview so `Blackboarder • <studentId>` renders consistently on desktop, lock screen, and mobile.
+
+### Changed
+
+- **Website-Synced Auto-Updating Widgets for Mobile & Windows (`src/worker/05-router.js`, `src/mobile/app/12-settings.js`, `widgets/blackboarder-widget.js`, `windows-widget/`):** Added shared `widgetConfig` schema on `/api/tasks` and `/api/widget-config` so theme colors, glass opacities, spacing, radii, and copy update live from website deployments and cache offline on both platforms. Updated iOS Scriptable **Copy Widget Script** to copy a tiny one-time loader that fetches and caches `/companion/widget.js` locally on the iPhone (`blackboarder_cache/widget_code.js`) so users never need to re-paste on widget updates.
+
+---
+
 ## [1.8.3] - 2026-11-14
 
 ### Added
