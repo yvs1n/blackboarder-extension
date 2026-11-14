@@ -275,8 +275,8 @@
 }
 
 .cal-event-chip.is-completed {
-  background-color: #f1f5f9 !important;
-  color: #334155 !important;
+  background-color: #f4f4f5 !important;
+  color: #52525b !important;
   border-left-width: 2.5px;
   border-left-style: solid;
   text-decoration: line-through;
@@ -290,12 +290,12 @@
 }
 
 .cal-event-chip.is-completed span {
-  color: #334155 !important;
+  color: #52525b !important;
 }
 
 [data-theme="dark"] .cal-event-chip.is-completed {
-  background-color: #242c38 !important;
-  color: #f1f5f9 !important;
+  background-color: #24242b !important;
+  color: #f4f4f6 !important;
   border-left-width: 2.5px;
   border-left-style: solid;
   opacity: 0.88;

@@ -290,7 +290,7 @@ input:checked + .slider:before {
 }
 
 [data-theme="dark"] .slider {
-  background-color: #334155;
+  background-color: #3f3f4c;
 }
 
 [data-theme="dark"] input:checked + .slider {

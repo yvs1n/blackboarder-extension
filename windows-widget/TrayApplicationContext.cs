@@ -2,13 +2,53 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace BlackboarderWidget;
 
+internal sealed class SwissGridColorTable : ProfessionalColorTable
+{
+    private static readonly Color Bg = Color.FromArgb(18, 18, 21);          // #121215
+    private static readonly Color SurfaceHover = Color.FromArgb(36, 36, 43); // #24242B
+    private static readonly Color Border = Color.FromArgb(44, 44, 54);      // #2C2C36
+
+    public override Color MenuBorder => Border;
+    public override Color MenuItemBorder => Border;
+    public override Color MenuItemSelected => SurfaceHover;
+    public override Color MenuItemSelectedGradientBegin => SurfaceHover;
+    public override Color MenuItemSelectedGradientEnd => SurfaceHover;
+    public override Color MenuItemPressedGradientBegin => SurfaceHover;
+    public override Color MenuItemPressedGradientEnd => SurfaceHover;
+    public override Color ToolStripDropDownBackground => Bg;
+    public override Color ImageMarginGradientBegin => Bg;
+    public override Color ImageMarginGradientMiddle => Bg;
+    public override Color ImageMarginGradientEnd => Bg;
+    public override Color SeparatorDark => Border;
+    public override Color SeparatorLight => Border;
+}
+
+internal sealed class SwissGridToolStripRenderer : ToolStripProfessionalRenderer
+{
+    public SwissGridToolStripRenderer() : base(new SwissGridColorTable())
+    {
+        RoundedEdges = false;
+    }
+
+    protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+    {
+        using var pen = new Pen(Color.FromArgb(44, 44, 54), 1);
+        int y = e.Item.Height / 2;
+        e.Graphics.DrawLine(pen, 8, y, e.Item.Width - 8, y);
+    }
+}
+
 public class TrayApplicationContext : ApplicationContext
 {
+    private static readonly Color TextMain = Color.FromArgb(244, 244, 246);  // #F4F4F6
+    private static readonly Color TextMuted = Color.FromArgb(161, 161, 170); // #A1A1AA
+
     private readonly NotifyIcon _trayIcon;
     private readonly ContextMenuStrip _contextMenu;
     private readonly ToolStripMenuItem _itemStatus;
@@ -22,30 +62,33 @@ public class TrayApplicationContext : ApplicationContext
         _config = config;
         _syncEngine = syncEngine;
 
-        // Create Custom Dark Icon
-        Icon appIcon = GenerateTrayIcon();
+        // Create Custom Square Two-Tone Icon
+        Icon appIcon = CreateAppIcon();
+        string uiFont = LiquidGlassRenderer.ResolvePreferredFont("Inter", "Segoe UI");
 
-        // Build Context Menu
+        // Build Swiss Grid Context Menu (two-tone, 0px corners)
         _contextMenu = new ContextMenuStrip
         {
-            BackColor = Color.FromArgb(15, 23, 42),
-            ForeColor = Color.FromArgb(248, 250, 252),
+            BackColor = Color.FromArgb(18, 18, 21), // #121215
+            ForeColor = TextMain,
             ShowImageMargin = false,
-            Font = new Font("Segoe UI", 9f)
+            Font = new Font(uiFont, 9f),
+            Renderer = new SwissGridToolStripRenderer(),
+            Padding = new Padding(2)
         };
 
-        var itemTitle = new ToolStripMenuItem("Blackboarder Deadlines Widget")
+        var itemTitle = new ToolStripMenuItem("BLACKBOARDER // WIDGET")
         {
             Enabled = false,
-            Font = new Font("Segoe UI", 9f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(56, 189, 248)
+            Font = new Font(uiFont, 8.5f, FontStyle.Bold),
+            ForeColor = TextMain
         };
         _contextMenu.Items.Add(itemTitle);
 
         _itemStatus = new ToolStripMenuItem("Status: Initializing...")
         {
             Enabled = false,
-            ForeColor = Color.FromArgb(148, 163, 184)
+            ForeColor = TextMuted
         };
         _contextMenu.Items.Add(_itemStatus);
 
@@ -121,21 +164,29 @@ public class TrayApplicationContext : ApplicationContext
         );
     }
 
-    private Icon GenerateTrayIcon()
+    public static Icon CreateAppIcon()
     {
         using var bmp = new Bitmap(32, 32);
         using (var g = Graphics.FromImage(bmp))
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var brush = new SolidBrush(Color.FromArgb(15, 23, 42)); // #0F172A
-            g.FillEllipse(brush, 1, 1, 30, 30);
+            g.SmoothingMode = SmoothingMode.None;
+            // 0px square dark monochrome background (#121215) with crisp #F4F4F6 frame
+            using var bgBrush = new SolidBrush(Color.FromArgb(18, 18, 21));
+            g.FillRectangle(bgBrush, 0, 0, 32, 32);
 
-            using var pen = new Pen(Color.FromArgb(56, 189, 248), 2.5f);
-            g.DrawEllipse(pen, 2, 2, 28, 28);
+            using var outerPen = new Pen(Color.FromArgb(244, 244, 246), 1.5f);
+            g.DrawRectangle(outerPen, 1, 1, 29, 29);
 
-            // Inner accent dot / square
-            using var fill = new SolidBrush(Color.FromArgb(56, 189, 248));
-            g.FillRectangle(fill, 10, 10, 12, 12);
+            // Inner Swiss Grid calendar block
+            using var cardBrush = new SolidBrush(Color.FromArgb(244, 244, 246));
+            g.FillRectangle(cardBrush, 6, 7, 20, 19);
+
+            // Top calendar bar + minimal checklist bars
+            using var darkBrush = new SolidBrush(Color.FromArgb(18, 18, 21));
+            g.FillRectangle(darkBrush, 6, 7, 20, 5);
+            g.FillRectangle(darkBrush, 9, 15, 14, 2);
+            g.FillRectangle(darkBrush, 9, 19, 10, 2);
+            g.FillRectangle(darkBrush, 9, 23, 12, 2);
         }
         IntPtr hIcon = bmp.GetHicon();
         return Icon.FromHandle(hIcon);
@@ -156,13 +207,13 @@ public class TrayApplicationContext : ApplicationContext
             if (res.Success)
             {
                 _itemStatus.Text = $"Active: {res.ActiveCount} deadlines • {time}";
-                _itemStatus.ForeColor = Color.FromArgb(74, 222, 128); // Green
+                _itemStatus.ForeColor = TextMain;
                 _trayIcon.Text = $"Blackboarder Widget ({res.ActiveCount} deadlines)";
             }
             else
             {
                 _itemStatus.Text = $"Sync paused (offline) • {time}";
-                _itemStatus.ForeColor = Color.FromArgb(251, 191, 36); // Yellow
+                _itemStatus.ForeColor = TextMuted;
             }
         }
         catch { }
@@ -173,7 +224,7 @@ public class TrayApplicationContext : ApplicationContext
         try
         {
             _itemStatus.Text = "Syncing with Blackboarder...";
-            _itemStatus.ForeColor = Color.FromArgb(56, 189, 248);
+            _itemStatus.ForeColor = TextMain;
             var res = await _syncEngine.UpdateWidgetAsync(force: true);
             OnSyncCompleted(res);
         }
@@ -290,7 +341,7 @@ public class TrayApplicationContext : ApplicationContext
             if (choice != DialogResult.Yes) return;
 
             _itemStatus.Text = $"Downloading {release.TagName}...";
-            _itemStatus.ForeColor = Color.FromArgb(56, 189, 248);
+            _itemStatus.ForeColor = TextMain;
 
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,

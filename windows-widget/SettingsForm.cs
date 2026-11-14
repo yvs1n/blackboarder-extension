@@ -57,6 +57,20 @@ public class SettingsForm : Form
     private bool _hasFetchedPreviewData;
     private int _previewRenderVersion;
 
+    // Blackboarder Design System (Swiss Grid, two-tone dark tokens from docs/DESIGN_SYSTEM.md)
+    private static readonly Color BgColor = Color.FromArgb(18, 18, 21);         // #121215 (--bg)
+    private static readonly Color SurfaceColor = Color.FromArgb(26, 26, 31);    // #1A1A1F (--surface)
+    private static readonly Color SurfaceHover = Color.FromArgb(36, 36, 43);    // #24242B (--surface-hover)
+    private static readonly Color BorderColor = Color.FromArgb(44, 44, 54);     // #2C2C36 (--surface-border)
+    private static readonly Color BorderStrong = Color.FromArgb(63, 63, 76);    // #3F3F4C (--surface-border-strong)
+    private static readonly Color TextMain = Color.FromArgb(244, 244, 246);     // #F4F4F6 (--text-main / --primary)
+    private static readonly Color TextMuted = Color.FromArgb(161, 161, 170);    // #A1A1AA (--text-muted)
+    private static readonly Color TextSubtle = Color.FromArgb(113, 113, 122);   // #71717A (--text-subtle)
+    private static readonly Color OnAccentColor = Color.FromArgb(18, 18, 21);   // #121215 (--on-accent)
+
+    private readonly string _uiFont = LiquidGlassRenderer.ResolvePreferredFont("Inter", "Segoe UI");
+    private readonly string _displayFont = LiquidGlassRenderer.ResolvePreferredFont("Inter Tight", "Segoe UI");
+
     public SettingsForm(AppConfig config, SyncEngine syncEngine)
     {
         _config = config;
@@ -74,19 +88,70 @@ public class SettingsForm : Form
         {
             int darkMode = 1;
             DwmSetWindowAttribute(this.Handle, 20, ref darkMode, sizeof(int));
+            int cornerDoNotRound = 1; // DWMWCP_DONOTROUND (0px Swiss Grid on Win11)
+            DwmSetWindowAttribute(this.Handle, 33, ref cornerDoNotRound, sizeof(int));
+            int borderRef = 0x00362C2C; // #2C2C36
+            DwmSetWindowAttribute(this.Handle, 34, ref borderRef, sizeof(int));
+            int captionRef = 0x00151212; // #121215
+            DwmSetWindowAttribute(this.Handle, 35, ref captionRef, sizeof(int));
         }
         catch { }
     }
 
     private void InitializeComponent()
     {
-        this.Text = "Blackboarder - Lock Screen & Desktop Widget Settings";
-        this.Size = new Size(1060, 680);
-        this.MinimumSize = new Size(980, 620);
+        this.Text = "Blackboarder - Windows Widget Settings";
+        this.Icon = TrayApplicationContext.CreateAppIcon();
+        this.Size = new Size(1060, 720);
+        this.MinimumSize = new Size(980, 650);
         this.StartPosition = FormStartPosition.CenterScreen;
-        this.BackColor = Color.FromArgb(15, 23, 42); // #0F172A
-        this.ForeColor = Color.FromArgb(248, 250, 252);
-        this.Font = new Font("Segoe UI", 9.25f, FontStyle.Regular);
+        this.BackColor = BgColor;
+        this.ForeColor = TextMain;
+        this.Font = new Font(_uiFont, 9.25f, FontStyle.Regular);
+
+        // Top Swiss Grid Header Strip (0px square, hairline 1px separation)
+        var topBar = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 46,
+            BackColor = SurfaceColor,
+            Padding = new Padding(16, 0, 16, 0)
+        };
+        topBar.Paint += (s, e) =>
+        {
+            using var pen = new Pen(BorderColor, 1);
+            e.Graphics.DrawLine(pen, 0, topBar.Height - 1, topBar.Width, topBar.Height - 1);
+        };
+
+        var lblBrand = new Label
+        {
+            Text = "BLACKBOARDER",
+            Location = new Point(16, 13),
+            AutoSize = true,
+            ForeColor = TextMain,
+            Font = new Font(_displayFont, 11f, FontStyle.Bold)
+        };
+        var lblSubtitle = new Label
+        {
+            Text = "WINDOWS WIDGET // SWISS GRID",
+            Location = new Point(142, 16),
+            AutoSize = true,
+            ForeColor = TextMuted,
+            Font = new Font(_uiFont, 8.25f, FontStyle.Bold)
+        };
+        var lblVersionTag = new Label
+        {
+            Text = $"v{SelfUpdater.CurrentVersionString}",
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Location = new Point(topBar.Width - 86, 11),
+            Size = new Size(70, 24),
+            TextAlign = ContentAlignment.MiddleCenter,
+            BackColor = BgColor,
+            ForeColor = TextMain,
+            BorderStyle = BorderStyle.FixedSingle,
+            Font = new Font(_uiFont, 8.25f, FontStyle.Bold)
+        };
+        topBar.Controls.AddRange(new Control[] { lblBrand, lblSubtitle, lblVersionTag });
 
         // Main Layout: Split into Left Settings Panel and Right Preview Panel
         var mainTable = new TableLayoutPanel
@@ -94,18 +159,21 @@ public class SettingsForm : Form
             Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            Padding = new Padding(16)
+            Padding = new Padding(16),
+            BackColor = BgColor
         };
         mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 48f));
         mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 52f));
         this.Controls.Add(mainTable);
+        this.Controls.Add(topBar);
 
         // --- LEFT PANEL (Settings Controls) ---
         var leftScroll = new Panel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            Padding = new Padding(0, 0, 12, 0)
+            Padding = new Padding(0, 0, 12, 0),
+            BackColor = BgColor
         };
         mainTable.Controls.Add(leftScroll, 0, 0);
 
@@ -115,57 +183,50 @@ public class SettingsForm : Form
             AutoSize = true,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            Width = 470
+            Width = 470,
+            BackColor = BgColor
         };
         leftScroll.Controls.Add(leftStack);
 
         // 1. Connection Group
-        var grpConnection = CreateCardGroup("ACCOUNT & SYNC PAIRING", 120);
-        var lblSyncKey = new Label { Text = "Pairing Sync Key:", Location = new Point(14, 28), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
-        _txtSyncKey = new TextBox
-        {
-            Location = new Point(16, 50),
-            Width = 320,
-            BackColor = Color.FromArgb(30, 41, 59),
-            ForeColor = Color.White,
-            BorderStyle = BorderStyle.FixedSingle,
-            Font = new Font("Segoe UI", 9.5f)
-        };
+        var grpConnection = CreateCardGroup("ACCOUNT & SYNC PAIRING", 124);
+        var lblSyncKey = new Label { Text = "Pairing Sync Key:", Location = new Point(14, 36), AutoSize = true, ForeColor = TextMuted };
+        _txtSyncKey = CreateBorderedTextBox(grpConnection, 14, 58, 314);
         _txtSyncKey.TextChanged += (s, e) => { TriggerPreviewUpdate(); };
 
-        _btnTestConnection = CreateButton("Test Connection", new Point(344, 48), 110, 28, isAccent: false);
+        _btnTestConnection = CreateButton("Test Connection", new Point(336, 56), 110, 28, isAccent: false);
         _btnTestConnection.Click += async (s, e) => await OnTestConnectionClicked();
 
         _lblConnectionStatus = new Label
         {
             Text = "Enter your sync key from Blackboarder Settings > Sync.",
-            Location = new Point(16, 84),
+            Location = new Point(14, 92),
             AutoSize = true,
-            ForeColor = Color.FromArgb(148, 163, 184),
-            Font = new Font("Segoe UI", 8.5f)
+            ForeColor = TextMuted,
+            Font = new Font(_uiFont, 8.25f)
         };
-        grpConnection.Controls.AddRange(new Control[] { lblSyncKey, _txtSyncKey, _btnTestConnection, _lblConnectionStatus });
+        grpConnection.Controls.AddRange(new Control[] { lblSyncKey, _btnTestConnection, _lblConnectionStatus });
         leftStack.Controls.Add(grpConnection);
 
         // 2. Display Targets Group
-        var grpTargets = CreateCardGroup("DISPLAY TARGETS", 95);
+        var grpTargets = CreateCardGroup("DISPLAY TARGETS", 98);
         _chkLockScreen = new CheckBox
         {
             Text = "Update Windows Lock Screen",
-            Location = new Point(16, 30),
+            Location = new Point(14, 38),
             AutoSize = true,
             Checked = true,
-            ForeColor = Color.White
+            ForeColor = TextMain
         };
         _chkLockScreen.CheckedChanged += (s, e) => TriggerPreviewUpdate();
 
         _chkDesktop = new CheckBox
         {
             Text = "Update Windows Desktop (Home Screen)",
-            Location = new Point(16, 58),
+            Location = new Point(14, 65),
             AutoSize = true,
             Checked = false,
-            ForeColor = Color.White
+            ForeColor = TextMain
         };
         _chkDesktop.CheckedChanged += (s, e) => TriggerPreviewUpdate();
 
@@ -173,43 +234,44 @@ public class SettingsForm : Form
         leftStack.Controls.Add(grpTargets);
 
         // 3. Card Customization Group
-        var grpStyle = CreateCardGroup("WIDGET CUSTOMIZATION", 215);
+        var grpStyle = CreateCardGroup("WIDGET CUSTOMIZATION", 220);
 
-        var lblPos = new Label { Text = "Screen Position:", Location = new Point(14, 30), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
+        var lblPos = new Label { Text = "Screen Position:", Location = new Point(14, 38), AutoSize = true, ForeColor = TextMuted };
         _cboPosition = new ComboBox
         {
-            Location = new Point(16, 52),
-            Width = 200,
+            Location = new Point(14, 58),
+            Width = 204,
             DropDownStyle = ComboBoxStyle.DropDownList,
-            BackColor = Color.FromArgb(30, 41, 59),
-            ForeColor = Color.White,
+            BackColor = BgColor,
+            ForeColor = TextMain,
             FlatStyle = FlatStyle.Flat
         };
         _cboPosition.Items.AddRange(new object[] { "BottomCenter", "BottomRight", "BottomLeft", "TopCenter", "TopRight", "TopLeft" });
         _cboPosition.SelectedIndexChanged += (s, e) => TriggerPreviewUpdate();
 
-        var lblTasks = new Label { Text = "Max Deadlines:", Location = new Point(236, 30), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
+        var lblTasks = new Label { Text = "Max Deadlines:", Location = new Point(236, 38), AutoSize = true, ForeColor = TextMuted };
         _cboMaxTasks = new ComboBox
         {
-            Location = new Point(238, 52),
-            Width = 200,
+            Location = new Point(236, 58),
+            Width = 208,
             DropDownStyle = ComboBoxStyle.DropDownList,
-            BackColor = Color.FromArgb(30, 41, 59),
-            ForeColor = Color.White,
+            BackColor = BgColor,
+            ForeColor = TextMain,
             FlatStyle = FlatStyle.Flat
         };
         _cboMaxTasks.Items.AddRange(new object[] { "1 deadline", "2 deadlines", "3 deadlines", "4 deadlines", "5 deadlines", "6 deadlines" });
         _cboMaxTasks.SelectedIndexChanged += (s, e) => TriggerPreviewUpdate();
 
-        var lblBlur = new Label { Text = "Glass Bokeh Blur:", Location = new Point(14, 90), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
-        _lblBlurValue = new Label { Text = "24px", Location = new Point(135, 90), AutoSize = true, ForeColor = Color.FromArgb(56, 189, 248), Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
+        var lblBlur = new Label { Text = "Glass Bokeh Blur:", Location = new Point(14, 96), AutoSize = true, ForeColor = TextMuted };
+        _lblBlurValue = new Label { Text = "24px", Location = new Point(135, 96), AutoSize = true, ForeColor = TextMain, Font = new Font(_uiFont, 9f, FontStyle.Bold) };
         _trackBlur = new TrackBar
         {
-            Location = new Point(16, 112),
-            Width = 422,
+            Location = new Point(14, 118),
+            Width = 430,
             Minimum = 0,
             Maximum = 40,
             Value = 24,
+            BackColor = SurfaceColor,
             TickStyle = TickStyle.None
         };
         _trackBlur.ValueChanged += (s, e) =>
@@ -218,17 +280,18 @@ public class SettingsForm : Form
             TriggerPreviewUpdate();
         };
 
-        var lblTrans = new Label { Text = "Glass Transparency:", Location = new Point(14, 152), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
-        _lblTransparencyValue = new Label { Text = "68%", Location = new Point(148, 152), AutoSize = true, ForeColor = Color.FromArgb(56, 189, 248), Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
+        var lblTrans = new Label { Text = "Glass Transparency:", Location = new Point(14, 158), AutoSize = true, ForeColor = TextMuted };
+        _lblTransparencyValue = new Label { Text = "68%", Location = new Point(148, 158), AutoSize = true, ForeColor = TextMain, Font = new Font(_uiFont, 9f, FontStyle.Bold) };
         _trackTransparency = new TrackBar
         {
-            Location = new Point(16, 174),
-            Width = 422,
+            Location = new Point(14, 180),
+            Width = 430,
             Minimum = 0,
             Maximum = 100,
             SmallChange = 2,
             LargeChange = 10,
             Value = 68,
+            BackColor = SurfaceColor,
             TickStyle = TickStyle.None
         };
         _trackTransparency.ValueChanged += (s, e) =>
@@ -246,14 +309,14 @@ public class SettingsForm : Form
         leftStack.Controls.Add(grpStyle);
 
         // 4. Wallpaper Source Group
-        var grpWallpaper = CreateCardGroup("WALLPAPER SOURCE", 130);
+        var grpWallpaper = CreateCardGroup("WALLPAPER SOURCE", 136);
         _rbDefaultWallpaper = new RadioButton
         {
             Text = "Use current Windows Wallpaper (auto-detects changes)",
-            Location = new Point(16, 28),
+            Location = new Point(14, 38),
             AutoSize = true,
             Checked = true,
-            ForeColor = Color.White
+            ForeColor = TextMain
         };
         _rbDefaultWallpaper.CheckedChanged += (s, e) =>
         {
@@ -265,48 +328,41 @@ public class SettingsForm : Form
         _rbCustomWallpaper = new RadioButton
         {
             Text = "Use custom image file:",
-            Location = new Point(16, 56),
+            Location = new Point(14, 65),
             AutoSize = true,
-            ForeColor = Color.White
+            ForeColor = TextMain
         };
 
-        _txtCustomWallpaper = new TextBox
-        {
-            Location = new Point(36, 84),
-            Width = 300,
-            Enabled = false,
-            BackColor = Color.FromArgb(30, 41, 59),
-            ForeColor = Color.White,
-            BorderStyle = BorderStyle.FixedSingle
-        };
+        _txtCustomWallpaper = CreateBorderedTextBox(grpWallpaper, 34, 93, 294);
+        _txtCustomWallpaper.Enabled = false;
         _txtCustomWallpaper.TextChanged += (s, e) => TriggerPreviewUpdate();
 
-        _btnBrowseWallpaper = CreateButton("Browse...", new Point(344, 82), 94, 26, isAccent: false);
+        _btnBrowseWallpaper = CreateButton("Browse...", new Point(336, 91), 110, 28, isAccent: false);
         _btnBrowseWallpaper.Enabled = false;
         _btnBrowseWallpaper.Click += (s, e) => OnBrowseWallpaperClicked();
 
-        grpWallpaper.Controls.AddRange(new Control[] { _rbDefaultWallpaper, _rbCustomWallpaper, _txtCustomWallpaper, _btnBrowseWallpaper });
+        grpWallpaper.Controls.AddRange(new Control[] { _rbDefaultWallpaper, _rbCustomWallpaper, _btnBrowseWallpaper });
         leftStack.Controls.Add(grpWallpaper);
 
         // 5. Startup & Frequency Group
-        var grpStartup = CreateCardGroup("SYSTEM INTEGRATION", 162);
+        var grpStartup = CreateCardGroup("SYSTEM INTEGRATION", 170);
         _chkStartup = new CheckBox
         {
             Text = "Start automatically when Windows boots (runs in system tray)",
-            Location = new Point(16, 28),
+            Location = new Point(14, 38),
             AutoSize = true,
             Checked = true,
-            ForeColor = Color.White
+            ForeColor = TextMain
         };
 
-        var lblInterval = new Label { Text = "Background sync interval:", Location = new Point(14, 60), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
+        var lblInterval = new Label { Text = "Background sync interval:", Location = new Point(14, 68), AutoSize = true, ForeColor = TextMuted };
         _cboInterval = new ComboBox
         {
-            Location = new Point(185, 57),
-            Width = 150,
+            Location = new Point(185, 65),
+            Width = 175,
             DropDownStyle = ComboBoxStyle.DropDownList,
-            BackColor = Color.FromArgb(30, 41, 59),
-            ForeColor = Color.White,
+            BackColor = BgColor,
+            ForeColor = TextMain,
             FlatStyle = FlatStyle.Flat
         };
         _cboInterval.Items.AddRange(new object[] { "1 minute", "2 minutes (Recommended)", "5 minutes", "15 minutes" });
@@ -314,22 +370,22 @@ public class SettingsForm : Form
         _chkAutoUpdate = new CheckBox
         {
             Text = "Automatically download and install .exe updates from GitHub",
-            Location = new Point(16, 92),
+            Location = new Point(14, 98),
             AutoSize = true,
             Checked = true,
-            ForeColor = Color.White
+            ForeColor = TextMain
         };
 
-        _btnCheckUpdates = CreateButton("Check for Updates", new Point(16, 122), 160, 28, isAccent: false);
+        _btnCheckUpdates = CreateButton("Check for Updates", new Point(14, 128), 160, 28, isAccent: false);
         _btnCheckUpdates.Click += async (s, e) => await OnCheckUpdatesClicked();
 
         _lblVersionInfo = new Label
         {
             Text = $"Installed: v{SelfUpdater.CurrentVersionString}",
-            Location = new Point(188, 128),
+            Location = new Point(185, 134),
             AutoSize = true,
-            ForeColor = Color.FromArgb(148, 163, 184),
-            Font = new Font("Segoe UI", 8.5f)
+            ForeColor = TextMuted,
+            Font = new Font(_uiFont, 8.25f)
         };
 
         grpStartup.Controls.AddRange(new Control[]
@@ -339,17 +395,18 @@ public class SettingsForm : Form
         });
         leftStack.Controls.Add(grpStartup);
 
-        // 6. Action Buttons Bar
+        // 6. Action Buttons Bar (One primary solid button per screen; secondary outlined)
         var pnlActions = new Panel
         {
             Width = 460,
-            Height = 60,
-            Margin = new Padding(0, 10, 0, 0)
+            Height = 56,
+            Margin = new Padding(0, 8, 0, 0),
+            BackColor = BgColor
         };
-        _btnRestore = CreateButton("Restore Original Wallpaper", new Point(0, 10), 200, 38, isAccent: false);
+        _btnRestore = CreateButton("Restore Original Wallpaper", new Point(0, 8), 204, 38, isAccent: false);
         _btnRestore.Click += async (s, e) => await OnRestoreClicked();
 
-        _btnSaveApply = CreateButton("Save & Apply Now", new Point(220, 10), 230, 38, isAccent: true);
+        _btnSaveApply = CreateButton("Save & Apply Now", new Point(216, 8), 244, 38, isAccent: true);
         _btnSaveApply.Click += async (s, e) => await OnSaveApplyClicked();
 
         pnlActions.Controls.AddRange(new Control[] { _btnRestore, _btnSaveApply });
@@ -359,7 +416,8 @@ public class SettingsForm : Form
         var rightPanel = new Panel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(12, 0, 0, 0)
+            Padding = new Padding(12, 0, 0, 0),
+            BackColor = BgColor
         };
         mainTable.Controls.Add(rightPanel, 1, 0);
 
@@ -367,25 +425,32 @@ public class SettingsForm : Form
         grpPreview.Dock = DockStyle.Fill;
         rightPanel.Controls.Add(grpPreview);
 
+        var previewFrame = new Panel
+        {
+            Location = new Point(14, 42),
+            Size = new Size(472, 266),
+            Padding = new Padding(1),
+            BackColor = BorderColor
+        };
         _previewBox = new PictureBox
         {
-            Location = new Point(16, 36),
-            Size = new Size(470, 264), // 16:9 ratio
+            Dock = DockStyle.Fill,
             SizeMode = PictureBoxSizeMode.Zoom,
-            BackColor = Color.FromArgb(10, 15, 26),
+            BackColor = Color.Black,
             BorderStyle = BorderStyle.None
         };
+        previewFrame.Controls.Add(_previewBox);
 
         var lblPreviewTip = new Label
         {
-            Text = "This preview shows the exact rendered glass card and position on your selected wallpaper.",
-            Location = new Point(16, 310),
+            Text = "Shows the exact 0px Swiss Grid glass card rendered onto your wallpaper.",
+            Location = new Point(14, 318),
             AutoSize = true,
-            ForeColor = Color.FromArgb(148, 163, 184),
-            Font = new Font("Segoe UI", 8.5f)
+            ForeColor = TextMuted,
+            Font = new Font(_uiFont, 8.25f)
         };
 
-        grpPreview.Controls.AddRange(new Control[] { _previewBox, lblPreviewTip });
+        grpPreview.Controls.AddRange(new Control[] { previewFrame, lblPreviewTip });
 
         // Debounce timer for smooth real-time preview re-rendering
         _previewDebounceTimer = new System.Windows.Forms.Timer { Interval = 120 };
@@ -396,19 +461,61 @@ public class SettingsForm : Form
         };
     }
 
-    private GroupBox CreateCardGroup(string title, int height)
+    private Panel CreateCardGroup(string title, int height)
     {
-        return new GroupBox
+        var panel = new Panel
         {
-            Text = title,
             Width = 460,
             Height = height,
-            ForeColor = Color.FromArgb(148, 163, 184),
-            BackColor = Color.FromArgb(30, 41, 59), // #1E293B
-            Font = new Font("Segoe UI", 8f, FontStyle.Bold),
-            Margin = new Padding(0, 0, 0, 14),
-            Padding = new Padding(12)
+            BackColor = SurfaceColor,
+            Margin = new Padding(0, 0, 0, 12)
         };
+        panel.Paint += (s, e) =>
+        {
+            using var pen = new Pen(BorderColor, 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
+            e.Graphics.DrawLine(pen, 1, 28, panel.Width - 2, 28);
+        };
+        var lblHeader = new Label
+        {
+            Text = title,
+            Location = new Point(12, 7),
+            AutoSize = true,
+            ForeColor = TextMuted,
+            Font = new Font(_uiFont, 7.75f, FontStyle.Bold)
+        };
+        panel.Controls.Add(lblHeader);
+        return panel;
+    }
+
+    private TextBox CreateBorderedTextBox(Panel parent, int x, int y, int width)
+    {
+        var wrap = new Panel
+        {
+            Location = new Point(x, y),
+            Size = new Size(width, 24),
+            Padding = new Padding(5, 4, 5, 3),
+            BackColor = BgColor
+        };
+        bool focused = false;
+        wrap.Paint += (s, e) =>
+        {
+            using var pen = new Pen(focused ? TextMain : BorderColor, 1);
+            e.Graphics.DrawRectangle(pen, 0, 0, wrap.Width - 1, wrap.Height - 1);
+        };
+        var tb = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            BackColor = BgColor,
+            ForeColor = TextMain,
+            BorderStyle = BorderStyle.None,
+            Font = new Font(_uiFont, 9.25f)
+        };
+        tb.Enter += (s, e) => { focused = true; wrap.Invalidate(); };
+        tb.Leave += (s, e) => { focused = false; wrap.Invalidate(); };
+        wrap.Controls.Add(tb);
+        parent.Controls.Add(wrap);
+        return tb;
     }
 
     private Button CreateButton(string text, Point loc, int w, int h, bool isAccent)
@@ -419,22 +526,26 @@ public class SettingsForm : Form
             Location = loc,
             Size = new Size(w, h),
             FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI", 9f, isAccent ? FontStyle.Bold : FontStyle.Regular),
+            Font = new Font(_uiFont, 9f, isAccent ? FontStyle.Bold : FontStyle.Regular),
             Cursor = Cursors.Hand
         };
         btn.FlatAppearance.BorderSize = 1;
 
         if (isAccent)
         {
-            btn.BackColor = Color.FromArgb(2, 132, 199); // #0284C7
-            btn.ForeColor = Color.White;
-            btn.FlatAppearance.BorderColor = Color.FromArgb(56, 189, 248);
+            btn.BackColor = TextMain;
+            btn.ForeColor = OnAccentColor;
+            btn.FlatAppearance.BorderColor = TextMain;
+            btn.FlatAppearance.MouseOverBackColor = Color.White;
+            btn.FlatAppearance.MouseDownBackColor = Color.FromArgb(228, 228, 231);
         }
         else
         {
-            btn.BackColor = Color.FromArgb(51, 65, 85); // #334155
-            btn.ForeColor = Color.FromArgb(241, 245, 249);
-            btn.FlatAppearance.BorderColor = Color.FromArgb(71, 85, 105);
+            btn.BackColor = BgColor;
+            btn.ForeColor = TextMain;
+            btn.FlatAppearance.BorderColor = BorderStrong;
+            btn.FlatAppearance.MouseOverBackColor = SurfaceHover;
+            btn.FlatAppearance.MouseDownBackColor = BorderColor;
         }
 
         return btn;
@@ -578,13 +689,15 @@ public class SettingsForm : Form
         string key = _txtSyncKey.Text.Trim();
         if (string.IsNullOrWhiteSpace(key))
         {
-            _lblConnectionStatus.Text = "Please enter a valid sync key first.";
-            _lblConnectionStatus.ForeColor = Color.FromArgb(248, 113, 113);
+            _lblConnectionStatus.Text = "REQUIRED: Enter a valid sync key first.";
+            _lblConnectionStatus.ForeColor = TextMain;
+            _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
             return;
         }
 
         _lblConnectionStatus.Text = "Connecting to Blackboarder...";
-        _lblConnectionStatus.ForeColor = Color.FromArgb(56, 189, 248);
+        _lblConnectionStatus.ForeColor = TextMuted;
+        _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Regular);
         _btnTestConnection.Enabled = false;
 
         try
@@ -601,26 +714,30 @@ public class SettingsForm : Form
 
             if (taskCount > 0)
             {
-                _lblConnectionStatus.Text = $"Connected! Found {taskCount} deadlines across {courseCount} courses.";
-                _lblConnectionStatus.ForeColor = Color.FromArgb(74, 222, 128); // Green
+                _lblConnectionStatus.Text = $"CONNECTED: Found {taskCount} deadlines across {courseCount} courses.";
+                _lblConnectionStatus.ForeColor = TextMain;
+                _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
             }
             else if (!fetched.IsOffline)
             {
-                _lblConnectionStatus.Text = "Connected! All caught up (no pending deadlines).";
-                _lblConnectionStatus.ForeColor = Color.FromArgb(74, 222, 128);
+                _lblConnectionStatus.Text = "CONNECTED: All caught up (no pending deadlines).";
+                _lblConnectionStatus.ForeColor = TextMain;
+                _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
             }
             else
             {
-                _lblConnectionStatus.Text = "Could not reach server. Using offline cache.";
-                _lblConnectionStatus.ForeColor = Color.FromArgb(251, 191, 36); // Yellow
+                _lblConnectionStatus.Text = "OFFLINE: Using locally cached deadlines.";
+                _lblConnectionStatus.ForeColor = TextMuted;
+                _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
             }
 
             TriggerPreviewUpdate();
         }
         catch (Exception ex)
         {
-            _lblConnectionStatus.Text = $"Connection failed: {ex.Message}";
-            _lblConnectionStatus.ForeColor = Color.FromArgb(248, 113, 113);
+            _lblConnectionStatus.Text = $"ERROR: Connection failed - {ex.Message}";
+            _lblConnectionStatus.ForeColor = TextMain;
+            _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
         }
         finally
         {
@@ -715,22 +832,25 @@ public class SettingsForm : Form
     {
         _btnCheckUpdates.Enabled = false;
         _lblVersionInfo.Text = "Checking GitHub Releases...";
-        _lblVersionInfo.ForeColor = Color.FromArgb(56, 189, 248);
+        _lblVersionInfo.ForeColor = TextMuted;
+        _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Regular);
 
         try
         {
             var release = await SelfUpdater.CheckForUpdateAsync();
             if (release == null)
             {
-                _lblVersionInfo.Text = $"Up to date (v{SelfUpdater.CurrentVersionString})";
-                _lblVersionInfo.ForeColor = Color.FromArgb(74, 222, 128);
+                _lblVersionInfo.Text = $"UP TO DATE: v{SelfUpdater.CurrentVersionString}";
+                _lblVersionInfo.ForeColor = TextMain;
+                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
                 return;
             }
 
             if (!SelfUpdater.CanSelfUpdate(out string reason))
             {
-                _lblVersionInfo.Text = $"{release.TagName} available on GitHub";
-                _lblVersionInfo.ForeColor = Color.FromArgb(251, 191, 36);
+                _lblVersionInfo.Text = $"UPDATE READY: {release.TagName} on GitHub";
+                _lblVersionInfo.ForeColor = TextMain;
+                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
                 MessageBox.Show(
                     $"Blackboarder {release.TagName} is available (installed: v{SelfUpdater.CurrentVersionString}).\n\n{reason}",
                     "Update Available",
@@ -748,13 +868,14 @@ public class SettingsForm : Form
             );
             if (choice != DialogResult.Yes)
             {
-                _lblVersionInfo.Text = $"{release.TagName} ready to install";
-                _lblVersionInfo.ForeColor = Color.FromArgb(251, 191, 36);
+                _lblVersionInfo.Text = $"AVAILABLE: {release.TagName} ready";
+                _lblVersionInfo.ForeColor = TextMain;
+                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
                 return;
             }
 
             _lblVersionInfo.Text = $"Downloading {release.TagName}...";
-            _lblVersionInfo.ForeColor = Color.FromArgb(56, 189, 248);
+            _lblVersionInfo.ForeColor = TextMain;
 
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,
@@ -768,14 +889,16 @@ public class SettingsForm : Form
             }
             else
             {
-                _lblVersionInfo.Text = applied.Message;
-                _lblVersionInfo.ForeColor = Color.FromArgb(248, 113, 113);
+                _lblVersionInfo.Text = $"ERROR: {applied.Message}";
+                _lblVersionInfo.ForeColor = TextMain;
+                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
             }
         }
         catch (Exception ex)
         {
-            _lblVersionInfo.Text = $"Check failed: {ex.Message}";
-            _lblVersionInfo.ForeColor = Color.FromArgb(248, 113, 113);
+            _lblVersionInfo.Text = $"ERROR: Check failed - {ex.Message}";
+            _lblVersionInfo.ForeColor = TextMain;
+            _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
         }
         finally
         {

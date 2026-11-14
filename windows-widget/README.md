@@ -13,7 +13,7 @@ A native, high-performance Windows 10 & 11 companion app for Blackboarder. It re
   - Display resolution / scaling changes
   - Periodic background polling (configurable from 1 to 15 minutes)
 - **Native Lock Screen & Desktop Integration**: Uses official WinRT `Windows.System.UserProfile.LockScreen` and COM `IDesktopWallpaper` APIs.
-- **Liquid Frosted Glass Engine**: Multi-threaded Gaussian bokeh blur, specular light refraction borders, rounded square course badges, and Swiss Grid typography.
+- **Liquid Frosted Glass Engine**: Multi-threaded Gaussian bokeh blur, optical specular hairline borders, 0px square Swiss Grid geometry, two-tone palette (with course colour accents), and clean typography.
 
 ## Quick Start
 

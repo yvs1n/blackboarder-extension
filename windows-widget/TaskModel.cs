@@ -167,7 +167,7 @@ public class TaskItem
             }
         }
 
-        return "#38bdf8";
+        return "#71717a";
     }
 }
 
@@ -319,6 +319,9 @@ public class WidgetThemeConfig
 
     [JsonPropertyName("headerRadius")]
     public float? HeaderRadius { get; set; }
+
+    [JsonPropertyName("pillRadius")]
+    public float? PillRadius { get; set; }
 
     [JsonPropertyName("padding")]
     public int? Padding { get; set; }
