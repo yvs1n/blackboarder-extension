@@ -13,15 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.5",
-  "build": "828246aa26ce",
-  "commit": "da5141111722c41da4b61dc642d3c05b53c1f83c",
-  "shortCommit": "da51411",
-  "timestamp": "2026-11-14T20:43:10.640Z",
-  "message": "v1.8.4: Fix Windows widget crash & student ID, and add auto-updating remote widget styling/loader (v1.8.4)",
+  "version": "1.8.6",
+  "build": "c5700cb6b173",
+  "commit": "2bb4b5c15742c5a98ff468912c40e5fc7fa177d6",
+  "shortCommit": "2bb4b5c",
+  "timestamp": "2026-11-14T20:55:00.221Z",
+  "message": "v1.8.5: Pure neutral black Liquid Glass widgets and Windows transparency control (v1.8.5)",
   "changelog": [
-    "Pure Neutral Black Liquid Glass Widgets (widgets/blackboarder-widget.js, src/worker/05-router.js, src/worker/01-widgets-wallpaper.js, windows-widget/): Removed the dark blue background tint (#0F172A / #070A12) across iOS Scriptable, Android/SVG, and Windows widgets in favor of neutral pure black glass (#000000) with Apple Liquid Glass optical specular highlights and crisp edge rims.",
-    "Windows Glass Transparency Slider (windows-widget/AppConfig.cs, windows-widget/SettingsForm.cs, windows-widget/LiquidGlassRenderer.cs): Added a Glass Transparency slider (0% to 100%, default 68%) and unlocked 0px–40px blur control so users can dial Windows widgets all the way to crystal-clear iPhone Liquid Glass with optical rim refraction and readable shadowed typography."
+    "Windows Widget Automatic Self-Update (windows-widget/SelfUpdater.cs, windows-widget/TrayApplicationContext.cs, windows-widget/SettingsForm.cs): Added automatic GitHub Releases self-updating for BlackboarderWidget.exe (yvs1n/blackboarder-extension/releases/latest), checking on startup and every 3 hours when idle, validating the downloaded PE executable size and MZ header, swapping the in-use binary safely on NTFS, relaunching automatically, and providing an Auto-Update toggle plus Check for Updates action in both Settings and the system tray menu. Synchronized <Version> in BlackboarderWidget.csproj with package.json during npm run build."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

@@ -9,6 +9,23 @@ namespace BlackboarderWidget;
 internal static class Program
 {
     private const string MutexName = "BlackboarderWidget-SingleInstance-Mutex-Global";
+    private static Mutex? _instanceMutex;
+    private static bool _mutexOwned;
+
+    public static void ReleaseInstanceMutex()
+    {
+        try
+        {
+            if (_instanceMutex != null && _mutexOwned)
+            {
+                _mutexOwned = false;
+                _instanceMutex.ReleaseMutex();
+                _instanceMutex.Dispose();
+                _instanceMutex = null;
+            }
+        }
+        catch { }
+    }
 
     private static string AppDataDir => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -46,7 +63,8 @@ internal static class Program
     [STAThread]
     static async Task Main(string[] args)
     {
-        Log($"Main started with args: {string.Join(" ", args)}");
+        Log($"Main v{SelfUpdater.CurrentVersionString} started with args: {string.Join(" ", args)}");
+        SelfUpdater.CleanupStaleUpdateFiles();
 
         // 1. One-shot command line actions
         if (args.Contains("--restore", StringComparer.OrdinalIgnoreCase))
@@ -66,7 +84,32 @@ internal static class Program
         }
 
         // 2. Single-instance enforcement for the background daemon
-        using var mutex = new Mutex(true, MutexName, out bool isNewInstance);
+        bool justUpdated = args.Contains("--updated", StringComparer.OrdinalIgnoreCase);
+        bool isNewInstance = false;
+        _instanceMutex = new Mutex(true, MutexName, out isNewInstance);
+        _mutexOwned = isNewInstance;
+
+        if (!isNewInstance && justUpdated)
+        {
+            for (int i = 0; i < 15 && !isNewInstance; i++)
+            {
+                await Task.Delay(250);
+                try
+                {
+                    if (_instanceMutex.WaitOne(0))
+                    {
+                        isNewInstance = true;
+                        _mutexOwned = true;
+                    }
+                }
+                catch (AbandonedMutexException)
+                {
+                    isNewInstance = true;
+                    _mutexOwned = true;
+                }
+            }
+        }
+
         Log($"Mutex acquired: isNewInstance={isNewInstance}");
         if (!isNewInstance)
         {
@@ -100,13 +143,17 @@ internal static class Program
 
         try
         {
-            Application.Run(new TrayApplicationContext(config, syncEngine, openSettings));
+            Application.Run(new TrayApplicationContext(config, syncEngine, openSettings, justUpdated));
             Log("Application.Run exited cleanly.");
         }
         catch (Exception ex)
         {
             RecordCrash("Application.Run", ex);
             MessageBox.Show(ex.ToString(), "Blackboarder Widget Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            ReleaseInstanceMutex();
         }
     }
 }

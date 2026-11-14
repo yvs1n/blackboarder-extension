@@ -14,9 +14,10 @@ public class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _itemStatus;
     private readonly AppConfig _config;
     private readonly SyncEngine _syncEngine;
+    private System.Threading.Timer? _updateTimer;
     private SettingsForm? _settingsForm;
 
-    public TrayApplicationContext(AppConfig config, SyncEngine syncEngine, bool openSettingsOnLaunch)
+    public TrayApplicationContext(AppConfig config, SyncEngine syncEngine, bool openSettingsOnLaunch, bool showUpdatedNotice = false)
     {
         _config = config;
         _syncEngine = syncEngine;
@@ -56,6 +57,9 @@ public class TrayApplicationContext : ApplicationContext
         var itemSettings = new ToolStripMenuItem("Settings & Live Preview...", null, (s, e) => ShowSettings());
         _contextMenu.Items.Add(itemSettings);
 
+        var itemUpdate = new ToolStripMenuItem($"Check for Updates (v{SelfUpdater.CurrentVersionString})", null, async (s, e) => await OnCheckUpdatesClicked());
+        _contextMenu.Items.Add(itemUpdate);
+
         var itemOpenWeb = new ToolStripMenuItem("Open Blackboarder Web Companion", null, (s, e) => OpenWebCompanion());
         _contextMenu.Items.Add(itemOpenWeb);
 
@@ -93,6 +97,28 @@ public class TrayApplicationContext : ApplicationContext
         {
             ShowSettings();
         }
+
+        if (showUpdatedNotice)
+        {
+            try
+            {
+                _trayIcon.ShowBalloonTip(
+                    3500,
+                    "Blackboarder Widget Updated",
+                    $"Now running v{SelfUpdater.CurrentVersionString}.",
+                    ToolTipIcon.Info
+                );
+            }
+            catch { }
+        }
+
+        // Background GitHub self-update check (12s after boot, then every 3 hours)
+        _updateTimer = new System.Threading.Timer(
+            _ => _ = Task.Run(async () => await BackgroundAutoUpdateCheckAsync()),
+            null,
+            TimeSpan.FromSeconds(12),
+            TimeSpan.FromHours(3)
+        );
     }
 
     private Icon GenerateTrayIcon()
@@ -201,8 +227,95 @@ public class TrayApplicationContext : ApplicationContext
         }
     }
 
+    private async Task BackgroundAutoUpdateCheckAsync()
+    {
+        try
+        {
+            if (!_config.AutoUpdate) return;
+            if (!SelfUpdater.CanSelfUpdate(out _)) return;
+
+            var release = await SelfUpdater.CheckForUpdateAsync().ConfigureAwait(false);
+            if (release == null) return;
+
+            // Avoid interrupting while the user has the Settings window open
+            if (_settingsForm != null && !_settingsForm.IsDisposed) return;
+
+            var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
+                release,
+                relaunchMinimized: true,
+                Program.ReleaseInstanceMutex
+            ).ConfigureAwait(false);
+
+            if (applied.Relaunching && !_contextMenu.IsDisposed)
+            {
+                _contextMenu.BeginInvoke(ExitApplication);
+            }
+        }
+        catch { }
+    }
+
+    private async Task OnCheckUpdatesClicked()
+    {
+        try
+        {
+            var release = await SelfUpdater.CheckForUpdateAsync();
+            if (release == null)
+            {
+                MessageBox.Show(
+                    $"You're up to date!\n\nInstalled version: v{SelfUpdater.CurrentVersionString}",
+                    "Blackboarder Widget",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+                return;
+            }
+
+            if (!SelfUpdater.CanSelfUpdate(out string reason))
+            {
+                MessageBox.Show(
+                    $"Blackboarder {release.TagName} is available on GitHub (installed: v{SelfUpdater.CurrentVersionString}).\n\nAuto-replace is disabled here: {reason}",
+                    "Update Available",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+                return;
+            }
+
+            var choice = MessageBox.Show(
+                $"A new version ({release.TagName}) is available on GitHub!\nInstalled: v{SelfUpdater.CurrentVersionString}\n\nDownload and restart now?",
+                "Update Available",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+            if (choice != DialogResult.Yes) return;
+
+            _itemStatus.Text = $"Downloading {release.TagName}...";
+            _itemStatus.ForeColor = Color.FromArgb(56, 189, 248);
+
+            var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
+                release,
+                relaunchMinimized: false,
+                Program.ReleaseInstanceMutex
+            );
+
+            if (applied.Relaunching)
+            {
+                ExitApplication();
+            }
+            else
+            {
+                MessageBox.Show(applied.Message, "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not check for updates: {ex.Message}", "Update Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
     private void ExitApplication()
     {
+        _updateTimer?.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _syncEngine.Dispose();

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.6] - 2026-11-15
+
+### Added
+
+- **Windows Widget Automatic Self-Update (`windows-widget/SelfUpdater.cs`, `windows-widget/TrayApplicationContext.cs`, `windows-widget/SettingsForm.cs`):** Added automatic GitHub Releases self-updating for `BlackboarderWidget.exe` (`yvs1n/blackboarder-extension/releases/latest`), checking on startup and every 3 hours when idle, validating the downloaded PE executable size and MZ header, swapping the in-use binary safely on NTFS, relaunching automatically, and providing an **Auto-Update** toggle plus **Check for Updates** action in both Settings and the system tray menu. Synchronized `<Version>` in `BlackboarderWidget.csproj` with `package.json` during `npm run build`.
+
+---
+
 ## [1.8.5] - 2026-11-15
 
 ### Changed

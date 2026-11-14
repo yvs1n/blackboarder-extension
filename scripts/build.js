@@ -516,6 +516,18 @@ function syncAllComponents(version) {
     }
   }
 
+  // 5. Sync windows-widget/BlackboarderWidget.csproj Version so the compiled .exe knows its release version
+  const csprojPath = r('windows-widget', 'BlackboarderWidget.csproj');
+  if (fs.existsSync(csprojPath)) {
+    let csproj = readText(csprojPath);
+    csproj = csproj
+      .replace(/<Version>[^<]*<\/Version>/g, `<Version>${version}</Version>`)
+      .replace(/<InformationalVersion>[^<]*<\/InformationalVersion>/g, `<InformationalVersion>${version}</InformationalVersion>`);
+    if (writeIfChanged(csprojPath, csproj)) {
+      console.log(`  ✓ Synced windows-widget/BlackboarderWidget.csproj to v${version}`);
+    }
+  }
+
   // 5. Sync export/extension/README.md template
   const exportReadmePath = r('export', 'extension', 'README.md');
   if (fs.existsSync(exportReadmePath)) {

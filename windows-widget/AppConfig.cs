@@ -52,6 +52,9 @@ public class AppConfig
     [JsonPropertyName("glassTransparency")]
     public int GlassTransparency { get; set; } = 68;
 
+    [JsonPropertyName("autoUpdate")]
+    public bool AutoUpdate { get; set; } = true;
+
     public static AppConfig Load()
     {
         try

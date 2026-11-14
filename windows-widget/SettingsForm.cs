@@ -38,7 +38,10 @@ public class SettingsForm : Form
     private Button _btnBrowseWallpaper = null!;
 
     private CheckBox _chkStartup = null!;
+    private CheckBox _chkAutoUpdate = null!;
     private ComboBox _cboInterval = null!;
+    private Button _btnCheckUpdates = null!;
+    private Label _lblVersionInfo = null!;
 
     private Button _btnSaveApply = null!;
     private Button _btnRestore = null!;
@@ -286,7 +289,7 @@ public class SettingsForm : Form
         leftStack.Controls.Add(grpWallpaper);
 
         // 5. Startup & Frequency Group
-        var grpStartup = CreateCardGroup("SYSTEM INTEGRATION", 100);
+        var grpStartup = CreateCardGroup("SYSTEM INTEGRATION", 162);
         _chkStartup = new CheckBox
         {
             Text = "Start automatically when Windows boots (runs in system tray)",
@@ -307,7 +310,33 @@ public class SettingsForm : Form
             FlatStyle = FlatStyle.Flat
         };
         _cboInterval.Items.AddRange(new object[] { "1 minute", "2 minutes (Recommended)", "5 minutes", "15 minutes" });
-        grpStartup.Controls.AddRange(new Control[] { _chkStartup, lblInterval, _cboInterval });
+
+        _chkAutoUpdate = new CheckBox
+        {
+            Text = "Automatically download and install .exe updates from GitHub",
+            Location = new Point(16, 92),
+            AutoSize = true,
+            Checked = true,
+            ForeColor = Color.White
+        };
+
+        _btnCheckUpdates = CreateButton("Check for Updates", new Point(16, 122), 160, 28, isAccent: false);
+        _btnCheckUpdates.Click += async (s, e) => await OnCheckUpdatesClicked();
+
+        _lblVersionInfo = new Label
+        {
+            Text = $"Installed: v{SelfUpdater.CurrentVersionString}",
+            Location = new Point(188, 128),
+            AutoSize = true,
+            ForeColor = Color.FromArgb(148, 163, 184),
+            Font = new Font("Segoe UI", 8.5f)
+        };
+
+        grpStartup.Controls.AddRange(new Control[]
+        {
+            _chkStartup, lblInterval, _cboInterval,
+            _chkAutoUpdate, _btnCheckUpdates, _lblVersionInfo
+        });
         leftStack.Controls.Add(grpStartup);
 
         // 6. Action Buttons Bar
@@ -442,6 +471,7 @@ public class SettingsForm : Form
         }
 
         _chkStartup.Checked = StartupManager.IsStartupEnabled();
+        _chkAutoUpdate.Checked = _config.AutoUpdate;
 
         _cboInterval.SelectedIndex = _config.PollIntervalMinutes switch
         {
@@ -654,6 +684,7 @@ public class SettingsForm : Form
 
             StartupManager.SetStartupEnabled(_chkStartup.Checked);
             _config.StartWithWindows = _chkStartup.Checked;
+            _config.AutoUpdate = _chkAutoUpdate.Checked;
 
             _config.Save();
             _syncEngine.UpdateConfig(_config);
@@ -677,6 +708,78 @@ public class SettingsForm : Form
         {
             _btnSaveApply.Enabled = true;
             _btnSaveApply.Text = "Save & Apply Now";
+        }
+    }
+
+    private async Task OnCheckUpdatesClicked()
+    {
+        _btnCheckUpdates.Enabled = false;
+        _lblVersionInfo.Text = "Checking GitHub Releases...";
+        _lblVersionInfo.ForeColor = Color.FromArgb(56, 189, 248);
+
+        try
+        {
+            var release = await SelfUpdater.CheckForUpdateAsync();
+            if (release == null)
+            {
+                _lblVersionInfo.Text = $"Up to date (v{SelfUpdater.CurrentVersionString})";
+                _lblVersionInfo.ForeColor = Color.FromArgb(74, 222, 128);
+                return;
+            }
+
+            if (!SelfUpdater.CanSelfUpdate(out string reason))
+            {
+                _lblVersionInfo.Text = $"{release.TagName} available on GitHub";
+                _lblVersionInfo.ForeColor = Color.FromArgb(251, 191, 36);
+                MessageBox.Show(
+                    $"Blackboarder {release.TagName} is available (installed: v{SelfUpdater.CurrentVersionString}).\n\n{reason}",
+                    "Update Available",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+                return;
+            }
+
+            var choice = MessageBox.Show(
+                $"A new version ({release.TagName}) is available on GitHub!\nInstalled: v{SelfUpdater.CurrentVersionString}\n\nDownload and restart now?",
+                "Update Available",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question
+            );
+            if (choice != DialogResult.Yes)
+            {
+                _lblVersionInfo.Text = $"{release.TagName} ready to install";
+                _lblVersionInfo.ForeColor = Color.FromArgb(251, 191, 36);
+                return;
+            }
+
+            _lblVersionInfo.Text = $"Downloading {release.TagName}...";
+            _lblVersionInfo.ForeColor = Color.FromArgb(56, 189, 248);
+
+            var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
+                release,
+                relaunchMinimized: false,
+                Program.ReleaseInstanceMutex
+            );
+
+            if (applied.Relaunching)
+            {
+                Application.Exit();
+            }
+            else
+            {
+                _lblVersionInfo.Text = applied.Message;
+                _lblVersionInfo.ForeColor = Color.FromArgb(248, 113, 113);
+            }
+        }
+        catch (Exception ex)
+        {
+            _lblVersionInfo.Text = $"Check failed: {ex.Message}";
+            _lblVersionInfo.ForeColor = Color.FromArgb(248, 113, 113);
+        }
+        finally
+        {
+            if (!_btnCheckUpdates.IsDisposed) _btnCheckUpdates.Enabled = true;
         }
     }
 

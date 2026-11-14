@@ -202,4 +202,16 @@ describe('Extension automatic updates', () => {
       }
     });
   }
+
+  it('keeps Windows BlackboarderWidget.csproj version synced and targets GitHub releases for self-updates', () => {
+    const pkg = JSON.parse(read('package.json'));
+    const csproj = read('windows-widget/BlackboarderWidget.csproj');
+    expect(csproj).toContain(`<Version>${pkg.version}</Version>`);
+    expect(csproj).toContain(`<InformationalVersion>${pkg.version}</InformationalVersion>`);
+
+    const updater = read('windows-widget/SelfUpdater.cs');
+    expect(updater).toContain('https://api.github.com/repos/yvs1n/blackboarder-extension/releases/latest');
+    expect(updater).toContain('BlackboarderWidget.exe');
+    expect(updater).toContain('CleanupStaleUpdateFiles');
+  });
 });
