@@ -104,6 +104,28 @@ function readJson(file) {
   }
 }
 
+function extractLatestChangelog() {
+  const changelogPath = r('CHANGELOG.md');
+  if (!fs.existsSync(changelogPath)) return [];
+  const text = readText(changelogPath);
+  const start = text.search(/^## \[/m);
+  if (start === -1) return [];
+  const rest = text.slice(start);
+  const nextSection = rest.slice(3).search(/^## \[|^---\s*$/m);
+  const section = nextSection === -1 ? rest : rest.slice(0, nextSection + 3);
+  const allBullets = [];
+  const leafBullets = [];
+  for (const line of section.split('\n')) {
+    const match = /^\s*-\s+(.+)$/.exec(line);
+    if (!match) continue;
+    const cleaned = match[1].replace(/\*\*/g, '').replace(/`/g, '').trim();
+    if (!cleaned) continue;
+    allBullets.push(cleaned);
+    if (!cleaned.endsWith(':')) leafBullets.push(cleaned);
+  }
+  return (leafBullets.length > 0 ? leafBullets : allBullets).slice(0, 8);
+}
+
 /**
  * Version info for a build id. When the id matches the previous build, the previous commit and
  * timestamp are kept so an unchanged build produces identical files.
@@ -117,6 +139,7 @@ function versionInfo(buildId, previous, git) {
       shortCommit: previous.shortCommit || git.shortCommit,
       timestamp: previous.timestamp,
       message: previous.message || git.message,
+      changelog: Array.isArray(previous.changelog) ? previous.changelog : extractLatestChangelog(),
       repo: EXTENSION_REPO,
       branch: 'main'
     };
@@ -128,6 +151,7 @@ function versionInfo(buildId, previous, git) {
     shortCommit: git.shortCommit,
     timestamp: new Date().toISOString(),
     message: git.message || 'Update Blackboarder',
+    changelog: extractLatestChangelog(),
     repo: EXTENSION_REPO,
     branch: 'main'
   };
@@ -226,14 +250,6 @@ function copyWidget() {
   // widgets/blackboarder-widget.js is the only copy to edit; the web app serves it for "Copy Widget Script"
   const source = readText(r('widgets', 'blackboarder-widget.js'));
   writeIfChanged(path.join(WEB_DIR, 'widget.js'), source);
-
-  // Copy to mobile-web/widgets/ for direct downloading from the landing page
-  const webWidgetsDir = r('mobile-web', 'widgets');
-  writeIfChanged(path.join(webWidgetsDir, 'blackboarder-widget.js'), source);
-  const kwgtSource = r('widgets', 'android', 'blackboarder-kwgt.json');
-  if (fs.existsSync(kwgtSource)) {
-    writeIfChanged(path.join(webWidgetsDir, 'blackboarder-kwgt.json'), readText(kwgtSource));
-  }
 }
 
 function stampWebApp(git) {
@@ -296,6 +312,7 @@ export interface BuildInfo {
   shortCommit: string;
   timestamp: string;
   message: string;
+  changelog: readonly string[];
   repo: string;
   branch: string;
 }
@@ -578,14 +595,6 @@ async function main() {
 
   if (HAS_WEB && fs.existsSync(r('scripts', 'bundle-worker.js'))) {
     execSync('node scripts/bundle-worker.js', { cwd: ROOT, stdio: 'inherit' });
-  }
-
-  if (HAS_WEB && fs.existsSync(r('scripts', 'package-mac-app.py'))) {
-    try {
-      execSync('python scripts/package-mac-app.py', { cwd: ROOT, stdio: 'inherit' });
-    } catch (err) {
-      console.warn('Could not package Mac app zip:', err.message);
-    }
   }
 
   console.log(HAS_WEB ? 'Build complete: dist/ (extension), dist-store/ (store build) and the web app files.' : 'Build complete: dist/ (extension) and dist-store/ (store build).');

@@ -71,6 +71,28 @@ function Update-GitCheckout {
   return @{ ok = $true; changed = ($before -ne (Get-GitText @('rev-parse', 'HEAD'))); build = $(if ($info) { $info.build } else { $null }) }
 }
 
+function Remove-StaleExtensionFiles([string]$TargetDir, $KeepFiles) {
+  $isRepoCheckout = (Test-Path -LiteralPath (Join-Path $TargetDir 'src')) -or (Test-Path -LiteralPath (Join-Path $TargetDir 'package.json'))
+  if ($isRepoCheckout -or (-not $KeepFiles)) { return }
+  $keep = @{}
+  $keep['version.json'] = $true
+  foreach ($f in $KeepFiles) {
+    $norm = ([string]$f -replace '\\', '/').TrimStart('/').ToLowerInvariant()
+    if ($norm) { $keep[$norm] = $true }
+  }
+  $extRoot = (Resolve-Path -LiteralPath $TargetDir).Path.TrimEnd('\')
+  foreach ($existingFile in Get-ChildItem -LiteralPath $extRoot -Recurse -File -Force -ErrorAction SilentlyContinue) {
+    $rel = $existingFile.FullName.Substring($extRoot.Length + 1).Replace('\', '/').ToLowerInvariant()
+    if (-not $keep.ContainsKey($rel)) {
+      Remove-Item -LiteralPath $existingFile.FullName -Force -ErrorAction SilentlyContinue
+    }
+  }
+  Get-ChildItem -LiteralPath $extRoot -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+    Sort-Object { $_.FullName.Length } -Descending |
+    Where-Object { @(Get-ChildItem -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue).Count -eq 0 } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
 function Update-ExtensionFiles {
   if (Test-DevCheckout) { return Update-GitCheckout }
 
@@ -109,16 +131,8 @@ function Update-ExtensionFiles {
       Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
     }
 
-    # Remove files the previous build had and the new one does not (renamed bundles and so on)
-    if ($oldInfo -and $oldInfo.files -and $newInfo.files) {
-      $keep = @{}
-      foreach ($f in $newInfo.files) { $keep[$f.ToLowerInvariant()] = $true }
-      foreach ($f in $oldInfo.files) {
-        if ($keep.ContainsKey($f.ToLowerInvariant()) -or $f -match '\.\.' -or $f -match '^[\\/]' -or $f -match ':') { continue }
-        $stale = Join-Path $ExtDir ($f -replace '/', '\')
-        if (Test-Path -LiteralPath $stale -PathType Leaf) { Remove-Item -LiteralPath $stale -Force }
-      }
-    }
+    # Remove any old/stale files in $ExtDir that are not in the new build (old hashed bundles, leftovers)
+    Remove-StaleExtensionFiles $ExtDir $newInfo.files
 
     Copy-Item -LiteralPath (Join-Path $srcRoot 'version.json') -Destination $installedFile -Force
     return @{ ok = $true; changed = $true; build = $newInfo.build }

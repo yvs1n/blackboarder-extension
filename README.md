@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.1-blue?logo=github&logoColor=white" alt="Version v1.8.1" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.2-blue?logo=github&logoColor=white" alt="Version v1.8.2" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-674_Passing-success?logo=vitest&logoColor=white" alt="Vitest 674 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-677_Passing-success?logo=vitest&logoColor=white" alt="Vitest 677 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 
@@ -58,17 +58,17 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Privacy tools.** Delete everything stored online under your sync key from Settings > Data, download a recovery file for your key, and see a banner when your Blackboard session has ended.
 - **Zero-Knowledge Cloud Vault & Private Sync.** Synced tasks, courses, student profile, semesters, marks, and tombstones are sealed inside an authenticated, encrypted AES-256-GCM vault envelope (`v1:iv:ciphertext`) derived from your secret sync key via HKDF-SHA256 before storage in Firebase Realtime Database. Cloud administrators and database servers see zero plaintext academic records, while calendar feeds and push reminders continue working through memory-only decryption in the Cloudflare Worker. The sync key input is strictly read-only to prevent typing collisions. Generating a new key opens a confirmation modal with an instant Export JSON Backup button so you can save your data before resetting. If a phone connects to an old sync key whose data was deleted, it unpairs cleanly and returns to the pairing screen.
 - **Mobile post-pairing setup.** Pairing your phone via QR code or sync key opens an onboarding setup sheet with immediate toggles for class visibility, push alerts, Apple and Google Calendar subscription links, and widget setup instructions.
-- **Multi-Platform Widgets, Dynamic Wallpapers & Desktop Companion.** Bring your deadlines and courses to your home screen, lock screen, and desktop with a frosted glass aesthetic:
-  - **iPhone and iPad**: Dynamic SVG lock screen and home screen wallpaper endpoint (`/api/wallpaper?key=...`) automated via Apple Shortcuts with course color pills and completion checkmarks; plus native Scriptable Home and Lock Screen accessory widgets.
-  - **Android**: Live Web Widget frosted glass card (`/widget?key=...`) for one-tap home screen setup, KWGT Kustom Widget integration (`widgets/android/`), and dynamic lock screen wallpaper support.
-  - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe`) connecting directly via personal Sync Key, and Mac high-resolution desktop dynamic wallpaper automation via Shortcuts.
-  - **Hardware Detection**: Automatically detects your device model (iPhone 16 Pro, Samsung Galaxy, MacBook, Windows PC) to tailor setup options and one-tap copy buttons in Settings > Calendar and the setup wizard.
+- **Multi-Platform Widgets & Desktop Companion.** Bring your deadlines and courses to your home screen, lock screen, and desktop with a frosted glass aesthetic:
+  - **iPhone and iPad**: Native Scriptable Home and Lock Screen frosted liquid glass widgets with course color accent bars and clear assessment hierarchy.
+  - **Android**: Live Web Widget frosted glass card and KWGT Kustom Widget integration.
+  - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe`) connecting directly via personal Sync Key, and Mac desktop wallpaper updater.
+  - **Hardware Detection**: Automatically detects your OS and device model to tailor setup instructions in extension **Settings > General** and companion **Settings > Calendar**.
 - **Live scan cancellation.** Click the close button (`✕`) on the live scan banner to cancel active scans across background HTTP and tab scanners immediately.
 - **Fast, responsive performance.** Smooth hardware-accelerated CSS view transitions, font preloading (`inter.woff2`, `inter-tight.woff2`), CSS containment (`contain: layout style paint`), and debounced search filtering.
 - **Dark mode** for the extension, the phone app, and Blackboard itself.
 - **Activity filter**: a bar on Blackboard's Activity page shows only the courses and kinds of item you pick (Exams & quizzes, Assignments & labs, Grades, Materials, Announcements), and keeps loading older items while a filter is on.
 - **Course colours on Blackboard**: each course keeps the colour you set in Blackboarder on Blackboard too (Activity, calendar, Grades, Messages, the course banner and tabs). New courses start with Blackboard's own colour.
-- **Updates from GitHub with one click**, checking GitHub via lightweight HTTP and updating when you click Update now (see [Automatic updates](#-automatic-updates)).
+- **Automatic updates from GitHub**, checking GitHub via lightweight HTTP with toggleable auto-download, stale-file cleanup, and post-update changelog summaries (see [Automatic updates](#-automatic-updates)).
 
 ---
 
@@ -140,7 +140,7 @@ No API key? The built-in parser reads announcements automatically, so everything
 
 ## 🔄 Automatic Updates
 
-Once `update.bat` / `update.sh` has run, the extension checks this repository every 15 minutes using lightweight HTTP without running background processes. When a new build is detected, an **Update Available** banner appears with an **Update now** button. Clicking it asks the helper to download the new build into the extension folder (or run `git pull --ff-only` in a git clone on `main` without uncommitted edits), and restarts once its popup is closed or when you click **Restart now**. All your tasks, courses, profile, and settings are 100% kept. Otherwise **Settings** shows why it skipped.
+Once `update.bat` / `update.sh` has run, the extension checks this repository every 15 minutes using lightweight HTTP without running background processes. When **Automatic Updates** is enabled (on by default in **Settings > Updates**), new builds are downloaded automatically into the extension folder (with old leftover files purged cleanly) or pulled via `git pull --ff-only` in a git clone on `main`, and the extension restarts when idle or when you click **Restart now**. Turning off **Automatic Updates** keeps updates on the banner until you click **Update now**. All your tasks, courses, profile, and settings are 100% kept, and an optional **What's New** changelog summary opens after updating.
 
 Each build is identified by a hash of its files, so a change that does not touch the extension does not update it.
 

@@ -20,6 +20,7 @@ export type PopupOverlayId =
   | 'modal-course-editor'
   | 'modal-course-import'
   | 'modal-regen-key-confirm'
+  | 'modal-changelog'
   | 'modal-walkthrough';
 
 interface StackEntry {
@@ -36,6 +37,7 @@ const MODAL_DISMISS_ORDER: PopupOverlayId[] = [
   'modal-quick-links',
   'modal-ai-extract',
   'modal-regen-key-confirm',
+  'modal-changelog',
   'modal-walkthrough',
   'day-expanded-drawer'
 ];

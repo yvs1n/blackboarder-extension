@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.2] - 2026-11-14
+
+### Added
+
+- **Automatic Updates Toggle & Auto-Install (`src/background/autoUpdate.ts`, `src/popup/modules/settingsUpdates.ts`):** Added an **Automatic Updates** switch (`#setting-auto-update`, enabled by default) in **Settings > Updates** so new GitHub builds download automatically through the updater helper and reload when idle, or pause at **Update Available** when disabled.
+- **Post-Update Changelog Popup & Settings Toggle:** Embedded release highlights from `CHANGELOG.md` into `BUILD_INFO` (`scripts/build.js`), added a **Show Changelog After Update** toggle (`#setting-show-changelog`), added a collapsible **What's New** section (`#details-ext-changelog`) in **Settings > Updates**, and added the `#modal-changelog` summary dialog shown on first popup open after an update.
+
+### Changed
+
+- **Complete Old-File Cleanup on Extension Update (`updater/blackboarder-updater.ps1`, `updater/blackboarder-updater.sh`):** Swept the extension install directory during updates (when not a git/source checkout) to delete all stale files not in the incoming `version.json` manifest (including old hashed Vite bundles) and remove empty subdirectories.
+- **Widget Active-Task Filtering & iOS Large Capacity (`widgets/blackboarder-widget.js`, `src/worker/01-widgets-wallpaper.js`):** Excluded tasks marked as done from desktop and mobile widgets, aligned Windows widget styling with mobile frosted glass cards, and increased the iOS Large Scriptable widget limit to show more upcoming deadlines.
+
+### Removed
+
+- **Dead Files & Obsolete Feature Artifacts:** Deleted unused `scripts/package-mac-app.py`, `mobile-web/Blackboarder-Mac.zip`, `mobile-web/install-mac.sh`, `mobile-web/widgets/`, `widgets/ios/README.md`, and `docs/syllabus/README.md`, and trimmed obsolete Apple Shortcuts / wallpaper URL handlers from companion scripts and docs.
+
+---
+
 ## [1.8.1] - 2026-11-14
 
 ### Changed

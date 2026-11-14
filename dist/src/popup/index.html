@@ -6,7 +6,7 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-CiFisOC1.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-bn_JUNxL.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-C8XZN2fV.css">
 </head>
 <body>
@@ -295,7 +295,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.1</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.2</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -1186,7 +1186,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.1</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.2</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1194,8 +1194,30 @@
           </div>
 
           <p class="settings-card-desc" id="ext-update-status-desc">
-            Installed build: <code id="ext-local-commit">local</code> (<span id="ext-local-date">just now</span>). Checks GitHub every hour and installs new versions automatically.
+            Installed build: <code id="ext-local-commit">local</code> (<span id="ext-local-date">just now</span>). Checks GitHub every 15 minutes and installs new versions when enabled.
           </p>
+
+          <div class="toggle-control-row">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label">Automatic Updates</span>
+              <span class="toggle-status-desc">Automatically download new GitHub builds and reload when idle</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-auto-update" aria-label="Automatic Updates" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="toggle-control-row" style="margin-bottom: 10px;">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label">Show Changelog After Update</span>
+              <span class="toggle-status-desc">Open a summary of main changes the first time you open Blackboarder after an update</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-show-changelog" aria-label="Show Changelog After Update" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
 
           <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
             <button type="button" class="btn-primary" id="btn-apply-update-settings" style="font-size: 11.5px; padding: 7px 10px; justify-content: center; display: none;">
@@ -1221,6 +1243,17 @@
               <span>View GitHub Repository</span>
             </button>
           </div>
+
+          <details class="setting-details" id="details-ext-changelog" style="margin-top: 10px;">
+            <summary style="cursor: pointer; color: var(--text-main); font-size: 11px; padding: 4px 0; user-select: none; font-weight: 600;">
+              What's New in <span id="ext-changelog-version">v1.8.1</span>
+            </summary>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
+              <div id="ext-changelog-commit-summary" style="font-size: 11px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; line-height: 1.4;"></div>
+              <ul id="ext-settings-changelog-list" style="margin: 0; padding-left: 16px; font-size: 11px; color: var(--text-muted); line-height: 1.5; display: flex; flex-direction: column; gap: 4px;"></ul>
+            </div>
+          </details>
+
           <p class="settings-card-desc" style="margin-top: 10px; font-size: 11px;">
             Built by <a href="https://yassinr.me" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: underline;">Yassin Ragab</a>, a freshman at UOS.
           </p>
@@ -1963,6 +1996,27 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%;">
           <button type="button" class="btn-secondary" id="btn-cancel-regen-key" style="justify-content: center;">Cancel</button>
           <button type="button" class="btn-danger" id="btn-confirm-regen-key" style="justify-content: center;">New Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Post-Update What's New Changelog -->
+  <div id="modal-changelog" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="changelog-modal-title">
+    <div class="modal-dialog" style="max-width: 380px; width: calc(100% - 28px);">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="ui-icon" style="width: 16px; height: 16px; color: var(--primary);"><use href="#icon-sparkles"></use></svg>
+          <h3 id="changelog-modal-title" class="modal-title">Updated to <span id="changelog-modal-version">v1.8.1</span></h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-changelog-modal" aria-label="Close changelog">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 12px 14px;">
+        <div id="changelog-modal-subtitle" style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; font-family: monospace;"></div>
+        <div id="changelog-modal-commit" style="font-size: 11.5px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; line-height: 1.4;"></div>
+        <ul id="changelog-modal-list" style="margin: 0 0 12px 0; padding-left: 16px; font-size: 11.5px; color: var(--text-muted); line-height: 1.5; display: flex; flex-direction: column; gap: 5px; max-height: 210px; overflow-y: auto;"></ul>
+        <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--surface-border); padding-top: 10px;">
+          <button type="button" class="btn-primary" id="btn-dismiss-changelog-modal" style="padding: 6px 16px; font-size: 11.5px;">Got it</button>
         </div>
       </div>
     </div>

@@ -1,9 +1,118 @@
-import { AUTO_UPDATE_STATUS_KEY, POPUP_PORT_NAME, type AutoUpdateStatus } from '../../background/autoUpdate';
+import {
+  AUTO_UPDATE_ENABLED_KEY,
+  AUTO_UPDATE_STATUS_KEY,
+  JUST_UPDATED_KEY,
+  POPUP_PORT_NAME,
+  SHOW_CHANGELOG_KEY,
+  type AutoUpdateStatus
+} from '../../background/autoUpdate';
 import { BUILD_INFO } from '../../buildInfo';
 import { IS_STORE_BUILD } from '../../utils/storeBuild';
 import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/updateBanner';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../../utils/updateChecker';
+import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions } from './state';
+
+const LAST_SEEN_BUILD_KEY = 'bbs_last_seen_build';
+
+function getChangelogEntries(): string[] {
+  const entries = (BUILD_INFO as { changelog?: readonly string[] }).changelog;
+  if (Array.isArray(entries) && entries.length > 0) return [...entries];
+  return BUILD_INFO.message ? [BUILD_INFO.message] : ['Bug fixes and performance improvements.'];
+}
+
+function populateChangelogList(listEl: HTMLElement | null, entries: string[]): void {
+  if (!listEl) return;
+  listEl.replaceChildren(
+    ...entries.map(item => {
+      const li = document.createElement('li');
+      li.textContent = item;
+      return li;
+    })
+  );
+}
+
+function initChangelogUiAndModal(): void {
+  const entries = getChangelogEntries();
+  const versionLabel = `v${BUILD_INFO.version}`;
+
+  const settingsVer = document.getElementById('ext-changelog-version');
+  const settingsCommit = document.getElementById('ext-changelog-commit-summary');
+  const settingsList = document.getElementById('ext-settings-changelog-list');
+  if (settingsVer) settingsVer.textContent = versionLabel;
+  if (settingsCommit) settingsCommit.textContent = BUILD_INFO.message || 'Latest release';
+  populateChangelogList(settingsList, entries);
+
+  const modalVer = document.getElementById('changelog-modal-version');
+  const modalSub = document.getElementById('changelog-modal-subtitle');
+  const modalCommit = document.getElementById('changelog-modal-commit');
+  const modalList = document.getElementById('changelog-modal-list');
+  if (modalVer) modalVer.textContent = versionLabel;
+  if (modalSub) modalSub.textContent = `Build ${BUILD_INFO.build || 'local'}${BUILD_INFO.shortCommit ? ` • ${BUILD_INFO.shortCommit}` : ''}`;
+  if (modalCommit) modalCommit.textContent = BUILD_INFO.message || 'Latest release';
+  populateChangelogList(modalList, entries);
+
+  const changelogModal = document.getElementById('modal-changelog');
+  const closeChangelog = () => closeModalEl('modal-changelog', changelogModal);
+  if (changelogModal) {
+    registerOverlayCloseHandler('modal-changelog', closeChangelog);
+    document.getElementById('btn-close-changelog-modal')?.addEventListener('click', closeChangelog);
+    document.getElementById('btn-dismiss-changelog-modal')?.addEventListener('click', closeChangelog);
+    changelogModal.addEventListener('click', e => {
+      if (e.target === changelogModal) closeChangelog();
+    });
+  }
+
+  const showChangelogInput = document.getElementById('setting-show-changelog') as HTMLInputElement | null;
+  let localShowPref = true;
+  try { localShowPref = localStorage.getItem(SHOW_CHANGELOG_KEY) !== 'false'; } catch {}
+  if (showChangelogInput) {
+    showChangelogInput.checked = localShowPref;
+    try {
+      chrome.storage?.local?.get([SHOW_CHANGELOG_KEY], res => {
+        if (typeof res?.[SHOW_CHANGELOG_KEY] === 'boolean') {
+          showChangelogInput.checked = res[SHOW_CHANGELOG_KEY];
+          try { localStorage.setItem(SHOW_CHANGELOG_KEY, String(res[SHOW_CHANGELOG_KEY])); } catch {}
+        }
+      });
+    } catch {}
+    showChangelogInput.addEventListener('change', () => {
+      const checked = showChangelogInput.checked;
+      try { localStorage.setItem(SHOW_CHANGELOG_KEY, String(checked)); } catch {}
+      try { chrome.storage?.local?.set({ [SHOW_CHANGELOG_KEY]: checked }); } catch {}
+    });
+  }
+
+  const checkPostUpdateChangelog = async () => {
+    if (!changelogModal || !BUILD_INFO.build) return;
+    let prevSeenBuild: string | null = null;
+    let walkthroughSeen = false;
+    try {
+      prevSeenBuild = localStorage.getItem(LAST_SEEN_BUILD_KEY);
+      walkthroughSeen = Boolean(localStorage.getItem('bbs_walkthrough_seen'));
+      localStorage.setItem(LAST_SEEN_BUILD_KEY, BUILD_INFO.build);
+    } catch {}
+
+    let justUpdated: unknown = null;
+    let storageShowPref: unknown = undefined;
+    try {
+      const res = await new Promise<Record<string, any>>(resolve => {
+        if (!chrome.storage?.local?.get) { resolve({}); return; }
+        chrome.storage.local.get([JUST_UPDATED_KEY, SHOW_CHANGELOG_KEY], r => resolve(r || {}));
+      });
+      justUpdated = res[JUST_UPDATED_KEY];
+      storageShowPref = res[SHOW_CHANGELOG_KEY];
+      if (justUpdated) chrome.storage.local.remove(JUST_UPDATED_KEY);
+    } catch {}
+
+    const showEnabled = typeof storageShowPref === 'boolean' ? storageShowPref : localShowPref;
+    const buildChanged = Boolean(prevSeenBuild && prevSeenBuild !== BUILD_INFO.build);
+    if ((Boolean(justUpdated) || buildChanged) && showEnabled && walkthroughSeen) {
+      openModalEl('modal-changelog', changelogModal);
+    }
+  };
+  void checkPostUpdateChangelog();
+}
 
 export function initExtensionUpdateSystem() {
   const versionBadge = document.getElementById('ext-version-badge');
@@ -25,14 +134,17 @@ export function initExtensionUpdateSystem() {
   const btnOpenGithub = document.getElementById('btn-open-github-repo');
   const statusPill = document.getElementById('ext-update-status-pill');
   const statusDesc = document.getElementById('ext-update-status-desc');
+  const autoUpdateInput = document.getElementById('setting-auto-update') as HTMLInputElement | null;
 
   if (versionBadge) versionBadge.textContent = 'v' + BUILD_INFO.version;
+  initChangelogUiAndModal();
   if (IS_STORE_BUILD) {
     const card = document.getElementById('card-extension-updates');
     const subtitle = card?.querySelector('.settings-card-subtitle');
     if (subtitle) subtitle.textContent = 'Your browser updates Blackboarder automatically through its extension store.';
     if (statusPill) statusPill.textContent = 'Managed by the store';
     if (statusDesc) statusDesc.textContent = 'Installed version: v' + BUILD_INFO.version + '. New versions arrive on their own, usually within a day of being published.';
+    autoUpdateInput?.closest('.toggle-control-row')?.remove();
     [btnCheckManual, btnReloadSettings, btnDownloadSettings, btnOpenGithub, btnApplyUpdateSettings].forEach(b => {
       const holder = b?.closest('div[style*="display: flex; flex-direction: column"]');
       if (holder) holder.remove();
@@ -50,6 +162,7 @@ export function initExtensionUpdateSystem() {
   const DISMISSED_KEY = 'bbs_dismissed_update_build';
   const ENABLE_HINT = ENABLE_UPDATES_HINT;
   let shownStatus: AutoUpdateStatus | null = null;
+  let autoUpdatePref = true;
 
   const openUrl = (url: string) => {
     try { if (chrome.tabs?.create) { chrome.tabs.create({ url }); return; } } catch {}
@@ -124,7 +237,9 @@ export function initExtensionUpdateSystem() {
         setPill('Up to Date', 'green');
         if (statusDesc) {
           statusDesc.textContent = status.helperInstalled
-            ? `Automatic updates are on. You have the latest version (${installed}).`
+            ? (autoUpdatePref
+              ? `Automatic updates are on. You have the latest version (${installed}).`
+              : `Automatic updates are paused. You have the latest version (${installed}).`)
             : `You have the latest version (${installed}). Automatic updates are off: ${ENABLE_HINT} to turn them on.`;
         }
     }
@@ -220,6 +335,25 @@ export function initExtensionUpdateSystem() {
   };
   btnDismiss?.addEventListener('click', dismissCurrentBanner);
   btnLater?.addEventListener('click', dismissCurrentBanner);
+
+  if (autoUpdateInput) {
+    try {
+      chrome.storage?.local?.get([AUTO_UPDATE_ENABLED_KEY], res => {
+        autoUpdatePref = res?.[AUTO_UPDATE_ENABLED_KEY] !== false;
+        autoUpdateInput.checked = autoUpdatePref;
+        if (shownStatus) render(shownStatus, false);
+      });
+    } catch {}
+    autoUpdateInput.addEventListener('change', () => {
+      autoUpdatePref = autoUpdateInput.checked;
+      try { chrome.storage?.local?.set({ [AUTO_UPDATE_ENABLED_KEY]: autoUpdatePref }); } catch {}
+      if (autoUpdatePref && shownStatus?.state === 'update-available' && shownStatus.helperInstalled) {
+        void applyUpdateNow(btnApplyUpdateSettings);
+      } else if (shownStatus) {
+        render(shownStatus, false);
+      }
+    });
+  }
 
   setTimeout(async () => {
     const saved = await askBackground('GET_AUTO_UPDATE_STATUS');

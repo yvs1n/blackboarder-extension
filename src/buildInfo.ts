@@ -7,17 +7,25 @@ export interface BuildInfo {
   shortCommit: string;
   timestamp: string;
   message: string;
+  changelog: readonly string[];
   repo: string;
   branch: string;
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.1",
-  "build": "61ee47d60eb9",
-  "commit": "91da99aa8a6343603a1151083c5453dabd201592",
-  "shortCommit": "91da99a",
-  "timestamp": "2026-11-14T07:50:27.928Z",
-  "message": "v1.8.1: build: update generated files for 7bf8e22",
+  "version": "1.8.2",
+  "build": "d0d52ba73412",
+  "commit": "a5873b869fdca78cf24a1a8cb396b7008e8023e3",
+  "shortCommit": "a5873b8",
+  "timestamp": "2026-11-14T08:56:24.847Z",
+  "message": "v1.8.1: fix(widgets): hide done tasks, align desktop/mobile glass design, show 9 on iOS Large",
+  "changelog": [
+    "Automatic Updates Toggle & Auto-Install (src/background/autoUpdate.ts, src/popup/modules/settingsUpdates.ts): Added an Automatic Updates switch (#setting-auto-update, enabled by default) in Settings > Updates so new GitHub builds download automatically through the updater helper and reload when idle, or pause at Update Available when disabled.",
+    "Post-Update Changelog Popup & Settings Toggle: Embedded release highlights from CHANGELOG.md into BUILD_INFO (scripts/build.js), added a Show Changelog After Update toggle (#setting-show-changelog), added a collapsible What's New section (#details-ext-changelog) in Settings > Updates, and added the #modal-changelog summary dialog shown on first popup open after an update.",
+    "Complete Old-File Cleanup on Extension Update (updater/blackboarder-updater.ps1, updater/blackboarder-updater.sh): Swept the extension install directory during updates (when not a git/source checkout) to delete all stale files not in the incoming version.json manifest (including old hashed Vite bundles) and remove empty subdirectories.",
+    "Widget Active-Task Filtering & iOS Large Capacity (widgets/blackboarder-widget.js, src/worker/01-widgets-wallpaper.js): Excluded tasks marked as done from desktop and mobile widgets, aligned Windows widget styling with mobile frosted glass cards, and increased the iOS Large Scriptable widget limit to show more upcoming deadlines.",
+    "Dead Files & Obsolete Feature Artifacts: Deleted unused scripts/package-mac-app.py, mobile-web/Blackboarder-Mac.zip, mobile-web/install-mac.sh, mobile-web/widgets/, widgets/ios/README.md, and docs/syllabus/README.md, and trimmed obsolete Apple Shortcuts / wallpaper URL handlers from companion scripts and docs."
+  ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
 };

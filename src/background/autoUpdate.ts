@@ -18,6 +18,9 @@ const RELOAD_ALARM = 'bbs-auto-update-reload';
 // GitHub's raw files are cheap to read, so check often enough that a new build is offered quickly
 const CHECK_PERIOD_MINUTES = 15;
 export const AUTO_UPDATE_STATUS_KEY = 'bbs_auto_update_status';
+export const AUTO_UPDATE_ENABLED_KEY = 'bbs_auto_update_enabled';
+export const SHOW_CHANGELOG_KEY = 'bbs_show_changelog_after_update';
+export const JUST_UPDATED_KEY = 'bbs_just_updated_from';
 const STATUS_KEY = AUTO_UPDATE_STATUS_KEY;
 
 export type AutoUpdateState =
@@ -108,6 +111,29 @@ async function saveStatus(status: AutoUpdateStatus): Promise<AutoUpdateStatus> {
   return status;
 }
 
+export async function isAutoUpdateEnabled(): Promise<boolean> {
+  try {
+    const res = await chrome.storage.local.get(AUTO_UPDATE_ENABLED_KEY);
+    return res?.[AUTO_UPDATE_ENABLED_KEY] !== false;
+  } catch {
+    return true;
+  }
+}
+
+async function markJustUpdated(remote?: { build?: string; version?: string } | null): Promise<void> {
+  try {
+    await chrome.storage.local.set({
+      [JUST_UPDATED_KEY]: {
+        fromBuild: BUILD_INFO.build,
+        fromVersion: BUILD_INFO.version,
+        toBuild: remote?.build ?? null,
+        toVersion: remote?.version ?? null,
+        updatedAt: new Date().toISOString()
+      }
+    });
+  } catch {}
+}
+
 let runningCheck: Promise<AutoUpdateStatus> | null = null;
 
 /** Checks GitHub and installs a newer build through the helper when it is set up. */
@@ -125,8 +151,10 @@ async function checkAndInstall(): Promise<AutoUpdateStatus> {
 
   // Files already updated (by the helper or by running update.bat by hand): just restart into them
   if (await hasNewFilesOnDisk()) {
-    reloadWhenIdle();
-    return saveStatus({ ...base, state: 'updated', helperInstalled: Boolean(await sendToHelper({ type: 'ping' })) });
+    await markJustUpdated(null);
+    const saved = await saveStatus({ ...base, state: 'updated', helperInstalled: Boolean(await sendToHelper({ type: 'ping' })) });
+    await reloadWhenIdle();
+    return saved;
   }
 
   const remote = await fetchRemoteVersion();
@@ -139,7 +167,21 @@ async function checkAndInstall(): Promise<AutoUpdateStatus> {
   if (!remote) return saveStatus({ ...base, state: 'offline', helperInstalled });
   if (!isRemoteNewer(remote)) return saveStatus({ ...base, ...remoteFields, state: 'up-to-date', helperInstalled });
 
-  // A newer release is available on GitHub. Present it so the user can trigger the update.
+  const autoUpdate = await isAutoUpdateEnabled();
+  if (autoUpdate && helperInstalled) {
+    const reply = await sendToHelper({ type: 'update', build: remote.build });
+    if (await hasNewFilesOnDisk()) {
+      await markJustUpdated(remote);
+      const saved = await saveStatus({ ...base, ...remoteFields, state: 'updated', helperInstalled: true });
+      await reloadWhenIdle();
+      return saved;
+    }
+    if (reply?.code === 'dev-checkout') {
+      return saveStatus({ ...base, ...remoteFields, state: 'dev-checkout', helperInstalled: true, error: reply.error });
+    }
+  }
+
+  // Automatic updates are off or helper is not set up: present the available update for manual action
   return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled });
 }
 
@@ -159,8 +201,10 @@ async function doApplyUpdate(): Promise<AutoUpdateStatus> {
   const base = { installedBuild: BUILD_INFO.build, checkedAt: new Date().toISOString() };
 
   if (await hasNewFilesOnDisk()) {
-    reloadWhenIdle();
-    return saveStatus({ ...base, state: 'updated', helperInstalled: Boolean(await sendToHelper({ type: 'ping' })) });
+    await markJustUpdated(null);
+    const saved = await saveStatus({ ...base, state: 'updated', helperInstalled: Boolean(await sendToHelper({ type: 'ping' })) });
+    await reloadWhenIdle();
+    return saved;
   }
 
   const remote = await fetchRemoteVersion();
@@ -181,8 +225,10 @@ async function doApplyUpdate(): Promise<AutoUpdateStatus> {
   }
 
   if (await hasNewFilesOnDisk()) {
-    reloadWhenIdle();
-    return saveStatus({ ...base, ...remoteFields, state: 'updated', helperInstalled });
+    await markJustUpdated(remote);
+    const saved = await saveStatus({ ...base, ...remoteFields, state: 'updated', helperInstalled });
+    await reloadWhenIdle();
+    return saved;
   }
 
   return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled });

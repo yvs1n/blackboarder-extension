@@ -61,6 +61,20 @@ update_extension_files() {
   rm -rf "$work"
 }
 
+cleanup_stale_files() {
+  local target_dir="$1" new_version_file="$2" keep
+  [ ! -d "$target_dir/src" ] && [ ! -f "$target_dir/package.json" ] || return 0
+  keep="$(json_files "$new_version_file")"
+  [ -n "$keep" ] || return 0
+  (cd "$target_dir" && find . -type f ! -path ./version.json) | while IFS= read -r existing; do
+    local rel="${existing#./}"
+    if ! printf '%s\n' "$keep" | grep -qxF "$rel"; then
+      rm -f "$target_dir/$rel"
+    fi
+  done
+  find "$target_dir" -depth -type d -empty -exec rmdir {} + 2>/dev/null || true
+}
+
 install_from_github() {
   local work="$1"
   if ! curl -fsSL -o "$work/main.zip" "$ZIP_URL" >&2; then
@@ -98,15 +112,8 @@ install_from_github() {
     cp -f "$src_dist/$rel" "$EXT_DIR/$rel"
   done
 
-  # Remove files the previous build had and the new one does not
-  local keep
-  keep="$(json_files "$src_dist/version.json")"
-  if [ -n "$keep" ]; then
-    json_files "$EXT_DIR/version.json" | while IFS= read -r old; do
-      case "$old" in *..*|/*) continue ;; esac
-      if ! printf '%s\n' "$keep" | grep -qxF "$old"; then rm -f "$EXT_DIR/$old"; fi
-    done
-  fi
+  # Remove any old/stale files in EXT_DIR that are not part of the new build
+  cleanup_stale_files "$EXT_DIR" "$src_dist/version.json"
 
   cp -f "$src_dist/version.json" "$EXT_DIR/version.json"
   chmod +x "$EXT_DIR/update.sh" "$SCRIPT_DIR/blackboarder-updater.sh" 2>/dev/null || true
