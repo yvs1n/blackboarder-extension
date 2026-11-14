@@ -1,20 +1,19 @@
 {
-  "version": "1.8.4",
-  "build": "d5ee003f181a",
-  "commit": "d2cc44955e386813d4beef66f27edc1a92a7a34e",
-  "shortCommit": "d2cc449",
-  "timestamp": "2026-11-14T10:48:46.615Z",
-  "message": "v1.8.3: Release v1.8.3: publish BlackboarderWidget.exe in releases and align docs with Settings > Updates",
+  "version": "1.8.5",
+  "build": "828246aa26ce",
+  "commit": "da5141111722c41da4b61dc642d3c05b53c1f83c",
+  "shortCommit": "da51411",
+  "timestamp": "2026-11-14T20:43:10.640Z",
+  "message": "v1.8.4: Fix Windows widget crash & student ID, and add auto-updating remote widget styling/loader (v1.8.4)",
   "changelog": [
-    "Windows Widget Crash & Hang Fix (windows-widget/): Fixed a WinForms UI-thread deadlock when loading Settings live preview (SettingsForm.RenderLivePreviewAsync), guarded Gaussian blur dimensions against small-bitmap out-of-bounds reads (FastBlurEngine), added deterministic theme fingerprinting (SyncEngine), protected background power/session handlers, and wired global unhandled exception logging to crash.log (Program.cs).",
-    "Windows Widget Student ID Header (windows-widget/SyncEngine.cs, windows-widget/SettingsForm.cs): Passed profile from /api/tasks and offline tasks_cache.json through to LiquidGlassRenderer.RenderWidget and live preview so Blackboarder • <studentId> renders consistently on desktop, lock screen, and mobile.",
-    "Website-Synced Auto-Updating Widgets for Mobile & Windows (src/worker/05-router.js, src/mobile/app/12-settings.js, widgets/blackboarder-widget.js, windows-widget/): Added shared widgetConfig schema on /api/tasks and /api/widget-config so theme colors, glass opacities, spacing, radii, and copy update live from website deployments and cache offline on both platforms. Updated iOS Scriptable Copy Widget Script to copy a tiny one-time loader that fetches and caches /companion/widget.js locally on the iPhone (blackboarder_cache/widget_code.js) so users never need to re-paste on widget updates."
+    "Pure Neutral Black Liquid Glass Widgets (widgets/blackboarder-widget.js, src/worker/05-router.js, src/worker/01-widgets-wallpaper.js, windows-widget/): Removed the dark blue background tint (#0F172A / #070A12) across iOS Scriptable, Android/SVG, and Windows widgets in favor of neutral pure black glass (#000000) with Apple Liquid Glass optical specular highlights and crisp edge rims.",
+    "Windows Glass Transparency Slider (windows-widget/AppConfig.cs, windows-widget/SettingsForm.cs, windows-widget/LiquidGlassRenderer.cs): Added a Glass Transparency slider (0% to 100%, default 68%) and unlocked 0px–40px blur control so users can dial Windows widgets all the way to crystal-clear iPhone Liquid Glass with optical rim refraction and readable shadowed typography."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
     "assets/popup-C8XZN2fV.css",
-    "assets/popup-DkRt9lck.js",
+    "assets/popup-XPCj0sDp.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

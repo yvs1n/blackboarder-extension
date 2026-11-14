@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.5] - 2026-11-15
+
+### Changed
+
+- **Pure Neutral Black Liquid Glass Widgets (`widgets/blackboarder-widget.js`, `src/worker/05-router.js`, `src/worker/01-widgets-wallpaper.js`, `windows-widget/`):** Removed the dark blue background tint (`#0F172A` / `#070A12`) across iOS Scriptable, Android/SVG, and Windows widgets in favor of neutral pure black glass (`#000000`) with Apple Liquid Glass optical specular highlights and crisp edge rims.
+- **Windows Glass Transparency Slider (`windows-widget/AppConfig.cs`, `windows-widget/SettingsForm.cs`, `windows-widget/LiquidGlassRenderer.cs`):** Added a **Glass Transparency** slider (`0%` to `100%`, default `68%`) and unlocked `0px–40px` blur control so users can dial Windows widgets all the way to crystal-clear iPhone Liquid Glass with optical rim refraction and readable shadowed typography.
+
+---
+
 ## [1.8.4] - 2026-11-14
 
 ### Fixed

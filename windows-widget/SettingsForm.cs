@@ -29,6 +29,8 @@ public class SettingsForm : Form
     private ComboBox _cboMaxTasks = null!;
     private TrackBar _trackBlur = null!;
     private Label _lblBlurValue = null!;
+    private TrackBar _trackTransparency = null!;
+    private Label _lblTransparencyValue = null!;
 
     private RadioButton _rbDefaultWallpaper = null!;
     private RadioButton _rbCustomWallpaper = null!;
@@ -168,7 +170,7 @@ public class SettingsForm : Form
         leftStack.Controls.Add(grpTargets);
 
         // 3. Card Customization Group
-        var grpStyle = CreateCardGroup("WIDGET CUSTOMIZATION", 155);
+        var grpStyle = CreateCardGroup("WIDGET CUSTOMIZATION", 215);
 
         var lblPos = new Label { Text = "Screen Position:", Location = new Point(14, 30), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
         _cboPosition = new ComboBox
@@ -202,7 +204,7 @@ public class SettingsForm : Form
         {
             Location = new Point(16, 112),
             Width = 422,
-            Minimum = 8,
+            Minimum = 0,
             Maximum = 40,
             Value = 24,
             TickStyle = TickStyle.None
@@ -213,7 +215,31 @@ public class SettingsForm : Form
             TriggerPreviewUpdate();
         };
 
-        grpStyle.Controls.AddRange(new Control[] { lblPos, _cboPosition, lblTasks, _cboMaxTasks, lblBlur, _lblBlurValue, _trackBlur });
+        var lblTrans = new Label { Text = "Glass Transparency:", Location = new Point(14, 152), AutoSize = true, ForeColor = Color.FromArgb(203, 213, 225) };
+        _lblTransparencyValue = new Label { Text = "68%", Location = new Point(148, 152), AutoSize = true, ForeColor = Color.FromArgb(56, 189, 248), Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
+        _trackTransparency = new TrackBar
+        {
+            Location = new Point(16, 174),
+            Width = 422,
+            Minimum = 0,
+            Maximum = 100,
+            SmallChange = 2,
+            LargeChange = 10,
+            Value = 68,
+            TickStyle = TickStyle.None
+        };
+        _trackTransparency.ValueChanged += (s, e) =>
+        {
+            _lblTransparencyValue.Text = $"{_trackTransparency.Value}%";
+            TriggerPreviewUpdate();
+        };
+
+        grpStyle.Controls.AddRange(new Control[]
+        {
+            lblPos, _cboPosition, lblTasks, _cboMaxTasks,
+            lblBlur, _lblBlurValue, _trackBlur,
+            lblTrans, _lblTransparencyValue, _trackTransparency
+        });
         leftStack.Controls.Add(grpStyle);
 
         // 4. Wallpaper Source Group
@@ -400,6 +426,9 @@ public class SettingsForm : Form
         _trackBlur.Value = Math.Clamp(_config.BlurRadius, _trackBlur.Minimum, _trackBlur.Maximum);
         _lblBlurValue.Text = $"{_trackBlur.Value}px";
 
+        _trackTransparency.Value = Math.Clamp(_config.GlassTransparency, _trackTransparency.Minimum, _trackTransparency.Maximum);
+        _lblTransparencyValue.Text = $"{_trackTransparency.Value}%";
+
         if (!string.IsNullOrWhiteSpace(_config.WallpaperPath) && File.Exists(_config.WallpaperPath))
         {
             _rbCustomWallpaper.Checked = true;
@@ -453,6 +482,7 @@ public class SettingsForm : Form
                 Position = _cboPosition.SelectedItem?.ToString() ?? "BottomCenter",
                 MaxTasks = Math.Max(1, _cboMaxTasks.SelectedIndex + 1),
                 BlurRadius = _trackBlur.Value,
+                GlassTransparency = _trackTransparency.Value,
                 WallpaperPath = _rbCustomWallpaper.Checked ? _txtCustomWallpaper.Text.Trim() : "",
                 ShowLocation = true
             };
@@ -611,6 +641,7 @@ public class SettingsForm : Form
             _config.Position = _cboPosition.SelectedItem?.ToString() ?? "BottomCenter";
             _config.MaxTasks = _cboMaxTasks.SelectedIndex + 1;
             _config.BlurRadius = _trackBlur.Value;
+            _config.GlassTransparency = _trackTransparency.Value;
             _config.WallpaperPath = _rbCustomWallpaper.Checked ? _txtCustomWallpaper.Text.Trim() : "";
             _config.PollIntervalMinutes = _cboInterval.SelectedIndex switch
             {

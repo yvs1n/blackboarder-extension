@@ -199,7 +199,7 @@ public class SyncEngine : IDisposable
             : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(styleSig)))[..12];
         string currentSig = string.Join("##", sigParts)
             + "::" + summaryText
-            + $"::Stu={studentId}::Style={styleHash}::Pos={Config.Position}::Tasks={Config.MaxTasks}::Lock={Config.SetLockScreen}::Desk={Config.SetDesktop}::Blur={Config.BlurRadius}";
+            + $"::Stu={studentId}::Style={styleHash}::Pos={Config.Position}::Tasks={Config.MaxTasks}::Lock={Config.SetLockScreen}::Desk={Config.SetDesktop}::Blur={Config.BlurRadius}::Trans={Config.GlassTransparency}";
 
         bool hasChanged = force;
         if (!hasChanged && File.Exists(AppConfig.LastStatePath))

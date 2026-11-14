@@ -66,6 +66,19 @@ public static class LiquidGlassRenderer
         return string.Join($" {BulletChar} ", parts);
     }
 
+    private static void DrawCrispString(Graphics g, string text, Font font, Brush foreground, Brush shadow, float x, float y)
+    {
+        g.DrawString(text, font, shadow, x + 0.9f, y + 1.1f);
+        g.DrawString(text, font, foreground, x, y);
+    }
+
+    private static void DrawCrispString(Graphics g, string text, Font font, Brush foreground, Brush shadow, RectangleF rect, StringFormat format)
+    {
+        var shadowRect = new RectangleF(rect.X + 0.9f, rect.Y + 1.1f, rect.Width, rect.Height);
+        g.DrawString(text, font, shadow, shadowRect, format);
+        g.DrawString(text, font, foreground, rect, format);
+    }
+
     private static Color ParseColor(string? hex, Color fallback)
     {
         if (string.IsNullOrWhiteSpace(hex)) return fallback;
@@ -126,7 +139,7 @@ public static class LiquidGlassRenderer
 
         if (!baseDrawn)
         {
-            g.Clear(ParseColor(theme?.BgMid, Color.FromArgb(7, 10, 18))); // Deep obsidian matching mobile Scriptable widget
+            g.Clear(ParseColor(theme?.BgMid, Color.Black)); // Pure neutral black matching mobile widget
         }
 
         // 2. Prepare tasks for display (exclude completed/done/submitted/graded tasks)
@@ -216,7 +229,7 @@ public static class LiquidGlassRenderer
             g.FillPath(shadowBrush, shadowPath);
         }
 
-        // 5. Liquid Glass: Optical Gaussian Blur + Obsidian Glass Tint
+        // 5. Liquid Glass: Optical Gaussian Blur + Neutral Black Glass Tint + Glisse Refraction Rim
         int cropX = Math.Max(0, (int)widgetRect.X);
         int cropY = Math.Max(0, (int)widgetRect.Y);
         int cropW = Math.Min(bmp.Width - cropX, (int)widgetRect.Width);
@@ -224,13 +237,20 @@ public static class LiquidGlassRenderer
 
         Color borderColorBase = ParseColor(theme?.BorderColor, Color.White);
         Color accentBase = ParseColor(theme?.AccentColor, Color.FromArgb(56, 189, 248));
-        Color bgTopBase = ParseColor(theme?.BgTop, Color.FromArgb(15, 23, 42));
-        Color bgMidBase = ParseColor(theme?.BgMid, Color.FromArgb(7, 10, 18));
+        Color bgTopBase = ParseColor(theme?.BgTop, Color.Black);
+        Color bgMidBase = ParseColor(theme?.BgMid, Color.Black);
+
+        float trans = Math.Clamp(config.GlassTransparency, 0, 100) / 100f;
+        int washTopAlpha = Math.Clamp((int)Math.Round(220.0 * (1.0 - trans) + 6.0 * trans), 6, 235);
+        int washBottomAlpha = Math.Clamp((int)Math.Round(242.0 * (1.0 - trans) + 16.0 * trans), 12, 248);
 
         if (cropW > 4 && cropH > 4)
         {
             using var cropped = bmp.Clone(new Rectangle(cropX, cropY, cropW, cropH), PixelFormat.Format32bppArgb);
-            FastBlurEngine.ApplyGaussian(cropped, Math.Max(4, config.BlurRadius));
+            if (config.BlurRadius >= 1)
+            {
+                FastBlurEngine.ApplyGaussian(cropped, config.BlurRadius);
+            }
 
             var state = g.Save();
             using var cardPath = GetRoundedRectanglePath(widgetRect, widgetRadius);
@@ -239,23 +259,39 @@ public static class LiquidGlassRenderer
 
             using (var glassWash = new LinearGradientBrush(
                 widgetRect,
-                Color.FromArgb(AlphaFromOpacity(theme?.GlassTopOpacity, 170), bgTopBase),
-                Color.FromArgb(AlphaFromOpacity(theme?.GlassBottomOpacity, 205), bgMidBase),
+                Color.FromArgb(washTopAlpha, bgTopBase),
+                Color.FromArgb(washBottomAlpha, bgMidBase),
                 LinearGradientMode.Vertical))
             {
                 g.FillRectangle(glassWash, widgetRect);
             }
 
+            int specTopAlpha = Math.Clamp((int)Math.Round(22.0 + 30.0 * trans), 18, 60);
+            int specBotAlpha = Math.Clamp((int)Math.Round(4.0 + 12.0 * trans), 4, 24);
             using (var specularBrush = new LinearGradientBrush(
                 widgetRect,
-                Color.FromArgb(AlphaFromOpacity(theme?.SpecularTopOpacity, 30), borderColorBase),
-                Color.FromArgb(AlphaFromOpacity(theme?.SpecularBottomOpacity, 4), borderColorBase),
+                Color.FromArgb(specTopAlpha, borderColorBase),
+                Color.FromArgb(specBotAlpha, borderColorBase),
                 LinearGradientMode.Vertical))
             {
                 g.FillRectangle(specularBrush, widgetRect);
             }
 
-            using (var borderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.BorderOpacity, 55), borderColorBase), 1.1f))
+            // Inner concentric optical refraction rim (glisse lens bevel)
+            var insetRect = new RectangleF(widgetRect.X + 1.4f, widgetRect.Y + 1.4f, widgetRect.Width - 2.8f, widgetRect.Height - 2.8f);
+            using (var insetPath = GetRoundedRectanglePath(insetRect, Math.Max(6f, widgetRadius - 1.4f)))
+            using (var insetPen = new Pen(Color.FromArgb(Math.Clamp((int)Math.Round(18 + 20 * trans), 16, 44), borderColorBase), 1f))
+            {
+                g.DrawPath(insetPen, insetPath);
+            }
+
+            // Directional outer specular rim (catches top-left light like iOS 26 / visionOS glass)
+            using (var rimBrush = new LinearGradientBrush(
+                widgetRect,
+                Color.FromArgb(Math.Clamp((int)Math.Round(68 + 62 * trans), 60, 145), borderColorBase),
+                Color.FromArgb(Math.Clamp((int)Math.Round(26 + 34 * trans), 24, 72), borderColorBase),
+                LinearGradientMode.ForwardDiagonal))
+            using (var borderPen = new Pen(rimBrush, 1.25f))
             {
                 g.DrawPath(borderPen, cardPath);
             }
@@ -272,10 +308,12 @@ public static class LiquidGlassRenderer
         using var fontDate = new Font(fontFamily, 9.5f, FontStyle.Bold);
         using var fontTime = new Font(fontFamily, 8.5f, FontStyle.Regular);
 
-        using var headerBgBrush = new SolidBrush(Color.FromArgb(AlphaFromOpacity(theme?.HeaderBgOpacity, 15), borderColorBase));
-        using var headerBorderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.HeaderBorderOpacity, 31), borderColorBase), 1f);
-        using var rowBgBrush = new SolidBrush(Color.FromArgb(AlphaFromOpacity(theme?.RowBgOpacity, 12), borderColorBase));
-        using var rowBorderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.RowBorderOpacity, 26), borderColorBase), 1f);
+        int surfaceDarkAlpha = Math.Clamp((int)Math.Round(48.0 * (1.0 - trans) + 20.0 * trans), 18, 64);
+        int surfaceRimAlpha = Math.Clamp((int)Math.Round(28.0 + 20.0 * trans), 26, 54);
+        using var headerBgBrush = new SolidBrush(Color.FromArgb(surfaceDarkAlpha + 6, 0, 0, 0));
+        using var headerBorderPen = new Pen(Color.FromArgb(surfaceRimAlpha + 4, borderColorBase), 1f);
+        using var rowBgBrush = new SolidBrush(Color.FromArgb(surfaceDarkAlpha, 0, 0, 0));
+        using var rowBorderPen = new Pen(Color.FromArgb(surfaceRimAlpha, borderColorBase), 1f);
         using var pillBgBrush = new SolidBrush(Color.FromArgb(AlphaFromOpacity(theme?.PillBgOpacity, 38), accentBase));
         using var pillBorderPen = new Pen(Color.FromArgb(AlphaFromOpacity(theme?.PillBorderOpacity, 90), accentBase), 1f);
 
@@ -283,6 +321,7 @@ public static class LiquidGlassRenderer
         using var textPrimaryBrush = new SolidBrush(ParseColor(theme?.TextPrimary, Color.FromArgb(248, 250, 252)));
         using var textSecondaryBrush = new SolidBrush(ParseColor(theme?.TextSecondary, Color.FromArgb(203, 213, 225)));
         using var textDateBrush = new SolidBrush(ParseColor(theme?.TextDate, Color.FromArgb(226, 232, 240)));
+        using var textShadowBrush = new SolidBrush(Color.FromArgb(145, 0, 0, 0));
         using var accentBrush = new SolidBrush(accentBase);
 
         // 7. Render Frosted Header Pill Container
@@ -310,7 +349,7 @@ public static class LiquidGlassRenderer
             : (isOffline ? $"{brandName} ({offlineLabel})" : brandName);
 
         var headerTextSize = g.MeasureString(headerTitle, fontHeader);
-        g.DrawString(headerTitle, fontHeader, textHeaderBrush, innerX + 10f, curY + (headerH - headerTextSize.Height) / 2f);
+        DrawCrispString(g, headerTitle, fontHeader, textHeaderBrush, textShadowBrush, innerX + 10f, curY + (headerH - headerTextSize.Height) / 2f);
 
         // Sky-blue Summary Pill inside Header Right
         var summarySize = g.MeasureString(summaryText, fontSummary);
@@ -324,7 +363,7 @@ public static class LiquidGlassRenderer
             g.FillPath(pillBgBrush, pillPath);
             g.DrawPath(pillBorderPen, pillPath);
         }
-        g.DrawString(summaryText, fontSummary, accentBrush, pillX + 7f, pillY + (pillH - summarySize.Height) / 2f);
+        DrawCrispString(g, summaryText, fontSummary, accentBrush, textShadowBrush, pillX + 7f, pillY + (pillH - summarySize.Height) / 2f);
 
         curY += headerH + headerGap;
 
@@ -341,7 +380,7 @@ public static class LiquidGlassRenderer
                 ? (!string.IsNullOrWhiteSpace(styleConfig?.EmptyOfflineText) ? styleConfig.EmptyOfflineText : $"Offline {BulletChar} No cached deadlines")
                 : (!string.IsNullOrWhiteSpace(styleConfig?.EmptyText) ? styleConfig.EmptyText : "All caught up! No pending deadlines");
             var emptySize = g.MeasureString(emptyText, fontCourseSub);
-            g.DrawString(emptyText, fontCourseSub, textSecondaryBrush, innerX + 12f, curY + (emptyH - emptySize.Height) / 2f);
+            DrawCrispString(g, emptyText, fontCourseSub, textSecondaryBrush, textShadowBrush, innerX + 12f, curY + (emptyH - emptySize.Height) / 2f);
         }
         else
         {
@@ -408,13 +447,13 @@ public static class LiquidGlassRenderer
                 float maxCourseW = Math.Max(100f, (rightPad - rightColW) - textLeft - 10f);
                 var courseRect = new RectangleF(textLeft, subY, maxCourseW, 18f);
 
-                g.DrawString(t.Title, fontTaskTitle, textPrimaryBrush, titleRect, strFormat);
-                g.DrawString(dayStr, fontDate, textDateBrush, dateX, topY);
-                g.DrawString(courseSubText, fontCourseSub, textSecondaryBrush, courseRect, strFormat);
+                DrawCrispString(g, t.Title, fontTaskTitle, textPrimaryBrush, textShadowBrush, titleRect, strFormat);
+                DrawCrispString(g, dayStr, fontDate, textDateBrush, textShadowBrush, dateX, topY);
+                DrawCrispString(g, courseSubText, fontCourseSub, textSecondaryBrush, textShadowBrush, courseRect, strFormat);
 
                 if (!string.IsNullOrWhiteSpace(timeStr))
                 {
-                    g.DrawString(timeStr, fontTime, accentBrush, rightPad - timeW, subY);
+                    DrawCrispString(g, timeStr, fontTime, accentBrush, textShadowBrush, rightPad - timeW, subY);
                 }
 
                 curY += rowH + rowGap;

@@ -49,6 +49,9 @@ public class AppConfig
     [JsonPropertyName("blurRadius")]
     public int BlurRadius { get; set; } = 24;
 
+    [JsonPropertyName("glassTransparency")]
+    public int GlassTransparency { get; set; } = 68;
+
     public static AppConfig Load()
     {
         try
