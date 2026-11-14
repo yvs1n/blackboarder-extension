@@ -1,22 +1,19 @@
 {
-  "version": "1.8.2",
-  "build": "d0d52ba73412",
-  "commit": "a5873b869fdca78cf24a1a8cb396b7008e8023e3",
-  "shortCommit": "a5873b8",
-  "timestamp": "2026-11-14T08:56:24.847Z",
-  "message": "v1.8.1: fix(widgets): hide done tasks, align desktop/mobile glass design, show 9 on iOS Large",
+  "version": "1.8.3",
+  "build": "cbb307e4ce54",
+  "commit": "38d100e5fae5faaeb8810e27d381a25e0eae64f3",
+  "shortCommit": "38d100e",
+  "timestamp": "2026-11-14T09:46:10.215Z",
+  "message": "v1.8.2: Release v1.8.2: extension auto-update, post-update changelog, stale file cleanup, dead file removal",
   "changelog": [
-    "Automatic Updates Toggle & Auto-Install (src/background/autoUpdate.ts, src/popup/modules/settingsUpdates.ts): Added an Automatic Updates switch (#setting-auto-update, enabled by default) in Settings > Updates so new GitHub builds download automatically through the updater helper and reload when idle, or pause at Update Available when disabled.",
-    "Post-Update Changelog Popup & Settings Toggle: Embedded release highlights from CHANGELOG.md into BUILD_INFO (scripts/build.js), added a Show Changelog After Update toggle (#setting-show-changelog), added a collapsible What's New section (#details-ext-changelog) in Settings > Updates, and added the #modal-changelog summary dialog shown on first popup open after an update.",
-    "Complete Old-File Cleanup on Extension Update (updater/blackboarder-updater.ps1, updater/blackboarder-updater.sh): Swept the extension install directory during updates (when not a git/source checkout) to delete all stale files not in the incoming version.json manifest (including old hashed Vite bundles) and remove empty subdirectories.",
-    "Widget Active-Task Filtering & iOS Large Capacity (widgets/blackboarder-widget.js, src/worker/01-widgets-wallpaper.js): Excluded tasks marked as done from desktop and mobile widgets, aligned Windows widget styling with mobile frosted glass cards, and increased the iOS Large Scriptable widget limit to show more upcoming deadlines.",
-    "Dead Files & Obsolete Feature Artifacts: Deleted unused scripts/package-mac-app.py, mobile-web/Blackboarder-Mac.zip, mobile-web/install-mac.sh, mobile-web/widgets/, widgets/ios/README.md, and docs/syllabus/README.md, and trimmed obsolete Apple Shortcuts / wallpaper URL handlers from companion scripts and docs."
+    "Windows Desktop Companion Release Packaging (windows-widget/, export/extension/workflows/release.yml): Added the .NET 8 BlackboarderWidget Windows desktop and lock screen companion source into windows-widget/ and updated the public release workflow to compile and attach BlackboarderWidget.exe on every GitHub release so in-app download links work without 404 errors.",
+    "Documentation, Landing Page, & Guide Alignment (README.md, export/extension/README.md, docs/, AGENTS.md, mobile-web/index.html): Updated installation, quick-start, and FAQ docs across both repositories and the landing page to point to Settings > Updates (Automatic Updates & Show Changelog After Update toggles) instead of the old manual update.bat / update.sh setup step, fixed the desktop widget reference to Settings > General, and removed stale wallpaper / shortcut copy."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
     "assets/popup-C8XZN2fV.css",
-    "assets/popup-bn_JUNxL.js",
+    "assets/popup-Cv4FO7fQ.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

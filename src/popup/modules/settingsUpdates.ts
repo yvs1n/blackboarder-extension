@@ -303,7 +303,7 @@ export function initExtensionUpdateSystem() {
         switch (status.state) {
           case 'update-available':
             if (status.helperInstalled) applyUpdateNow(btnCheckManual);
-            else popupActions.showToast('New version available! Run update.bat or download ZIP.');
+            else popupActions.showToast('New version available! Open Settings > Updates or download ZIP.');
             break;
           case 'updated': popupActions.showToast('Update installed. It applies when you close this window.'); break;
           case 'dev-checkout': popupActions.showToast('New version on GitHub. Run git pull to update.'); break;

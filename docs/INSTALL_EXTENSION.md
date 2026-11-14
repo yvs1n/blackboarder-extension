@@ -65,16 +65,15 @@ In Chromium browsers (Chrome, Edge, Brave, Opera, Vivaldi), look in the top-righ
 
 Your deadlines, courses, custom syllabus weights, and Personal Sync Key are **permanently preserved** during updates across all devices.
 
-### Turn on automatic updates (once)
-1. Open your extracted Blackboarder folder.
-2. Double-click **`update.bat`** (Windows) or run `./update.sh` in a terminal (Mac/Linux).
-3. The script downloads the latest version into the folder and registers a small update helper with your browser.
-4. The first time only: open `chrome://extensions` and click the reload arrow on Blackboarder.
+### Managing updates in Settings > Updates
+1. Open the Blackboarder extension and click the **Settings** gear icon, then select **Updates**.
+2. Keep **Automatic Updates** turned **ON** (enabled by default) so Blackboarder checks GitHub every 15 minutes over HTTP, downloads new builds cleanly (purging old leftover files), and restarts itself once the popup closes.
+3. Keep **Show Changelog After Update** turned **ON** to view a **What's New** summary the first time you open Blackboarder after an update, or expand the latest changelog inside **Settings > Updates** anytime.
+4. You can also click **Check for Updates**, **Update Now**, **Reload Extension**, or **Download Latest Extension (.zip)** at any time.
 
-From then on Blackboarder checks GitHub every 15 minutes, like an extension from the Chrome Web Store. When a new version is pushed it downloads it into the folder and restarts itself as soon as the popup is closed. **Settings > Updates** shows whether automatic updates are on, and **Check for Updates** checks right away.
+### Manual ZIP or optional folder helper
+- **Manual ZIP refresh:** Download the latest `blackboarder-extension.zip`, extract it over your existing extension folder, and click **Reload** on your browser extensions page.
+- **Unattended unpacked helper (optional):** On Chromium browsers loaded via **Load unpacked**, running `update.bat` (Windows) or `./update.sh` (Mac/Linux) once registers the native helper in `updater/` so the extension can replace files on disk automatically without downloading the ZIP by hand.
 
-### Without the helper
-If you skip the step above, the popup shows an **Update Available** banner when a new version is on GitHub. Run `update.bat` / `update.sh` then, or download the zip, extract it over your folder and click **Reload**.
-
-> If you loaded the extension from a `git clone`, the helper updates it with `git pull --ff-only`, and only when the clone is on `main` with no uncommitted changes. Otherwise it leaves your work alone and **Settings** shows why.
+> If you loaded the extension from a `git clone`, the helper updates it with `git pull --ff-only`, and only when the clone is on `main` with no uncommitted changes. Otherwise it leaves your work alone and **Settings > Updates** shows why.
 

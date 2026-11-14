@@ -51,3 +51,6 @@ PROJECT.md
 graphify-out/
 
 widgets/windows-lockscreen/
+windows-widget/bin/
+windows-widget/obj/
+windows-widget/publish/

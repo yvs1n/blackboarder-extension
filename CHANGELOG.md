@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.3] - 2026-11-14
+
+### Added
+
+- **Windows Desktop Companion Release Packaging (`windows-widget/`, `export/extension/workflows/release.yml`):** Added the .NET 8 `BlackboarderWidget` Windows desktop and lock screen companion source into `windows-widget/` and updated the public release workflow to compile and attach `BlackboarderWidget.exe` on every GitHub release so in-app download links work without 404 errors.
+
+### Changed
+
+- **Documentation, Landing Page, & Guide Alignment (`README.md`, `export/extension/README.md`, `docs/`, `AGENTS.md`, `mobile-web/index.html`):** Updated installation, quick-start, and FAQ docs across both repositories and the landing page to point to **Settings > Updates** (**Automatic Updates** & **Show Changelog After Update** toggles) instead of the old manual `update.bat` / `update.sh` setup step, fixed the desktop widget reference to **Settings > General**, and removed stale wallpaper / shortcut copy.
+
+---
+
 ## [1.8.2] - 2026-11-14
 
 ### Added

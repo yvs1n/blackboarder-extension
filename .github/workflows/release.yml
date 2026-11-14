@@ -17,7 +17,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-windows-widget:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish BlackboarderWidget.exe
+        run: |
+          dotnet publish windows-widget/BlackboarderWidget.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release-win
+
+      - name: Upload Windows widget artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-widget-exe
+          path: release-win/BlackboarderWidget.exe
+
   release:
+    needs: [build-windows-widget]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -47,6 +69,12 @@ jobs:
 
       - name: Package release archive
         run: node scripts/package.js
+
+      - name: Download Windows widget artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-widget-exe
+          path: release
 
       - name: Determine tag name
         id: tag_info
@@ -86,9 +114,11 @@ jobs:
           4. Turn on **Developer mode** and click **Load unpacked**, then pick the unzipped folder.
           5. Pin Blackboarder, open [Blackboard](https://elearning.sharjah.ac.ae/ultra/stream) and click **Scan Blackboard** at the bottom right.
 
-          Already installed? The extension updates itself; nothing to download.
+          Already installed? Manage automatic updates and changelogs directly in **Settings > Updates**.
 
           \`blackboarder-extension-store.zip\` is the same extension without the self-updater, made for the Chrome Web Store and Edge Add-ons.
+
+          **Windows Desktop Companion (\`BlackboarderWidget.exe\`):** Standalone Windows 10/11 lock screen and desktop widget app. Download \`BlackboarderWidget.exe\` below and paste your Sync Key from **Settings > Sync**.
           EOF
           sed -i 's/^          //' release-notes.md
 
@@ -97,7 +127,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          files="release/blackboarder-extension.zip release/blackboarder-extension-store.zip docs/INSTALL_EXTENSION.md"
+          files="release/blackboarder-extension.zip release/blackboarder-extension-store.zip release/BlackboarderWidget.exe docs/INSTALL_EXTENSION.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $files --clobber
             gh release edit "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --draft=false --prerelease=false --latest

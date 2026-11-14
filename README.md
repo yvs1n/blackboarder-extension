@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.2-blue?logo=github&logoColor=white" alt="Version v1.8.2" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.3-blue?logo=github&logoColor=white" alt="Version v1.8.3" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
@@ -61,7 +61,7 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Multi-Platform Widgets & Desktop Companion.** Bring your deadlines and courses to your home screen, lock screen, and desktop with a frosted glass aesthetic:
   - **iPhone and iPad**: Native Scriptable Home and Lock Screen frosted liquid glass widgets with course color accent bars and clear assessment hierarchy.
   - **Android**: Live Web Widget frosted glass card and KWGT Kustom Widget integration.
-  - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe`) connecting directly via personal Sync Key, and Mac desktop wallpaper updater.
+  - **Windows and Mac**: Windows 11/10 native companion app (`BlackboarderWidget.exe` from the latest release or **Settings > General**) connecting directly via personal Sync Key, and Mac desktop wallpaper 1-line Terminal setup in **Settings > General**.
   - **Hardware Detection**: Automatically detects your OS and device model to tailor setup instructions in extension **Settings > General** and companion **Settings > Calendar**.
 - **Live scan cancellation.** Click the close button (`✕`) on the live scan banner to cancel active scans across background HTTP and tab scanners immediately.
 - **Fast, responsive performance.** Smooth hardware-accelerated CSS view transitions, font preloading (`inter.woff2`, `inter-tight.woff2`), CSS containment (`contain: layout style paint`), and debounced search filtering.
@@ -90,12 +90,12 @@ You do not need to build anything; everything is precompiled.
 3. Click **Load unpacked** and select the unzipped folder (or the **`dist`** folder if using git).
 4. Pin **Blackboarder** to the toolbar.
 
-### 3. Turn on automatic updates (once)
+### 3. Configure updates in Settings
 
-- **Windows:** double-click **`update.bat`** in the project folder.
-- **macOS / Linux:** run `./update.sh` in the project folder.
-
-This registers a small helper that lets the extension update itself whenever a new version is published here. Then go back to the extensions page and click the reload arrow on Blackboarder once. Your tasks, courses and sync key are kept.
+Open **Settings > Updates** inside the Blackboarder extension:
+- **Automatic Updates** (on by default): automatically downloads new GitHub builds and reloads when idle.
+- **Show Changelog After Update** (on by default): opens a **What's New** summary the first time you open Blackboarder after an update.
+- Click **Check for Updates**, **Update Now**, or **Download Latest Extension (.zip)** anytime; all tasks, courses, and sync key stay intact.
 
 ### 4. Use it
 
@@ -140,7 +140,13 @@ No API key? The built-in parser reads announcements automatically, so everything
 
 ## 🔄 Automatic Updates
 
-Once `update.bat` / `update.sh` has run, the extension checks this repository every 15 minutes using lightweight HTTP without running background processes. When **Automatic Updates** is enabled (on by default in **Settings > Updates**), new builds are downloaded automatically into the extension folder (with old leftover files purged cleanly) or pulled via `git pull --ff-only` in a git clone on `main`, and the extension restarts when idle or when you click **Restart now**. Turning off **Automatic Updates** keeps updates on the banner until you click **Update now**. All your tasks, courses, profile, and settings are 100% kept, and an optional **What's New** changelog summary opens after updating.
+Updates are configured directly inside **Settings > Updates**:
+
+- **Background checks:** The extension checks this repository every 15 minutes using lightweight HTTP without running background processes.
+- **Automatic Updates toggle:** Enabled by default so new builds download automatically into the extension folder (with old leftover files purged cleanly) or pull via `git pull --ff-only` in a git clone on `main`, and restart when idle or when you click **Restart now**. Turning this toggle off pauses auto-installation on the banner until you click **Update Now** or **Download Latest Extension (.zip)**.
+- **What's New changelog:** Toggle **Show Changelog After Update** in **Settings > Updates**, or expand the changelog section there anytime. All your tasks, courses, profile, and settings are 100% kept.
+
+> Optional folder helper: on unpacked Chromium installs, registering the local helper under `updater/` once (`update.bat` on Windows or `./update.sh` on macOS/Linux) allows Chrome to write updated files directly to disk without re-downloading the ZIP.
 
 Each build is identified by a hash of its files, so a change that does not touch the extension does not update it.
 
@@ -179,8 +185,9 @@ blackboarder-extension/
 |   `-- utils/            Storage (storage/), Firebase sync, calendar, task merging
 |
 |-- dist/                 Built extension; load this folder (generated)
-|-- updater/              Update helper (copied into dist/ by the build)
-|-- update.bat, update.sh Turn on automatic updates (run once)
+|-- updater/              Optional native update helper (copied into dist/ by the build)
+|-- update.bat, update.sh Optional one-time updater registration
+|-- windows-widget/       Windows 10/11 desktop & lock screen companion source (BlackboarderWidget.exe)
 |-- public/               Extension manifest template and icons
 |-- scripts/              Build, lint and packaging scripts
 |-- tests/                Automated tests
