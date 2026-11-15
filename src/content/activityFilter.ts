@@ -1,7 +1,7 @@
 /**
- * Filter bar on Blackboard's Activity page: show only some courses and some kinds of item.
- * Blackboard keeps drawing its own list; items that do not match are only hidden, and items
- * loaded later by scrolling are filtered as they arrive.
+ * Filter bar and background preloader on Blackboard's Activity page: show only real courses and
+ * item types, preload notifications and enrolled courses in the background on initial open so the
+ * student does not have to scroll down manually, and dismiss the preloader once ready.
  */
 import {
   ACTIVITY_CATEGORIES,
@@ -14,16 +14,26 @@ import {
 } from '../core/activityCategories';
 import { courseIdFromHref } from '../core/blackboardColors';
 import { findConfiguredCourseHex } from '../core/courseColors';
+import { isBlackboardSystemNoise } from '../core/courseHelper';
+import { getActiveUserCourses } from '../core/userCourses';
+import { isOrientationOrSandboxCourse } from '../scan/blackboardApi';
+import { getUserCourses } from '../utils/storage';
 import { getBlackboardMemberships } from './courseColorPainter';
 
 type GetJson = (path: string) => Promise<any>;
 
 const STORAGE_KEY = 'bbs_activity_filter';
 const BAR_ID = 'bbs-activity-filter';
+export const PRELOADER_ID = 'bbs-activity-preloader';
 const HIDDEN_CLASS = 'bbs-af-hidden';
 const ITEM_SELECTOR = 'li.stream-item-container';
 const COURSE_LINK = 'a[href*="/courses/_"], a[href*="courseId=_"], a[href*="course_id=_"]';
-const UNIVERSITY_KEY = 'university';
+const NON_COURSE_KEY = '__non_course__';
+
+const PRELOAD_TARGET_BATCHES = 3;
+const PRELOAD_TARGET_ITEMS = 60;
+const PRELOAD_MAX_MS = 3200;
+const PRELOAD_TICK_MS = 220;
 
 interface ItemInfo {
   courseKey: string;
@@ -56,6 +66,20 @@ export function courseKeyFor(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, ' ').trim();
 }
 
+/**
+ * True for non-academic Blackboard entries such as "Student Hands-On Orientation", sandbox shells,
+ * system navigation labels, and institution-wide "University" notices so they never appear as course chips.
+ */
+export function isExcludedActivityCourse(name: string, code: string = ''): boolean {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return true;
+  const key = courseKeyFor(trimmed);
+  if (!key || key === 'university' || key === NON_COURSE_KEY) return true;
+  if (isOrientationOrSandboxCourse(trimmed, code)) return true;
+  if (isBlackboardSystemNoise(trimmed)) return true;
+  return false;
+}
+
 /** The element Blackboard scrolls the Activity list in (it loads more when this scrolls near the end). */
 function streamScroller(stream: Element): HTMLElement | null {
   for (let el = stream.parentElement; el; el = el.parentElement) {
@@ -77,7 +101,9 @@ export function startActivityFilter(getJson: GetJson): void {
   let filter: ActivityFilterState = { ...EMPTY_ACTIVITY_FILTER };
   let loaded = false;
   const chips = new Map<string, CourseChip>();
-  const nameByCourseId = new Map<string, { name: string; code: string }>();
+  const nameByCourseId = new Map<string, { name: string; code: string; hex: string | null }>();
+  let membershipsReady = false;
+  let coursesReady = false;
   let frame: number | null = null;
   // Asking Blackboard for more: a few tries per list length, since it ignores a nudge while still loading
   let askedCount = -1;
@@ -85,28 +111,103 @@ export function startActivityFilter(getJson: GetJson): void {
   let askTimer: ReturnType<typeof setTimeout> | null = null;
   let allLoaded = false;
 
-  getBlackboardMemberships(getJson).then(list => {
-    for (const m of list) nameByCourseId.set(m.courseId, { name: m.name, code: m.code });
-    schedule();
-  });
+  // Initial background preloader state per mounted .activity-stream element
+  let preloadedStream: Element | null = null;
+  let preloading = false;
+  let preloadStartedAt = 0;
+  let preloadInitialCount = -1;
+  let preloadLastCount = 0;
+  let preloadBatches = 0;
+  let preloadIdleTicks = 0;
+  let preloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const upsertCourseChip = (rawName: string, code: string = '', fallbackHex: string | null = null) => {
+    if (isExcludedActivityCourse(rawName, code)) return;
+    const label = activityCourseLabel(rawName);
+    if (!label || isExcludedActivityCourse(label, code)) return;
+    const key = courseKeyFor(label);
+    const hex = findConfiguredCourseHex(rawName, code) || findConfiguredCourseHex(label, code) || fallbackHex || null;
+    const existing = chips.get(key);
+    if (!existing || existing.placeholder || (!existing.hex && hex)) {
+      chips.set(key, { key, label, hex });
+    }
+  };
+
+  /** Seeds chips from the student's active courses and Blackboard memberships right away, before scrolling. */
+  const syncCourseChipsFromSources = () => {
+    for (const [k, c] of chips) {
+      if (isExcludedActivityCourse(c.label) || isExcludedActivityCourse(k)) {
+        chips.delete(k);
+      }
+    }
+    const activeCourses = getActiveUserCourses();
+    for (const c of activeCourses) {
+      upsertCourseChip(c.courseName || '', c.courseCode || '', c.colorHex || null);
+    }
+    for (const m of nameByCourseId.values()) {
+      if (isExcludedActivityCourse(m.name, m.code)) continue;
+      const configuredHex = findConfiguredCourseHex(m.name, m.code);
+      // When active courses exist, include every membership that matches an active course; when no
+      // courses are set up yet, include all non-excluded Blackboard memberships.
+      if (configuredHex || activeCourses.length === 0) {
+        upsertCourseChip(m.name, m.code, configuredHex || m.hex);
+      }
+    }
+  };
+
+  if (getActiveUserCourses().length > 0) {
+    coursesReady = true;
+    syncCourseChipsFromSources();
+  } else {
+    getUserCourses()
+      .catch(() => [])
+      .finally(() => {
+        coursesReady = true;
+        syncCourseChipsFromSources();
+        schedule();
+      });
+  }
+
+  getBlackboardMemberships(getJson)
+    .then(list => {
+      for (const m of list) {
+        nameByCourseId.set(m.courseId, { name: m.name, code: m.code, hex: m.hex });
+      }
+      membershipsReady = true;
+      syncCourseChipsFromSources();
+      schedule();
+    })
+    .catch(() => {
+      membershipsReady = true;
+      schedule();
+    });
+
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes['bbs_user_courses']) {
+        setTimeout(() => {
+          syncCourseChipsFromSources();
+          schedule();
+        }, 0);
+      }
+    });
+  } catch {
+    // Extension context may be gone after an update
+  }
 
   const describe = (li: HTMLElement): ItemInfo => {
     const link = li.querySelector(COURSE_LINK);
     const courseId = link ? courseIdFromHref(link.getAttribute('href') || '') : null;
-    let courseKey = UNIVERSITY_KEY;
+    let courseKey = NON_COURSE_KEY;
     if (courseId) {
       const member = nameByCourseId.get(courseId);
       const rawName = member?.name || li.querySelector('a[analytics-id="stream.entry.course"]')?.textContent?.trim() || link?.textContent?.trim() || '';
+      const code = member?.code || '';
       const label = activityCourseLabel(rawName);
-      if (label) {
+      if (label && !isExcludedActivityCourse(rawName, code) && !isExcludedActivityCourse(label, code)) {
         courseKey = courseKeyFor(label);
-        if (!chips.has(courseKey) || chips.get(courseKey)?.placeholder) {
-          chips.set(courseKey, { key: courseKey, label, hex: findConfiguredCourseHex(rawName, member?.code || '') });
-        }
+        upsertCourseChip(rawName, code, member?.hex || null);
       }
-    }
-    if (courseKey === UNIVERSITY_KEY && !chips.has(UNIVERSITY_KEY)) {
-      chips.set(UNIVERSITY_KEY, { key: UNIVERSITY_KEY, label: 'University', hex: null });
     }
     const title = li.querySelector('a.js-title-link')?.textContent?.trim() || '';
     const text = li.querySelector('.content, .summary')?.textContent?.trim() || '';
@@ -140,8 +241,137 @@ export function startActivityFilter(getJson: GetJson): void {
     return b;
   };
 
+  const removePreloader = (stream?: Element | null) => {
+    if (preloadTimer) {
+      clearTimeout(preloadTimer);
+      preloadTimer = null;
+    }
+    preloading = false;
+    if (stream) {
+      const scroller = streamScroller(stream);
+      if (scroller && scroller.scrollTop > 0) {
+        scroller.scrollTop = 0;
+      }
+    }
+    const el = document.getElementById(PRELOADER_ID);
+    if (el) el.remove();
+  };
+
+  const updatePreloaderUi = (itemCount: number) => {
+    if (!preloading || !isActivityPage()) {
+      removePreloader();
+      return;
+    }
+    let overlay = document.getElementById(PRELOADER_ID);
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = PRELOADER_ID;
+      overlay.setAttribute('role', 'status');
+      overlay.setAttribute('aria-live', 'polite');
+      overlay.setAttribute('aria-label', 'Loading Blackboard Activity stream');
+      overlay.innerHTML = `
+        <div class="bbs-af-preloader-card">
+          <div class="bbs-af-preloader-header">
+            <span class="bbs-af-preloader-brand">BLACKBOARDER · ACTIVITY STREAM</span>
+            <button type="button" class="bbs-af-preloader-skip" id="bbs-af-preloader-skip-btn">Skip</button>
+          </div>
+          <div class="bbs-af-preloader-body">
+            <div class="bbs-af-preloader-title">Loading Courses &amp; Notifications</div>
+            <div class="bbs-af-preloader-sub">Preloading stream notifications in the background so all courses and filters are ready immediately.</div>
+            <div class="bbs-af-preloader-track">
+              <div class="bbs-af-preloader-fill" id="bbs-af-preloader-fill"></div>
+            </div>
+            <div class="bbs-af-preloader-meta" id="bbs-af-preloader-meta">Preparing courses...</div>
+          </div>
+        </div>
+      `;
+      (document.body || document.documentElement).appendChild(overlay);
+      overlay.querySelector('#bbs-af-preloader-skip-btn')?.addEventListener('click', () => {
+        const stream = document.querySelector('.activity-stream');
+        removePreloader(stream);
+        schedule();
+      });
+    }
+
+    const courseCount = [...chips.values()].filter(c => !c.placeholder).length;
+    const elapsedRatio = Math.min(0.92, (Date.now() - preloadStartedAt) / PRELOAD_MAX_MS);
+    const batchRatio = Math.min(0.95, ( (membershipsReady ? 0.25 : 0.08) + (coursesReady ? 0.15 : 0.05) + Math.min(0.55, (preloadBatches / PRELOAD_TARGET_BATCHES) * 0.55) ));
+    const pct = Math.round(Math.max(18, Math.max(elapsedRatio, batchRatio) * 100));
+
+    const fill = overlay.querySelector<HTMLElement>('#bbs-af-preloader-fill');
+    if (fill) fill.style.width = `${pct}%`;
+
+    const meta = overlay.querySelector<HTMLElement>('#bbs-af-preloader-meta');
+    if (meta) {
+      const coursePart = courseCount > 0 ? `${courseCount} course${courseCount === 1 ? '' : 's'}` : 'Loading courses';
+      const itemPart = itemCount > 0 ? `${itemCount} notification${itemCount === 1 ? '' : 's'} loaded` : 'Fetching stream items...';
+      meta.textContent = `${coursePart} · ${itemPart}`;
+    }
+  };
+
+  /**
+   * Preloads notifications in the background when /ultra/stream opens so the student does not have
+   * to manually scroll down to discover courses or older notifications.
+   */
+  const stepBackgroundPreload = (stream: Element) => {
+    if (!preloading || !isActivityPage()) {
+      removePreloader(stream);
+      return;
+    }
+    const items = document.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
+    const count = items.length;
+    if (preloadInitialCount < 0 && count > 0) {
+      preloadInitialCount = count;
+      preloadLastCount = count;
+    } else if (count > preloadLastCount) {
+      preloadBatches++;
+      preloadLastCount = count;
+      preloadIdleTicks = 0;
+    } else if (count > 0) {
+      preloadIdleTicks++;
+    }
+
+    updatePreloaderUi(count);
+
+    const elapsed = Date.now() - preloadStartedAt;
+    const button = document.querySelector<HTMLButtonElement>('button.load-more-items');
+    const noMoreToLoad = count > 0 && ((!button && preloadIdleTicks >= 2) || (Boolean(button?.disabled) && preloadIdleTicks >= 3));
+    const reachedTarget = preloadBatches >= PRELOAD_TARGET_BATCHES || count >= PRELOAD_TARGET_ITEMS;
+
+    if ((membershipsReady && coursesReady && (reachedTarget || noMoreToLoad)) || elapsed >= PRELOAD_MAX_MS) {
+      if (noMoreToLoad) allLoaded = true;
+      removePreloader(stream);
+      schedule();
+      return;
+    }
+
+    // Trigger Blackboard to load the next batch in the background
+    if (button && !button.disabled) {
+      button.click();
+    } else {
+      const scroller = streamScroller(stream);
+      if (scroller) {
+        scroller.scrollTop = scroller.scrollHeight;
+        (scroller === document.scrollingElement ? window : scroller).dispatchEvent(new Event('scroll'));
+      }
+    }
+
+    if (!preloadTimer) {
+      preloadTimer = setTimeout(() => {
+        preloadTimer = null;
+        const currentStream = document.querySelector('.activity-stream');
+        if (currentStream) {
+          stepBackgroundPreload(currentStream);
+          schedule();
+        } else {
+          removePreloader();
+        }
+      }, PRELOAD_TICK_MS);
+    }
+  };
+
   const renderBar = (bar: HTMLElement, shown: number, total: number) => {
-    const sig = JSON.stringify([filter, [...chips.values()].map(c => c.label), shown, total, allLoaded]);
+    const sig = JSON.stringify([filter, [...chips.values()].map(c => `${c.key}:${c.label}:${c.hex || ''}`), shown, total, allLoaded]);
     if (bar.dataset.sig === sig) return;
     bar.dataset.sig = sig;
     bar.textContent = '';
@@ -167,9 +397,9 @@ export function startActivityFilter(getJson: GetJson): void {
 
     const courseRow = row('Course');
     courseRow.appendChild(chipButton('All', filter.courses.length === 0, () => update({ ...filter, courses: [] })));
-    const sorted = [...chips.values()].sort((a, b) =>
-      a.key === UNIVERSITY_KEY ? 1 : b.key === UNIVERSITY_KEY ? -1 : a.label.localeCompare(b.label)
-    );
+    const sorted = [...chips.values()]
+      .filter(c => !isExcludedActivityCourse(c.label) && !isExcludedActivityCourse(c.key))
+      .sort((a, b) => a.label.localeCompare(b.label));
     for (const c of sorted) {
       courseRow.appendChild(
         chipButton(c.label, filter.courses.includes(c.key), () => update({ ...filter, courses: toggle(filter.courses, c.key) }), c.hex)
@@ -205,11 +435,25 @@ export function startActivityFilter(getJson: GetJson): void {
     const bar = document.getElementById(BAR_ID);
     if (!isActivityPage()) {
       bar?.remove();
+      removePreloader();
+      preloadedStream = null;
       document.querySelectorAll(`.${HIDDEN_CLASS}`).forEach(el => el.classList.remove(HIDDEN_CLASS));
       return;
     }
     const stream = document.querySelector('.activity-stream');
     if (!stream || !loaded) return;
+
+    syncCourseChipsFromSources();
+
+    if (preloadedStream !== stream) {
+      preloadedStream = stream;
+      preloading = true;
+      preloadStartedAt = Date.now();
+      preloadInitialCount = -1;
+      preloadLastCount = 0;
+      preloadBatches = 0;
+      preloadIdleTicks = 0;
+    }
 
     let target = bar;
     if (!target || target.nextElementSibling !== stream) {
@@ -232,19 +476,25 @@ export function startActivityFilter(getJson: GetJson): void {
     });
     // A chosen course that is no longer on the page still counts, so its chip stays
     for (const key of filter.courses) {
-      if (!chips.has(key)) chips.set(key, { key, label: key, hex: null, placeholder: true });
+      if (!chips.has(key) && !isExcludedActivityCourse(key)) {
+        chips.set(key, { key, label: key, hex: null, placeholder: true });
+      }
     }
     renderBar(target, shown, items.length);
-    askForMore(stream, items.length);
+    if (preloading) {
+      stepBackgroundPreload(stream);
+    } else {
+      askForMore(stream, items.length, shown);
+    }
   };
 
   /**
    * With most items hidden the list can be too short to scroll, and Blackboard only loads more when
-   * its list scrolls near the end. While a filter is on and the end is on screen, ask for more with
-   * Blackboard's own (screen reader) "load more items" button, or a scroll nudge if it is missing.
-   * The button is disabled while loading and once everything is loaded, so a few tries tell them apart.
+   * its list scrolls near the end. While a filter is on and either few matches are visible or the
+   * end is on screen, ask for more with Blackboard's own (screen reader) "load more items" button,
+   * or a scroll nudge if it is missing.
    */
-  const askForMore = (stream: Element, count: number) => {
+  const askForMore = (stream: Element, count: number, shown: number) => {
     const filtering = filter.courses.length > 0 || filter.types.length > 0;
     if (!filtering || askTimer) return;
     if (count !== askedCount) {
@@ -256,7 +506,7 @@ export function startActivityFilter(getJson: GetJson): void {
     const scroller = streamScroller(stream);
     if (!scroller) return;
     const fromEnd = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    if (fromEnd > 400) return;
+    if (fromEnd > 400 && shown >= 12) return;
     askTries++;
     askTimer = setTimeout(() => {
       const button = document.querySelector<HTMLButtonElement>('button.load-more-items');
@@ -287,8 +537,8 @@ export function startActivityFilter(getJson: GetJson): void {
   }
 
   new MutationObserver(muts => {
-    // Ignore changes made by the bar itself
-    if (muts.every(m => (m.target as Element).closest?.(`#${BAR_ID}`))) return;
+    // Ignore changes made by the bar or preloader itself
+    if (muts.every(m => (m.target as Element).closest?.(`#${BAR_ID}, #${PRELOADER_ID}`))) return;
     schedule();
   }).observe(document.documentElement, { childList: true, subtree: true });
 

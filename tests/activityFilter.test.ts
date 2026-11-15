@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import {
   activityItemMatches,
@@ -6,7 +7,15 @@ import {
   sanitizeActivityFilter,
   ACTIVITY_CATEGORIES
 } from '../src/core/activityCategories';
-import { activityCourseLabel, courseKeyFor, isActivityPage } from '../src/content/activityFilter';
+import {
+  PRELOADER_ID,
+  activityCourseLabel,
+  courseKeyFor,
+  isActivityPage,
+  isExcludedActivityCourse,
+  startActivityFilter
+} from '../src/content/activityFilter';
+import { setActiveUserCourses } from '../src/core/userCourses';
 
 const item = (icon: string, title: string, text = '') => classifyActivityItem({ icon: `bb-ui-icon-large-${icon}`, title, text });
 
@@ -49,9 +58,14 @@ describe('Activity filter: matching and saved choices', () => {
     expect(activityItemMatches(f, 'university', 'exams')).toBe(false);
   });
 
-  it('a saved filter keeps only known types and sensible course keys', () => {
+  it('a saved filter keeps only known types and sensible course keys, stripping non-courses', () => {
     expect(sanitizeActivityFilter(null)).toEqual({ courses: [], types: [] });
-    expect(sanitizeActivityFilter({ courses: ['physics 1', 'physics 1', 3, ''], types: ['exams', 'hacked', 'exams'] })).toEqual({
+    expect(
+      sanitizeActivityFilter({
+        courses: ['physics 1', 'physics 1', 'university', 'student hands on orientation', 3, ''],
+        types: ['exams', 'hacked', 'exams']
+      })
+    ).toEqual({
       courses: ['physics 1'],
       types: ['exams']
     });
@@ -59,13 +73,96 @@ describe('Activity filter: matching and saved choices', () => {
   });
 });
 
-describe('Activity filter: course chips', () => {
+describe('Activity filter: course chips & background preloader', () => {
+  beforeEach(() => {
+    setActiveUserCourses([]);
+    document.body.innerHTML = '';
+    window.history.replaceState({}, '', '/ultra/stream');
+  });
+
   it('one chip per course: section and Arabic parts are dropped, hyphenated words stay', () => {
     expect(activityCourseLabel('Physics 1- ALL - الفيزياء-1')).toBe('Physics 1');
     expect(activityCourseLabel('Physics 1- 02 - الفيزياء-1')).toBe('Physics 1');
     expect(activityCourseLabel('Calculus I for Engineering- 02 - حسبان 1 للمهندسين')).toBe('Calculus I for Engineering');
     expect(activityCourseLabel('Student Hands-On Orientation')).toBe('Student Hands-On Orientation');
     expect(courseKeyFor('Physics 1')).toBe(courseKeyFor('physics  1'));
+  });
+
+  it('excludes Student Hands-On Orientation, University, and sandbox shells while keeping real academic courses', () => {
+    expect(isExcludedActivityCourse('Student Hands-On Orientation')).toBe(true);
+    expect(isExcludedActivityCourse('University')).toBe(true);
+    expect(isExcludedActivityCourse('university')).toBe(true);
+    expect(isExcludedActivityCourse('Orientation_2026', 'ORIENT_101')).toBe(true);
+    expect(isExcludedActivityCourse('Faculty Sandbox', 'SANDBOX_01')).toBe(true);
+
+    expect(isExcludedActivityCourse('Calculus I for Engineering')).toBe(false);
+    expect(isExcludedActivityCourse('English for Academic Purposes')).toBe(false);
+    expect(isExcludedActivityCourse('Introduction to Computer Eng.')).toBe(false);
+    expect(isExcludedActivityCourse('Islamic Culture')).toBe(false);
+    expect(isExcludedActivityCourse('Physics 1')).toBe(false);
+    expect(isExcludedActivityCourse('Physics 1 Lab')).toBe(false);
+  });
+
+  it('seeds all real courses immediately without scrolling, never shows Orientation or University chips, and runs the preloader', async () => {
+    setActiveUserCourses([
+      { id: 'c1', courseName: 'Calculus I for Engineering', courseCode: '1411116', colorHex: '#ef4444', aliases: [], scheduleSlots: [], syllabus: [] },
+      { id: 'c2', courseName: 'Physics 1', courseCode: '1430115', colorHex: '#3b82f6', aliases: [], scheduleSlots: [], syllabus: [] },
+      { id: 'c3', courseName: 'Islamic Culture', courseCode: '0104100', colorHex: '#10b981', aliases: [], scheduleSlots: [], syllabus: [] }
+    ]);
+
+    document.body.innerHTML = `
+      <div class="stream-wrap" style="overflow-y: auto;">
+        <ul class="activity-stream">
+          <li class="stream-item-container">
+            <a href="/ultra/courses/_101_1/outline" analytics-id="stream.entry.course">Physics 1- 02 - الفيزياء-1</a>
+            <a class="js-title-link">Quiz 1 Reminder</a>
+          </li>
+          <li class="stream-item-container">
+            <a href="/ultra/courses/_999_1/outline" analytics-id="stream.entry.course">Student Hands-On Orientation</a>
+            <a class="js-title-link">Welcome to Blackboard</a>
+          </li>
+          <li class="stream-item-container">
+            <a class="js-title-link">Campus-wide Wi-Fi Maintenance</a>
+          </li>
+        </ul>
+        <button class="load-more-items" type="button">Load more</button>
+      </div>
+    `;
+
+    const loadMoreBtn = document.querySelector<HTMLButtonElement>('button.load-more-items')!;
+    let clicks = 0;
+    loadMoreBtn.addEventListener('click', () => {
+      clicks++;
+      const stream = document.querySelector('.activity-stream')!;
+      const li = document.createElement('li');
+      li.className = 'stream-item-container';
+      li.innerHTML = `<a href="/ultra/courses/_102_1/outline">Calculus I for Engineering</a><a class="js-title-link">Homework ${clicks}</a>`;
+      stream.appendChild(li);
+      if (clicks >= 3) loadMoreBtn.disabled = true;
+    });
+
+    startActivityFilter(async () => ({ results: [] }));
+
+    // Wait for initial render and preloader mount
+    await new Promise(r => setTimeout(r, 60));
+
+    const bar = document.getElementById('bbs-activity-filter');
+    expect(bar).toBeTruthy();
+
+    const courseRow = bar!.querySelector('[aria-label="Course"]')!;
+    const chipLabels = Array.from(courseRow.querySelectorAll('button.bbs-af-chip')).map(b => b.textContent?.trim());
+
+    // All 3 configured courses show immediately even before their items are scrolled into view,
+    // and neither Student Hands-On Orientation nor University appears as a course chip
+    expect(chipLabels).toEqual(['All', 'Calculus I for Engineering', 'Islamic Culture', 'Physics 1']);
+    expect(chipLabels).not.toContain('Student Hands-On Orientation');
+    expect(chipLabels).not.toContain('University');
+
+    // Preloader mounts while background batches load, clicks load-more-items, and removes itself once done
+    await vi.waitFor(() => {
+      expect(clicks).toBeGreaterThanOrEqual(3);
+      expect(document.getElementById(PRELOADER_ID)).toBeNull();
+    }, { timeout: 2500 });
   });
 
   it('runs only on the Activity page', () => {
@@ -81,5 +178,6 @@ describe('Activity filter: course chips', () => {
     const css = fs.readFileSync('src/content/content.css', 'utf8').replace(/\r\n/g, '\n');
     expect(css).toContain('html body li.bbs-af-hidden {\n  display: none !important;\n}');
     expect(css).toMatch(/html\.bbs-dark-active #bbs-activity-filter \.bbs-af-chip\[aria-pressed="true"\]/);
+    expect(css).toContain('#bbs-activity-preloader');
   });
 });

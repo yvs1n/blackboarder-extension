@@ -49,11 +49,19 @@ export interface ActivityFilterState {
 
 export const EMPTY_ACTIVITY_FILTER: ActivityFilterState = { courses: [], types: [] };
 
-/** Keeps only known categories and string course keys, so stored or synced junk cannot break the bar. */
+/** Keeps only known categories and real course keys (never "university" or orientation shells), so stored or synced junk cannot break the bar. */
 export function sanitizeActivityFilter(raw: unknown): ActivityFilterState {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const known = new Set(ACTIVITY_CATEGORIES.map(c => c.id));
-  const courses = Array.isArray(o.courses) ? o.courses.filter((c): c is string => typeof c === 'string' && c.length > 0 && c.length < 200) : [];
+  const courses = Array.isArray(o.courses)
+    ? o.courses.filter((c): c is string => {
+        if (typeof c !== 'string' || c.length === 0 || c.length >= 200) return false;
+        const norm = c.trim().toLowerCase();
+        if (!norm || norm === 'university') return false;
+        if (/orientation|sandbox|mock[_\s-]*exam|توجيه|تهيئة/i.test(norm)) return false;
+        return true;
+      })
+    : [];
   const types = Array.isArray(o.types) ? o.types.filter((t): t is ActivityCategory => known.has(t as ActivityCategory)) : [];
   return { courses: [...new Set(courses)], types: [...new Set(types)] };
 }

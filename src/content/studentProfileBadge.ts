@@ -160,8 +160,8 @@ export async function startStudentProfileBadge(): Promise<void> {
       removeAllBadgeCards();
       return;
     }
-    // Ignore mutations triggered within the badge card itself or activity filter
-    if (muts.every(m => (m.target as Element).closest?.(`#${BADGE_ID}, .bbs-profile-badge-card, #bbs-activity-filter`))) {
+    // Ignore mutations triggered within the badge card itself, activity filter, or preloader
+    if (muts.every(m => (m.target as Element).closest?.(`#${BADGE_ID}, .bbs-profile-badge-card, #bbs-activity-filter, #bbs-activity-preloader`))) {
       return;
     }
 
