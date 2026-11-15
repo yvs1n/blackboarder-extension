@@ -14,11 +14,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.6",
-  "build": "d2b1c7cfbf82",
-  "commit": "2c60f2af8fb5b01821b4b10cb1e65e628507116a",
-  "shortCommit": "2c60f2a",
-  "timestamp": "2026-11-15T11:27:34.161Z",
-  "message": "v1.8.6: Merge remote-tracking branch 'origin/main'",
+  "build": "d06ae262d840",
+  "commit": "c4c69be53fbd942b3739688e31dc7e9166f4c8cd",
+  "shortCommit": "c4c69be",
+  "timestamp": "2026-11-15T11:39:55.799Z",
+  "message": "v1.8.6: Add Activity stream preloader, seed all courses immediately, and exclude Orientation/University chips",
   "changelog": [
     "Windows Widget Automatic Self-Update (windows-widget/SelfUpdater.cs, windows-widget/TrayApplicationContext.cs, windows-widget/SettingsForm.cs): Added automatic GitHub Releases self-updating for BlackboarderWidget.exe (yvs1n/blackboarder-extension/releases/latest), checking on startup and every 3 hours when idle, validating the downloaded PE executable size and MZ header, swapping the in-use binary safely on NTFS, relaunching automatically, and providing an Auto-Update toggle plus Check for Updates action in both Settings and the system tray menu. Synchronized <Version> in BlackboarderWidget.csproj with package.json during npm run build."
   ],

@@ -297,21 +297,29 @@ html.bbs-dark-active #bbs-activity-filter .bbs-af-chip[aria-pressed="true"] {
 }
 
 /* Activity page background preloader (Swiss Grid two-tone, 0px corners) */
+html:has(#bbs-activity-preloader) .loading-spinner,
+html:has(#bbs-activity-preloader) .bb-loading-spinner,
+html:has(#bbs-activity-preloader) .loading-indicator,
+html:has(#bbs-activity-preloader) #initial-load-spinner,
+html:has(#bbs-activity-preloader) [class*="loadingSpinner"],
+html:has(#bbs-activity-preloader) [class*="loading-placeholder"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 #bbs-activity-preloader {
   position: fixed;
   inset: 0;
-  z-index: 9998;
+  z-index: 2147483646;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(244, 244, 246, 0.92);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: #f4f4f6;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 html.bbs-dark-active #bbs-activity-preloader {
-  background: rgba(18, 18, 21, 0.92);
+  background: #121215;
 }
 
 #bbs-activity-preloader .bbs-af-preloader-card {

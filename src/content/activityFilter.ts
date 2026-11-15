@@ -32,6 +32,7 @@ const NON_COURSE_KEY = '__non_course__';
 
 const PRELOAD_TARGET_BATCHES = 3;
 const PRELOAD_TARGET_ITEMS = 60;
+const PRELOAD_BOOT_MAX_MS = 5500;
 const PRELOAD_MAX_MS = 3200;
 const PRELOAD_TICK_MS = 220;
 
@@ -111,7 +112,9 @@ export function startActivityFilter(getJson: GetJson): void {
   let askTimer: ReturnType<typeof setTimeout> | null = null;
   let allLoaded = false;
 
-  // Initial background preloader state per mounted .activity-stream element
+  // Unified preloader state covering both Blackboard's stream boot and our background batch preload
+  let onActivityRoute = false;
+  let routeEnteredAt = 0;
   let preloadedStream: Element | null = null;
   let preloading = false;
   let preloadStartedAt = 0;
@@ -257,7 +260,7 @@ export function startActivityFilter(getJson: GetJson): void {
     if (el) el.remove();
   };
 
-  const updatePreloaderUi = (itemCount: number) => {
+  const updatePreloaderUi = (itemCount: number, streamReady: boolean) => {
     if (!preloading || !isActivityPage()) {
       removePreloader();
       return;
@@ -286,7 +289,14 @@ export function startActivityFilter(getJson: GetJson): void {
         </div>
       `;
       (document.body || document.documentElement).appendChild(overlay);
+    }
+
+    if (overlay.dataset.bbsManaged !== '1') {
+      overlay.dataset.bbsManaged = '1';
       overlay.querySelector('#bbs-af-preloader-skip-btn')?.addEventListener('click', () => {
+        if (document.documentElement) {
+          document.documentElement.dataset.bbsPreloaderSkipped = '1';
+        }
         const stream = document.querySelector('.activity-stream');
         removePreloader(stream);
         schedule();
@@ -294,9 +304,16 @@ export function startActivityFilter(getJson: GetJson): void {
     }
 
     const courseCount = [...chips.values()].filter(c => !c.placeholder).length;
-    const elapsedRatio = Math.min(0.92, (Date.now() - preloadStartedAt) / PRELOAD_MAX_MS);
-    const batchRatio = Math.min(0.95, ( (membershipsReady ? 0.25 : 0.08) + (coursesReady ? 0.15 : 0.05) + Math.min(0.55, (preloadBatches / PRELOAD_TARGET_BATCHES) * 0.55) ));
-    const pct = Math.round(Math.max(18, Math.max(elapsedRatio, batchRatio) * 100));
+    const bootRatio = Math.min(0.32, ((Date.now() - routeEnteredAt) / PRELOAD_BOOT_MAX_MS) * 0.32);
+    const postMountElapsed = streamReady && preloadStartedAt > 0 ? Math.min(0.60, ((Date.now() - preloadStartedAt) / PRELOAD_MAX_MS) * 0.60) : 0;
+    const batchRatio = Math.min(
+      0.95,
+      (membershipsReady ? 0.22 : 0.08) +
+        (coursesReady ? 0.14 : 0.05) +
+        (streamReady ? 0.14 : bootRatio) +
+        Math.min(0.45, (preloadBatches / PRELOAD_TARGET_BATCHES) * 0.45)
+    );
+    const pct = Math.round(Math.max(16, Math.max(bootRatio + postMountElapsed, batchRatio) * 100));
 
     const fill = overlay.querySelector<HTMLElement>('#bbs-af-preloader-fill');
     if (fill) fill.style.width = `${pct}%`;
@@ -304,20 +321,41 @@ export function startActivityFilter(getJson: GetJson): void {
     const meta = overlay.querySelector<HTMLElement>('#bbs-af-preloader-meta');
     if (meta) {
       const coursePart = courseCount > 0 ? `${courseCount} course${courseCount === 1 ? '' : 's'}` : 'Loading courses';
-      const itemPart = itemCount > 0 ? `${itemCount} notification${itemCount === 1 ? '' : 's'} loaded` : 'Fetching stream items...';
+      const itemPart = itemCount > 0
+        ? `${itemCount} notification${itemCount === 1 ? '' : 's'} loaded`
+        : streamReady
+          ? 'Fetching stream items...'
+          : 'Connecting to Blackboard stream...';
       meta.textContent = `${coursePart} · ${itemPart}`;
     }
   };
 
   /**
-   * Preloads notifications in the background when /ultra/stream opens so the student does not have
-   * to manually scroll down to discover courses or older notifications.
+   * Covers both Blackboard's initial stream boot (when stream is still null) and background
+   * notification batch preloading so only one unified Blackboarder preloader is shown.
    */
-  const stepBackgroundPreload = (stream: Element) => {
+  const stepBackgroundPreload = (stream: Element | null) => {
     if (!preloading || !isActivityPage()) {
       removePreloader(stream);
       return;
     }
+
+    if (!stream) {
+      updatePreloaderUi(0, false);
+      if (Date.now() - routeEnteredAt >= PRELOAD_BOOT_MAX_MS) {
+        removePreloader();
+        return;
+      }
+      if (!preloadTimer) {
+        preloadTimer = setTimeout(() => {
+          preloadTimer = null;
+          stepBackgroundPreload(document.querySelector('.activity-stream'));
+          schedule();
+        }, PRELOAD_TICK_MS);
+      }
+      return;
+    }
+
     const items = document.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
     const count = items.length;
     if (preloadInitialCount < 0 && count > 0) {
@@ -331,7 +369,7 @@ export function startActivityFilter(getJson: GetJson): void {
       preloadIdleTicks++;
     }
 
-    updatePreloaderUi(count);
+    updatePreloaderUi(count, true);
 
     const elapsed = Date.now() - preloadStartedAt;
     const button = document.querySelector<HTMLButtonElement>('button.load-more-items');
@@ -359,13 +397,8 @@ export function startActivityFilter(getJson: GetJson): void {
     if (!preloadTimer) {
       preloadTimer = setTimeout(() => {
         preloadTimer = null;
-        const currentStream = document.querySelector('.activity-stream');
-        if (currentStream) {
-          stepBackgroundPreload(currentStream);
-          schedule();
-        } else {
-          removePreloader();
-        }
+        stepBackgroundPreload(document.querySelector('.activity-stream'));
+        schedule();
       }, PRELOAD_TICK_MS);
     }
   };
@@ -436,18 +469,45 @@ export function startActivityFilter(getJson: GetJson): void {
     if (!isActivityPage()) {
       bar?.remove();
       removePreloader();
+      onActivityRoute = false;
+      routeEnteredAt = 0;
       preloadedStream = null;
+      if (document.documentElement) {
+        delete document.documentElement.dataset.bbsPreloaderSkipped;
+      }
       document.querySelectorAll(`.${HIDDEN_CLASS}`).forEach(el => el.classList.remove(HIDDEN_CLASS));
       return;
     }
-    const stream = document.querySelector('.activity-stream');
-    if (!stream || !loaded) return;
+
+    if (document.querySelector('input[type="password"]') || /(?:^|\/)login(?:\/|$)/i.test(location.pathname)) {
+      removePreloader();
+      return;
+    }
 
     syncCourseChipsFromSources();
 
+    const skipped = document.documentElement?.dataset.bbsPreloaderSkipped === '1';
+    if (!onActivityRoute) {
+      onActivityRoute = true;
+      routeEnteredAt = Date.now();
+      preloading = !skipped;
+      preloadInitialCount = -1;
+      preloadLastCount = 0;
+      preloadBatches = 0;
+      preloadIdleTicks = 0;
+    }
+
+    const stream = document.querySelector('.activity-stream');
+    if (!stream || !loaded) {
+      if (preloading && !skipped) {
+        stepBackgroundPreload(null);
+      }
+      return;
+    }
+
     if (preloadedStream !== stream) {
       preloadedStream = stream;
-      preloading = true;
+      preloading = !skipped;
       preloadStartedAt = Date.now();
       preloadInitialCount = -1;
       preloadLastCount = 0;

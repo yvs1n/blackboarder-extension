@@ -662,10 +662,60 @@
     }, 600);
   };
 
+  // Mount the Blackboarder Activity Preloader at document_start on /ultra/stream so Blackboard's
+  // native spinner never flashes before content.js takes over and preloads courses/notifications.
+  const ensureEarlyActivityPreloader = () => {
+    try {
+      if (window !== window.top) return;
+      if (!/^\/ultra\/stream\/?$/i.test(window.location.pathname)) return;
+      const root = document.documentElement;
+      if (!root || root.dataset.bbsPreloaderSkipped === '1') return;
+      if (document.getElementById('bbs-activity-preloader')) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'bbs-activity-preloader';
+      overlay.setAttribute('role', 'status');
+      overlay.setAttribute('aria-live', 'polite');
+      overlay.setAttribute('aria-label', 'Loading Blackboard Activity stream');
+      overlay.innerHTML =
+        '<div class="bbs-af-preloader-card">' +
+          '<div class="bbs-af-preloader-header">' +
+            '<span class="bbs-af-preloader-brand">BLACKBOARDER · ACTIVITY STREAM</span>' +
+            '<button type="button" class="bbs-af-preloader-skip" id="bbs-af-preloader-skip-btn">Skip</button>' +
+          '</div>' +
+          '<div class="bbs-af-preloader-body">' +
+            '<div class="bbs-af-preloader-title">Loading Courses &amp; Notifications</div>' +
+            '<div class="bbs-af-preloader-sub">Preloading stream notifications in the background so all courses and filters are ready immediately.</div>' +
+            '<div class="bbs-af-preloader-track">' +
+              '<div class="bbs-af-preloader-fill" id="bbs-af-preloader-fill" style="width: 14%"></div>' +
+            '</div>' +
+            '<div class="bbs-af-preloader-meta" id="bbs-af-preloader-meta">Connecting to Blackboard stream...</div>' +
+          '</div>' +
+        '</div>';
+      (document.body || root).appendChild(overlay);
+      const skipBtn = overlay.querySelector('#bbs-af-preloader-skip-btn');
+      if (skipBtn) {
+        skipBtn.addEventListener('click', () => {
+          root.dataset.bbsPreloaderSkipped = '1';
+          overlay.remove();
+        });
+      }
+      // Safety fallback in case the page redirects to sign-in or content.js never takes over
+      setTimeout(() => {
+        if (overlay.isConnected && overlay.dataset.bbsManaged !== '1') {
+          overlay.remove();
+        }
+      }, 7000);
+    } catch (_) {}
+  };
+
   if (document.documentElement) {
+    ensureEarlyActivityPreloader();
     initObserver();
   } else {
-    document.addEventListener('DOMContentLoaded', initObserver, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      ensureEarlyActivityPreloader();
+      initObserver();
+    }, { once: true });
   }
 
   document.addEventListener('DOMContentLoaded', () => {

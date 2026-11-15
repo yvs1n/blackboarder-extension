@@ -165,6 +165,21 @@ describe('Activity filter: course chips & background preloader', () => {
     }, { timeout: 2500 });
   });
 
+  it('shows our single preloader even before .activity-stream mounts (covering Blackboard\'s initial loader)', async () => {
+    document.body.innerHTML = `<div class="loading-spinner">Blackboard loading...</div>`;
+    startActivityFilter(async () => ({ results: [] }));
+
+    await vi.waitFor(() => {
+      const preloader = document.getElementById(PRELOADER_ID);
+      expect(preloader).toBeTruthy();
+      expect(preloader?.textContent).toContain('Connecting to Blackboard stream...');
+    }, { timeout: 1000 });
+
+    // Clicking Skip dismisses the unified preloader immediately
+    document.getElementById('bbs-af-preloader-skip-btn')?.click();
+    expect(document.getElementById(PRELOADER_ID)).toBeNull();
+  });
+
   it('runs only on the Activity page', () => {
     expect(isActivityPage('/ultra/stream')).toBe(true);
     expect(isActivityPage('/ultra/stream/')).toBe(true);
@@ -175,6 +190,7 @@ describe('Activity filter: course chips & background preloader', () => {
   it('is started by the content script, loads more through Blackboard\'s own button, and hides with a class', () => {
     expect(fs.readFileSync('src/content/scraper.ts', 'utf8')).toContain('startActivityFilter(getBlackboardJson)');
     expect(fs.readFileSync('src/content/activityFilter.ts', 'utf8')).toContain("'button.load-more-items'");
+    expect(fs.readFileSync('src/content/blackboard-dark.js', 'utf8')).toContain('ensureEarlyActivityPreloader');
     const css = fs.readFileSync('src/content/content.css', 'utf8').replace(/\r\n/g, '\n');
     expect(css).toContain('html body li.bbs-af-hidden {\n  display: none !important;\n}');
     expect(css).toMatch(/html\.bbs-dark-active #bbs-activity-filter \.bbs-af-chip\[aria-pressed="true"\]/);
