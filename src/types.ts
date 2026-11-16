@@ -185,6 +185,8 @@ export interface DeadlineTask {
   gradeSourceId?: string; // Gradebook column the mark came from ("gb:_123_1"); only that column updates it
   gradeSourcesBefore?: string[]; // Gradebook columns already graded before this task's date (a practice run), never applied to it
   isBonus?: boolean; // Bonus mark / extra credit (adds to earned course points without increasing required weight)
+  bonusTarget?: string; // 'total' (pure extra credit on final %) or 'comp:<id>' / 'type:<taskType>'
+  bonusTargetLabel?: string; // Human-readable target label (e.g. 'Course Total', 'Quizzes')
   calendarSynced?: boolean;
   userEdited?: boolean;
   createdAt: string;

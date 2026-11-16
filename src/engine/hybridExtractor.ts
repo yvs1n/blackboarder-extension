@@ -5,7 +5,7 @@ import { AiSettings, resolveAiEndpoint } from './aiProviders';
 import { resolveTaskWeight, extractAssessmentNumber } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
 import { isPresentationTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts, isExamReviewSession } from '../core/courseHelper';
-import { coreTitle } from '../utils/streamParser';
+import { coreTitle, isPracticeTitle } from '../utils/streamParser';
 import { areTasksDuplicates } from '../utils/taskMerge';
 
 /**
@@ -64,6 +64,115 @@ function findSameExam(task: DeadlineTask, existing: Iterable<DeadlineTask>): Dea
     if (e.type === 'exam' && sameKnownCourse(e, task) && examKind(e.title) === kind) return e;
   }
   return undefined;
+}
+
+function sameCourseForUpdate(ann: Announcement, task: DeadlineTask): boolean {
+  const normCode = (s?: string) => {
+    const c = (s || '').replace(/\s+/g, '').toUpperCase();
+    return c === 'UOS' ? '' : c;
+  };
+  const normName = (s?: string) => {
+    const n = (s || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g, '');
+    return n === 'generalcourse' || n === 'uos' ? '' : n;
+  };
+  const ca = normCode(ann.courseCode);
+  const cb = normCode(task.courseCode);
+  if (ca && cb) return ca === cb;
+  const na = normName(ann.courseName);
+  const nb = normName(task.courseName);
+  if (na && nb) return na === nb || na.includes(nb) || nb.includes(na);
+  return true;
+}
+
+const INSTRUCTION_CUE_RE = /\b(?:cover(?:s|ing|ed)?|topics?|chapters?|modules?|sections?|material|syllab(?:us|i)|format|duration|minutes?|hours?|calculators?|closed\s*book|open\s*book|bring|instructions?|guidelines?|rules?|room|hall|lab|building|online|blackboard|reminder|update|quiz(?:zes)?|midterms?|finals?|exams?|assignments?|homework|hw\d*|projects?|reports?)\b|يغطي|تغطي|مواضيع|فصول|وحدات|تعليمات|قاعة|مختبر|مدة|ملاحظات|كويز|امتحان|اختبار|واجب|مشروع|تقرير/i;
+const GRADE_REPORT_RE = /(?:^|[^\p{L}\p{N}])(?:درجات|درجة|علامات|علامة|نتائج|النتائج|العلامات|الدرجات|grades?|marks?|scores?|results?|feedback|solutions?|answer\s*keys?)(?:$|[^\p{L}\p{N}])/iu;
+
+function taskKind(t: DeadlineTask): 'midterm' | 'final' | 'exam' | 'quiz' | 'assignment' | 'lab' | 'project' | null {
+  const title = t.title || '';
+  if (/(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(title)) return 'midterm';
+  if (/(?:\bfinals?\b|نهائي)/i.test(title)) return 'final';
+  if (t.type === 'quiz' || /quiz|كويز|اختبار\s*قصير/i.test(title)) return 'quiz';
+  if (t.type === 'exam' || /\b(?:exam|test)\b|امتحان|اختبار/i.test(title)) return 'exam';
+  if (t.type === 'lab' || /lab|تقرير|تجربة/i.test(title)) return 'lab';
+  if (t.type === 'project' || /project|مشروع|بحث/i.test(title)) return 'project';
+  if (t.type === 'assignment' || /assignment|homework|hw|واجب/i.test(title)) return 'assignment';
+  return null;
+}
+
+function annMatchesKind(text: string, kind: NonNullable<ReturnType<typeof taskKind>>): boolean {
+  switch (kind) {
+    case 'midterm': return /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(text);
+    case 'final': return /(?:\bfinals?\b|نهائي)/i.test(text);
+    case 'quiz': return /\bquiz(?:zes)?\b|كويز|اختبار\s*قصير/i.test(text);
+    case 'exam': return /\b(?:exams?|tests?)\b|امتحان|اختبار/i.test(text) && !/(?:\bmid[\s_-]*terms?\b|\bfinals?\b|نصفي|نهائي)/i.test(text);
+    case 'lab': return /\b(?:labs?|experiments?|lab\s*reports?)\b|مختبر|تقرير|تجربة/i.test(text);
+    case 'project': return /\bprojects?\b|مشروع|بحث/i.test(text);
+    case 'assignment': return /\b(?:assignments?|homework|hw\d*|problem\s*sets?)\b|واجب/i.test(text);
+  }
+}
+
+/**
+ * Matches an undated announcement that reads like instructions, topics, or updates for an
+ * existing pending deadline in the same course so its text is attached without duplicating tasks.
+ */
+function findTaskForInstructionAnnouncement(ann: Announcement, tasks: Iterable<DeadlineTask>): DeadlineTask | undefined {
+  const annCombined = `${ann.title || ''} ${ann.contentText || ''}`.trim();
+  if (!annCombined || isExamReviewSession(ann.title, ann.contentText || '')) return undefined;
+  if (GRADE_REPORT_RE.test(ann.title || '') && !/(?:makeup|make-up|reschedul|تعويضي)/i.test(annCombined)) return undefined;
+  if (!INSTRUCTION_CUE_RE.test(annCombined)) return undefined;
+
+  const annPractice = isPracticeTitle(annCombined);
+  const numAnn = extractAssessmentNumber(annCombined);
+  const coreAnn = coreTitle(ann.title || '');
+  const list = Array.from(tasks);
+
+  const candidates: DeadlineTask[] = [];
+  for (const existing of list) {
+    if (!existing || existing.status === 'completed' || existing.status === 'dismissed' || existing.submissionStatus === 'graded') continue;
+    if (!sameCourseForUpdate(ann, existing)) continue;
+    if (isPracticeTitle(existing.title) !== annPractice) continue;
+
+    const kind = taskKind(existing);
+    if (!kind || !annMatchesKind(annCombined, kind)) continue;
+
+    const numEx = extractAssessmentNumber(existing.title);
+    if (numEx !== null && numAnn !== null && numEx !== numAnn) continue;
+
+    const coreEx = coreTitle(existing.title);
+    const strongNumberMatch = numEx !== null && numAnn !== null && numEx === numAnn;
+    const sameCore = coreEx.length >= 4 && coreAnn.length >= 4 && (coreEx === coreAnn || coreAnn.includes(coreEx) || coreEx.includes(coreAnn));
+    const singletonExam = kind === 'midterm' || kind === 'final';
+    const bothUnnumbered = numEx === null && numAnn === null;
+
+    if (strongNumberMatch || sameCore || singletonExam || bothUnnumbered) {
+      candidates.push(existing);
+      continue;
+    }
+
+    // One side omitted the number ("The quiz covers..." when only one pending quiz exists in that course)
+    const sameCourseAndKindCount = list.filter(o =>
+      o &&
+      o.status !== 'completed' &&
+      o.status !== 'dismissed' &&
+      o.submissionStatus !== 'graded' &&
+      sameCourseForUpdate(ann, o) &&
+      taskKind(o) === kind
+    ).length;
+    if (sameCourseAndKindCount === 1) {
+      candidates.push(existing);
+    }
+  }
+
+  if (candidates.length === 0) return undefined;
+  candidates.sort((a, b) => {
+    const numA = extractAssessmentNumber(a.title);
+    const numB = extractAssessmentNumber(b.title);
+    const exactA = numA !== null && numA === numAnn ? 1 : 0;
+    const exactB = numB !== null && numB === numAnn ? 1 : 0;
+    if (exactA !== exactB) return exactB - exactA;
+    return (new Date(a.dueDate).getTime() || 0) - (new Date(b.dueDate).getTime() || 0);
+  });
+  return candidates[0];
 }
 
 /** How many announcements are extracted at once (each may be an AI call). */
@@ -258,56 +367,58 @@ export async function processAnnouncementsBatch(
     const extracted = extractedLists[idx] || [];
 
     if (extracted.length === 0) {
-      // If no deadline date was found in this announcement, check if it's a doctor update
-      // for an already existing upcoming exam or pending assessment in the same course
-      const annCombinedText = `${ann.title} ${ann.contentText || ''}`;
-      if (!isExamReviewSession(ann.title, ann.contentText || '')) {
-        for (const existing of existingIdMap.values()) {
-          if (existing.status === 'completed' || existing.submissionStatus === 'graded' || existing.userEdited) continue;
-          if (existing.courseCode && ann.courseCode && existing.courseCode !== ann.courseCode) continue;
+      // No new deadline date extracted: check if this announcement gives instructions, topics,
+      // rules, or room updates for an already-existing upcoming deadline in the same course.
+      const matchedExisting = findTaskForInstructionAnnouncement(ann, existingIdMap.values());
+      if (matchedExisting) {
+        let changed = false;
+        const incomingBody = (ann.contentText || ann.title || '').trim();
+        const mergedDesc = mergeAnnouncementTexts(matchedExisting.description || matchedExisting.sourceSnippet, incomingBody);
+        if (mergedDesc && mergedDesc !== (matchedExisting.description || '')) {
+          matchedExisting.description = mergedDesc;
+          matchedExisting.sourceSnippet = mergedDesc;
+          changed = true;
+        }
 
-          // Check if announcement refers to this existing assessment
-          const isMidterm = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(existing.title);
-          const isFinal = /(?:\bfinals?\b|نهائي)/i.test(existing.title);
-          const annHasMid = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(annCombinedText);
-          const annHasFin = /(?:\bfinals?\b|نهائي)/i.test(annCombinedText);
+        if (!matchedExisting.userEdited && matchedExisting.extractedBy !== 'manual') {
+          const annCombinedText = `${ann.title || ''} ${ann.contentText || ''}`;
+          const roomRes = resolveTaskRoom({
+            courseNameOrCode: matchedExisting.courseName || matchedExisting.courseCode,
+            announcementText: annCombinedText,
+            title: matchedExisting.title,
+            existingRoom: matchedExisting.room,
+            type: matchedExisting.type
+          });
+          if (roomRes.room && roomRes.room !== matchedExisting.room) {
+            matchedExisting.room = roomRes.room;
+            changed = true;
+          }
 
-          const numEx = extractAssessmentNumber(existing.title);
-          const numAnn = extractAssessmentNumber(annCombinedText);
-          const numbersMatch = (numEx !== null && numAnn !== null && numEx === numAnn) || (numEx === null && numAnn === null);
-
-          const matchesMid = isMidterm && annHasMid && numbersMatch;
-          const matchesFin = isFinal && annHasFin && numbersMatch;
-
-          if (matchesMid || matchesFin) {
-            let changed = false;
-            const mergedDesc = mergeAnnouncementTexts(existing.description || existing.sourceSnippet, ann.contentText);
-            if (mergedDesc && mergedDesc !== (existing.description || '')) {
-              existing.description = mergedDesc;
-              existing.sourceSnippet = mergedDesc;
+          if (matchedExisting.weight === undefined || matchedExisting.weight === null) {
+            const wInfo = resolveTaskWeight({
+              ...matchedExisting,
+              description: mergedDesc || incomingBody,
+              sourceSnippet: mergedDesc || incomingBody
+            }, matchedExisting.courseName);
+            if (wInfo.weight !== undefined) {
+              matchedExisting.weight = wInfo.weight;
+              matchedExisting.weightDisplay = wInfo.weightDisplay;
+              matchedExisting.syllabusNote = wInfo.syllabusNote;
               changed = true;
             }
+          }
+        }
 
-            const roomRes = resolveTaskRoom({
-              courseNameOrCode: existing.courseName || existing.courseCode,
-              announcementText: annCombinedText,
-              title: existing.title,
-              existingRoom: existing.room,
-              type: existing.type
-            });
-            if (roomRes.room && roomRes.room !== existing.room) {
-              existing.room = roomRes.room;
-              changed = true;
-            }
+        if (!matchedExisting.announcementId && ann.id) {
+          matchedExisting.announcementId = ann.id;
+          changed = true;
+        }
 
-            if (changed) {
-              existing.updatedAt = new Date().toISOString();
-              if (!updatedTaskIds.has(existing.id)) {
-                updatedTasks.push(existing);
-                updatedTaskIds.add(existing.id);
-              }
-            }
-            break;
+        if (changed) {
+          matchedExisting.updatedAt = new Date().toISOString();
+          if (!updatedTaskIds.has(matchedExisting.id)) {
+            updatedTasks.push(matchedExisting);
+            updatedTaskIds.add(matchedExisting.id);
           }
         }
       }

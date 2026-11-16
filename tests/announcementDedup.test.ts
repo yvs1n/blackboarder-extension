@@ -167,4 +167,81 @@ describe('announcement tasks are not swallowed by an older task with the same ti
     expect(r.newTasks[0].title).toBe('Quiz 1');
     expect(/[\u0600-\u06FF]/.test(r.newTasks[0].title)).toBe(false);
   });
+
+  it('extracts multi-line quiz announcement with topics list and DD/MM date when not yet added', async () => {
+    const topicQuizAnn: Announcement = {
+      id: 'ann_quiz_topics_date',
+      courseCode: '1411116',
+      courseName: 'Calculus I for Engineering',
+      title: 'Quiz 2 Topics & Schedule',
+      postedAt: '2026-11-10T08:00:00.000Z',
+      contentText: 'Dear Students,\nQuiz 2 will cover the following topics:\n- Derivatives\n- Chain Rule\n- Implicit Differentiation\nIt will be held on 18/11 at 11:00 AM.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae',
+      scannedAt: '2026-11-10T09:00:00.000Z'
+    };
+
+    const r = await processAnnouncementsBatch([topicQuizAnn], [], DEFAULT_SETTINGS);
+    expect(r.newTasks).toHaveLength(1);
+    expect(r.newTasks[0].title).toBe('Quiz 2');
+    expect(r.newTasks[0].type).toBe('quiz');
+    expect(r.newTasks[0].dueDate.slice(0, 10)).toBe('2026-11-18');
+    expect(r.newTasks[0].description).toContain('Chain Rule');
+  });
+
+  it('appends new scan quiz topics/instructions onto an already-added manual or scanned quiz without creating duplicates', async () => {
+    const existingQuiz: DeadlineTask = {
+      id: 'task_manual_quiz2',
+      courseCode: 'UOS',
+      courseName: 'Calculus I for Engineering',
+      title: 'Quiz 2',
+      type: 'quiz',
+      description: 'Added from syllabus schedule',
+      dueDate: '2026-11-18T11:00:00.000Z',
+      hasSpecificTime: true,
+      status: 'pending',
+      extractedBy: 'manual',
+      userEdited: true,
+      priority: 'high',
+      sourceSnippet: 'Added from syllabus schedule',
+      confidence: 1,
+      createdAt: '2026-11-01T08:00:00.000Z',
+      updatedAt: '2026-11-01T08:00:00.000Z'
+    };
+
+    const datedInstructionsAnn: Announcement = {
+      id: 'ann_quiz2_topics',
+      courseCode: '1411116',
+      courseName: 'Calculus I for Engineering',
+      title: 'Quiz 2 Instructions',
+      postedAt: '2026-11-14T08:00:00.000Z',
+      contentText: 'Quiz 2 covers Lectures 4-7 (Limits & Continuity) and will be held on November 18.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae',
+      scannedAt: '2026-11-14T09:00:00.000Z'
+    };
+
+    const undatedFollowUpAnn: Announcement = {
+      id: 'ann_quiz2_rules',
+      courseCode: '1411116',
+      courseName: 'Calculus I for Engineering',
+      title: 'Quiz 2 Rules Reminder',
+      postedAt: '2026-11-15T08:00:00.000Z',
+      contentText: 'Please bring a blue pen. Formula sheet is provided during Quiz 2.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae',
+      scannedAt: '2026-11-15T09:00:00.000Z'
+    };
+
+    const r = await processAnnouncementsBatch(
+      [datedInstructionsAnn, undatedFollowUpAnn],
+      [existingQuiz],
+      DEFAULT_SETTINGS
+    );
+    expect(r.newTasks).toHaveLength(0);
+    expect(r.allTasks).toHaveLength(1);
+    const merged = r.allTasks[0];
+    expect(merged.id).toBe('task_manual_quiz2');
+    expect(merged.dueDate).toBe('2026-11-18T11:00:00.000Z');
+    expect(merged.description).toContain('Added from syllabus schedule');
+    expect(merged.description).toContain('Lectures 4-7');
+    expect(merged.description).toContain('Formula sheet is provided');
+  });
 });

@@ -121,8 +121,23 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     }
     // Student notes are only the student's; a task they never made or edited has none
     if (clean.notes && !clean.userEdited && clean.extractedBy !== 'manual') delete clean.notes;
-    if (t.isBonus) clean.isBonus = true;
-    else delete clean.isBonus;
+    if (t.isBonus) {
+      clean.isBonus = true;
+      if (typeof t.bonusTarget === 'string' && t.bonusTarget.trim()) {
+        clean.bonusTarget = t.bonusTarget.trim().slice(0, 120);
+      } else {
+        delete clean.bonusTarget;
+      }
+      if (typeof t.bonusTargetLabel === 'string' && t.bonusTargetLabel.trim()) {
+        clean.bonusTargetLabel = t.bonusTargetLabel.trim().slice(0, 120);
+      } else {
+        delete clean.bonusTargetLabel;
+      }
+    } else {
+      delete clean.isBonus;
+      delete clean.bonusTarget;
+      delete clean.bonusTargetLabel;
+    }
     out.push(clean as DeadlineTask);
   }
   return out;

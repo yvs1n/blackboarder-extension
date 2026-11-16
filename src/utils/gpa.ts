@@ -30,6 +30,7 @@ export function gradeForPercent(percent: number, scale: ReadonlyArray<GradeRow> 
 
 /** The fields this needs from a syllabus component (the extension and phone shapes both have them). */
 export interface GpaComponent {
+  id?: string;
   name: string;
   type: TaskType;
   totalWeight: number;
@@ -103,8 +104,47 @@ export function bestOfFromNote(note?: string): { count: number; outOf: number } 
 }
 
 function isGraded(t: DeadlineTask): boolean {
-  if (t.isBonus && typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0) return true;
+  if (t.isBonus) {
+    if (t.submissionStatus !== 'graded') return false;
+    if (typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0) return true;
+    return typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0;
+  }
   return t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
+}
+
+function bonusEarnedAmount(t: DeadlineTask): number {
+  const baseWeight = Number(t.weight) > 0 ? Number(t.weight) : Number(t.maxScore ?? t.score ?? 0);
+  if (typeof t.score === 'number' && typeof t.maxScore === 'number' && t.maxScore > 0) {
+    return (t.score / t.maxScore) * baseWeight;
+  }
+  if (typeof t.score === 'number' && t.score >= 0) return t.score;
+  return baseWeight;
+}
+
+function matchBonusComponent(t: DeadlineTask, components: GpaComponent[]): GpaComponent | undefined {
+  const target = (t.bonusTarget || '').trim();
+  const label = (t.bonusTargetLabel || '').trim().toLowerCase();
+  if (!target || target === 'total') return undefined;
+  if (target.startsWith('comp:')) {
+    const id = target.slice(5);
+    const byId = components.find(c => c.id && c.id === id);
+    if (byId) return byId;
+  }
+  if (target.startsWith('compname:')) {
+    const name = target.slice(9).toLowerCase();
+    const byName = components.find(c => c.name.toLowerCase() === name);
+    if (byName) return byName;
+  }
+  if (target.startsWith('type:')) {
+    const tp = target.slice(5).toLowerCase();
+    const byType = components.find(c => c.type.toLowerCase() === tp);
+    if (byType) return byType;
+  }
+  if (label) {
+    const byLabel = components.find(c => c.name.toLowerCase() === label);
+    if (byLabel) return byLabel;
+  }
+  return components.find(c => c.id === target || c.name.toLowerCase() === target.toLowerCase());
 }
 
 function pickComponent(task: DeadlineTask, components: GpaComponent[]): GpaComponent | undefined {
@@ -167,12 +207,19 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     }
 
     let bonusWeight = 0;
+    const componentBonus = new Map<GpaComponent, number>();
     for (const t of uniqueMine) {
       if (t.isBonus) {
-        const bVal = Number(t.weight || t.score || 0);
+        const bVal = bonusEarnedAmount(t);
         if (bVal > 0) {
-          earnedWeight += bVal;
-          bonusWeight += bVal;
+          const targetComp = matchBonusComponent(t, components);
+          if (targetComp) {
+            componentBonus.set(targetComp, (componentBonus.get(targetComp) || 0) + bVal);
+          } else {
+            // Pure bonus on course total (adds directly even after percentage weights)
+            earnedWeight += bVal;
+            bonusWeight += bVal;
+          }
         }
         continue;
       }
@@ -192,24 +239,40 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     const componentGrades: ComponentGrade[] = [];
     for (const comp of components) {
       const items = (byComponent.get(comp) || []).sort((a, b) => b.percent - a.percent);
-      if (!items.length) continue;
+      const compExtra = componentBonus.get(comp) || 0;
+      if (!items.length) {
+        if (compExtra > 0) {
+          const appliedExtra = comp.totalWeight > 0 ? Math.min(compExtra, comp.totalWeight) : compExtra;
+          earnedWeight += appliedExtra;
+          bonusWeight += appliedExtra;
+        }
+        continue;
+      }
       const fromNote = bestOfFromNote(comp.note);
       const count = comp.count || fromNote?.count;
       const outOf = comp.outOf || fromNote?.outOf;
       let counted = items;
       let dropped: GradedItem[] = [];
+      let compEarned = 0;
       if (count && count > 0) {
         // Each counted item is worth an equal share; only the best `count` count
         counted = items.slice(0, count);
         dropped = items.slice(count);
         const unit = comp.totalWeight / count;
         gradedWeight += counted.length * unit;
-        earnedWeight += counted.reduce((s, i) => s + (i.percent / 100) * unit, 0);
+        compEarned = counted.reduce((s, i) => s + (i.percent / 100) * unit, 0);
       } else {
         // One item, or several averaged into the component
         const avg = items.reduce((s, i) => s + i.percent, 0) / items.length;
         gradedWeight += comp.totalWeight;
-        earnedWeight += (avg / 100) * comp.totalWeight;
+        compEarned = (avg / 100) * comp.totalWeight;
+      }
+      earnedWeight += compEarned;
+      if (compExtra > 0) {
+        const roomLeft = comp.totalWeight > 0 ? Math.max(0, comp.totalWeight - compEarned) : compExtra;
+        const appliedExtra = Math.min(compExtra, roomLeft);
+        earnedWeight += appliedExtra;
+        bonusWeight += appliedExtra;
       }
       componentGrades.push({
         name: comp.name,

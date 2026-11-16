@@ -2,7 +2,7 @@ import type { DeadlineTask, TaskStatus } from '../../types';
 import { getCourseColorTheme } from '../../core/courseColors';
 import { getAllCourseSchedules } from '../../core/courseSchedule';
 import { profileGradeScale } from '../../core/studentProfile';
-import { getAllSyllabi } from '../../core/syllabusWeights';
+import { bonusTargetOptionsForCourse, getAllSyllabi } from '../../core/syllabusWeights';
 import { calculateTrajectoryTargetPlan } from '../../core/targetGpa';
 import { buildGpaSummary } from '../../utils/gpa';
 import { createGoogleCalendarUrl, formatCountdown } from '../../utils/calendar';
@@ -30,6 +30,60 @@ export function updateEditRoomVisibility() {
   const group = editRoomInput ? editRoomInput.closest('.form-group') as HTMLElement | null : null;
   if (group) group.style.display = isHwOrProj ? 'none' : '';
   if (isHwOrProj && editRoomInput) editRoomInput.value = '';
+}
+
+/** Populates "Bonus On What" choices and syncs labels/visibility for Add & Edit grade mode UI. */
+export function syncBonusFormUi(prefix: 'add' | 'edit', courseInputVal: string, preferredTarget?: string): void {
+  const gradeMode = document.getElementById(`${prefix}-grade-mode`) as HTMLSelectElement | null;
+  const isBonus = gradeMode?.value === 'bonus';
+  const weightLabel = document.getElementById(`${prefix}-weight-label`);
+  const weightSublabel = document.getElementById(`${prefix}-weight-sublabel`);
+  const weightInput = document.getElementById(`${prefix}-weight`) as HTMLInputElement | null;
+  const calcBtn = document.getElementById(prefix === 'add' ? 'btn-calc-add-weight' : 'btn-calc-edit-weight');
+  const bonusOpts = document.getElementById(`${prefix}-bonus-options`);
+  const bonusTargetSelect = document.getElementById(`${prefix}-bonus-target`) as HTMLSelectElement | null;
+
+  if (weightLabel) weightLabel.textContent = isBonus ? 'Bonus Marks (pure pts)' : 'Grade Weight (%)';
+  if (weightSublabel) weightSublabel.textContent = isBonus ? '(added even after syllabus %)' : '(from Syllabus)';
+  if (weightInput) weightInput.placeholder = isBonus ? 'e.g. 2' : 'e.g. 5';
+  if (calcBtn) (calcBtn as HTMLElement).style.display = isBonus ? 'none' : '';
+  if (bonusOpts) bonusOpts.style.display = isBonus ? '' : 'none';
+
+  if (bonusTargetSelect) {
+    const parsed = parsePickedCourse(courseInputVal || '');
+    const options = bonusTargetOptionsForCourse(parsed.name || courseInputVal, parsed.code);
+    const keepVal = preferredTarget || bonusTargetSelect.value || 'total';
+    bonusTargetSelect.innerHTML = '';
+    for (const opt of options) {
+      const el = document.createElement('option');
+      el.value = opt.value;
+      el.textContent = opt.label;
+      el.dataset.shortLabel = opt.shortLabel;
+      bonusTargetSelect.appendChild(el);
+    }
+    if (options.some(o => o.value === keepVal)) {
+      bonusTargetSelect.value = keepVal;
+    } else if (preferredTarget && preferredTarget !== 'total') {
+      const customOpt = document.createElement('option');
+      customOpt.value = preferredTarget;
+      customOpt.textContent = preferredTarget.replace(/^(?:comp:|compname:|type:)/, '');
+      customOpt.dataset.shortLabel = customOpt.textContent;
+      bonusTargetSelect.appendChild(customOpt);
+      bonusTargetSelect.value = preferredTarget;
+    } else {
+      bonusTargetSelect.value = 'total';
+    }
+  }
+
+  if (prefix === 'add') {
+    const earnedCheck = document.getElementById('add-bonus-earned') as HTMLInputElement | null;
+    const scoreWrap = document.getElementById('add-bonus-score-wrap');
+    if (scoreWrap) scoreWrap.style.display = isBonus && earnedCheck?.checked ? '' : 'none';
+  } else {
+    const statusSel = document.getElementById('edit-status') as HTMLSelectElement | null;
+    const scoreWrap = document.getElementById('edit-bonus-score-wrap');
+    if (scoreWrap) scoreWrap.style.display = isBonus && statusSel?.value === 'completed' ? '' : 'none';
+  }
 }
 
 /** A course picked from the list keeps that course's own name and code; anything else is parsed as typed. */
@@ -293,10 +347,17 @@ export function openEditModal(task: DeadlineTask) {
   updateEditRoomVisibility();
   editWeightInput.value = task.weight !== undefined && task.weight !== null ? String(task.weight) : '';
   editWeightHint.textContent = task.syllabusNote || (task.weightDisplay ? `Saved weight: ${task.weightDisplay}` : '');
-  const editIsBonusInput = document.getElementById('edit-is-bonus') as HTMLInputElement | null;
-  if (editIsBonusInput) {
-    editIsBonusInput.checked = Boolean(task.isBonus);
+  const editGradeMode = document.getElementById('edit-grade-mode') as HTMLSelectElement | null;
+  if (editGradeMode) {
+    editGradeMode.value = task.isBonus ? 'bonus' : 'syllabus';
   }
+  const editBonusScoreInput = document.getElementById('edit-bonus-score') as HTMLInputElement | null;
+  if (editBonusScoreInput) {
+    editBonusScoreInput.value = task.isBonus && task.submissionStatus === 'graded' && typeof task.score === 'number'
+      ? String(task.score)
+      : '';
+  }
+  syncBonusFormUi('edit', editCourseInput.value, task.bonusTarget);
 
   registerOverlayCloseHandler('modal-edit-task', closeEditModal);
   openModalEl('modal-edit-task', modalEditTask);

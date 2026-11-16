@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { buildMarksSummary } from '../src/utils/marks';
 import { buildGpaSummary, UOS_GRADE_SCALE } from '../src/utils/gpa';
 import { calculateCourseTargetAnalysis } from '../src/core/targetGpa';
-import { userCoursesToSyllabi } from '../src/core/userCourses';
+import { userCoursesToSyllabi, setActiveUserCourses } from '../src/core/userCourses';
+import { bonusTargetOptionsForCourse, formatTaskWeightDisplay } from '../src/core/syllabusWeights';
 import { sanitizeCloudTasks } from '../src/utils/cloudSanitize';
 import { gradesHtml } from '../src/utils/grades';
 import { DeadlineTask, UserCourseConfig } from '../src/types';
@@ -227,5 +228,102 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     expect(html).toContain('marks-row-bonus');
     expect(html).toContain('+2% extra credit');
     expect(html).toContain('+2% Bonus');
+  });
+
+  it('does NOT count pending upcoming bonus deadlines until graded, and supports bonusTarget on Course Total vs syllabus component', () => {
+    setActiveUserCourses(sampleCourses);
+    const options = bonusTargetOptionsForCourse('Computer Networks', 'CS301');
+    expect(options[0].value).toBe('total');
+    expect(options.some(o => o.value === 'comp:s3' && o.shortLabel === 'Quizzes')).toBe(true);
+    expect(formatTaskWeightDisplay(2, { isBonus: true, bonusTarget: 'total', bonusTargetLabel: 'Course Total' }))
+      .toBe('+2 Bonus (Course Total)');
+    expect(formatTaskWeightDisplay(2, { isBonus: true, bonusTarget: 'comp:s3', bonusTargetLabel: 'Quizzes' }))
+      .toBe('+2 Bonus (Quizzes)');
+
+    // 1. Pending upcoming bonus quiz (not graded yet) must NOT award bonus marks prematurely
+    const tasksWithPendingBonus = [
+      {
+        id: 't_mid',
+        title: 'Midterm Exam',
+        courseName: 'Computer Networks',
+        dueDate: '2026-10-15T10:00:00Z',
+        type: 'exam',
+        status: 'completed',
+        submissionStatus: 'graded',
+        score: 24,
+        maxScore: 30,
+        weight: 30
+      },
+      {
+        id: 't_pending_bonus_quiz',
+        title: 'Bonus Quiz',
+        courseName: 'Computer Networks',
+        dueDate: '2026-11-25T10:00:00Z',
+        type: 'quiz',
+        status: 'pending',
+        weight: 2,
+        isBonus: true,
+        bonusTarget: 'total',
+        bonusTargetLabel: 'Course Total'
+      }
+    ] as unknown as DeadlineTask[];
+
+    const gpaBeforeGrade = buildGpaSummary(tasksWithPendingBonus, syllabi, UOS_GRADE_SCALE);
+    expect(gpaBeforeGrade.courses[0].earnedWeight).toBe(24);
+    expect(gpaBeforeGrade.courses[0].bonusWeight).toBeUndefined();
+
+    // 2. Once graded (pure 2 marks added even after full regular syllabus percentage: 88/100 + 2 pure = 90% -> A!)
+    const fullTermWithPureBonus = [
+      {
+        id: 't_mid', title: 'Midterm', courseName: 'Computer Networks', dueDate: '2026-10-15T10:00:00Z',
+        type: 'exam', status: 'completed', submissionStatus: 'graded', score: 26, maxScore: 30, weight: 30
+      },
+      {
+        id: 't_fin', title: 'Final Exam', courseName: 'Computer Networks', dueDate: '2026-12-15T10:00:00Z',
+        type: 'exam', status: 'completed', submissionStatus: 'graded', score: 44, maxScore: 50, weight: 50
+      },
+      {
+        id: 't_q1', title: 'Quiz 1', courseName: 'Computer Networks', dueDate: '2026-10-05T10:00:00Z',
+        type: 'quiz', status: 'completed', submissionStatus: 'graded', score: 9, maxScore: 10, weight: 10
+      },
+      {
+        id: 't_q2', title: 'Quiz 2', courseName: 'Computer Networks', dueDate: '2026-11-05T10:00:00Z',
+        type: 'quiz', status: 'completed', submissionStatus: 'graded', score: 9, maxScore: 10, weight: 10
+      },
+      {
+        id: 't_pure_bonus', title: 'Bonus Quiz', courseName: 'Computer Networks', dueDate: '2026-11-25T10:00:00Z',
+        type: 'quiz', status: 'completed', submissionStatus: 'graded', score: 2, maxScore: 2, weight: 2,
+        isBonus: true, bonusTarget: 'total', bonusTargetLabel: 'Course Total'
+      }
+    ] as unknown as DeadlineTask[];
+
+    const gpaPure = buildGpaSummary(fullTermWithPureBonus, syllabi, UOS_GRADE_SCALE);
+    expect(gpaPure.courses[0].gradedWeight).toBe(100);
+    expect(gpaPure.courses[0].earnedWeight).toBe(90); // 26 + 44 + 18 + 2
+    expect(gpaPure.courses[0].percent).toBe(90);
+    expect(gpaPure.courses[0].letter).toBe('A');
+
+    // 3. Component-targeted bonus (+5 on Quizzes where Quizzes already has 18/20): caps boost at 20/20 (+2 applied)
+    const compBonusTasks = [
+      ...fullTermWithPureBonus.slice(0, 4),
+      {
+        id: 't_quiz_bonus', title: 'Quiz Extra Credit', courseName: 'Computer Networks', dueDate: '2026-11-25T10:00:00Z',
+        type: 'quiz', status: 'completed', submissionStatus: 'graded', score: 5, maxScore: 5, weight: 5,
+        isBonus: true, bonusTarget: 'comp:s3', bonusTargetLabel: 'Quizzes'
+      }
+    ] as unknown as DeadlineTask[];
+    const gpaComp = buildGpaSummary(compBonusTasks, syllabi, UOS_GRADE_SCALE);
+    expect(gpaComp.courses[0].bonusWeight).toBe(2); // 18 + 2 = 20 max for Quizzes
+    expect(gpaComp.courses[0].earnedWeight).toBe(90);
+
+    // 4. Cloud sanitization preserves bonusTarget & bonusTargetLabel when isBonus is true and removes them when false
+    const sanitized = sanitizeCloudTasks([
+      fullTermWithPureBonus[4],
+      { ...fullTermWithPureBonus[0], bonusTarget: 'comp:s3', bonusTargetLabel: 'Quizzes' }
+    ]);
+    expect(sanitized[0].bonusTarget).toBe('total');
+    expect(sanitized[0].bonusTargetLabel).toBe('Course Total');
+    expect(sanitized[1].bonusTarget).toBeUndefined();
+    expect(sanitized[1].bonusTargetLabel).toBeUndefined();
   });
 });

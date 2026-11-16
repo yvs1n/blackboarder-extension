@@ -1,6 +1,6 @@
 import { DeadlineTask, TaskPriority, TaskStatus, TaskType } from '../../types';
 import { findCourseSchedule, resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
-import { resolveTaskWeight } from '../../core/syllabusWeights';
+import { formatTaskWeightDisplay, resolveTaskWeight } from '../../core/syllabusWeights';
 import { compareTasksByTime, downloadIcsFile } from '../../utils/calendar';
 import { deduplicateTaskList } from '../../utils/taskMerge';
 import { addTask, getTasks, saveTasksMergingLatest } from '../../utils/storage';
@@ -8,7 +8,7 @@ import { removeLocalTombstone, recordLocalTombstone } from '../../utils/tombston
 import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { attachCoursePicker } from '../coursePicker';
 import { applyFields, clearDraft, collectFields, loadDraft, saveDraft } from '../popupDraft';
-import { parsePickedCourse } from './readingModal';
+import { parsePickedCourse, syncBonusFormUi } from './readingModal';
 import { isOverlayOpen } from './overlayController';
 import { AppView, dom, popupActions, popupState } from './state';
 
@@ -114,6 +114,8 @@ export function switchView(view: AppView) {
   } else if (view === 'add') {
     dom.viewAdd().classList.add('active');
     popupActions.updateAddRoomVisibility();
+    const addCourseEl = document.getElementById('add-course') as HTMLInputElement | null;
+    syncBonusFormUi('add', addCourseEl?.value || '');
   } else if (view === 'settings') {
     dom.viewSettings().classList.add('active');
     popupActions.loadSettingsForm();
@@ -200,11 +202,15 @@ export function setupNavigationAndTaskEvents() {
   const editTypeSelect = document.getElementById('edit-type') as HTMLSelectElement;
   const editPrioritySelect = document.getElementById('edit-priority') as HTMLSelectElement;
   const editStatusSelect = document.getElementById('edit-status') as HTMLSelectElement;
-  const editDescInput = document.getElementById('edit-description') as HTMLTextAreaElement;
+  const editDescInput = (document.getElementById('edit-desc') || document.getElementById('edit-description')) as HTMLTextAreaElement;
   const editNotesInput = document.getElementById('edit-notes') as HTMLTextAreaElement;
   const editWeightInput = document.getElementById('edit-weight') as HTMLInputElement;
   const editWeightHint = document.getElementById('edit-weight-hint') as HTMLElement;
   const btnCalcEditWeight = document.getElementById('btn-calc-edit-weight') as HTMLButtonElement;
+
+  const addGradeMode = document.getElementById('add-grade-mode') as HTMLSelectElement | null;
+  const addBonusEarned = document.getElementById('add-bonus-earned') as HTMLInputElement | null;
+  const editGradeMode = document.getElementById('edit-grade-mode') as HTMLSelectElement | null;
 
   addTypeSelect?.addEventListener('change', popupActions.updateAddRoomVisibility);
   editTypeSelect?.addEventListener('change', popupActions.updateEditRoomVisibility);
@@ -213,12 +219,20 @@ export function setupNavigationAndTaskEvents() {
   attachCoursePicker(document.getElementById('add-course') as HTMLInputElement, () => popupState.currentUserCourses);
   attachCoursePicker(editCourseInput, () => popupState.currentUserCourses);
 
+  addGradeMode?.addEventListener('change', () => syncBonusFormUi('add', addCourseInput?.value || ''));
+  addBonusEarned?.addEventListener('change', () => syncBonusFormUi('add', addCourseInput?.value || ''));
+  editGradeMode?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput?.value || ''));
+  editStatusSelect?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput?.value || ''));
+  editCourseInput?.addEventListener('input', () => syncBonusFormUi('edit', editCourseInput.value));
+  editCourseInput?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput.value));
+
   for (const form of [dom.formAddTask(), dom.formEditTask()]) {
     form.addEventListener('input', rememberDraft);
     form.addEventListener('change', rememberDraft);
   }
 
   addCourseInput?.addEventListener('input', () => {
+    syncBonusFormUi('add', addCourseInput.value);
     const sched = findCourseSchedule(addCourseInput.value);
     const timeInput = document.getElementById('add-time') as HTMLInputElement;
     if (sched && timeInput && (!timeInput.value || timeInput.value === '23:59')) {
@@ -231,6 +245,7 @@ export function setupNavigationAndTaskEvents() {
       addRoomInput.value = sched.room || '';
     }
   });
+  addCourseInput?.addEventListener('change', () => syncBonusFormUi('add', addCourseInput.value));
 
   dom.formAddTask().addEventListener('submit', async e => {
     e.preventDefault();
@@ -281,11 +296,32 @@ export function setupNavigationAndTaskEvents() {
     const room = (!isHwOrProject && resolvedRoomObj.room) ? resolvedRoomObj.room : undefined;
 
     const weightVal = addWeightInput ? addWeightInput.value.trim() : '';
+    const isBonus = (document.getElementById('add-grade-mode') as HTMLSelectElement)?.value === 'bonus';
+    const bonusTargetSel = document.getElementById('add-bonus-target') as HTMLSelectElement | null;
+    const bonusEarned = (document.getElementById('add-bonus-earned') as HTMLInputElement)?.checked || false;
+    const bonusScoreRaw = (document.getElementById('add-bonus-score') as HTMLInputElement)?.value.trim() || '';
+    const parsedBonusScore = bonusScoreRaw ? parseFloat(bonusScoreRaw) : NaN;
+
     let weight: number | undefined = weightVal ? parseFloat(weightVal) : undefined;
     let weightDisplay: string | undefined = undefined;
     let syllabusNote: string | undefined = undefined;
+    let bonusTarget: string | undefined = undefined;
+    let bonusTargetLabel: string | undefined = undefined;
 
-    if (weight !== undefined && !isNaN(weight)) {
+    if (isBonus) {
+      bonusTarget = bonusTargetSel?.value || 'total';
+      const selOpt = bonusTargetSel?.selectedOptions?.[0];
+      bonusTargetLabel = selOpt?.dataset.shortLabel || (bonusTarget === 'total' ? 'Course Total' : bonusTarget.replace(/^(?:comp:|compname:|type:)/, ''));
+      if ((weight === undefined || isNaN(weight)) && !isNaN(parsedBonusScore)) {
+        weight = parsedBonusScore;
+      }
+      if (weight !== undefined && !isNaN(weight) && weight > 0) {
+        weightDisplay = formatTaskWeightDisplay(weight, { isBonus: true, bonusTarget, bonusTargetLabel });
+      }
+      syllabusNote = bonusTarget === 'total'
+        ? 'Pure bonus marks added to course total'
+        : `Bonus marks applied to ${bonusTargetLabel}`;
+    } else if (weight !== undefined && !isNaN(weight)) {
       weightDisplay = `${weight}% of Grade`;
       syllabusNote = addWeightHint ? (addWeightHint.textContent || 'Custom manual weight') : 'Custom manual weight';
     } else {
@@ -297,7 +333,8 @@ export function setupNavigationAndTaskEvents() {
       }
     }
 
-    const isBonus = (document.getElementById('add-is-bonus') as HTMLInputElement)?.checked || false;
+    const bonusGraded = isBonus && bonusEarned;
+    const bonusScoreVal = bonusGraded ? (!isNaN(parsedBonusScore) ? parsedBonusScore : (weight || 0)) : undefined;
 
     const newTask: DeadlineTask = {
       id: `task_manual_${Date.now()}`,
@@ -310,11 +347,13 @@ export function setupNavigationAndTaskEvents() {
       hasSpecificTime,
       type,
       priority,
-      status: isBonus ? 'completed' : 'pending',
-      submissionStatus: isBonus ? 'graded' : undefined,
-      score: isBonus ? (weight || 0) : undefined,
-      maxScore: isBonus ? (weight || 0) : undefined,
+      status: bonusGraded ? 'completed' : 'pending',
+      submissionStatus: bonusGraded ? 'graded' : undefined,
+      score: bonusGraded ? bonusScoreVal : undefined,
+      maxScore: bonusGraded ? (weight || bonusScoreVal || 0) : undefined,
       isBonus: isBonus || undefined,
+      bonusTarget: isBonus ? bonusTarget : undefined,
+      bonusTargetLabel: isBonus ? bonusTargetLabel : undefined,
       sourceSnippet: notes,
       notes,
       confidence: 1.0,
@@ -335,6 +374,7 @@ export function setupNavigationAndTaskEvents() {
     if (addRoomInput) addRoomInput.value = '';
     if (addWeightInput) addWeightInput.value = '';
     if (addWeightHint) addWeightHint.textContent = '';
+    syncBonusFormUi('add', '');
     popupState.selectedDateStr = dateVal;
     popupActions.refreshAllViews();
     switchView('calendar');
@@ -402,12 +442,34 @@ export function setupNavigationAndTaskEvents() {
     const roomVal = (!isHwOrProject && editRoomInput) ? editRoomInput.value.trim() : '';
     const room = (!isHwOrProject && roomVal) ? roomVal : undefined;
 
+    const targetId = popupState.editingTaskId;
+    const existingTask = popupState.currentTasks.find(t => t.id === targetId);
     const weightVal = editWeightInput ? editWeightInput.value.trim() : '';
+    const isBonus = (document.getElementById('edit-grade-mode') as HTMLSelectElement)?.value === 'bonus';
+    const editBonusTargetSel = document.getElementById('edit-bonus-target') as HTMLSelectElement | null;
+    const editBonusScoreRaw = (document.getElementById('edit-bonus-score') as HTMLInputElement)?.value.trim() || '';
+    const parsedBonusScore = editBonusScoreRaw ? parseFloat(editBonusScoreRaw) : NaN;
+
     let weight: number | undefined = weightVal ? parseFloat(weightVal) : undefined;
     let weightDisplay: string | undefined = undefined;
     let syllabusNote: string | undefined = undefined;
+    let bonusTarget: string | undefined = undefined;
+    let bonusTargetLabel: string | undefined = undefined;
 
-    if (weight !== undefined && !isNaN(weight)) {
+    if (isBonus) {
+      bonusTarget = editBonusTargetSel?.value || 'total';
+      const selOpt = editBonusTargetSel?.selectedOptions?.[0];
+      bonusTargetLabel = selOpt?.dataset.shortLabel || (bonusTarget === 'total' ? 'Course Total' : bonusTarget.replace(/^(?:comp:|compname:|type:)/, ''));
+      if ((weight === undefined || isNaN(weight)) && !isNaN(parsedBonusScore)) {
+        weight = parsedBonusScore;
+      }
+      if (weight !== undefined && !isNaN(weight) && weight > 0) {
+        weightDisplay = formatTaskWeightDisplay(weight, { isBonus: true, bonusTarget, bonusTargetLabel });
+      }
+      syllabusNote = bonusTarget === 'total'
+        ? 'Pure bonus marks added to course total'
+        : `Bonus marks applied to ${bonusTargetLabel}`;
+    } else if (weight !== undefined && !isNaN(weight)) {
       weightDisplay = `${weight}% of Grade`;
       syllabusNote = editWeightHint ? (editWeightHint.textContent || 'Custom manual weight') : 'Custom manual weight';
     } else {
@@ -419,7 +481,11 @@ export function setupNavigationAndTaskEvents() {
       }
     }
 
-    const isBonus = (document.getElementById('edit-is-bonus') as HTMLInputElement)?.checked || false;
+    const bonusGraded = isBonus && status === 'completed';
+    const keepRegularGrade = !isBonus && existingTask && !existingTask.isBonus && status === 'completed' && existingTask.submissionStatus === 'graded';
+    const bonusScoreVal = bonusGraded
+      ? (!isNaN(parsedBonusScore) ? parsedBonusScore : (weight || existingTask?.score || 0))
+      : undefined;
 
     const updatedTaskFields: Partial<DeadlineTask> = {
       title,
@@ -430,11 +496,13 @@ export function setupNavigationAndTaskEvents() {
       room,
       type,
       priority,
-      status: isBonus ? 'completed' : status,
-      submissionStatus: isBonus ? 'graded' : undefined,
-      score: isBonus ? (weight || 0) : undefined,
-      maxScore: isBonus ? (weight || 0) : undefined,
+      status,
+      submissionStatus: bonusGraded ? 'graded' : (keepRegularGrade ? existingTask?.submissionStatus : undefined),
+      score: bonusGraded ? bonusScoreVal : (keepRegularGrade ? existingTask?.score : undefined),
+      maxScore: bonusGraded ? (weight || existingTask?.maxScore || bonusScoreVal || 0) : (keepRegularGrade ? existingTask?.maxScore : undefined),
       isBonus: isBonus || undefined,
+      bonusTarget: isBonus ? bonusTarget : undefined,
+      bonusTargetLabel: isBonus ? bonusTargetLabel : undefined,
       description: descVal,
       sourceSnippet: descVal,
       notes: notesVal,
@@ -445,7 +513,6 @@ export function setupNavigationAndTaskEvents() {
       updatedAt: new Date().toISOString()
     };
 
-    const targetId = popupState.editingTaskId;
     popupState.currentTasks = popupState.currentTasks.map(t => (t.id === targetId ? { ...t, ...updatedTaskFields } : t));
     popupState.currentTasks.sort(compareTasksByTime);
 

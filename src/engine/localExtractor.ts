@@ -326,8 +326,8 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
     }
   }
 
-  // Pattern 2: Day Month [Year] e.g. "15th of October", "15 Oct 2026", "15 أكتوبر"
-  const dayMonthRegex = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?(?:\s*,?\s*(\d{4})\b|(?=$|[\s,.)!\-؛،]))/i;
+  // Pattern 2: Day Month [Year] e.g. "15th of October", "15 Oct 2026", "15-Nov-2026", "15 أكتوبر"
+  const dayMonthRegex = /\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?|[-/])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?(?:(?:\s*,?\s*|[-/])(\d{4})\b|(?=$|[\s,.)!\-؛،]))/i;
   const dmMatch = clean.match(dayMonthRegex);
   if (dmMatch) {
     const day = parseInt(dmMatch[1], 10);
@@ -341,7 +341,7 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
     }
   }
 
-  // Pattern 3: Numeric DD/MM/YYYY or DD-MM-YYYY (or YYYY-MM-DD)
+  // Pattern 3: Numeric DD/MM/YYYY or MM/DD/YYYY or YYYY-MM-DD
   const numericDateRegex = /\b(\d{1,4})[\/\.-](\d{1,2})[\/\.-](\d{1,4})\b/;
   const numMatch = clean.match(numericDateRegex);
   if (numMatch) {
@@ -361,11 +361,38 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
     } else if (numMatch[3].length !== 2 && numMatch[3].length !== 4) {
       // Not a date (e.g. "1.2.345")
       year = NaN;
+    } else if (p2 > 12 && p1 >= 1 && p1 <= 12) {
+      // American MM/DD/YYYY (e.g. "11/18/2026")
+      month = p1 - 1;
+      day = p2;
     }
 
     if (!isNaN(year) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
       const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
       return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: numMatch[0] };
+    }
+  }
+
+  // Pattern 3b: Day/Month without year (e.g. "on 18/11", "Date: 20-11"), never matching score fractions ("8/10 marks")
+  const shortNumericDateRegex = /\b(\d{1,2})[\/\-](\d{1,2})\b(?!\s*(?:\/|\-|%|marks?|pts?|points?|grades?|scores?|درج|علام))/i;
+  const shortMatch = clean.match(shortNumericDateRegex);
+  if (shortMatch) {
+    const p1 = parseInt(shortMatch[1], 10);
+    const p2 = parseInt(shortMatch[2], 10);
+    const before = clean.slice(Math.max(0, (shortMatch.index || 0) - 24), shortMatch.index || 0);
+    const hasScorePrefix = /(?:score|grade|mark|total|out\s*of|worth|درجة|علامة)\s*[:=]?\s*$/i.test(before);
+    const hasDatePrefix = /(?:on|by|due|date|held|scheduled|until|before|from|at|في|يوم|بتاريخ|حتى)\s*[:=]?\s*$/i.test(before);
+    let day = p1;
+    let month = p2 - 1;
+    if (p2 > 12 && p1 >= 1 && p1 <= 12) {
+      month = p1 - 1;
+      day = p2;
+    }
+    const looksClearlyLikeDate = p1 > 12 || p2 > 12 || hasDatePrefix;
+    if (!hasScorePrefix && looksClearlyLikeDate && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+      const year = resolveImpliedYear(month, day, baseDate);
+      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
+      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: shortMatch[0] };
     }
   }
 
@@ -588,14 +615,28 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
 
   const text = `${announcement.title}\n${cleanContent}`;
 
-  // Break text into sentences or lines
+  // Break text into sentences or lines (split on every line break as well as punctuation)
   const sentences = text
-    .split(/(?<=[.!?\n\r])\s+/)
+    .split(/\r?\n+|(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(s => s.length > 5);
 
   const tasks: DeadlineTask[] = [];
   const detectedKeys = new Set<string>();
+
+  // Remember the latest concrete assessment mentioned in heading or earlier lines
+  // (e.g. "Quiz 2 covers the following topics:\n- Ch 1\n- Ch 2\nDate: 18/11")
+  let contextType: TaskType | null = null;
+  let contextPriority: TaskPriority = 'medium';
+  let contextTitle = '';
+  for (const pattern of TASK_TYPE_PATTERNS) {
+    if (pattern.type !== 'meeting' && pattern.type !== 'other' && pattern.regex.test(announcement.title || '')) {
+      contextType = pattern.type;
+      contextPriority = pattern.priority;
+      contextTitle = extractTaskTitle(announcement.title || '', pattern.type);
+      break;
+    }
+  }
 
   for (const sentence of sentences) {
     // Skip sentences that announce post-exam paper reviews, viewing sessions, or Akkindi sheet checks
@@ -620,8 +661,16 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     }
 
     const sentenceType = matchedType;
+    if (sentenceType && sentenceType !== 'meeting' && sentenceType !== 'other') {
+      const candidateTitle = extractTaskTitle(sentence, sentenceType);
+      contextType = sentenceType;
+      contextPriority = basePriority;
+      if (!isBareTypeTitle(candidateTitle) || !contextTitle) {
+        contextTitle = candidateTitle;
+      }
+    }
 
-    // If no explicit task keyword, check if announcement title had one
+    // If no explicit task keyword, check announcement title or earlier lines in the body
     if (!matchedType) {
       for (const pattern of TASK_TYPE_PATTERNS) {
         if (pattern.regex.test(announcement.title)) {
@@ -631,6 +680,10 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
         }
       }
     }
+    if (!matchedType && contextType) {
+      matchedType = contextType;
+      basePriority = contextPriority;
+    }
 
     // If still no keyword or general deadline trigger, continue
     if (!matchedType && !/\b(?:due|deadline|submission)\b|تسليم|موعد/i.test(sentence)) {
@@ -638,6 +691,11 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     }
 
     let effectiveType: TaskType = matchedType || 'other';
+
+    // Availability/start-date-only lines without a real due/assessment word are not due deadlines
+    if (/\b(?:start\s*date|opens?\s+on|available\s+(?:from|starting)|unlocks?\s+on)\b/i.test(sentence) && !/\b(?:due|deadline|submit|held|conducted|will\s+be\s+on)\b/i.test(sentence)) {
+      continue;
+    }
 
     // Attempt date extraction from this sentence
     const dateMatch = parseDateString(sentence, baseDate);
@@ -653,19 +711,19 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     detectedKeys.add(dateKey);
 
     // Naming. A sentence that only has a date ("Date: Thursday 22 October", "Start date is
-    // Sept 4") borrows a specific name from the announcement heading, or is skipped. Office
-    // hours, class meetings, presentation schedules and unnamed "other" dates are skipped:
-    // they used to become tasks called "Meeting" or "Other".
+    // Sept 4") borrows a specific name from earlier context or the announcement heading. Office
+    // hours, class meetings, presentation schedules and unnamed "other" dates are skipped.
     let title = extractTaskTitle(sentence, effectiveType);
     if (effectiveType === 'meeting') {
       continue;
     }
     if (isBareTypeTitle(title) && (sentenceType !== effectiveType || effectiveType === 'other')) {
-      const fromHeading = extractTaskTitle(announcement.title || '', effectiveType);
-      if (isBareTypeTitle(fromHeading) || isExamReviewTitle(fromHeading)) continue;
-      title = fromHeading;
-      const headingType = TASK_TYPE_PATTERNS.find(p => p.type !== 'other' && p.regex.test(fromHeading));
-      if (headingType) effectiveType = headingType.type;
+      const fromContext = contextTitle || extractTaskTitle(announcement.title || '', effectiveType);
+      if (isExamReviewTitle(fromContext)) continue;
+      if (isBareTypeTitle(fromContext) && effectiveType !== 'quiz' && effectiveType !== 'exam') continue;
+      title = fromContext;
+      const contextHeadingType = TASK_TYPE_PATTERNS.find(p => p.type !== 'other' && p.regex.test(fromContext));
+      if (contextHeadingType) effectiveType = contextHeadingType.type;
     }
     title = toEnglishDeadlineTitle(title, effectiveType);
     // Dates that are not graded work ("other") are left out; the AI tier may still name them.

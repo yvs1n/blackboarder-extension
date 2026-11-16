@@ -319,3 +319,66 @@ export function resolveTaskWeight(
 export function getAllSyllabi(): CourseSyllabus[] {
   return getActiveSyllabi();
 }
+
+export interface BonusTargetOption {
+  value: string;
+  label: string;
+  shortLabel: string;
+}
+
+/**
+ * Lists valid "Bonus On What" targets for a course: pure extra marks on Course Total (even
+ * after syllabus percentages) plus each configured syllabus component (or generic categories).
+ */
+export function bonusTargetOptionsForCourse(courseName?: string, courseCode?: string): BonusTargetOption[] {
+  const options: BonusTargetOption[] = [
+    {
+      value: 'total',
+      label: 'Course Total (Pure extra marks on final %, even after syllabus %)',
+      shortLabel: 'Course Total'
+    }
+  ];
+  const syllabus = findCourseSyllabus(courseName || '', courseCode || '');
+  if (syllabus && syllabus.components.length > 0) {
+    for (const comp of syllabus.components) {
+      if (!comp.name) continue;
+      options.push({
+        value: comp.id ? `comp:${comp.id}` : `compname:${comp.name}`,
+        label: `${comp.name} (${comp.totalWeight}% category)`,
+        shortLabel: comp.name
+      });
+    }
+  } else {
+    for (const [key, name] of [
+      ['type:quiz', 'Quizzes Category'],
+      ['type:assignment', 'Assignments / Homework Category'],
+      ['type:exam', 'Exams / Midterm Category'],
+      ['type:lab', 'Labs Category'],
+      ['type:project', 'Projects Category']
+    ] as const) {
+      options.push({
+        value: key,
+        label: name,
+        shortLabel: name.replace(/\s+Category$/, '')
+      });
+    }
+  }
+  return options;
+}
+
+/** Formats a task's weight/bonus display string consistently across cards, calendar, and exports. */
+export function formatTaskWeightDisplay(
+  weight?: number,
+  options?: { isBonus?: boolean; bonusTarget?: string; bonusTargetLabel?: string }
+): string | undefined {
+  if (typeof weight !== 'number' || isNaN(weight) || weight <= 0) return undefined;
+  const cleanWeight = Math.round(weight * 100) / 100;
+  if (options?.isBonus) {
+    const targetLabel = (options.bonusTargetLabel || '').trim() ||
+      (options.bonusTarget && options.bonusTarget !== 'total'
+        ? options.bonusTarget.replace(/^(?:comp:|compname:|type:)/, '')
+        : 'Course Total');
+    return `+${cleanWeight} Bonus (${targetLabel})`;
+  }
+  return `${cleanWeight}% of Grade`;
+}

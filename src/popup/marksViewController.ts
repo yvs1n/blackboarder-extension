@@ -1,5 +1,5 @@
 import type { DeadlineTask, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
-import type { CourseSyllabus } from '../core/syllabusWeights';
+import { bonusTargetOptionsForCourse, formatTaskWeightDisplay, type CourseSyllabus } from '../core/syllabusWeights';
 import { escapeHtml } from '../utils/uiCommon';
 import {
   partitionCoursesBySemester,
@@ -461,11 +461,30 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
   const bonusModal = document.getElementById('modal-add-bonus');
   const bonusForm = document.getElementById('form-add-bonus') as HTMLFormElement | null;
   const bonusCourseSelect = document.getElementById('bonus-course-select') as HTMLSelectElement | null;
+  const bonusTargetSelect = document.getElementById('bonus-target-select') as HTMLSelectElement | null;
   const bonusTitleInput = document.getElementById('bonus-title-input') as HTMLInputElement | null;
   const bonusValInput = document.getElementById('bonus-val-input') as HTMLInputElement | null;
   const bonusNotesInput = document.getElementById('bonus-notes-input') as HTMLInputElement | null;
   const closeBonusBtn = document.getElementById('btn-close-bonus-modal');
   const cancelBonusBtn = document.getElementById('btn-cancel-bonus');
+
+  const populateBonusModalTargets = () => {
+    if (!bonusTargetSelect) return;
+    const courseName = bonusCourseSelect?.value || '';
+    const matched = hooks.getUserCourses().find(c => c.courseName === courseName);
+    const opts = bonusTargetOptionsForCourse(courseName, matched?.courseCode || '');
+    bonusTargetSelect.innerHTML = '';
+    for (const o of opts) {
+      const el = document.createElement('option');
+      el.value = o.value;
+      el.textContent = o.label;
+      el.dataset.shortLabel = o.shortLabel;
+      bonusTargetSelect.appendChild(el);
+    }
+    bonusTargetSelect.value = 'total';
+  };
+
+  bonusCourseSelect?.addEventListener('change', populateBonusModalTargets);
 
   const openBonusModal = (defaultCourseName?: string) => {
     if (!bonusModal || !bonusCourseSelect) return;
@@ -487,6 +506,7 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
         bonusCourseSelect.appendChild(opt);
       }
     }
+    populateBonusModalTargets();
     if (bonusTitleInput) bonusTitleInput.value = 'Bonus Mark / Extra Credit';
     if (bonusValInput) bonusValInput.value = '2.0';
     if (bonusNotesInput) bonusNotesInput.value = '';
@@ -514,6 +534,8 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     const title = bonusTitleInput?.value.trim() || 'Bonus Mark';
     const bonusVal = parseFloat(bonusValInput.value) || 0;
     const notes = bonusNotesInput?.value.trim() || '';
+    const bonusTarget = bonusTargetSelect?.value || 'total';
+    const bonusTargetLabel = bonusTargetSelect?.selectedOptions?.[0]?.dataset.shortLabel || (bonusTarget === 'total' ? 'Course Total' : bonusTarget);
 
     const newBonusTask: DeadlineTask = {
       id: `task_bonus_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -529,7 +551,10 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
       score: bonusVal,
       maxScore: bonusVal,
       weight: bonusVal,
+      weightDisplay: formatTaskWeightDisplay(bonusVal, { isBonus: true, bonusTarget, bonusTargetLabel }),
       isBonus: true,
+      bonusTarget,
+      bonusTargetLabel,
       notes,
       description: notes || title,
       sourceSnippet: notes || 'Manual bonus mark entry',

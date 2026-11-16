@@ -193,13 +193,14 @@ function isDeleted(task: DeadlineTask, tombstones: TombstoneMap): boolean {
 // omission is deliberate (the user cleared it or a bogus mark was dropped) and must propagate.
 const OPTIONAL_FIELDS = [
   'room', 'notes', 'weight', 'weightDisplay', 'syllabusNote',
+  'isBonus', 'bonusTarget', 'bonusTargetLabel',
   'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId', 'markProvisional'
 ] as const;
 
 // Fields that fill a gap on a locally-newer task without overriding local edits.
 const GAP_FILL_FIELDS = [
   'courseName', 'courseCode', 'notes', 'room', 'description', 'sourceSnippet',
-  'weight', 'weightDisplay', 'syllabusNote'
+  'weight', 'weightDisplay', 'syllabusNote', 'bonusTarget', 'bonusTargetLabel'
 ] as const;
 
 function adoptCloud(local: DeadlineTask, cloud: DeadlineTask): DeadlineTask {

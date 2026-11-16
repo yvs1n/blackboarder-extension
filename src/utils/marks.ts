@@ -28,6 +28,8 @@ export interface MarkRow {
   completedAt?: string;
   createdAt?: string;
   isBonus?: boolean;
+  bonusTarget?: string;
+  bonusTargetLabel?: string;
 }
 
 export interface CourseMarks {
@@ -84,8 +86,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       continue;
     }
     const isBonus = Boolean(t.isBonus);
-    const graded = (t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0)
-      || (isBonus && typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0);
+    const hasScorePair = typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
+    const hasGradedBonus = isBonus && t.submissionStatus === 'graded' && (hasScorePair || (typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0));
+    const graded = (t.submissionStatus === 'graded' && hasScorePair) || hasGradedBonus;
     const submitted = !graded && (t.submissionStatus === 'submitted' || t.submissionStatus === 'graded');
     const waiting = !graded && !submitted && t.status === 'completed' && isAssessmentTask(t);
     if (!graded && !submitted && !waiting) continue;
@@ -100,8 +103,11 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       byCourse.set(courseName, course);
     }
 
-    const bonusVal = isBonus ? Number(t.weight || t.score || 0) : 0;
-    const weight = isBonus ? bonusVal : (Number(t.weight) > 0 ? Number(t.weight) : undefined);
+    const bonusBase = Number(t.weight) > 0 ? Number(t.weight) : Number(t.maxScore ?? t.score ?? 0);
+    const bonusEarned = isBonus
+      ? (hasScorePair ? (t.score! / t.maxScore!) * bonusBase : (typeof t.score === 'number' ? t.score : bonusBase))
+      : 0;
+    const weight = isBonus ? (bonusBase > 0 ? bonusBase : undefined) : (Number(t.weight) > 0 ? Number(t.weight) : undefined);
     const row: MarkRow = {
       id: t.id,
       title: t.title,
@@ -112,14 +118,16 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       submittedAt: t.submittedAt,
       completedAt: t.completedAt || (t.status === 'completed' ? (t.submittedAt || t.updatedAt) : undefined),
       createdAt: t.createdAt,
-      isBonus
+      isBonus,
+      bonusTarget: isBonus ? t.bonusTarget : undefined,
+      bonusTargetLabel: isBonus ? t.bonusTargetLabel : undefined
     };
     if (graded) {
       if (isBonus) {
-        row.score = bonusVal;
-        row.maxScore = bonusVal;
-        row.percent = 100;
-        row.earned = round1(bonusVal);
+        row.score = hasScorePair ? t.score : round1(bonusEarned);
+        row.maxScore = hasScorePair ? t.maxScore : round1(bonusBase || bonusEarned);
+        row.percent = row.maxScore ? round1((row.score! / row.maxScore) * 100) : 100;
+        row.earned = round1(bonusEarned);
       } else {
         row.score = t.score;
         row.maxScore = t.maxScore;

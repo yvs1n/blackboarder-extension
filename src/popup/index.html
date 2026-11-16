@@ -639,7 +639,14 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Grade Weight (%) <span style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
+        <label class="form-label" for="add-grade-mode">Grade Contribution</label>
+        <select id="add-grade-mode" class="form-select">
+          <option value="syllabus" selected>Counts Toward Syllabus Total (%)</option>
+          <option value="bonus">Bonus Mark / Extra Credit (Pure Points)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="add-weight"><span id="add-weight-label">Grade Weight (%)</span> <span id="add-weight-sublabel" style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
         <div style="display: flex; gap: 6px;">
           <input type="number" id="add-weight" class="form-input" placeholder="e.g. 5" step="0.1" min="0" max="100">
           <button type="button" class="btn-secondary" id="btn-calc-add-weight" title="Auto-detect weight from course syllabus" style="font-size: 11px; white-space: nowrap; padding: 0 8px;">
@@ -649,14 +656,24 @@
         </div>
         <span id="add-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
       </div>
-      <div class="form-group" style="margin-top: -2px;">
-        <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-          <input type="checkbox" id="add-is-bonus" style="accent-color: var(--accent);">
-          <span style="font-weight: 600;">Bonus Mark / Extra Credit</span>
-        </label>
-        <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 1px;">
-          Adds pure extra credit directly to earned total without increasing syllabus required weight.
-        </span>
+      <div id="add-bonus-options" style="display: none; border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px; margin-bottom: 10px;">
+        <div class="form-group" style="margin-bottom: 6px;">
+          <label class="form-label" for="add-bonus-target">Bonus On What</label>
+          <select id="add-bonus-target" class="form-select"></select>
+          <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">
+            Choose Course Total for pure extra marks added even after syllabus percentage, or pick a specific course category.
+          </span>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 4px;">
+            <input type="checkbox" id="add-bonus-earned" style="accent-color: var(--accent);">
+            <span style="font-weight: 600;">Already graded / earned</span>
+          </label>
+          <div id="add-bonus-score-wrap" style="display: none; margin-top: 4px;">
+            <label class="form-label" for="add-bonus-score" style="font-size: 10.5px;">Score Earned <span style="font-weight: normal; color: var(--text-muted);">(leave blank for full bonus marks)</span></label>
+            <input type="number" id="add-bonus-score" class="form-input" placeholder="e.g. 2" step="0.1" min="0" max="100">
+          </div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Notes / Instructions</label>
@@ -1447,7 +1464,14 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Grade Weight (%) <span style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
+          <label class="form-label" for="edit-grade-mode">Grade Contribution</label>
+          <select id="edit-grade-mode" class="form-select">
+            <option value="syllabus" selected>Counts Toward Syllabus Total (%)</option>
+            <option value="bonus">Bonus Mark / Extra Credit (Pure Points)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-weight"><span id="edit-weight-label">Grade Weight (%)</span> <span id="edit-weight-sublabel" style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
           <div style="display: flex; gap: 6px;">
             <input type="number" id="edit-weight" class="form-input" placeholder="e.g. 5" step="0.1" min="0" max="100">
             <button type="button" class="btn-secondary" id="btn-calc-edit-weight" title="Auto-detect weight from course syllabus" style="font-size: 11px; white-space: nowrap; padding: 0 8px;">
@@ -1457,14 +1481,18 @@
           </div>
           <span id="edit-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
         </div>
-        <div class="form-group" style="margin-top: -2px;">
-          <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-            <input type="checkbox" id="edit-is-bonus" style="accent-color: var(--accent);">
-            <span style="font-weight: 600;">Bonus Mark / Extra Credit</span>
-          </label>
-          <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 1px;">
-            Adds pure extra credit directly to earned total without increasing syllabus required weight.
-          </span>
+        <div id="edit-bonus-options" style="display: none; border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px; margin-bottom: 10px;">
+          <div class="form-group" style="margin-bottom: 6px;">
+            <label class="form-label" for="edit-bonus-target">Bonus On What</label>
+            <select id="edit-bonus-target" class="form-select"></select>
+            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">
+              Choose Course Total for pure extra marks added even after syllabus percentage, or pick a specific course category.
+            </span>
+          </div>
+          <div class="form-group" id="edit-bonus-score-wrap" style="margin-bottom: 0;">
+            <label class="form-label" for="edit-bonus-score" style="font-size: 10.5px;">Bonus Score Earned <span style="font-weight: normal; color: var(--text-muted);">(when completed; blank = full bonus marks)</span></label>
+            <input type="number" id="edit-bonus-score" class="form-input" placeholder="e.g. 2" step="0.1" min="0" max="100">
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="edit-desc">Full Announcement / Doctor's Message</label>
@@ -1891,6 +1919,10 @@
           <div class="form-group">
             <label class="form-label" for="bonus-course-select">Course</label>
             <select id="bonus-course-select" class="form-select" required></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="bonus-target-select">Bonus On What</label>
+            <select id="bonus-target-select" class="form-select"></select>
           </div>
           <div class="form-group">
             <label class="form-label" for="bonus-title-input">Bonus Title / Reason</label>

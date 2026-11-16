@@ -297,19 +297,15 @@ export async function fetchCourseAnnouncements(
   }
   let last: ApiFailure = failure('not read');
   for (const base of ['/learn/api/public/v1', '/learn/api/v1']) {
-    const res = await readJson(fetchFn, `${base}/courses/${encodeURIComponent(courseId)}/announcements`);
+    const res = await fetchAllPages(fetchFn, `${base}/courses/${encodeURIComponent(courseId)}/announcements`);
     if (!res.ok) {
       last = res;
-      continue;
-    }
-    if (!Array.isArray(res.data?.results)) {
-      last = failure('no results list');
       continue;
     }
     const code = meta?.code && meta.code !== 'UOS' ? meta.code : '';
     const name = meta?.name && meta.name.toLowerCase() !== 'uos' ? meta.name : 'General Course';
     const scannedAt = new Date().toISOString();
-    const announcements = res.data.results.map((item: any, idx: number): Announcement => {
+    const announcements = res.results.map((item: any, idx: number): Announcement => {
       // Public API: body is an HTML string. Internal API: { displayText, rawText }.
       const bodyHtml = typeof item?.body === 'string' ? item.body : (item?.body?.displayText || item?.body?.rawText || '');
       const text = sanitizeDoctorAnnouncementText(stripHtmlToText(bodyHtml), name, code, item?.title);

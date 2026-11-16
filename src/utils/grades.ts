@@ -31,7 +31,13 @@ function markRowsHtml(course: CourseMarks | undefined): string {
   return course.marks.map(m => {
     if (m.isBonus) {
       const bonusScore = m.earned ?? m.score ?? m.weight ?? 0;
-      return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--success, #22c55e);">+${bonusScore}% extra credit</span><span class="marks-right"><span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">pts</span></span></div>`;
+      const targetSuffix = m.bonusTargetLabel
+        ? ` · on ${esc(m.bonusTargetLabel)}`
+        : (m.bonusTarget && m.bonusTarget !== 'total' ? ` · on ${esc(m.bonusTarget.replace(/^(?:comp:|compname:|type:)/, ''))}` : '');
+      const rightLabel = (typeof m.score === 'number' && typeof m.maxScore === 'number' && m.score !== m.maxScore)
+        ? `<span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">(${esc(formatScore(m.score, m.maxScore))})</span>`
+        : `<span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">pts</span>`;
+      return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--success, #22c55e);">+${bonusScore}% extra credit${targetSuffix}</span><span class="marks-right">${rightLabel}</span></div>`;
     }
     const right = m.status === 'graded'
       ? `<span class="marks-score">${esc(formatScore(m.score, m.maxScore))}</span><span class="marks-pct">${m.percent}%</span>`
