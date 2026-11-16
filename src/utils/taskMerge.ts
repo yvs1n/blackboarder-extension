@@ -43,7 +43,7 @@ const OPTIONAL_FIELDS = [
 
 // Fields that fill a gap on a locally-newer task without overriding local edits.
 const GAP_FILL_FIELDS = [
-  'courseName', 'courseCode', 'notes', 'room', 'description', 'sourceSnippet',
+  'courseName', 'courseCode', 'notes', 'room', 'description', 'sourceSnippet', 'columnDueDate',
   'weight', 'weightDisplay', 'syllabusNote', 'bonusUnit', 'bonusTarget', 'bonusTargetLabel'
 ] as const;
 

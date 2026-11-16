@@ -160,6 +160,7 @@ export interface DeadlineTask {
   title: string;
   description: string;
   dueDate: string; // ISO 8601 string
+  columnDueDate?: string; // Official Blackboard gradebook column due date (kept off pending calendar)
   hasSpecificTime: boolean;
   type: TaskType;
   priority: TaskPriority;

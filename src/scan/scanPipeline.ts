@@ -204,6 +204,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
       title: u.title || 'Graded Item',
       description: '',
       dueDate: '',
+      ...(u.dueDate ? { columnDueDate: u.dueDate } : {}),
       hasSpecificTime: false,
       type,
       priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',

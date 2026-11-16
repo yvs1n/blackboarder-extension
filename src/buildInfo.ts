@@ -14,11 +14,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.7",
-  "build": "6623dd06d034",
-  "commit": "a1889f8032259c1dc105f4fa55508cfbf7c4274d",
-  "shortCommit": "a1889f8",
-  "timestamp": "2026-11-16T19:46:36.986Z",
-  "message": "v1.8.6: Fix re-scanned gradebook marks jumping above newer assessments",
+  "build": "e2b691e525e1",
+  "commit": "8a2687c1ba0b8f7037247c588d85674ce7490205",
+  "shortCommit": "8a2687c",
+  "timestamp": "2026-11-16T20:00:55.717Z",
+  "message": "v1.8.7: chore(release): v1.8.7 Activity preloader, bonus targets & score entry, chronological marks, and modular codebase",
   "changelog": [
     "Unified Activity Stream Preloader & Smarter Course Filter (src/content/activityFilter.ts, src/content/blackboard-dark.js): Replaced Blackboard's default Activity loading flicker with a unified Swiss Grid preloader from document_start until courses and notification batches finish loading in the background, seeded course chips immediately from active enrollments, and excluded non-academic tiles (Orientation, University).",
     "Bonus Marks & Bonus Deadlines with Target Selection and Quick Score Entry (src/popup/, src/mobile/, src/utils/marks.ts, src/utils/grades.ts): Added pure points vs. percentage (%) bonus selection, Bonus On What category targeting (Course Total or any syllabus component), optional due-date linking from Add Bonus Mark so bonus quizzes appear in Calendar & Deadlines, optional quick score entry on completing manual assessments (+ Score), and bonus mark deletion with instant Undo in both extension and companion app.",

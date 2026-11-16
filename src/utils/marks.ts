@@ -193,7 +193,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       title: t.title,
       status: graded ? 'graded' : (waiting ? 'waiting' : 'submitted'),
       weight,
-      dueDate: t.dueDate,
+      dueDate: t.dueDate || t.columnDueDate,
       gradedAt: t.gradedAt,
       submittedAt: t.submittedAt,
       // Only treat updatedAt as completion time for manual tasks without a real Blackboard gradedAt timestamp.
@@ -360,8 +360,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       return -Infinity;
     };
     c.marks.sort((a, b) => {
-      const diff = time(b) - time(a);
-      if (diff !== 0) return diff;
+      const timeA = time(a);
+      const timeB = time(b);
+      if (timeA !== timeB) return timeB - timeA;
       const numA = extractAssessmentNumber(a.title);
       const numB = extractAssessmentNumber(b.title);
       if (numA !== null && numB !== null && numA !== numB) {

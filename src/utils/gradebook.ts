@@ -14,6 +14,7 @@ export interface GradebookColumn {
   visible?: boolean;
   gradesReleased?: boolean;
   dueDate?: string;
+  grading?: { due?: string };
   userCreatedColumn?: boolean;
   contentId?: string;
   deleted?: boolean;
@@ -32,6 +33,9 @@ export interface GradebookGrade {
   lastGradedDate?: string;
   modifiedDate?: string;
   lastModified?: string;
+  modified?: string;
+  attemptDate?: string;
+  created?: string;
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
@@ -68,7 +72,7 @@ export function gradebookReport(columns: GradebookColumn[], grades: GradebookGra
       status: g.status,
       score: typeof score === 'number' ? round(score) : undefined,
       possible: g.pointsPossible || col?.possible,
-      gradedAt: g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified,
+      gradedAt: g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified || g.modified || g.attemptDate || g.created,
       ...(notes.length ? { note: notes.join(', ') } : {})
     };
   });
@@ -113,13 +117,14 @@ export function gradebookToUpdates(
     if (g.isExempt) { skip('exempt'); continue; }
     if (!title || /orientation|توجيه|تهيئة/i.test(title)) continue;
 
-    const gradedAt = g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified;
+    const gradedAt = g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified || g.modified || g.attemptDate || g.created;
+    const rawColDue = col?.dueDate || col?.grading?.due;
     const base = {
       courseName: course.courseName || undefined,
       courseCode: course.courseCode && course.courseCode !== 'UOS' ? course.courseCode : undefined,
       title,
       sourceId: `gb:${col.id}`,
-      dueDate: col?.dueDate && !col.userCreatedColumn && !isNaN(new Date(col.dueDate).getTime()) ? new Date(col.dueDate).toISOString() : undefined,
+      dueDate: rawColDue && !isNaN(new Date(rawColDue).getTime()) ? new Date(rawColDue).toISOString() : undefined,
       gradedAt: gradedAt && !isNaN(new Date(gradedAt).getTime()) ? gradedAt : undefined
     };
 
@@ -399,10 +404,13 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
           continue;
         }
       }
+      const isGbTask = (match.id || '').startsWith('gbcol_') || match.sourceSnippet === 'gradebook';
+      const colDueChanged = isGbTask && !!update.dueDate && match.columnDueDate !== update.dueDate;
       const changed = match.submissionStatus !== 'graded' ||
         match.status !== 'completed' ||
         !!match.markProvisional !== provisional ||
         (!!src && match.gradeSourceId !== src) ||
+        colDueChanged ||
         (update.score !== undefined && match.score !== update.score) ||
         (update.maxScore !== undefined && match.maxScore !== update.maxScore) ||
         (!!update.scoreDisplay && match.scoreDisplay !== update.scoreDisplay);
@@ -410,6 +418,7 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       match.submissionStatus = 'graded';
       if (src) match.gradeSourceId = src;
       if (update.gradedAt) match.gradedAt = update.gradedAt;
+      if (colDueChanged) match.columnDueDate = update.dueDate;
       if (provisional) match.markProvisional = true;
       else delete match.markProvisional;
       if (update.score !== undefined) match.score = update.score;
