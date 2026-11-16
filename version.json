@@ -1,10 +1,10 @@
 {
   "version": "1.8.6",
-  "build": "b2a42318db6a",
-  "commit": "6df8e3f68fe7b3af8d4d26428ee4278ed7bfdc84",
-  "shortCommit": "6df8e3f",
-  "timestamp": "2026-11-16T17:39:32.996Z",
-  "message": "v1.8.6: Unify Activity preloader from document_start through background stream preload",
+  "build": "b850672f7973",
+  "commit": "f7937011ab2104e5be0fed3fff0890dc5268d61e",
+  "shortCommit": "f793701",
+  "timestamp": "2026-11-16T17:53:50.392Z",
+  "message": "v1.8.6: Improve quiz/instruction announcement scanning & merge and add Bonus On target selection for manual deadlines",
   "changelog": [
     "Windows Widget Automatic Self-Update (windows-widget/SelfUpdater.cs, windows-widget/TrayApplicationContext.cs, windows-widget/SettingsForm.cs): Added automatic GitHub Releases self-updating for BlackboarderWidget.exe (yvs1n/blackboarder-extension/releases/latest), checking on startup and every 3 hours when idle, validating the downloaded PE executable size and MZ header, swapping the in-use binary safely on NTFS, relaunching automatically, and providing an Auto-Update toggle plus Check for Updates action in both Settings and the system tray menu. Synchronized <Version> in BlackboarderWidget.csproj with package.json during npm run build."
   ],
@@ -12,7 +12,7 @@
   "branch": "main",
   "files": [
     "assets/popup-B2a5UVuo.css",
-    "assets/popup-DnDlGVwF.js",
+    "assets/popup-DBFYh4LW.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

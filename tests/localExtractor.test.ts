@@ -222,5 +222,68 @@ describe('Local NLP Deadline Extractor', () => {
     expect(d.getMonth()).toBe(9); // October
     expect(d.getDate()).toBe(15);
   });
+
+  it('does not treat "2nd quiz" or "3rd chapter" ordinals as day numbers and picks Thursday', () => {
+    const ann: Announcement = {
+      id: 'ann-ordinal-false-match',
+      courseCode: '1411116',
+      courseName: 'Calculus I for Engineering',
+      title: '2nd Quiz Topics',
+      postedAt: '2026-11-16T09:00:00.000Z', // Monday Nov 16
+      contentText: 'The 2nd quiz covers the 3rd chapter and 4th section and is on Thursday at 11:00 AM.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae/ultra/stream',
+      scannedAt: '2026-11-16T09:05:00.000Z'
+    };
+
+    const tasks = extractDeadlinesLocally(ann);
+    expect(tasks).toHaveLength(1);
+    const d = new Date(tasks[0].dueDate);
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(10); // November
+    expect(d.getDate()).toBe(19); // Thursday Nov 19, NOT Dec 2 or Dec 3
+    expect(d.getHours()).toBe(11);
+  });
+
+  it('prefers the quiz date over "today" or earlier topic dates in the same sentence', () => {
+    const ann: Announcement = {
+      id: 'ann-multidate-topics',
+      courseCode: '1430115',
+      courseName: 'Physics 1',
+      title: 'Quiz 2 (5 marks)',
+      postedAt: '2026-11-16T08:00:00.000Z',
+      contentText: 'As announced today, Quiz 2 covers lectures from Oct 15 to Nov 2 and will be held on Nov, 19 at 12:30 PM.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae/ultra/stream',
+      scannedAt: '2026-11-16T08:05:00.000Z'
+    };
+
+    const tasks = extractDeadlinesLocally(ann);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].type).toBe('quiz');
+    expect(tasks[0].title).toBe('Quiz 2');
+    const d = new Date(tasks[0].dueDate);
+    expect(d.getMonth()).toBe(10); // November
+    expect(d.getDate()).toBe(19);
+    expect(d.getHours()).toBe(12);
+    expect(d.getMinutes()).toBe(30);
+  });
+
+  it('extracts a quiz when topics are in separate lines and the date uses spaced slash "19 / 11"', () => {
+    const ann: Announcement = {
+      id: 'ann-spaced-slash',
+      courseCode: '1430115',
+      courseName: 'Physics 1',
+      title: 'Quiz 2 Topics',
+      postedAt: '2026-11-16T08:00:00.000Z',
+      contentText: 'Topics included:\nChapter 3\nChapter 4\nDate: 19 / 11',
+      sourceUrl: 'https://elearning.sharjah.ac.ae/ultra/stream',
+      scannedAt: '2026-11-16T08:05:00.000Z'
+    };
+
+    const tasks = extractDeadlinesLocally(ann);
+    expect(tasks).toHaveLength(1);
+    const d = new Date(tasks[0].dueDate);
+    expect(d.getMonth()).toBe(10);
+    expect(d.getDate()).toBe(19);
+  });
 });
 

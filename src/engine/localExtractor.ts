@@ -303,6 +303,42 @@ function resolveImpliedYear(month: number, day: number, baseDate: Date): number 
   return daysBehind > 90 ? baseYear + 1 : baseYear;
 }
 
+interface DateCandidate {
+  date: Date;
+  matchedText: string;
+  index: number;
+}
+
+const DATE_SCHEDULE_CUE_RE = /(?:will\s+be(?:\s+held|\s+conducted|\s+given|\s+on)?|held|conducted|takes?\s+place|scheduled|due|submit(?:ted)?(?:\s+by)?|deadline|opens?|closes?|until|date|سيكون|سيعقد|موعد|بتاريخ|حتى)\b/i;
+const DATE_PAST_TOPIC_CUE_RE = /\b(?:from|since|lectures?\s+(?:of|on|from)|class(?:es)?\s+(?:of|on)|covered(?:\s+on)?|material\s+from|posted\s+on|originally)\s*$/i;
+
+function pickBestDateCandidate(
+  clean: string,
+  candidates: DateCandidate[],
+  baseDate: Date
+): DateCandidate | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  const todayStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate()).getTime();
+  let best = candidates[candidates.length - 1];
+  let bestScore = -Infinity;
+
+  for (const c of candidates) {
+    const beforeClause = clean.slice(Math.max(0, c.index - 45), c.index);
+    let score = 0;
+    if (DATE_SCHEDULE_CUE_RE.test(beforeClause)) score += 4;
+    if (DATE_PAST_TOPIC_CUE_RE.test(beforeClause)) score -= 3;
+    if (c.date.getTime() >= todayStart) score += 2;
+    // Slight preference (>=) for later mentions when scores tie (e.g. "Oct 15 to Nov 2 ... is on Nov 19")
+    if (score >= bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
+}
+
 /**
  * Parses date expressions relative to a base date.
  */
@@ -311,55 +347,66 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
   const baseYear = baseDate.getFullYear();
   const timeInfo = parseTime(clean);
 
-  // Pattern 1: Month Name Day [Year] e.g. "October 15", "Oct 15th", "Oct 15, 2026"
-  const monthDayRegex = /(?:^|[\s,:((\-])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i;
-  const mdMatch = clean.match(monthDayRegex);
-  if (mdMatch) {
-    const monthKey = mdMatch[1].toLowerCase().replace('.', '');
+  // Pattern 1: Month Name Day [Year] e.g. "October 15", "Oct 15th", "Oct 15, 2026", "Nov, 19"
+  const monthDayRegex = /(?:^|[\s,:((\-])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)[.,]?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/gi;
+  const mdCandidates: DateCandidate[] = [];
+  for (const m of clean.matchAll(monthDayRegex)) {
+    const monthKey = m[1].toLowerCase().replace(/[.,]/g, '');
     const month = MONTHS_MAP[monthKey];
-    const day = parseInt(mdMatch[2], 10);
-    const year = mdMatch[3] ? parseInt(mdMatch[3], 10) : (month !== undefined ? resolveImpliedYear(month, day, baseDate) : baseYear);
-
+    const day = parseInt(m[2], 10);
+    const year = m[3] ? parseInt(m[3], 10) : (month !== undefined ? resolveImpliedYear(month, day, baseDate) : baseYear);
     if (month !== undefined && day >= 1 && day <= 31) {
-      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: mdMatch[0].trim() };
+      mdCandidates.push({
+        date: new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0),
+        matchedText: m[0].trim(),
+        index: m.index ?? 0
+      });
     }
+  }
+  const bestMd = pickBestDateCandidate(clean, mdCandidates, baseDate);
+  if (bestMd) {
+    return { date: bestMd.date, hasSpecificTime: timeInfo.hasTime, matchedText: bestMd.matchedText };
   }
 
   // Pattern 2: Day Month [Year] e.g. "15th of October", "15 Oct 2026", "15-Nov-2026", "15 أكتوبر"
-  const dayMonthRegex = /\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?|[-/])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\.?(?:(?:\s*,?\s*|[-/])(\d{4})\b|(?=$|[\s,.)!\-؛،]))/i;
-  const dmMatch = clean.match(dayMonthRegex);
-  if (dmMatch) {
-    const day = parseInt(dmMatch[1], 10);
-    const monthKey = dmMatch[2].toLowerCase().replace('.', '');
+  const dayMonthRegex = /\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?|[-/])(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)[.,]?(?:(?:\s*,?\s*|[-/])(\d{4})\b|(?=$|[\s,.)!\-؛،]))/gi;
+  const dmCandidates: DateCandidate[] = [];
+  for (const m of clean.matchAll(dayMonthRegex)) {
+    const day = parseInt(m[1], 10);
+    const monthKey = m[2].toLowerCase().replace(/[.,]/g, '');
     const month = MONTHS_MAP[monthKey];
-    const year = dmMatch[3] ? parseInt(dmMatch[3], 10) : (month !== undefined ? resolveImpliedYear(month, day, baseDate) : baseYear);
-
+    const year = m[3] ? parseInt(m[3], 10) : (month !== undefined ? resolveImpliedYear(month, day, baseDate) : baseYear);
     if (month !== undefined && day >= 1 && day <= 31) {
-      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: dmMatch[0].trim() };
+      dmCandidates.push({
+        date: new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0),
+        matchedText: m[0].trim(),
+        index: m.index ?? 0
+      });
     }
   }
+  const bestDm = pickBestDateCandidate(clean, dmCandidates, baseDate);
+  if (bestDm) {
+    return { date: bestDm.date, hasSpecificTime: timeInfo.hasTime, matchedText: bestDm.matchedText };
+  }
 
-  // Pattern 3: Numeric DD/MM/YYYY or MM/DD/YYYY or YYYY-MM-DD
-  const numericDateRegex = /\b(\d{1,4})[\/\.-](\d{1,2})[\/\.-](\d{1,4})\b/;
-  const numMatch = clean.match(numericDateRegex);
-  if (numMatch) {
-    const p1 = parseInt(numMatch[1], 10);
-    const p2 = parseInt(numMatch[2], 10);
-    const p3 = parseInt(numMatch[3], 10);
+  // Pattern 3: Numeric DD/MM/YYYY or MM/DD/YYYY or YYYY-MM-DD (allows optional spacing around / or -)
+  const numericDateRegex = /\b(\d{1,4})(?:\.|(?:\s*[\/\-]\s*))(\d{1,2})(?:\.|(?:\s*[\/\-]\s*))(\d{1,4})\b/g;
+  const numCandidates: DateCandidate[] = [];
+  for (const m of clean.matchAll(numericDateRegex)) {
+    const p1 = parseInt(m[1], 10);
+    const p2 = parseInt(m[2], 10);
+    const p3 = parseInt(m[3], 10);
 
     let day = p1;
     let month = p2 - 1;
     let year = p3 < 100 ? p3 + 2000 : p3;
 
     // ISO format (YYYY-MM-DD) must be recognised before two-digit years are expanded
-    if (numMatch[1].length === 4) {
+    if (m[1].length === 4) {
       year = p1;
       month = p2 - 1;
       day = p3;
-    } else if (numMatch[3].length !== 2 && numMatch[3].length !== 4) {
-      // Not a date (e.g. "1.2.345")
+    } else if (m[3].length !== 2 && m[3].length !== 4) {
       year = NaN;
     } else if (p2 > 12 && p1 >= 1 && p1 <= 12) {
       // American MM/DD/YYYY (e.g. "11/18/2026")
@@ -368,18 +415,26 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
     }
 
     if (!isNaN(year) && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: numMatch[0] };
+      numCandidates.push({
+        date: new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0),
+        matchedText: m[0],
+        index: m.index ?? 0
+      });
     }
   }
+  const bestNum = pickBestDateCandidate(clean, numCandidates, baseDate);
+  if (bestNum) {
+    return { date: bestNum.date, hasSpecificTime: timeInfo.hasTime, matchedText: bestNum.matchedText };
+  }
 
-  // Pattern 3b: Day/Month without year (e.g. "on 18/11", "Date: 20-11"), never matching score fractions ("8/10 marks")
-  const shortNumericDateRegex = /\b(\d{1,2})[\/\-](\d{1,2})\b(?!\s*(?:\/|\-|%|marks?|pts?|points?|grades?|scores?|درج|علام))/i;
-  const shortMatch = clean.match(shortNumericDateRegex);
-  if (shortMatch) {
-    const p1 = parseInt(shortMatch[1], 10);
-    const p2 = parseInt(shortMatch[2], 10);
-    const before = clean.slice(Math.max(0, (shortMatch.index || 0) - 24), shortMatch.index || 0);
+  // Pattern 3b: Day/Month without year (e.g. "on 18/11", "18 / 11", "Date: 20-11"), never matching score fractions ("8/10 marks")
+  const shortNumericDateRegex = /\b(\d{1,2})\s*[\/\-]\s*(\d{1,2})\b(?!\s*(?:\/|\-|%|marks?|pts?|points?|grades?|scores?|درج|علام))/gi;
+  const shortCandidates: DateCandidate[] = [];
+  for (const m of clean.matchAll(shortNumericDateRegex)) {
+    const p1 = parseInt(m[1], 10);
+    const p2 = parseInt(m[2], 10);
+    const idx = m.index ?? 0;
+    const before = clean.slice(Math.max(0, idx - 24), idx);
     const hasScorePrefix = /(?:score|grade|mark|total|out\s*of|worth|درجة|علامة)\s*[:=]?\s*$/i.test(before);
     const hasDatePrefix = /(?:on|by|due|date|held|scheduled|until|before|from|at|في|يوم|بتاريخ|حتى)\s*[:=]?\s*$/i.test(before);
     let day = p1;
@@ -391,16 +446,16 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
     const looksClearlyLikeDate = p1 > 12 || p2 > 12 || hasDatePrefix;
     if (!hasScorePrefix && looksClearlyLikeDate && month >= 0 && month <= 11 && day >= 1 && day <= 31) {
       const year = resolveImpliedYear(month, day, baseDate);
-      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: shortMatch[0] };
+      shortCandidates.push({
+        date: new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0),
+        matchedText: m[0],
+        index: idx
+      });
     }
   }
-
-  // Pattern 4: Relative "today" / "اليوم"
-  if (/\b(today)\b|اليوم/i.test(clean)) {
-    const d = new Date(baseDate);
-    d.setHours(timeInfo.hour, timeInfo.minute, 0, 0);
-    return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: 'today' };
+  const bestShort = pickBestDateCandidate(clean, shortCandidates, baseDate);
+  if (bestShort) {
+    return { date: bestShort.date, hasSpecificTime: timeInfo.hasTime, matchedText: bestShort.matchedText };
   }
 
   // Pattern 5: Relative "tomorrow" / "غداً" / "بكرة"
@@ -412,7 +467,7 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
   }
 
   // Pattern 6: Day name + day number e.g. "Thursday 24", "Thursday 24th", "on Thursday 24", "يوم الخميس 24"
-  const dayNameNumberRegex = /\b(?:on\s+)?(?:(sunday|sun|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat)\s+)(?:the\s*)?(\d{1,2})(?:st|nd|rd|th)?\b/i;
+  const dayNameNumberRegex = /\b(?:on\s+)?(?:next\s+week\s+on\s+)?(sunday|sun|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat)\s+(?:the\s*)?(\d{1,2})(?:st|nd|rd|th)?\b/i;
   const dnnMatch = clean.match(dayNameNumberRegex);
   if (dnnMatch) {
     const day = parseInt(dnnMatch[2], 10);
@@ -448,26 +503,6 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
       }
       const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
       return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: arDnnMatch[0] };
-    }
-  }
-
-  // Pattern 6b: Day with ordinal e.g. "Wednesday 16th", "on the 16th", "16th"
-  const ordinalDayRegex = /\b(?:(?:on\s+)?(?:next\s+week\s+on\s+)?(?:(sunday|sun|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat)\s*)?(?:the\s*)?(\d{1,2})(?:st|nd|rd|th))\b/i;
-  const ordMatch = clean.match(ordinalDayRegex);
-  if (ordMatch) {
-    const day = parseInt(ordMatch[2], 10);
-    if (day >= 1 && day <= 31) {
-      let month = baseDate.getMonth();
-      let year = baseDate.getFullYear();
-      if (day < baseDate.getDate() - 5) {
-        month++;
-        if (month > 11) {
-          month = 0;
-          year++;
-        }
-      }
-      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
-      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: ordMatch[0] };
     }
   }
 
@@ -507,25 +542,39 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
   }
 
   // Pattern 7: Day of the week without day number e.g. "next Tuesday", "this Thursday", "يوم الثلاثاء القادم"
-  const engDayRegex = /\b(next|this|on)?\s*(sunday|sun|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat)\b/i;
-  const arDayRegex = /(?:يوم\s*)?(الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس|الجمعة|السبت)(?:\s*(القادم|القادمة|المقبل|المقبلة))?/i;
+  const engDayRegex = /\b(next|this|on)?\s*(sunday|sun|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat)\b/gi;
+  const arDayRegex = /(?:يوم\s*)?(الأحد|الاحد|الاثنين|الإثنين|الثلاثاء|الأربعاء|الاربعاء|الخميس|الجمعة|السبت)(?:\s*(القادم|القادمة|المقبل|المقبلة))?/g;
 
-  const engMatch = clean.match(engDayRegex);
-  const arMatch = clean.match(arDayRegex);
+  const engMatches = Array.from(clean.matchAll(engDayRegex));
+  const arMatches = Array.from(clean.matchAll(arDayRegex));
 
-  if (engMatch || arMatch) {
+  if (engMatches.length > 0 || arMatches.length > 0) {
     let dayName = '';
     let isNext = false;
     let matchStr = '';
 
-    if (engMatch) {
-      matchStr = engMatch[0];
-      dayName = engMatch[2].toLowerCase();
-      isNext = (engMatch[1] || '').toLowerCase() === 'next';
-    } else if (arMatch) {
-      matchStr = arMatch[0];
-      dayName = arMatch[1];
-      isNext = Boolean(arMatch[2]);
+    if (engMatches.length > 0) {
+      // Prefer explicit scheduling modifier ("next", "on", "this") and later clause mentions
+      let chosen = engMatches[engMatches.length - 1];
+      let bestScore = -Infinity;
+      for (const m of engMatches) {
+        const before = clean.slice(Math.max(0, (m.index ?? 0) - 30), m.index ?? 0);
+        let s = m[1] ? 2 : 0;
+        if (DATE_SCHEDULE_CUE_RE.test(before)) s += 3;
+        if (/\btoday\s+is\s*$/i.test(before)) s -= 4;
+        if (s >= bestScore) {
+          bestScore = s;
+          chosen = m;
+        }
+      }
+      matchStr = chosen[0];
+      dayName = chosen[2].toLowerCase();
+      isNext = (chosen[1] || '').toLowerCase() === 'next';
+    } else if (arMatches.length > 0) {
+      const chosen = arMatches[arMatches.length - 1];
+      matchStr = chosen[0];
+      dayName = chosen[1];
+      isNext = Boolean(chosen[2]);
     }
 
     const targetDayIndex = DAY_OF_WEEK_MAP[dayName];
@@ -545,6 +594,33 @@ function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
       d.setHours(timeInfo.hour, timeInfo.minute, 0, 0);
       return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: matchStr };
     }
+  }
+
+  // Pattern 7b: Preposition-gated ordinal date ("on the 16th", "due 16th") — never "1st quiz" or "2nd chapter"
+  const standaloneOrdinalDayRegex = /\b(?:(?:on|by|due(?:\s+on)?|before|until|for)\s+(?:the\s+)?|the\s+)(\d{1,2})(?:st|nd|rd|th)\b(?!\s*(?:quiz(?:zes)?|exams?|midterms?|finals?|tests?|assignments?|homeworks?|hw|labs?|projects?|reports?|chapters?|ch\.?|units?|modules?|sections?|lectures?|weeks?|topics?|slides?|pages?|parts?|attempts?|editions?|places?|floors?|percent|%))/i;
+  const ordMatch = clean.match(standaloneOrdinalDayRegex);
+  if (ordMatch) {
+    const day = parseInt(ordMatch[1], 10);
+    if (day >= 1 && day <= 31) {
+      let month = baseDate.getMonth();
+      let year = baseDate.getFullYear();
+      if (day < baseDate.getDate() - 5) {
+        month++;
+        if (month > 11) {
+          month = 0;
+          year++;
+        }
+      }
+      const d = new Date(year, month, day, timeInfo.hour, timeInfo.minute, 0, 0);
+      return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: ordMatch[0] };
+    }
+  }
+
+  // Pattern 8: Relative "today" / "اليوم" (checked after explicit dates & weekdays so "announced today, quiz on Thursday" uses Thursday)
+  if (/\b(today)\b|اليوم/i.test(clean) && !/\b(?:posted|announced|uploaded|sent|published|as\s+of)\s+today\b/i.test(clean)) {
+    const d = new Date(baseDate);
+    d.setHours(timeInfo.hour, timeInfo.minute, 0, 0);
+    return { date: d, hasSpecificTime: timeInfo.hasTime, matchedText: 'today' };
   }
 
   return null;
@@ -597,14 +673,18 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
 
   // 2. Filter out announcements whose primary subject is reporting past grades or marks
   // (unless they explicitly announce an upcoming future assessment or makeup deadline)
+  const isGradeTitle = /(?:^|[^\p{L}\p{N}])(?:درجات|درجة|علامات|علامة|نتائج|النتائج|العلامات|الدرجات|grades?|marks?|scores?|results?|solutions?|answer\s*keys?|feedback)(?:$|[^\p{L}\p{N}])/iu.test(announcement.title) &&
+    !/\b(?:out\s+of\s+\d+|\d+(?:\.\d+)?\s*(?:marks?|pts?|points?)|\(\s*\d+(?:\.\d+)?\s*(?:marks?|pts?|points?)\s*\)|total\s+marks?|marks?\s+distribution)\b/iu.test(announcement.title);
   const isGradeAnnouncement = (
-    /(?:^|[^\p{L}\p{N}])(?:درجات|درجة|علامات|علامة|نتائج|النتائج|العلامات|الدرجات|grades?|marks?|scores?|results?|solutions?|answer\s*keys?|feedback)(?:$|[^\p{L}\p{N}])/iu.test(announcement.title) ||
+    isGradeTitle ||
     /(?:grades?|marks?|scores?)\s+(?:are\s+)?(?:posted|uploaded|available|published|announced|released)|(?:تم\s+نشر|تم\s+رصد|تم\s+تنزيل|معلنة|مرفوعة)\s+(?:الدرجات|العلامات|النتائج|درجة|علامة)/iu.test(cleanContent)
   );
 
   const hasFutureDeadlineAction = /(?:submit\s+by|due\s+on|due\s+date|submission\s+deadline|makeup\s+exam|make-up\s+exam|تسليم\s+في|آخر\s+موعد|امتحان\s+تعويضي|اختبار\s+تعويضي)/iu.test(cleanContent);
+  const hasUpcomingAssessmentSchedule = hasFutureDeadlineAction ||
+    /\b(?:will\s+be\s+(?:held|conducted|given|administered|taken|on)|scheduled\s+(?:for|on)|takes?\s+place\s+on|covers?\s+(?:the\s+following\s+)?topics?)\b/iu.test(`${announcement.title}\n${cleanContent}`);
 
-  if (isGradeAnnouncement && !hasFutureDeadlineAction) {
+  if (isGradeAnnouncement && !hasUpcomingAssessmentSchedule) {
     return [];
   }
 
@@ -619,7 +699,7 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
   const sentences = text
     .split(/\r?\n+|(?<=[.!?])\s+/)
     .map(s => s.trim())
-    .filter(s => s.length > 5);
+    .filter(s => s.length >= 4);
 
   const tasks: DeadlineTask[] = [];
   const detectedKeys = new Set<string>();
@@ -693,7 +773,11 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     let effectiveType: TaskType = matchedType || 'other';
 
     // Availability/start-date-only lines without a real due/assessment word are not due deadlines
-    if (/\b(?:start\s*date|opens?\s+on|available\s+(?:from|starting)|unlocks?\s+on)\b/i.test(sentence) && !/\b(?:due|deadline|submit|held|conducted|will\s+be\s+on)\b/i.test(sentence)) {
+    if (
+      /\b(?:start\s*date|opens?\s+on|available\s+(?:from|starting)|unlocks?\s+on)\b/i.test(sentence) &&
+      !/\b(?:due|deadline|submit|held|conducted|will\s+be\s+on|closes?\s+on|ends?\s+on|until)\b/i.test(sentence) &&
+      !/\b(?:quiz|exam|midterm|final|test)\b.*\b\d{1,2}:\d{2}\b/i.test(sentence)
+    ) {
       continue;
     }
 

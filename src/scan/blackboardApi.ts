@@ -59,7 +59,7 @@ export function extractCodeFromExternalId(externalId?: string): string {
 export function stripHtmlToText(html: string): string {
   return String(html || '')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/(?:p|li|div|h[1-6]|tr|blockquote)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -67,9 +67,10 @@ export function stripHtmlToText(html: string): string {
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/[ \t]+/g, ' ')
-    .replace(/\n\s*\n+/g, '\n')
+    .replace(/[ \t]*\n+[ \t]*/g, '\n')
     .trim();
 }
 
@@ -307,20 +308,26 @@ export async function fetchCourseAnnouncements(
     const scannedAt = new Date().toISOString();
     const announcements = res.results.map((item: any, idx: number): Announcement => {
       // Public API: body is an HTML string. Internal API: { displayText, rawText }.
-      const bodyHtml = typeof item?.body === 'string' ? item.body : (item?.body?.displayText || item?.body?.rawText || '');
-      const text = sanitizeDoctorAnnouncementText(stripHtmlToText(bodyHtml), name, code, item?.title);
+      const annTitle = String(item?.title || item?.subject || '').trim();
+      const bodyHtml = typeof item?.body === 'string'
+        ? item.body
+        : (item?.body?.displayText || item?.body?.rawText || item?.body?.text || '');
+      const cleanBody = sanitizeDoctorAnnouncementText(stripHtmlToText(bodyHtml), name, code, annTitle);
+      const text = cleanBody.length > 5
+        ? cleanBody
+        : ([annTitle, cleanBody].filter(Boolean).join('\n').trim());
       return {
         id: `ann_api_${item?.id || idx}`,
         courseCode: code,
         courseName: name,
-        title: item?.title || `Announcement ${idx + 1}`,
-        postedAt: item?.created || scannedAt,
+        title: annTitle || `Announcement ${idx + 1}`,
+        postedAt: item?.created || item?.availability?.duration?.start || item?.modified || scannedAt,
         contentText: text,
         contentHtml: bodyHtml,
         sourceUrl: `${origin.replace(/\/+$/, '')}/ultra/courses/${courseId}/outline`,
         scannedAt
       };
-    }).filter((a: Announcement) => a.contentText && a.contentText.length > 5);
+    }).filter((a: Announcement) => Boolean(a.contentText && a.contentText.length > 5) || Boolean(a.title && a.title.length > 3));
     return { ok: true, announcements };
   }
   return last;

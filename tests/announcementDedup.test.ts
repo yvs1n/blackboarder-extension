@@ -244,4 +244,29 @@ describe('announcement tasks are not swallowed by an older task with the same ti
     expect(merged.description).toContain('Lectures 4-7');
     expect(merged.description).toContain('Formula sheet is provided');
   });
+
+  it('preserves line breaks across HTML list items and keeps title-only quiz announcements in Blackboard API reads', async () => {
+    const { stripHtmlToText, fetchCourseAnnouncements } = await import('../src/scan/blackboardApi');
+    const text = stripHtmlToText('<p>Quiz 2 topics:</p><ul><li>Vectors</li><li>Motion</li></ul><p>On Thursday, Nov 19</p>');
+    expect(text).toContain('Quiz 2 topics:\n');
+    expect(text).toContain('Vectors\nMotion');
+
+    const mockFetch = async () => new Response(JSON.stringify({
+      results: [
+        { id: '_a1', title: 'Quiz 2 on Thursday, Nov 19', body: '', created: '2026-11-16T08:00:00.000Z' }
+      ]
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    const res = await fetchCourseAnnouncements(
+      mockFetch as any,
+      '_100_1',
+      { name: 'Physics 1', code: '1430115' },
+      'https://elearning.sharjah.ac.ae'
+    );
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.announcements).toHaveLength(1);
+      expect(res.announcements[0].contentText).toContain('Quiz 2 on Thursday, Nov 19');
+    }
+  });
 });
