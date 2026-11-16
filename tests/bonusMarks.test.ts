@@ -379,14 +379,14 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
 
     const list = [bonusTask, gbColTask, scheduledQuiz];
 
-    // 0. gradesHtml exposes delete buttons for standalone bonus & gradebook marks, NOT scheduled deadlines
+    // 0. gradesHtml exposes delete buttons ONLY for standalone bonus marks, never for Blackboard marks
     const html = gradesHtml(
       buildGpaSummary(list, syllabi, UOS_GRADE_SCALE),
       buildMarksSummary(list, syllabi),
       () => '#2563eb'
     );
     expect(html).toContain('class="btn-delete-mark" data-mark-id="task_bonus_12345"');
-    expect(html).toContain('class="btn-delete-mark" data-mark-id="gbcol_CS301__999_1"');
+    expect(html).not.toContain('class="btn-delete-mark" data-mark-id="gbcol_CS301__999_1"');
     expect(html).not.toContain('class="btn-delete-mark" data-mark-id="task_quiz1"');
 
     // 1. Standalone bonus mark is removed completely
@@ -517,5 +517,76 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     );
     expect(waitingHtml).toContain('class="btn-enter-mark-score" data-mark-id="t_man_pend"');
     expect(waitingHtml).toContain('+ Score');
+  });
+
+  it('never swallows Blackboard quizzes (Quiz 1, Quiz 2) into Bonus Quiz and recovers stolen gradeSourceId on scan', async () => {
+    const { deduplicateTaskList } = await import('../src/utils/taskMerge');
+    const gbQ1 = {
+      id: 'gbcol_1502101__101_1',
+      title: 'Quiz 1',
+      courseName: 'Introduction to Computer Eng.',
+      courseCode: '1502101',
+      dueDate: '',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 22,
+      maxScore: 25,
+      weight: 8.33,
+      gradeSourceId: 'gb:_101_1',
+      sourceSnippet: 'gradebook'
+    } as unknown as DeadlineTask;
+    const gbQ2 = {
+      id: 'gbcol_1502101__102_1',
+      title: 'Quiz 2',
+      courseName: 'Introduction to Computer Eng.',
+      courseCode: '1502101',
+      dueDate: '',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 20,
+      maxScore: 25,
+      weight: 8.33,
+      gradeSourceId: 'gb:_102_1',
+      sourceSnippet: 'gradebook'
+    } as unknown as DeadlineTask;
+    const bonusQuiz = {
+      id: 'task_bonus_999',
+      title: 'Bonus Quiz',
+      courseName: 'Introduction to Computer Eng.',
+      courseCode: '1502101',
+      dueDate: '',
+      type: 'other',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 2,
+      maxScore: 2,
+      weight: 2,
+      isBonus: true,
+      bonusUnit: 'points' as const,
+      bonusTarget: 'total',
+      bonusTargetLabel: 'Course Total',
+      extractedBy: 'manual',
+      userEdited: true
+    } as unknown as DeadlineTask;
+
+    const deduped = deduplicateTaskList([gbQ1, gbQ2, bonusQuiz]);
+    expect(deduped).toHaveLength(3);
+    expect(deduped.map(t => t.id).sort()).toEqual(['gbcol_1502101__101_1', 'gbcol_1502101__102_1', 'task_bonus_999']);
+
+    // And even if an older bonus task accidentally carried Quiz 1's gradeSourceId, applySubmissionUpdates detaches it
+    const corruptedBonus = { ...bonusQuiz, gradeSourceId: 'gb:_101_1' } as unknown as DeadlineTask;
+    applySubmissionUpdates([corruptedBonus], [{
+      courseCode: '1502101',
+      courseName: 'Introduction to Computer Eng.',
+      title: 'Quiz 1',
+      submissionStatus: 'graded',
+      score: 22,
+      maxScore: 25,
+      sourceId: 'gb:_101_1'
+    }]);
+    expect(corruptedBonus.gradeSourceId).toBeUndefined();
+    expect(corruptedBonus.score).toBe(2);
   });
 });

@@ -1,5 +1,5 @@
 import { DeadlineTask, TaskSubmissionUpdate } from '../types';
-import { findTaskForUpdate, findAllTasksForUpdate } from './streamParser';
+import { findTaskForUpdate, findAllTasksForUpdate, isBonusTitle } from './streamParser';
 import { parseCourseDetails } from '../core/courseHelper';
 import { extractExplicitPoints } from '../core/syllabusWeights';
 
@@ -331,6 +331,13 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
         delete t.markProvisional;
         delete t.gradeSourceId;
         t.submissionStatus = t.status === 'completed' ? 'submitted' : undefined;
+        t.updatedAt = now;
+        changedTasks.add(t);
+        continue;
+      }
+      // Recover if a non-bonus Blackboard gradebook column was previously attached to a bonus task
+      if (t.isBonus && !isBonusTitle(update.title)) {
+        delete t.gradeSourceId;
         t.updatedAt = now;
         changedTasks.add(t);
       }

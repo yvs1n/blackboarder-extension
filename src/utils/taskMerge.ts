@@ -1,6 +1,6 @@
 import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle, mergeAnnouncementTexts, isBareTypeTitle } from '../core/courseHelper';
-import { coreTitle, isPracticeTitle } from './streamParser';
+import { coreTitle, isPracticeTitle, isBonusTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
 import { purgeSyntheticGradebookTasks, isExamItem, hasScanTimeDueDate } from './gradebook';
 
@@ -461,6 +461,11 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
 
   // A practice run, mock exam, or sample paper never matches a real assessment
   if (isPracticeTitle(a.title) !== isPracticeTitle(b.title)) return false;
+
+  // A bonus mark / bonus deadline never merges with a normal assessment
+  const bonusA = Boolean(a.isBonus) || isBonusTitle(a.title);
+  const bonusB = Boolean(b.isBonus) || isBonusTitle(b.title);
+  if (bonusA !== bonusB) return false;
 
   const cleanA = (a.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
   const cleanB = (b.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');

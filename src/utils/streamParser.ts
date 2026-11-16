@@ -264,7 +264,7 @@ export function coreTitle(s?: string): string {
   str = str.replace(/(?:امتحان|اختبار)\s*(?:نهائي|فصلي)|(?:الامتحان|الاختبار)\s*(?:النهائي)/gi, 'final');
 
   // Normalize delivery modes and qualifiers: in-class, online, paper, take-home
-  str = str.replace(/\b(?:in[\s_-]*class|take[\s_-]*home|paper|online|bonus)\b/gi, ' ');
+  str = str.replace(/\b(?:in[\s_-]*class|take[\s_-]*home|paper|online)\b/gi, ' ');
 
   // Normalize ordinals + assessment type into "<type><number>"
   // e.g. "2nd Quiz" -> "quiz 2", "second quiz" -> "quiz 2", "الكويز الثاني" -> "quiz 2"
@@ -332,6 +332,12 @@ export function coreTitle(s?: string): string {
 const PRACTICE_RE = /\b(?:practice|practise|mock|sample|trial|dry\s*run|rehearsal|review|revision|preparation|prep)\b|تجريبي|تدريبي|مراجعة/i;
 export function isPracticeTitle(s?: string): boolean {
   return PRACTICE_RE.test(s || '');
+}
+
+/** Bonus / extra-credit items never merge with or steal marks from regular assessments. */
+const BONUS_TITLE_RE = /\b(?:bonus|extra[\s_-]*credit)\b|بونص|إضافي/i;
+export function isBonusTitle(s?: string): boolean {
+  return BONUS_TITLE_RE.test(s || '');
 }
 
 /** A title's words sorted, so word order does not matter. */
@@ -412,6 +418,9 @@ export function findAllTasksForUpdate(
     }
     // A practice mark never lands on the real item, and the other way round
     if (isPracticeTitle(t.title) !== upPractice) continue;
+    // A bonus mark never matches a regular assessment (and vice versa)
+    const upBonus = isBonusTitle(update.title);
+    if ((Boolean(t.isBonus) || isBonusTitle(t.title)) !== upBonus) continue;
     // Explicit point values in the title (e.g. "15 درجة", "10 pts") must agree with update.maxScore;
     // syllabus weights (e.g. "worth 25%", "20%") do not bound update.maxScore
     const isWeightPhrase = /(?:worth\s*\d|\bweight\b|%|بنسبة|وزن)/i.test(t.title);

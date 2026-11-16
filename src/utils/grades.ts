@@ -29,10 +29,11 @@ function markRowsHtml(course: CourseMarks | undefined): string {
     return '<div class="marks-empty" style="font-size: 11px; color: var(--text-muted); padding: 4px 0; font-style: italic;">No individual marks recorded in gradebook yet.</div>';
   }
   return course.marks.map(m => {
-    // Only standalone marks (not attached to a scheduled deadline) get a direct delete button in Marks;
-    // marks attached to deadlines are removed by deleting or editing the deadline itself.
-    const delBtn = m.isStandalone
-      ? `<button type="button" class="btn-delete-mark" data-mark-id="${esc(m.id)}" data-mark-title="${esc(m.title)}" title="Delete mark" aria-label="Delete mark ${esc(m.title)}"><svg class="ui-icon" style="width: 11px; height: 11px;"><use href="#icon-trash"></use></svg></button>`
+    // Only standalone manual bonus marks (not extracted from Blackboard and not attached to a deadline)
+    // get a direct delete button in Marks; Blackboard marks are exact, and deadline-linked bonus marks
+    // are removed by deleting the deadline itself.
+    const delBtn = m.isBonus && m.isStandalone
+      ? `<button type="button" class="btn-delete-mark" data-mark-id="${esc(m.id)}" data-mark-title="${esc(m.title)}" title="Delete bonus mark" aria-label="Delete bonus mark ${esc(m.title)}"><svg class="ui-icon" style="width: 11px; height: 11px;"><use href="#icon-trash"></use></svg></button>`
       : '';
     if (m.isBonus) {
       const bonusScore = m.earned ?? m.score ?? m.weight ?? 0;

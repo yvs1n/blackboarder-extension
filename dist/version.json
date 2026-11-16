@@ -1,10 +1,10 @@
 {
   "version": "1.8.6",
-  "build": "6d2e99592678",
-  "commit": "c181219845902313cbc824027a59c0b4d997e24b",
-  "shortCommit": "c181219",
-  "timestamp": "2026-11-16T18:50:57.731Z",
-  "message": "v1.8.6: Add delete-mark controls with undo and rescan persistence",
+  "build": "cfe72ecef8ea",
+  "commit": "fd415594733377a6992a406504abd07e335fc07d",
+  "shortCommit": "fd41559",
+  "timestamp": "2026-11-16T18:59:44.195Z",
+  "message": "v1.8.6: Support bonus due-date linking, points vs percentage, and completion score prompts",
   "changelog": [
     "Windows Widget Automatic Self-Update (windows-widget/SelfUpdater.cs, windows-widget/TrayApplicationContext.cs, windows-widget/SettingsForm.cs): Added automatic GitHub Releases self-updating for BlackboarderWidget.exe (yvs1n/blackboarder-extension/releases/latest), checking on startup and every 3 hours when idle, validating the downloaded PE executable size and MZ header, swapping the in-use binary safely on NTFS, relaunching automatically, and providing an Auto-Update toggle plus Check for Updates action in both Settings and the system tray menu. Synchronized <Version> in BlackboarderWidget.csproj with package.json during npm run build."
   ],
@@ -12,7 +12,7 @@
   "branch": "main",
   "files": [
     "assets/popup-Bgx76PUk.css",
-    "assets/popup-CLJ6n8bs.js",
+    "assets/popup-CH96uS5-.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",
