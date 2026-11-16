@@ -151,36 +151,20 @@ html.bbs-dark-active.mode-dark,
 /* 2. Root Canvas & Scrollbars */
 html.bbs-dark-active,
 html.bbs-dark-active body,
-html.bbs-dark-active .attendance-app body {
-  background-color: var(--palette-background-default) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .attendance-app body { background-color: var(--palette-background-default) !important; color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+html.bbs-dark-active ::-webkit-scrollbar { width: 8px; height: 8px; }
 
-html.bbs-dark-active ::-webkit-scrollbar-track {
-  background: #121214;
-}
+html.bbs-dark-active ::-webkit-scrollbar-track { background: #121214; }
 
-html.bbs-dark-active ::-webkit-scrollbar-thumb {
-  background: #2e2e34;
-  border-radius: 4px;
-}
+html.bbs-dark-active ::-webkit-scrollbar-thumb { background: #2e2e34; border-radius: 4px; }
 
-html.bbs-dark-active ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
-}
+html.bbs-dark-active ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
 
 /* 3. Left Navigation Sidebar (Preserves Native UoS Emerald Accent) */
 html.bbs-dark-active #global-nav-flyout,
 html.bbs-dark-active .left-off-canvas-menu,
-html.bbs-dark-active nav.Global-navigation {
-  background-color: #0e0e10 !important;
-  border-inline-end: 1px solid var(--palette-border-main) !important;
-}
+html.bbs-dark-active nav.Global-navigation { background-color: #0e0e10 !important; border-inline-end: 1px solid var(--palette-border-main) !important; }
 
 /* 4. Legacy Foundation / AngularJS Shell Surfaces */
 html.bbs-dark-active .tabs-content,
@@ -188,10 +172,7 @@ html.bbs-dark-active .off-canvas-overlay .right-off-canvas-menu,
 html.bbs-dark-active .bb-offcanvas-panel .bb-offcanvas-panel-content,
 html.bbs-dark-active .reveal-modal,
 html.bbs-dark-active .f-dropdown,
-html.bbs-dark-active .f-dropdown.content {
-  background-color: var(--palette-background-b1) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .f-dropdown.content { background-color: var(--palette-background-b1) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .tooltip,
 html.bbs-dark-active .inline-validation.f-dropdown.content,
@@ -219,24 +200,17 @@ html.bbs-dark-active .attendance-app .dropdown-wrapper .button.secondary {
   border: 1px solid var(--palette-border-main) !important;
 }
 
-html.bbs-dark-active .button.secondary:hover {
-  background-color: var(--palette-background-b4) !important;
-}
+html.bbs-dark-active .button.secondary:hover { background-color: var(--palette-background-b4) !important; }
 
 html.bbs-dark-active .button--secondary.disabled,
 html.bbs-dark-active .button--secondary[disabled],
 html.bbs-dark-active .attendance-app .dropdown-wrapper .button--secondary.disabled,
-html.bbs-dark-active .attendance-app .dropdown-wrapper .button--secondary[disabled] {
-  background-color: var(--palette-background-b3) !important;
-  color: var(--palette-text-disabled) !important;
-}
+html.bbs-dark-active .attendance-app .dropdown-wrapper .button--secondary[disabled] { background-color: var(--palette-background-b3) !important; color: var(--palette-text-disabled) !important; }
 
 html.bbs-dark-active .button--dashed:active,
 html.bbs-dark-active .button--dashed:focus:not(:hover),
 html.bbs-dark-active .is-empty-page .element-list-add-menu li a:active,
-html.bbs-dark-active .is-empty-page .element-list-add-menu li button:active {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active .is-empty-page .element-list-add-menu li button:active { background-color: var(--palette-background-b3) !important; }
 
 html.bbs-dark-active .alert-box.secondary,
 html.bbs-dark-active .label.secondary {
@@ -252,54 +226,36 @@ html.bbs-dark-active code {
 }
 
 html.bbs-dark-active .fs-table thead,
-html.bbs-dark-active .fs-table tfoot {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active .fs-table tfoot { background-color: var(--palette-background-b3) !important; }
 
-html.bbs-dark-active .reveal-modal__divider::before {
-  background: var(--palette-border-main) !important;
-}
+html.bbs-dark-active .reveal-modal__divider::before { background: var(--palette-border-main) !important; }
 
 html.bbs-dark-active .add-element .button-add-content .add-circle-default,
 html.bbs-dark-active .avatar.outline::before,
-html.bbs-dark-active .element-image.avatar.outline::before {
-  background-color: var(--palette-background-b1) !important;
-}
+html.bbs-dark-active .element-image.avatar.outline::before { background-color: var(--palette-background-b1) !important; }
 
 /* 5. Activity Stream & Courses Legacy Elements */
-html.bbs-dark-active .base-recent-activity .activity-stream .activity-group::after {
-  background-color: var(--palette-background-b3) !important;
-  border-color: var(--palette-border-dark) !important;
-}
+html.bbs-dark-active .base-recent-activity .activity-stream .activity-group::after { background-color: var(--palette-background-b3) !important; border-color: var(--palette-border-dark) !important; }
 
 html.bbs-dark-active .base-courses .course-columns.list-column-view .element-card .element-details .status-bar .course-status .status-icon,
 html.bbs-dark-active .base-courses .multi-column-view .course-org-list .element-card .element-details.summary .controls .info-icon,
 html.bbs-dark-active .usercard .header .element-details .userId,
 html.bbs-dark-active .usercard .header .element-details .profile,
-html.bbs-dark-active .student-card .student-info .info .profile {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .student-card .student-info .info .profile { color: var(--palette-text-secondary) !important; }
 
 html.bbs-dark-active bb-search-box > div > bb-svg-icon[icon="search"],
 html.bbs-dark-active bb-search-box > div > button,
-html.bbs-dark-active .filter-list-content .filter-panel-container .filter-panel-clear-all {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .filter-list-content .filter-panel-container .filter-panel-clear-all { color: var(--palette-text-secondary) !important; }
 
 html.bbs-dark-active .filter-list-content .filter-panel-container .filter-panel-item-checkbox .check-box-label,
 html.bbs-dark-active .slider-tab-navigation-small__tab:hover,
-html.bbs-dark-active .slider-tab-navigation-small__tab_active {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .slider-tab-navigation-small__tab_active { color: var(--palette-text-primary) !important; }
 
 /* 6. Attendance Grid (10818-*.css static hex overrides) */
 html.bbs-dark-active .attendance-app .grid__cell,
 html.bbs-dark-active .attendance-app .meeting-view-cell.-empty.-readonly,
 html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header.-exempt,
-html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header.-readonly {
-  background-color: var(--palette-background-b1) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header.-readonly { background-color: var(--palette-background-b1) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .attendance-app .grid__cell.-exempt,
 html.bbs-dark-active .attendance-app .meeting-view-cell.-empty,
@@ -313,30 +269,19 @@ html.bbs-dark-active .attendance-app .meeting-view-cell.-exempt:not(.-header):ho
 html.bbs-dark-active .attendance-app .meeting-view-cell.-exempt:not(.-header):focus,
 html.bbs-dark-active .attendance-app .meeting-view-cell.-exempt:not(.-header).-active,
 html.bbs-dark-active .attendance-app .meeting-view-grid .meeting-view-row.-empty .grid__cell.-header,
-html.bbs-dark-active .attendance-app .list-row__button--unmarked {
-  background-color: var(--palette-background-b3) !important;
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .attendance-app .list-row__button--unmarked { background-color: var(--palette-background-b3) !important; color: var(--palette-text-secondary) !important; }
 
 html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-excused,
 html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-incomplete.-readonly,
 html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-exempt,
 html.bbs-dark-active .attendance-app .meeting-view-cell.-active.-excused,
-html.bbs-dark-active .attendance-app .list-row__button--excused {
-  background-color: var(--palette-background-b4) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .attendance-app .list-row__button--excused { background-color: var(--palette-background-b4) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .attendance-app .overall-view-grid .grid__body .grid__row:hover .-record.-late,
 html.bbs-dark-active .attendance-app .meeting-view-cell.-active.-late,
-html.bbs-dark-active .attendance-app .list-row__button--late {
-  background-color: rgba(250, 204, 21, 0.2) !important;
-  color: #fde047 !important;
-}
+html.bbs-dark-active .attendance-app .list-row__button--late { background-color: rgba(250, 204, 21, 0.2) !important; color: #fde047 !important; }
 
-html.bbs-dark-active .attendance-app .attendance-grade-pill {
-  color: #121214 !important;
-}
+html.bbs-dark-active .attendance-app .attendance-grade-pill { color: #121214 !important; }
 
 html.bbs-dark-active .attendance-app .attendance-grade-pill.-empty {
   background-color: var(--palette-background-b3) !important;
@@ -344,10 +289,7 @@ html.bbs-dark-active .attendance-app .attendance-grade-pill.-empty {
   color: var(--palette-text-primary) !important;
 }
 
-html.bbs-dark-active .attendance-app .attendance-grade-pill.-pending {
-  background-color: var(--palette-background-b4) !important;
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .attendance-app .attendance-grade-pill.-pending { background-color: var(--palette-background-b4) !important; color: var(--palette-text-secondary) !important; }
 
 /* 7. Assessments, Submissions & Gradebook Legacy Rules */
 html.bbs-dark-active .student-submission .submission-to-grade .answer-to-grade,
@@ -371,10 +313,7 @@ html.bbs-dark-active .typeahead-search .typeahead-search-autocomplete .typeahead
 
 html.bbs-dark-active .rb-grid .rb-grid-scrollbar-placeholder-x,
 html.bbs-dark-active .rb-grid .rb-grid-scrollbar-placeholder-y,
-html.bbs-dark-active .not-graded-exempt {
-  background-color: var(--palette-background-b3) !important;
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .not-graded-exempt { background-color: var(--palette-background-b3) !important; color: var(--palette-text-secondary) !important; }
 
 html.bbs-dark-active .grade-grid-container .grade-grid-header-cell .grade-grid-header-summary button bb-svg-icon,
 html.bbs-dark-active .base-grades .base-grades-course-tile .grade-progress-chart-btn .grade-progress-chart-link bb-svg-icon,
@@ -382,9 +321,7 @@ html.bbs-dark-active *[bb-timed-test-indicator] *[bb-timed-test-indicator-label]
 html.bbs-dark-active .discussion-insights h2,
 html.bbs-dark-active .discussion-insights h3,
 html.bbs-dark-active .discussion-insights .discussion-insights-heading,
-html.bbs-dark-active .discussion-insights .non-participant .stacked bdi {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .discussion-insights .non-participant .stacked bdi { color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .notice__text,
 html.bbs-dark-active .percentage-label,
@@ -393,14 +330,10 @@ html.bbs-dark-active .grade-grid-search-box .typehead-title .grade-type,
 html.bbs-dark-active .grade-grid-search-box .no-result,
 html.bbs-dark-active .grade-grid-container .grade-grid-body-cell .exception-icon,
 html.bbs-dark-active .matching-attempt-review-pair__answer__text--ungraded .bb-editor-root .ql-editor.bb-editor,
-html.bbs-dark-active .matching-attempt-review-pair__answer__text--ungraded .selectboxArrowIcon {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .matching-attempt-review-pair__answer__text--ungraded .selectboxArrowIcon { color: var(--palette-text-secondary) !important; }
 
 /* 8. FullCalendar & Messages Legacy Rules */
-html.bbs-dark-active .calendar-wrapper .fullcalendar-container .fc-monthWithoutDD-view .fc-other-month.fc-day {
-  background-color: #0e0e10 !important;
-}
+html.bbs-dark-active .calendar-wrapper .fullcalendar-container .fc-monthWithoutDD-view .fc-other-month.fc-day { background-color: #0e0e10 !important; }
 
 html.bbs-dark-active .fc-unthemed .fc-popover,
 html.bbs-dark-active .fc-unthemed .fc-popover .fc-header {
@@ -419,28 +352,17 @@ html.bbs-dark-active .fc-state-default {
 
 html.bbs-dark-active .fc-state-hover,
 html.bbs-dark-active .fc-state-down,
-html.bbs-dark-active .fc-state-active {
-  background: var(--palette-background-b4) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .fc-state-active { background: var(--palette-background-b4) !important; color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active .messages-container-summary .messages-header .messages-off {
-  background-color: var(--palette-background-b3) !important;
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .messages-container-summary .messages-header .messages-off { background-color: var(--palette-background-b3) !important; color: var(--palette-text-secondary) !important; }
 
-html.bbs-dark-active .messages-container .conversation-container .message-card .message-info .message-meta-info .recipients {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .messages-container .conversation-container .message-card .message-info .message-meta-info .recipients { color: var(--palette-text-secondary) !important; }
 
 /* 9. Ally & Video Playback Containers */
 html.bbs-dark-active .bb-video-everywhere-playback,
 html.bbs-dark-active .ally-wysiwyg-feedback-quill-fullscreen,
 html.bbs-dark-active .ally-wysiwyg-feedback-quill-fullscreen .bb-editor-root .word-count,
-html.bbs-dark-active .ally-wysiwyg-feedback-atto-fullscreen {
-  background-color: var(--palette-background-b1) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .ally-wysiwyg-feedback-atto-fullscreen { background-color: var(--palette-background-b1) !important; color: var(--palette-text-primary) !important; }
 
 /* 10. Material-UI (MUI) Cards, Dialogs, Tables & Popovers */
 html.bbs-dark-active .MuiPaper-root,
@@ -460,63 +382,32 @@ html.bbs-dark-active .MuiMenu-paper {
   border: 1px solid var(--palette-border-main) !important;
 }
 
-html.bbs-dark-active .MuiTableCell-root {
-  color: var(--palette-text-primary) !important;
-  border-bottom: 1px solid var(--palette-border-main) !important;
-}
+html.bbs-dark-active .MuiTableCell-root { color: var(--palette-text-primary) !important; border-bottom: 1px solid var(--palette-border-main) !important; }
 
-html.bbs-dark-active .MuiTableCell-head {
-  color: var(--palette-text-secondary) !important;
-  background-color: var(--palette-background-b2) !important;
-}
+html.bbs-dark-active .MuiTableCell-head { color: var(--palette-text-secondary) !important; background-color: var(--palette-background-b2) !important; }
 
-html.bbs-dark-active .MuiTableRow-root:hover {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active .MuiTableRow-root:hover { background-color: var(--palette-background-b3) !important; }
 
-html.bbs-dark-active .MuiOutlinedInput-root {
-  background-color: var(--palette-background-b2) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .MuiOutlinedInput-root { background-color: var(--palette-background-b2) !important; color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active .MuiOutlinedInput-notchedOutline {
-  border-color: var(--palette-border-main) !important;
-}
+html.bbs-dark-active .MuiOutlinedInput-notchedOutline { border-color: var(--palette-border-main) !important; }
 
-html.bbs-dark-active .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: var(--palette-border-dark) !important;
-}
+html.bbs-dark-active .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline { border-color: var(--palette-border-dark) !important; }
 
-html.bbs-dark-active .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: var(--palette-focus-main) !important;
-}
+html.bbs-dark-active .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline { border-color: var(--palette-focus-main) !important; }
 
-html.bbs-dark-active .MuiInputLabel-root {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .MuiInputLabel-root { color: var(--palette-text-secondary) !important; }
 
-html.bbs-dark-active .MuiSelect-select {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .MuiSelect-select { color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active .MuiMenuItem-root {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .MuiMenuItem-root { color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .MuiMenuItem-root:hover,
-html.bbs-dark-active .MuiMenuItem-root.Mui-focusVisible {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active .MuiMenuItem-root.Mui-focusVisible { background-color: var(--palette-background-b3) !important; }
 
-html.bbs-dark-active .MuiMenuItem-root.Mui-selected {
-  background-color: rgba(38, 166, 154, 0.16) !important;
-  color: #26a69a !important;
-}
+html.bbs-dark-active .MuiMenuItem-root.Mui-selected { background-color: rgba(38, 166, 154, 0.16) !important; color: #26a69a !important; }
 
-html.bbs-dark-active .MuiChip-root {
-  background-color: var(--palette-background-b3) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .MuiChip-root { background-color: var(--palette-background-b3) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .MuiTooltip-tooltip {
   background-color: var(--palette-background-b3) !important;
@@ -535,10 +426,7 @@ html.bbs-dark-active [class*="calloutIsIconDropdown_"] {
 }
 
 html.bbs-dark-active .ms-Panel-header,
-html.bbs-dark-active .ms-Dialog-header {
-  background-color: var(--palette-background-b1) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .ms-Dialog-header { background-color: var(--palette-background-b1) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .ms-TextField-fieldGroup,
 html.bbs-dark-active .ms-Dropdown-title,
@@ -551,61 +439,35 @@ html.bbs-dark-active [class*="title_b5f9cc14"] {
 }
 
 html.bbs-dark-active .ms-Dropdown-items,
-html.bbs-dark-active .ms-ContextualMenu {
-  background-color: var(--palette-background-b1) !important;
-}
+html.bbs-dark-active .ms-ContextualMenu { background-color: var(--palette-background-b1) !important; }
 
 html.bbs-dark-active .ms-Dropdown-item,
-html.bbs-dark-active .ms-ContextualMenu-item {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .ms-ContextualMenu-item { color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .ms-Dropdown-item:hover,
-html.bbs-dark-active .ms-ContextualMenu-item:hover {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active .ms-ContextualMenu-item:hover { background-color: var(--palette-background-b3) !important; }
 
 html.bbs-dark-active [class*="choiceField_"]::before,
-html.bbs-dark-active [class*="field_b767b14a"]::before {
-  background-color: var(--palette-background-b2) !important;
-  border-color: var(--palette-border-main) !important;
-}
+html.bbs-dark-active [class*="field_b767b14a"]::before { background-color: var(--palette-background-b2) !important; border-color: var(--palette-border-main) !important; }
 
-html.bbs-dark-active [class*="footer_56e96089"] {
-  background-color: var(--palette-background-b1) !important;
-  border-color: var(--palette-border-main) !important;
-}
+html.bbs-dark-active [class*="footer_56e96089"] { background-color: var(--palette-background-b1) !important; border-color: var(--palette-border-main) !important; }
 
 /* 12. Rich Text & Content Editors */
 html.bbs-dark-active .ql-container,
 html.bbs-dark-active .ql-editor,
-html.bbs-dark-active .bb-editor-root {
-  background-color: var(--palette-background-b2) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .bb-editor-root { background-color: var(--palette-background-b2) !important; color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active .ql-toolbar {
-  background-color: var(--palette-background-b3) !important;
-  border-color: var(--palette-border-main) !important;
-}
+html.bbs-dark-active .ql-toolbar { background-color: var(--palette-background-b3) !important; border-color: var(--palette-border-main) !important; }
 
 html.bbs-dark-active .ql-toolbar button,
-html.bbs-dark-active .ql-toolbar .ql-picker-label {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .ql-toolbar .ql-picker-label { color: var(--palette-text-secondary) !important; }
 
 html.bbs-dark-active .ql-toolbar button:hover,
-html.bbs-dark-active .ql-toolbar .ql-picker-label:hover {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .ql-toolbar .ql-picker-label:hover { color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active .ql-snow .ql-stroke {
-  stroke: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .ql-snow .ql-stroke { stroke: var(--palette-text-secondary) !important; }
 
-html.bbs-dark-active .ql-snow .ql-fill {
-  fill: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active .ql-snow .ql-fill { fill: var(--palette-text-secondary) !important; }
 
 /* 13. Course Content Items, Course Faculty, and To-Do Sidebar (JSS & Emotion Components) */
 html.bbs-dark-active .content-list-item .itemContainer,
@@ -624,18 +486,14 @@ html.bbs-dark-active [class*="makeStylescomboboxInputDefaultColor-"] {
 
 html.bbs-dark-active .content-list-item .itemContainer:hover,
 html.bbs-dark-active [class*="makeStylesitemContainer-"]:hover,
-html.bbs-dark-active [class*="makeStylesnestedItemContainer-"]:hover {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active [class*="makeStylesnestedItemContainer-"]:hover { background-color: var(--palette-background-b3) !important; }
 
 html.bbs-dark-active [class*="makeStylesparentItem-"],
 html.bbs-dark-active [class*="makeStylesisOpen-"],
 html.bbs-dark-active [class*="makeStyleslistWrapper-"],
 html.bbs-dark-active [class*="makeStylescontentRoot-"],
 html.bbs-dark-active [class*="makeStylesauthoring-"],
-html.bbs-dark-active [class*="makeStylessubmissionValue-"] {
-  border-color: var(--palette-border-main) !important;
-}
+html.bbs-dark-active [class*="makeStylessubmissionValue-"] { border-color: var(--palette-border-main) !important; }
 
 html.bbs-dark-active [class*="makeStylescontentItemTitle-"],
 html.bbs-dark-active .ax-focusable-title,
@@ -648,9 +506,7 @@ html.bbs-dark-active [class*="makeStylesmessageLinkRoot-"],
 html.bbs-dark-active [class*="makeStylesaddCourseScheduleButton-"],
 html.bbs-dark-active [class*="makeStylessearchAction-"],
 html.bbs-dark-active .peek [class*="makeStylesheaderText-"],
-html.bbs-dark-active body:not(.is-in-mobile-app) [class*="makeStylesheaderText-"] {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active body:not(.is-in-mobile-app) [class*="makeStylesheaderText-"] { color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active [class*="makeStylesgradeDetail-"],
 html.bbs-dark-active [class*="makeStylesgradeInfo-"],
@@ -658,9 +514,7 @@ html.bbs-dark-active [class*="makeStylessubtext-"],
 html.bbs-dark-active [class*="makeStyleshelpText-"],
 html.bbs-dark-active [class*="makeStylesemptyListMessage-"],
 html.bbs-dark-active [class*="makeStylesisRestricted-"],
-html.bbs-dark-active [class*="makeStyleschevron-"] {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active [class*="makeStyleschevron-"] { color: var(--palette-text-secondary) !important; }
 
 html.bbs-dark-active .js-role-badge,
 html.bbs-dark-active [class*="makeStylesroleBadge-"],
@@ -682,23 +536,15 @@ html.bbs-dark-active [class*="makeStylessubmissionContent-"] {
 }
 
 html.bbs-dark-active [class*="makeStylesclosedStatus-"],
-html.bbs-dark-active [class*="makeStylesinputContainerDisabled-"] {
-  background-color: var(--palette-background-b4) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active [class*="makeStylesinputContainerDisabled-"] { background-color: var(--palette-background-b4) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .MuiAccordionDetails-root,
 html.bbs-dark-active .MuiCollapse-root,
 html.bbs-dark-active .MuiCollapse-wrapper,
-html.bbs-dark-active .MuiCollapse-wrapperInner {
-  background-color: var(--palette-background-b1) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .MuiCollapse-wrapperInner { background-color: var(--palette-background-b1) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .MuiInputLabel-root::before,
-html.bbs-dark-active .MuiInputLabel-shrink::before {
-  background: transparent !important;
-}
+html.bbs-dark-active .MuiInputLabel-shrink::before { background: transparent !important; }
 
 /* 14. Remaining Static CSS Hardcoded Selectors */
 html.bbs-dark-active .attendance-app .grid__cell,
@@ -710,10 +556,7 @@ html.bbs-dark-active .typeahead-search .typeahead-search-autocomplete .typeahead
 html.bbs-dark-active .fc-unthemed .fc-popover,
 html.bbs-dark-active .fc-time-grid-event .fc-bg,
 html.bbs-dark-active .tooltip,
-html.bbs-dark-active span.enhanced-tooltip {
-  background-color: var(--palette-background-b1) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active span.enhanced-tooltip { background-color: var(--palette-background-b1) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .attendance-app .grid__cell.-exempt,
 html.bbs-dark-active .attendance-app .meeting-view-cell.-empty,
@@ -723,10 +566,7 @@ html.bbs-dark-active .fs-table thead,
 html.bbs-dark-active .fs-table tfoot,
 html.bbs-dark-active .fs-table tr.even,
 html.bbs-dark-active .fs-table tr.alt,
-html.bbs-dark-active .fs-table tr:nth-of-type(even) {
-  background-color: var(--palette-background-b2) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .fs-table tr:nth-of-type(even) { background-color: var(--palette-background-b2) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active code,
 html.bbs-dark-active .panel,
@@ -735,61 +575,35 @@ html.bbs-dark-active .fc-unthemed .fc-popover .fc-header,
 html.bbs-dark-active .messages-container-summary .messages-header .messages-off,
 html.bbs-dark-active .calendar-wrapper .element-card-container,
 html.bbs-dark-active .attendance-app .list-row__button--excused,
-html.bbs-dark-active .attendance-app .list-row__button--unmarked {
-  background-color: var(--palette-background-b3) !important;
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .attendance-app .list-row__button--unmarked { background-color: var(--palette-background-b3) !important; color: var(--palette-text-primary) !important; }
 
 html.bbs-dark-active .wrapping-input-style,
 html.bbs-dark-active .wrapping-input-style input,
 html.bbs-dark-active .grade-callout,
-html.bbs-dark-active .grade-callout input {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active .grade-callout input { color: var(--palette-text-primary) !important; }
 
 /* 15. Computed-Style Fallback Attributes (Set by content.js for Dynamic/Cross-Origin Elements) */
-html.bbs-dark-active [data-bbs-bg="b1"] {
-  background-color: var(--palette-background-b1) !important;
-}
+html.bbs-dark-active [data-bbs-bg="b1"] { background-color: var(--palette-background-b1) !important; }
 
-html.bbs-dark-active [data-bbs-bg="b2"] {
-  background-color: var(--palette-background-b2) !important;
-}
+html.bbs-dark-active [data-bbs-bg="b2"] { background-color: var(--palette-background-b2) !important; }
 
-html.bbs-dark-active [data-bbs-bg="b3"] {
-  background-color: var(--palette-background-b3) !important;
-}
+html.bbs-dark-active [data-bbs-bg="b3"] { background-color: var(--palette-background-b3) !important; }
 
-html.bbs-dark-active [data-bbs-bg="b4"] {
-  background-color: var(--palette-background-b4) !important;
-}
+html.bbs-dark-active [data-bbs-bg="b4"] { background-color: var(--palette-background-b4) !important; }
 
-html.bbs-dark-active [data-bbs-fg="pri"] {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active [data-bbs-fg="pri"] { color: var(--palette-text-primary) !important; }
 
-html.bbs-dark-active [data-bbs-fg="sec"] {
-  color: var(--palette-text-secondary) !important;
-}
+html.bbs-dark-active [data-bbs-fg="sec"] { color: var(--palette-text-secondary) !important; }
 
-html.bbs-dark-active [data-bbs-fg="warn"] {
-  color: var(--palette-urgency-high) !important;
-}
+html.bbs-dark-active [data-bbs-fg="warn"] { color: var(--palette-urgency-high) !important; }
 
-html.bbs-dark-active [data-bbs-border="dark"] {
-  border-color: var(--palette-border-main) !important;
-}
+html.bbs-dark-active [data-bbs-border="dark"] { border-color: var(--palette-border-main) !important; }
 
 /* ---- Polish (2026-10-25): states that read clearly on dark ---- */
 
 /* Main menu: the selected page is a light bar and lighter row, not white text on bright green */
-html.bbs-dark-active a.base-navigation-button-content.active {
-  background-color: var(--palette-background-b4) !important;
-  box-shadow: inset 3px 0 0 var(--palette-text-primary) !important;
-}
-html.bbs-dark-active a.base-navigation-button-content.active * {
-  color: var(--palette-text-primary) !important;
-}
+html.bbs-dark-active a.base-navigation-button-content.active { background-color: var(--palette-background-b4) !important; box-shadow: inset 3px 0 0 var(--palette-text-primary) !important; }
+html.bbs-dark-active a.base-navigation-button-content.active * { color: var(--palette-text-primary) !important; }
 
 /* Two-way switches (Schedule / Due Dates, Day / Month): the selected half is light */
 html.bbs-dark-active button.active-switch,
@@ -808,38 +622,23 @@ html.bbs-dark-active button.date-selected {
 }
 
 /* Field labels on outlined inputs: no dark patch behind the label */
-html.bbs-dark-active .MuiOutlinedInput-notchedOutline > legend {
-  background: transparent !important;
-}
+html.bbs-dark-active .MuiOutlinedInput-notchedOutline > legend { background: transparent !important; }
 
 /* Count badges (new announcements): light with dark text */
-html.bbs-dark-active .MuiBadge-badge.themed-background-primary-fill {
-  background-color: var(--palette-text-primary) !important;
-  color: var(--palette-background-default) !important;
-}
+html.bbs-dark-active .MuiBadge-badge.themed-background-primary-fill { background-color: var(--palette-text-primary) !important; color: var(--palette-background-default) !important; }
 
 /* Grade pills keep their colour; their text stays dark so it can be read */
 html.bbs-dark-active .customGradePill,
-html.bbs-dark-active .customGradePill * {
-  color: #121214 !important;
-}
+html.bbs-dark-active .customGradePill * { color: #121214 !important; }
 
 /* Grades page "recently graded work will appear here": a quiet dashed box instead of bright stripes */
-html.bbs-dark-active .base-grades-empty-element {
-  background-image: none !important;
-  border: 1px dashed var(--palette-border-dark) !important;
-}
+html.bbs-dark-active .base-grades-empty-element { background-image: none !important; border: 1px dashed var(--palette-border-dark) !important; }
 
 /* Activity items: Blackboard's hover layer and icon tile are near-white, which hides the light text and icon */
-html.bbs-dark-active .stream-item-container .stream-item::before {
-  background-color: var(--palette-background-b4) !important;
-}
+html.bbs-dark-active .stream-item-container .stream-item::before { background-color: var(--palette-background-b4) !important; }
 
 html.bbs-dark-active .stream-item-container .element-image,
-html.bbs-dark-active .child-is-invokable:hover .element-image {
-  background-color: var(--palette-background-b1) !important;
-  outline: 1px solid var(--palette-border-main);
-}
+html.bbs-dark-active .child-is-invokable:hover .element-image { background-color: var(--palette-background-b1) !important; outline: 1px solid var(--palette-border-main); }
 
 /* Unified Blackboarder Activity Preloader (injected at document_start so Blackboard's spinner never shows first) */
 html:has(#bbs-activity-preloader) .loading-spinner,
@@ -847,10 +646,7 @@ html:has(#bbs-activity-preloader) .bb-loading-spinner,
 html:has(#bbs-activity-preloader) .loading-indicator,
 html:has(#bbs-activity-preloader) #initial-load-spinner,
 html:has(#bbs-activity-preloader) [class*="loadingSpinner"],
-html:has(#bbs-activity-preloader) [class*="loading-placeholder"] {
-  opacity: 0 !important;
-  visibility: hidden !important;
-}
+html:has(#bbs-activity-preloader) [class*="loading-placeholder"] { opacity: 0 !important; visibility: hidden !important; }
 
 #bbs-activity-preloader {
   position: fixed;
@@ -863,9 +659,7 @@ html:has(#bbs-activity-preloader) [class*="loading-placeholder"] {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-html.bbs-dark-active #bbs-activity-preloader {
-  background: #121215;
-}
+html.bbs-dark-active #bbs-activity-preloader { background: #121215; }
 
 #bbs-activity-preloader .bbs-af-preloader-card {
   width: 420px;
@@ -893,10 +687,7 @@ html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-card {
   border-radius: 0 !important;
 }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-header {
-  background: #121215;
-  border-bottom-color: #2c2c36;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-header { background: #121215; border-bottom-color: #2c2c36; }
 
 #bbs-activity-preloader .bbs-af-preloader-brand {
   font-size: 10.5px;
@@ -906,9 +697,7 @@ html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-header {
   color: #52525b;
 }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-brand {
-  color: #a1a1aa;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-brand { color: #a1a1aa; }
 
 #bbs-activity-preloader .bbs-af-preloader-skip {
   padding: 3px 9px;
@@ -921,20 +710,11 @@ html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-brand {
   cursor: pointer;
 }
 
-#bbs-activity-preloader .bbs-af-preloader-skip:hover {
-  color: #18181b;
-  border-color: #18181b;
-}
+#bbs-activity-preloader .bbs-af-preloader-skip:hover { color: #18181b; border-color: #18181b; }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-skip {
-  color: #a1a1aa;
-  border-color: #3f3f4c;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-skip { color: #a1a1aa; border-color: #3f3f4c; }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-skip:hover {
-  color: #f4f4f5;
-  border-color: #f4f4f5;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-skip:hover { color: #f4f4f5; border-color: #f4f4f5; }
 
 #bbs-activity-preloader .bbs-af-preloader-body {
   padding: 16px 14px;
@@ -955,9 +735,7 @@ html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-skip:hover {
   color: #52525b;
 }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-sub {
-  color: #a1a1aa;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-sub { color: #a1a1aa; }
 
 #bbs-activity-preloader .bbs-af-preloader-track {
   width: 100%;
@@ -968,9 +746,7 @@ html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-sub {
   overflow: hidden;
 }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-track {
-  background: #2c2c36;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-track { background: #2c2c36; }
 
 #bbs-activity-preloader .bbs-af-preloader-fill {
   height: 100%;
@@ -980,9 +756,7 @@ html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-track {
   transition: width 0.18s linear;
 }
 
-html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-fill {
-  background: #f4f4f6;
-}
+html.bbs-dark-active #bbs-activity-preloader .bbs-af-preloader-fill { background: #f4f4f6; }
 
 #bbs-activity-preloader .bbs-af-preloader-meta {
   font-size: 11px;

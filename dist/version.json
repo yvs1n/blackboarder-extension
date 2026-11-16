@@ -1,18 +1,22 @@
 {
-  "version": "1.8.6",
-  "build": "710575b0d6ea",
-  "commit": "55d06ed5e6c1b288cf73309f11ad1146faecf569",
-  "shortCommit": "55d06ed",
-  "timestamp": "2026-11-16T19:22:23.728Z",
-  "message": "v1.8.6: Restrict Marks delete button strictly to bonus marks and protect gbcol items from auto-tombstoning",
+  "version": "1.8.7",
+  "build": "6623dd06d034",
+  "commit": "a1889f8032259c1dc105f4fa55508cfbf7c4274d",
+  "shortCommit": "a1889f8",
+  "timestamp": "2026-11-16T19:46:36.986Z",
+  "message": "v1.8.6: Fix re-scanned gradebook marks jumping above newer assessments",
   "changelog": [
-    "Windows Widget Automatic Self-Update (windows-widget/SelfUpdater.cs, windows-widget/TrayApplicationContext.cs, windows-widget/SettingsForm.cs): Added automatic GitHub Releases self-updating for BlackboarderWidget.exe (yvs1n/blackboarder-extension/releases/latest), checking on startup and every 3 hours when idle, validating the downloaded PE executable size and MZ header, swapping the in-use binary safely on NTFS, relaunching automatically, and providing an Auto-Update toggle plus Check for Updates action in both Settings and the system tray menu. Synchronized <Version> in BlackboarderWidget.csproj with package.json during npm run build."
+    "Unified Activity Stream Preloader & Smarter Course Filter (src/content/activityFilter.ts, src/content/blackboard-dark.js): Replaced Blackboard's default Activity loading flicker with a unified Swiss Grid preloader from document_start until courses and notification batches finish loading in the background, seeded course chips immediately from active enrollments, and excluded non-academic tiles (Orientation, University).",
+    "Bonus Marks & Bonus Deadlines with Target Selection and Quick Score Entry (src/popup/, src/mobile/, src/utils/marks.ts, src/utils/grades.ts): Added pure points vs. percentage (%) bonus selection, Bonus On What category targeting (Course Total or any syllabus component), optional due-date linking from Add Bonus Mark so bonus quizzes appear in Calendar & Deadlines, optional quick score entry on completing manual assessments (+ Score), and bonus mark deletion with instant Undo in both extension and companion app.",
+    "Modularity & Accessibility Hardening (scripts/lint-check.js, src/content/, src/core/, src/engine/, src/popup/modules/marksModals.ts, src/utils/taskMarkSanitize.ts): Split oversized modules so every .ts, .js, and .css source file stays <= 800 lines, enforced the modularity limit in lint-check.js, removed dead code, and upgraded interactive labels and controls across modals and content UI.",
+    "Windows & Cross-Platform Widget Design Alignment (windows-widget/, widgets/, src/worker/01-widgets-wallpaper.js): Aligned Windows native desktop/lock-screen widgets, SVG/Android cards, and iOS Scriptable widgets with the Blackboarder Swiss Grid and frosted Liquid Glass visual spec.",
+    "Quiz Instruction Merging, Gradebook Protection, & Chronological Marks Ordering (src/scan/scanPipeline.ts, src/engine/localDateTime.ts, src/utils/taskMerge.ts, src/utils/marks.ts): Merged undated and topic-listing quiz announcements cleanly onto matching deadlines without duplicates, fixed HTML line-break and ordinal/multi-date extraction edge cases, prevented bonus tasks from matching or deleting official Blackboard gradebook marks, and stopped re-scanned gradebook marks without due dates from jumping above newer assessments in Marks."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
+    "assets/popup-BZh5Iios.js",
     "assets/popup-Bgx76PUk.css",
-    "assets/popup-zYxgi26h.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

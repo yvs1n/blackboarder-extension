@@ -278,6 +278,30 @@ if (!HAS_WEB) {
   fail('mobile-web/index.html is missing canonical link or JSON-LD structured data');
 }
 
+// 8. Modularity File Line-Limit Guard (<= 800 lines for src/**/*.{ts,js,css})
+console.log('\n--- Checking Source File Modularity (<= 800 lines) ---');
+const MAX_SOURCE_LINES = 800;
+const oversizedFiles = [];
+function scanSourceLineLimits(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      scanSourceLineLimits(full);
+    } else if (/\.(?:ts|js|css)$/i.test(entry.name)) {
+      const count = fs.readFileSync(full, 'utf8').split(/\r?\n/).length;
+      if (count > MAX_SOURCE_LINES) {
+        oversizedFiles.push(`${path.relative(ROOT, full).replace(/\\/g, '/')} (${count} lines)`);
+      }
+    }
+  }
+}
+scanSourceLineLimits(path.join(ROOT, 'src'));
+if (oversizedFiles.length === 0) {
+  pass(`All src/**/*.{ts,js,css} modules are <= ${MAX_SOURCE_LINES} lines`);
+} else {
+  fail(`Source files exceed ${MAX_SOURCE_LINES} lines`, oversizedFiles);
+}
+
 console.log('\n----------------------------------------');
 if (hasError) {
   console.error('\x1b[31mLint & Hygiene Check Failed!\x1b[0m\n');

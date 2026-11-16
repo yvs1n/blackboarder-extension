@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.7] - 2026-11-16
+
+### Added
+
+- **Unified Activity Stream Preloader & Smarter Course Filter (`src/content/activityFilter.ts`, `src/content/blackboard-dark.js`):** Replaced Blackboard's default Activity loading flicker with a unified Swiss Grid preloader from `document_start` until courses and notification batches finish loading in the background, seeded course chips immediately from active enrollments, and excluded non-academic tiles (Orientation, University).
+- **Bonus Marks & Bonus Deadlines with Target Selection and Quick Score Entry (`src/popup/`, `src/mobile/`, `src/utils/marks.ts`, `src/utils/grades.ts`):** Added pure points vs. percentage (`%`) bonus selection, **Bonus On What** category targeting (`Course Total` or any syllabus component), optional due-date linking from Add Bonus Mark so bonus quizzes appear in Calendar & Deadlines, optional quick score entry on completing manual assessments (`+ Score`), and bonus mark deletion with instant Undo in both extension and companion app.
+- **Modularity & Accessibility Hardening (`scripts/lint-check.js`, `src/content/`, `src/core/`, `src/engine/`, `src/popup/modules/marksModals.ts`, `src/utils/taskMarkSanitize.ts`):** Split oversized modules so every `.ts`, `.js`, and `.css` source file stays `<= 800` lines, enforced the modularity limit in `lint-check.js`, removed dead code, and upgraded interactive labels and controls across modals and content UI.
+
+### Changed
+
+- **Windows & Cross-Platform Widget Design Alignment (`windows-widget/`, `widgets/`, `src/worker/01-widgets-wallpaper.js`):** Aligned Windows native desktop/lock-screen widgets, SVG/Android cards, and iOS Scriptable widgets with the Blackboarder Swiss Grid and frosted Liquid Glass visual spec.
+
+### Fixed
+
+- **Quiz Instruction Merging, Gradebook Protection, & Chronological Marks Ordering (`src/scan/scanPipeline.ts`, `src/engine/localDateTime.ts`, `src/utils/taskMerge.ts`, `src/utils/marks.ts`):** Merged undated and topic-listing quiz announcements cleanly onto matching deadlines without duplicates, fixed HTML line-break and ordinal/multi-date extraction edge cases, prevented bonus tasks from matching or deleting official Blackboard gradebook marks, and stopped re-scanned gradebook marks without due dates from jumping above newer assessments in Marks.
+
+---
+
 ## [1.8.6] - 2026-11-15
 
 ### Added
