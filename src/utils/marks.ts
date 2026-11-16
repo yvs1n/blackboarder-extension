@@ -291,3 +291,71 @@ export function formatScore(score?: number, max?: number): string {
   const f = (n?: number) => (n === undefined ? '-' : String(round1(n)));
   return `${f(score)} / ${f(max)}`;
 }
+
+export interface DeleteMarkResult {
+  tasks: DeadlineTask[];
+  action: 'deleted' | 'cleared' | 'none';
+  previousTask?: DeadlineTask;
+  title?: string;
+}
+
+/**
+ * Deletes a mark from the Grades card:
+ * - Standalone bonus/gradebook items are removed completely (caller records tombstone).
+ * - Scheduled/announced deadlines keep the deadline intact while clearing the recorded mark
+ *   and remembering any linked Blackboard grade column so future scans do not re-apply it.
+ */
+export function deleteMarkFromTasks(tasks: DeadlineTask[], markId: string): DeleteMarkResult {
+  const list = Array.isArray(tasks) ? tasks : [];
+  const target = list.find(t => t && t.id === markId);
+  if (!target) return { tasks: list, action: 'none' };
+
+  const previousTask: DeadlineTask = {
+    ...target,
+    ...(target.gradeSourcesBefore ? { gradeSourcesBefore: [...target.gradeSourcesBefore] } : {}),
+    ...(target.dismissedGradeSources ? { dismissedGradeSources: [...target.dismissedGradeSources] } : {})
+  };
+
+  const isStandaloneMark =
+    target.id.startsWith('task_bonus_') ||
+    target.id.startsWith('gbcol_') ||
+    target.id.startsWith('gb_') ||
+    target.sourceSnippet === 'gradebook' ||
+    (target.extractedBy as string) === 'gradebook' ||
+    (Boolean(target.isBonus) && !target.announcementId && target.type === 'other') ||
+    !target.dueDate;
+
+  if (isStandaloneMark) {
+    return {
+      tasks: list.filter(t => t.id !== markId),
+      action: 'deleted',
+      previousTask,
+      title: target.title
+    };
+  }
+
+  const nextTask: DeadlineTask = { ...target };
+  delete nextTask.score;
+  delete nextTask.maxScore;
+  delete nextTask.scoreDisplay;
+  delete nextTask.gradedAt;
+  delete nextTask.markProvisional;
+  delete nextTask.submissionStatus;
+  delete nextTask.submittedAt;
+  delete nextTask.submissionReceipt;
+  if (target.gradeSourceId) {
+    nextTask.dismissedGradeSources = Array.from(
+      new Set([...(target.dismissedGradeSources || []), target.gradeSourceId])
+    );
+    delete nextTask.gradeSourceId;
+  }
+  nextTask.userEdited = true;
+  nextTask.updatedAt = new Date().toISOString();
+
+  return {
+    tasks: list.map(t => (t.id === markId ? nextTask : t)),
+    action: 'cleared',
+    previousTask,
+    title: target.title
+  };
+}

@@ -340,8 +340,9 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
   for (const update of updates) {
     const src = update.sourceId;
     const seenEarly = (t: DeadlineTask) => Boolean(src && (t.gradeSourcesBefore || []).includes(src));
+    const isDismissed = (t: DeadlineTask) => Boolean(src && (t.dismissedGradeSources || []).includes(src));
     if (update.submissionStatus === 'submitted') {
-      const matches = findAllTasksForUpdate(tasks, update, () => true);
+      const matches = findAllTasksForUpdate(tasks, update, t => !isDismissed(t));
       for (const match of matches) {
         const hadSpuriousMark = match.submissionStatus === 'graded' || match.score !== undefined || match.maxScore !== undefined || match.scoreDisplay !== undefined;
         const changed = match.submissionStatus !== 'submitted' ||
@@ -366,6 +367,7 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
     }
 
     const match = findTaskForUpdate(tasks, update, t => {
+      if (isDismissed(t)) return false;
       if (src && t.id.endsWith(src.replace(/^gb:/, ''))) return true;
       return !(src && t.gradeSourceId && t.gradeSourceId !== src && !gradedLater(t, update) && !(t.markProvisional && !seenEarly(t))) &&
         !(seenEarly(t) && (gradedBeforeItem(t, update, nowMs) || (!update.gradedAt && !!t.gradeSourceId)));

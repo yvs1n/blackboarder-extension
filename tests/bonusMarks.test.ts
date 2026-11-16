@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildMarksSummary } from '../src/utils/marks';
+import { buildMarksSummary, deleteMarkFromTasks } from '../src/utils/marks';
+import { applySubmissionUpdates } from '../src/utils/gradebook';
 import { buildGpaSummary, UOS_GRADE_SCALE } from '../src/utils/gpa';
 import { calculateCourseTargetAnalysis } from '../src/core/targetGpa';
 import { userCoursesToSyllabi, setActiveUserCourses } from '../src/core/userCourses';
@@ -325,5 +326,103 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     expect(sanitized[0].bonusTargetLabel).toBe('Course Total');
     expect(sanitized[1].bonusTarget).toBeUndefined();
     expect(sanitized[1].bonusTargetLabel).toBeUndefined();
+  });
+
+  it('deletes standalone bonus/gradebook marks and clears marks from scheduled deadlines cleanly', () => {
+    const bonusTask = {
+      id: 'task_bonus_12345',
+      title: 'Participation Bonus',
+      courseName: 'Computer Networks',
+      courseCode: 'CS301',
+      dueDate: '2026-11-16T10:00:00Z',
+      type: 'other',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 2,
+      maxScore: 2,
+      weight: 2,
+      isBonus: true,
+      bonusTarget: 'total',
+      bonusTargetLabel: 'Course Total',
+      extractedBy: 'manual'
+    } as unknown as DeadlineTask;
+
+    const gbColTask = {
+      id: 'gbcol_CS301__999_1',
+      title: 'Lab Exercise 1',
+      courseName: 'Computer Networks',
+      courseCode: 'CS301',
+      dueDate: '',
+      type: 'lab',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      gradeSourceId: 'gb:_999_1',
+      sourceSnippet: 'gradebook'
+    } as unknown as DeadlineTask;
+
+    const scheduledQuiz = {
+      id: 'task_quiz1',
+      title: 'Quiz 1',
+      courseName: 'Computer Networks',
+      courseCode: 'CS301',
+      dueDate: '2026-10-10T10:00:00Z',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 8,
+      maxScore: 10,
+      weight: 10,
+      gradeSourceId: 'gb:_101_1'
+    } as unknown as DeadlineTask;
+
+    const list = [bonusTask, gbColTask, scheduledQuiz];
+
+    // 0. gradesHtml exposes delete buttons for bonus & regular marks
+    const html = gradesHtml(
+      buildGpaSummary(list, syllabi, UOS_GRADE_SCALE),
+      buildMarksSummary(list, syllabi),
+      () => '#2563eb'
+    );
+    expect(html).toContain('class="btn-delete-mark" data-mark-id="task_bonus_12345"');
+    expect(html).toContain('class="btn-delete-mark" data-mark-id="task_quiz1"');
+
+    // 1. Standalone bonus mark is removed completely
+    const delBonus = deleteMarkFromTasks(list, 'task_bonus_12345');
+    expect(delBonus.action).toBe('deleted');
+    expect(delBonus.tasks.some(t => t.id === 'task_bonus_12345')).toBe(false);
+
+    // 2. Standalone gradebook mark is removed completely
+    const delGb = deleteMarkFromTasks(delBonus.tasks, 'gbcol_CS301__999_1');
+    expect(delGb.action).toBe('deleted');
+    expect(delGb.tasks).toHaveLength(1);
+
+    // 3. Scheduled deadline keeps its deadline while clearing score & dismissing gradeSourceId
+    const clearQuiz = deleteMarkFromTasks(delGb.tasks, 'task_quiz1');
+    expect(clearQuiz.action).toBe('cleared');
+    expect(clearQuiz.tasks).toHaveLength(1);
+    const cleanedQuiz = clearQuiz.tasks[0];
+    expect(cleanedQuiz.dueDate).toBe('2026-10-10T10:00:00Z');
+    expect(cleanedQuiz.score).toBeUndefined();
+    expect(cleanedQuiz.maxScore).toBeUndefined();
+    expect(cleanedQuiz.submissionStatus).toBeUndefined();
+    expect(cleanedQuiz.gradeSourceId).toBeUndefined();
+    expect(cleanedQuiz.dismissedGradeSources).toEqual(['gb:_101_1']);
+
+    // 4. Re-scanning the dismissed Blackboard grade column must not re-apply the deleted mark
+    const updates = [{
+      courseCode: 'CS301',
+      courseName: 'Computer Networks',
+      title: 'Quiz 1',
+      submissionStatus: 'graded' as const,
+      score: 8,
+      maxScore: 10,
+      sourceId: 'gb:_101_1'
+    }];
+    const updatedCount = applySubmissionUpdates(clearQuiz.tasks, updates);
+    expect(updatedCount).toBe(0);
+    expect(clearQuiz.tasks[0].score).toBeUndefined();
+    expect(clearQuiz.tasks[0].submissionStatus).toBeUndefined();
   });
 });

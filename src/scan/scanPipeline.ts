@@ -181,7 +181,11 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
   // Which gradebook marks found no deadline (shown in the scan message and the console)
   const gradebookMarks = submissionUpdates.filter(u => u.sourceId && u.submissionStatus === 'graded');
   const unmatchedMarks = gradebookMarks.filter(u =>
-    !finalTasks.some(t => t.gradeSourceId === u.sourceId || (t.gradeSourcesBefore || []).includes(u.sourceId!))
+    !finalTasks.some(t =>
+      t.gradeSourceId === u.sourceId ||
+      (t.gradeSourcesBefore || []).includes(u.sourceId!) ||
+      (t.dismissedGradeSources || []).includes(u.sourceId!)
+    )
   );
 
   // Preserve unannounced gradebook marks in the Grades card without creating fake calendar deadlines:

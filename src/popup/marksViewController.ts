@@ -11,7 +11,8 @@ import {
 import { calculateTrajectoryTargetPlan } from '../core/targetGpa';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { buildGpaSummary } from '../utils/gpa';
-import { buildMarksSummary } from '../utils/marks';
+import { buildMarksSummary, deleteMarkFromTasks } from '../utils/marks';
+import { recordLocalTombstone, removeLocalTombstone } from '../utils/tombstones';
 import { gradesBadgeText, gradesHtml, archivedSemesterHtml } from '../utils/grades';
 import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
 import { compareTasksByTime } from '../utils/calendar';
@@ -32,7 +33,7 @@ export interface MarksControllerHooks {
   renderTasks: () => void;
   refreshAllViews: () => void;
   syncCloud: (tasks: DeadlineTask[], reason: string) => void;
-  showToast: (msg: string) => void;
+  showToast: (msg: string, actionLabel?: string, onAction?: () => void | Promise<void>) => void;
   getSelectedSemesterId: () => string;
   setSelectedSemesterId: (id: string) => void;
 }
@@ -270,6 +271,48 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     const bonusTriggerBtn = (e.target as HTMLElement).closest('.btn-add-bonus-trigger') as HTMLElement | null;
     if (bonusTriggerBtn) {
       openBonusModal();
+      return;
+    }
+
+    const delMarkBtn = (e.target as HTMLElement).closest('.btn-delete-mark') as HTMLElement | null;
+    if (delMarkBtn) {
+      const markId = delMarkBtn.getAttribute('data-mark-id') || '';
+      if (!markId) return;
+      const res = deleteMarkFromTasks(hooks.getTasks(), markId);
+      if (res.action === 'none' || !res.previousTask) return;
+      const prev = res.previousTask;
+
+      if (res.action === 'deleted') {
+        await recordLocalTombstone(markId);
+      }
+      const saved = await hooks.saveTasks(res.tasks);
+      renderGradeTracker(saved, hooks);
+      hooks.renderTasks();
+      hooks.refreshAllViews();
+      hooks.syncCloud(saved, res.action === 'deleted' ? 'Deleted Mark' : 'Cleared Mark');
+
+      const label = (res.title || 'Mark').slice(0, 24);
+      hooks.showToast(
+        res.action === 'deleted' ? `Deleted mark "${label}"` : `Removed mark on "${label}"`,
+        'Undo',
+        async () => {
+          if (res.action === 'deleted') {
+            await removeLocalTombstone(prev.id);
+          }
+          const current = hooks.getTasks().filter(t => t.id !== prev.id);
+          const restored = deduplicateTaskList([
+            ...current,
+            { ...prev, updatedAt: new Date().toISOString() }
+          ]);
+          restored.sort(compareTasksByTime);
+          const savedRestore = await hooks.saveTasks(restored);
+          renderGradeTracker(savedRestore, hooks);
+          hooks.renderTasks();
+          hooks.refreshAllViews();
+          hooks.syncCloud(savedRestore, 'Restored Mark');
+          hooks.showToast('Mark restored');
+        }
+      );
       return;
     }
 

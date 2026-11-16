@@ -193,8 +193,9 @@ function isDeleted(task: DeadlineTask, tombstones: TombstoneMap): boolean {
 // omission is deliberate (the user cleared it or a bogus mark was dropped) and must propagate.
 const OPTIONAL_FIELDS = [
   'room', 'notes', 'weight', 'weightDisplay', 'syllabusNote',
-  'isBonus', 'bonusTarget', 'bonusTargetLabel',
-  'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId', 'markProvisional'
+  'isBonus', 'bonusTarget', 'bonusTargetLabel', 'dismissedGradeSources',
+  'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId', 'markProvisional',
+  'submittedAt', 'submissionReceipt'
 ] as const;
 
 // Fields that fill a gap on a locally-newer task without overriding local edits.
@@ -769,6 +770,10 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     ...(existing.gradeSourcesBefore || []),
     ...(incoming.gradeSourcesBefore || [])
   ]));
+  const dismissedGradeSources = Array.from(new Set([
+    ...(existing.dismissedGradeSources || []),
+    ...(incoming.dismissedGradeSources || [])
+  ]));
   const submissionReceipt = existing.submissionReceipt || incoming.submissionReceipt;
   const submittedAt = existing.submittedAt || incoming.submittedAt;
 
@@ -804,6 +809,7 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   delete merged.gradeSourceId;
   delete merged.markProvisional;
   delete merged.gradeSourcesBefore;
+  delete merged.dismissedGradeSources;
   delete merged.submissionReceipt;
   delete merged.submittedAt;
 
@@ -815,6 +821,7 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   if (gradeSourceId) merged.gradeSourceId = gradeSourceId;
   if (markProvisional !== undefined) merged.markProvisional = markProvisional;
   if (gradeSourcesBefore.length) merged.gradeSourcesBefore = gradeSourcesBefore;
+  if (dismissedGradeSources.length) merged.dismissedGradeSources = dismissedGradeSources;
   if (submissionReceipt) merged.submissionReceipt = submissionReceipt;
   if (submittedAt) merged.submittedAt = submittedAt;
 

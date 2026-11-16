@@ -39,7 +39,7 @@ export function getMarksControllerHooks() {
     renderTasks: () => popupActions.renderTasks(),
     refreshAllViews: () => popupActions.refreshAllViews(),
     syncCloud: (tasks: DeadlineTask[], reason: string) => popupActions.syncTasksToCloud(tasks, reason),
-    showToast: (msg: string) => popupActions.showToast(msg),
+    showToast: (msg: string, actionLabel?: string, onAction?: () => void | Promise<void>) => popupActions.showToast(msg, actionLabel, onAction),
     getSelectedSemesterId: () => popupState.selectedSemesterViewId,
     setSelectedSemesterId: (id: string) => { popupState.selectedSemesterViewId = id; },
   };

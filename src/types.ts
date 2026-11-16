@@ -184,6 +184,7 @@ export interface DeadlineTask {
   markProvisional?: boolean; // Mark from a column first seen graded before the item's date; any other column replaces it // When Blackboard says that column was graded; a later-graded column replaces an earlier one
   gradeSourceId?: string; // Gradebook column the mark came from ("gb:_123_1"); only that column updates it
   gradeSourcesBefore?: string[]; // Gradebook columns already graded before this task's date (a practice run), never applied to it
+  dismissedGradeSources?: string[]; // Gradebook columns whose marks the student deleted explicitly
   isBonus?: boolean; // Bonus mark / extra credit (adds to earned course points without increasing required weight)
   bonusTarget?: string; // 'total' (pure extra credit on final %) or 'comp:<id>' / 'type:<taskType>'
   bonusTargetLabel?: string; // Human-readable target label (e.g. 'Course Total', 'Quizzes')
