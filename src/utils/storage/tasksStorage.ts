@@ -96,8 +96,9 @@ export async function saveTasksMergingLatest(tasks: DeadlineTask[]): Promise<Dea
   const post = purgeSyntheticGradebookTasks(merged);
   const cleaned = deduplicateTaskList(post.cleaned);
   const dedupedAwayIds = post.cleaned
+    .filter(t => t && t.id && !(t.id.startsWith('gbcol_') && t.sourceSnippet === 'gradebook'))
     .map(t => t.id)
-    .filter(id => Boolean(id) && !cleaned.some(c => c.id === id));
+    .filter(id => !cleaned.some(c => c.id === id));
   const purgedIds = [...pre.purgedIds, ...post.purgedIds, ...dedupedAwayIds];
   if (purgedIds.length > 0) {
     // Tombstone what was purged, as the cloud path does, so the cloud copy cannot bring it back next cycle

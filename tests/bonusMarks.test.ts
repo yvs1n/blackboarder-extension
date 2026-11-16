@@ -488,9 +488,11 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     expect(gpaSummary.courses[0].earnedWeight).toBe(34);
     expect(gpaSummary.courses[0].percent).toBe(85);
 
-    // 2. Deadline-linked bonus does not render .btn-delete-mark in Marks (deleted via deadline itself)
+    // 2. Every bonus item renders .btn-delete-mark in Marks, while normal Blackboard items never do
     const html = gradesHtml(gpaSummary, marksSummary, () => '#2563eb');
-    expect(html).not.toContain('class="btn-delete-mark" data-mark-id="task_manual_bonus_quiz"');
+    expect(html).toContain('class="btn-delete-mark" data-mark-id="task_manual_bonus_quiz"');
+    expect(html).not.toContain('class="btn-delete-mark" data-mark-id="t_q1"');
+    expect(html).not.toContain('class="btn-delete-mark" data-mark-id="t_mid"');
     expect(html).toContain('+10%');
 
     // 3. Completion score prompt checks: manual ungraded assessment/bonus = true; scanned or already graded = false

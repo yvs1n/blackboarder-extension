@@ -392,9 +392,9 @@ export function deleteMarkFromTasks(tasks: DeadlineTask[], markId: string): Dele
     ...(target.dismissedGradeSources ? { dismissedGradeSources: [...target.dismissedGradeSources] } : {})
   };
 
-  const isStandaloneMark = isStandaloneMarkTask(target);
+  const shouldDeleteTask = Boolean(target.isBonus) || isStandaloneMarkTask(target);
 
-  if (isStandaloneMark) {
+  if (shouldDeleteTask) {
     return {
       tasks: list.filter(t => t.id !== markId),
       action: 'deleted',

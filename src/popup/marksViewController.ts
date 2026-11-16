@@ -283,7 +283,8 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
       const prev = res.previousTask;
 
       if (res.action === 'deleted') {
-        await recordLocalTombstone(markId);
+        const prevTs = new Date(prev.updatedAt || prev.createdAt || 0).getTime() || 0;
+        await recordLocalTombstone(markId, new Date(Math.max(Date.now(), prevTs + 1000)).toISOString());
       }
       const saved = await hooks.saveTasks(res.tasks);
       renderGradeTracker(saved, hooks);
