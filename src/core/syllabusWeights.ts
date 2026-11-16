@@ -369,7 +369,7 @@ export function bonusTargetOptionsForCourse(courseName?: string, courseCode?: st
 /** Formats a task's weight/bonus display string consistently across cards, calendar, and exports. */
 export function formatTaskWeightDisplay(
   weight?: number,
-  options?: { isBonus?: boolean; bonusTarget?: string; bonusTargetLabel?: string }
+  options?: { isBonus?: boolean; bonusUnit?: 'points' | 'percent'; bonusTarget?: string; bonusTargetLabel?: string }
 ): string | undefined {
   if (typeof weight !== 'number' || isNaN(weight) || weight <= 0) return undefined;
   const cleanWeight = Math.round(weight * 100) / 100;
@@ -378,7 +378,8 @@ export function formatTaskWeightDisplay(
       (options.bonusTarget && options.bonusTarget !== 'total'
         ? options.bonusTarget.replace(/^(?:comp:|compname:|type:)/, '')
         : 'Course Total');
-    return `+${cleanWeight} Bonus (${targetLabel})`;
+    const unitSuffix = options.bonusUnit === 'percent' ? '%' : ' pts';
+    return `+${cleanWeight}${unitSuffix} Bonus (${targetLabel})`;
   }
   return `${cleanWeight}% of Grade`;
 }

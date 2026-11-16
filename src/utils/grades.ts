@@ -29,24 +29,41 @@ function markRowsHtml(course: CourseMarks | undefined): string {
     return '<div class="marks-empty" style="font-size: 11px; color: var(--text-muted); padding: 4px 0; font-style: italic;">No individual marks recorded in gradebook yet.</div>';
   }
   return course.marks.map(m => {
-    const canDelete = m.status !== 'waiting' || m.isBonus;
-    const delBtn = canDelete
+    // Only standalone marks (not attached to a scheduled deadline) get a direct delete button in Marks;
+    // marks attached to deadlines are removed by deleting or editing the deadline itself.
+    const delBtn = m.isStandalone
       ? `<button type="button" class="btn-delete-mark" data-mark-id="${esc(m.id)}" data-mark-title="${esc(m.title)}" title="Delete mark" aria-label="Delete mark ${esc(m.title)}"><svg class="ui-icon" style="width: 11px; height: 11px;"><use href="#icon-trash"></use></svg></button>`
       : '';
     if (m.isBonus) {
       const bonusScore = m.earned ?? m.score ?? m.weight ?? 0;
+      const isPct = m.bonusUnit === 'percent';
+      const unitLabel = isPct ? '%' : 'pts';
+      const rawVal = m.weight ?? bonusScore;
       const targetSuffix = m.bonusTargetLabel
         ? ` · on ${esc(m.bonusTargetLabel)}`
         : (m.bonusTarget && m.bonusTarget !== 'total' ? ` · on ${esc(m.bonusTarget.replace(/^(?:comp:|compname:|type:)/, ''))}` : '');
+      if (m.status === 'waiting') {
+        const waitVal = m.weight ?? m.maxScore ?? m.score ?? 0;
+        const waitDesc = waitVal
+          ? `worth +${waitVal}${isPct ? '%' : ' pts'} bonus${targetSuffix}`
+          : `bonus mark${targetSuffix}`;
+        return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--text-muted);">${waitDesc}</span><span class="marks-right"><span class="marks-awaiting waiting">Waiting</span><button type="button" class="btn-enter-mark-score" data-mark-id="${esc(m.id)}" title="Enter your mark manually (or leave Waiting for Blackboard)" aria-label="Enter score for ${esc(m.title)}">+ Score</button>${delBtn}</span></div>`;
+      }
       const rightLabel = (typeof m.score === 'number' && typeof m.maxScore === 'number' && m.score !== m.maxScore)
         ? `<span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">(${esc(formatScore(m.score, m.maxScore))})</span>`
-        : `<span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">pts</span>`;
-      return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--success, #22c55e);">+${bonusScore}% extra credit${targetSuffix}</span><span class="marks-right">${rightLabel}${delBtn}</span></div>`;
+        : `<span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}${isPct ? '%' : ''}</span><span class="marks-pct" style="color: var(--success, #22c55e);">${unitLabel}</span>`;
+      const weightDesc = isPct
+        ? `+${rawVal}%${rawVal !== bonusScore ? ` (= +${bonusScore} course pts)` : ' extra credit'}${targetSuffix}`
+        : `+${bonusScore} pts extra credit${targetSuffix}`;
+      return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--success, #22c55e);">${weightDesc}</span><span class="marks-right">${rightLabel}${delBtn}</span></div>`;
     }
+    const scoreActionBtn = m.status === 'waiting'
+      ? `<button type="button" class="btn-enter-mark-score" data-mark-id="${esc(m.id)}" title="Enter your mark manually (or leave Waiting for Blackboard)" aria-label="Enter score for ${esc(m.title)}">+ Score</button>`
+      : '';
     const right = m.status === 'graded'
       ? `<span class="marks-score">${esc(formatScore(m.score, m.maxScore))}</span><span class="marks-pct">${m.percent}%</span>`
       : (m.status === 'waiting'
-          ? '<span class="marks-awaiting waiting">Waiting</span>'
+          ? `<span class="marks-awaiting waiting">Waiting</span>${scoreActionBtn}`
           : '<span class="marks-awaiting">Submitted</span>');
     const sub = m.weight
       ? `<span class="marks-weight">${m.earned !== undefined ? `${m.earned} of ${m.weight}% weight` : `worth ${m.weight}%`}</span>`

@@ -316,6 +316,14 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
       return;
     }
 
+    const enterScoreBtn = (e.target as HTMLElement).closest('.btn-enter-mark-score') as HTMLElement | null;
+    if (enterScoreBtn) {
+      const markId = enterScoreBtn.getAttribute('data-mark-id') || '';
+      const task = hooks.getTasks().find(t => t.id === markId);
+      if (task) openCompleteScoreModal(task, hooks);
+      return;
+    }
+
     const targetToggleBtn = (e.target as HTMLElement).closest('#target-breakdown-toggle-btn, .target-breakdown-header') as HTMLElement | null;
     if (targetToggleBtn) {
       const content = document.getElementById('target-breakdown-content');
@@ -507,9 +515,41 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
   const bonusTargetSelect = document.getElementById('bonus-target-select') as HTMLSelectElement | null;
   const bonusTitleInput = document.getElementById('bonus-title-input') as HTMLInputElement | null;
   const bonusValInput = document.getElementById('bonus-val-input') as HTMLInputElement | null;
+  const bonusUnitSelect = document.getElementById('bonus-unit-select') as HTMLSelectElement | null;
+  const bonusUnitHint = document.getElementById('bonus-unit-hint');
+  const bonusLinkDateCheck = document.getElementById('bonus-link-date-check') as HTMLInputElement | null;
+  const bonusDateWrap = document.getElementById('bonus-date-wrap');
+  const bonusDateInput = document.getElementById('bonus-date-input') as HTMLInputElement | null;
+  const bonusTimeInput = document.getElementById('bonus-time-input') as HTMLInputElement | null;
+  const bonusTypeSelect = document.getElementById('bonus-type-select') as HTMLSelectElement | null;
+  const bonusEarnedCheck = document.getElementById('bonus-earned-check') as HTMLInputElement | null;
   const bonusNotesInput = document.getElementById('bonus-notes-input') as HTMLInputElement | null;
   const closeBonusBtn = document.getElementById('btn-close-bonus-modal');
   const cancelBonusBtn = document.getElementById('btn-cancel-bonus');
+
+  const syncBonusUnitHint = () => {
+    if (!bonusUnitHint) return;
+    const isPct = bonusUnitSelect?.value === 'percent';
+    const targetVal = bonusTargetSelect?.value || 'total';
+    const targetLabel = bonusTargetSelect?.selectedOptions?.[0]?.dataset.shortLabel || 'Course Total';
+    if (isPct) {
+      bonusUnitHint.textContent = targetVal === 'total'
+        ? `Adds a percentage boost (+%) directly onto your ${targetLabel}.`
+        : `Applies that percentage boost of ${targetLabel}'s syllabus weight.`;
+    } else {
+      bonusUnitHint.textContent = targetVal === 'total'
+        ? 'Adds pure extra points directly without inflating the required syllabus denominator.'
+        : `Adds pure extra points toward ${targetLabel}.`;
+    }
+  };
+
+  const syncBonusDateVisibility = () => {
+    if (bonusDateWrap) bonusDateWrap.style.display = bonusLinkDateCheck?.checked ? '' : 'none';
+  };
+
+  bonusUnitSelect?.addEventListener('change', syncBonusUnitHint);
+  bonusTargetSelect?.addEventListener('change', syncBonusUnitHint);
+  bonusLinkDateCheck?.addEventListener('change', syncBonusDateVisibility);
 
   const populateBonusModalTargets = () => {
     if (!bonusTargetSelect) return;
@@ -525,6 +565,7 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
       bonusTargetSelect.appendChild(el);
     }
     bonusTargetSelect.value = 'total';
+    syncBonusUnitHint();
   };
 
   bonusCourseSelect?.addEventListener('change', populateBonusModalTargets);
@@ -552,6 +593,17 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     populateBonusModalTargets();
     if (bonusTitleInput) bonusTitleInput.value = 'Bonus Mark / Extra Credit';
     if (bonusValInput) bonusValInput.value = '2.0';
+    if (bonusUnitSelect) bonusUnitSelect.value = 'points';
+    if (bonusLinkDateCheck) bonusLinkDateCheck.checked = false;
+    if (bonusDateInput) {
+      const d = new Date();
+      bonusDateInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    if (bonusTimeInput) bonusTimeInput.value = '';
+    if (bonusTypeSelect) bonusTypeSelect.value = 'quiz';
+    if (bonusEarnedCheck) bonusEarnedCheck.checked = false;
+    syncBonusDateVisibility();
+    syncBonusUnitHint();
     if (bonusNotesInput) bonusNotesInput.value = '';
     bonusModal.style.display = 'flex';
     bonusModal.classList.remove('hidden');
@@ -576,36 +628,61 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     const courseCode = matched?.courseCode || 'UOS';
     const title = bonusTitleInput?.value.trim() || 'Bonus Mark';
     const bonusVal = parseFloat(bonusValInput.value) || 0;
+    const bonusUnit: 'points' | 'percent' = bonusUnitSelect?.value === 'percent' ? 'percent' : 'points';
     const notes = bonusNotesInput?.value.trim() || '';
     const bonusTarget = bonusTargetSelect?.value || 'total';
     const bonusTargetLabel = bonusTargetSelect?.selectedOptions?.[0]?.dataset.shortLabel || (bonusTarget === 'total' ? 'Course Total' : bonusTarget);
+    const linkedToDeadline = Boolean(bonusLinkDateCheck?.checked && bonusDateInput?.value);
+    const nowIso = new Date().toISOString();
+
+    let dueDateIso = '';
+    let hasSpecificTime = false;
+    if (linkedToDeadline && bonusDateInput?.value) {
+      const timeStr = bonusTimeInput?.value;
+      if (timeStr) {
+        dueDateIso = new Date(`${bonusDateInput.value}T${timeStr}:00`).toISOString();
+        hasSpecificTime = true;
+      } else {
+        dueDateIso = new Date(`${bonusDateInput.value}T23:59:00`).toISOString();
+      }
+    }
+
+    const isGradedNow = !linkedToDeadline || Boolean(bonusEarnedCheck?.checked);
+    const taskType = linkedToDeadline
+      ? ((bonusTypeSelect?.value as DeadlineTask['type']) || 'quiz')
+      : 'other';
 
     const newBonusTask: DeadlineTask = {
-      id: `task_bonus_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: linkedToDeadline
+        ? `task_manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+        : `task_bonus_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       title,
       courseName,
       courseCode,
-      dueDate: new Date().toISOString(),
-      hasSpecificTime: false,
-      type: 'other',
+      dueDate: dueDateIso,
+      hasSpecificTime,
+      type: taskType,
       priority: 'medium',
-      status: 'completed',
-      submissionStatus: 'graded',
-      score: bonusVal,
-      maxScore: bonusVal,
+      status: isGradedNow ? 'completed' : 'pending',
+      completedAt: isGradedNow ? nowIso : undefined,
+      submissionStatus: isGradedNow ? 'graded' : undefined,
+      gradedAt: isGradedNow ? nowIso : undefined,
+      score: isGradedNow ? bonusVal : undefined,
+      maxScore: isGradedNow ? bonusVal : undefined,
       weight: bonusVal,
-      weightDisplay: formatTaskWeightDisplay(bonusVal, { isBonus: true, bonusTarget, bonusTargetLabel }),
+      weightDisplay: formatTaskWeightDisplay(bonusVal, { isBonus: true, bonusUnit, bonusTarget, bonusTargetLabel }),
       isBonus: true,
+      bonusUnit,
       bonusTarget,
       bonusTargetLabel,
       notes,
       description: notes || title,
-      sourceSnippet: notes || 'Manual bonus mark entry',
+      sourceSnippet: notes || (linkedToDeadline ? title : 'Manual bonus mark entry'),
       confidence: 1.0,
       extractedBy: 'manual',
       userEdited: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: nowIso,
+      updatedAt: nowIso
     };
 
     const currentTasks = hooks.getTasks();
@@ -616,7 +693,57 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     renderGradeTracker(saved, hooks);
     hooks.renderTasks();
     hooks.refreshAllViews();
-    hooks.syncCloud(saved, 'Added Bonus Mark');
+    hooks.syncCloud(saved, linkedToDeadline ? 'Added Bonus Deadline' : 'Added Bonus Mark');
+  });
+
+  // Quick Score Entry Modal (after completing a manual assessment or clicking "+ Score")
+  const scoreModal = document.getElementById('modal-complete-score');
+  const scoreForm = document.getElementById('form-complete-score') as HTMLFormElement | null;
+  const closeScoreBtn = document.getElementById('btn-close-complete-score');
+  const skipScoreBtn = document.getElementById('btn-skip-complete-score');
+  const closeScoreModal = () => {
+    if (scoreModal) {
+      scoreModal.style.display = 'none';
+      scoreModal.classList.add('hidden');
+    }
+  };
+  closeScoreBtn?.addEventListener('click', closeScoreModal);
+  skipScoreBtn?.addEventListener('click', closeScoreModal);
+  scoreModal?.addEventListener('click', (e) => {
+    if (e.target === scoreModal) closeScoreModal();
+  });
+  scoreForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idInput = document.getElementById('complete-score-task-id') as HTMLInputElement | null;
+    const earnedInput = document.getElementById('complete-score-earned') as HTMLInputElement | null;
+    const maxInput = document.getElementById('complete-score-max') as HTMLInputElement | null;
+    const taskId = idInput?.value || '';
+    const earned = parseFloat(earnedInput?.value || '');
+    const maxRaw = parseFloat(maxInput?.value || '');
+    if (!taskId || isNaN(earned) || earned < 0) return;
+    const maxScore = !isNaN(maxRaw) && maxRaw > 0 ? maxRaw : (earned > 0 ? earned : 10);
+    const nowIso = new Date().toISOString();
+    const nextTasks = hooks.getTasks().map(t => {
+      if (t.id !== taskId) return t;
+      return {
+        ...t,
+        status: 'completed' as const,
+        completedAt: t.completedAt || nowIso,
+        submissionStatus: 'graded' as const,
+        score: earned,
+        maxScore,
+        gradedAt: nowIso,
+        userEdited: true,
+        updatedAt: nowIso
+      };
+    });
+    const saved = await hooks.saveTasks(nextTasks);
+    closeScoreModal();
+    renderGradeTracker(saved, hooks);
+    hooks.renderTasks();
+    hooks.refreshAllViews();
+    hooks.syncCloud(saved, 'Recorded Mark');
+    hooks.showToast('Mark saved');
   });
 
   // Archive Term Modal
@@ -714,6 +841,30 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     hooks.showToast(`Semester "${name}" archived successfully!`);
     hooks.syncCloud(nextTasks, 'Archive Semester');
   });
+}
+
+/** Opens the quick non-blocking Score Entry dialog when a manual deadline is marked done or '+ Score' is clicked. */
+export function openCompleteScoreModal(task: DeadlineTask, _hooks?: MarksControllerHooks): void {
+  const modal = document.getElementById('modal-complete-score');
+  const idInput = document.getElementById('complete-score-task-id') as HTMLInputElement | null;
+  const labelEl = document.getElementById('complete-score-task-label');
+  const earnedInput = document.getElementById('complete-score-earned') as HTMLInputElement | null;
+  const maxInput = document.getElementById('complete-score-max') as HTMLInputElement | null;
+  if (!modal || !idInput || !earnedInput || !maxInput) return;
+
+  idInput.value = task.id;
+  if (labelEl) {
+    const unitTag = task.isBonus ? ` (${task.bonusUnit === 'percent' ? '%' : 'pts'} bonus)` : '';
+    labelEl.textContent = `${task.courseName ? `${task.courseName} · ` : ''}${task.title}${unitTag}`;
+  }
+  const suggestedMax = task.maxScore || (task.isBonus && task.weight ? task.weight : undefined);
+  maxInput.value = suggestedMax ? String(suggestedMax) : '10';
+  earnedInput.value = typeof task.score === 'number' ? String(task.score) : '';
+  earnedInput.placeholder = suggestedMax ? `out of ${suggestedMax}` : 'e.g. 9';
+
+  modal.style.display = 'flex';
+  modal.classList.remove('hidden');
+  setTimeout(() => earnedInput.focus(), 40);
 }
 
 /** Opens and closes a card; the open state is remembered per card. */

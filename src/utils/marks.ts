@@ -5,11 +5,19 @@ import { sanitizeTaskListMarks } from './taskMerge';
 import { round1 } from './uiCommon';
 import { isExamItem } from './gradebook';
 
+export interface MarksSyllabusComponent {
+  id?: string;
+  name: string;
+  type: string;
+  totalWeight: number;
+}
+
 /** The fields of a syllabus this summary needs (both the extension and phone shapes have them). */
 export interface MarksSyllabus {
   courseName: string;
   courseCodePattern: RegExp;
   totalWeight?: number;
+  components?: MarksSyllabusComponent[];
 }
 
 export interface MarkRow {
@@ -28,8 +36,11 @@ export interface MarkRow {
   completedAt?: string;
   createdAt?: string;
   isBonus?: boolean;
+  bonusUnit?: 'points' | 'percent';
   bonusTarget?: string;
   bonusTargetLabel?: string;
+  /** True when the mark has no scheduled deadline (standalone bonus mark or unannounced gradebook entry). */
+  isStandalone?: boolean;
 }
 
 export interface CourseMarks {
@@ -65,6 +76,69 @@ export function isAssessmentTask(t: { type?: string; title?: string; weight?: nu
   if (isExamItem(t)) return true;
   const title = (t.title || '').toLowerCase();
   return /\b(?:quiz(?:zes)?|test|exam|mid[\s_-]*term|final|assignment|hw\d*|homework|project|lab|paper|presentation|essay|report)\b|كويز|اختبار|امتحان|واجب|مشروع|مختبر|تقرير|تجربة/i.test(title);
+}
+
+/** True when a mark exists on its own (standalone bonus mark or unannounced gradebook mark) rather than on a deadline. */
+export function isStandaloneMarkTask(t: Pick<DeadlineTask, 'id' | 'sourceSnippet' | 'extractedBy' | 'isBonus' | 'announcementId' | 'type' | 'dueDate'>): boolean {
+  if (!t) return false;
+  return Boolean(
+    (t.id && (t.id.startsWith('task_bonus_') || t.id.startsWith('gbcol_') || t.id.startsWith('gb_'))) ||
+    t.sourceSnippet === 'gradebook' ||
+    (t.extractedBy as string) === 'gradebook' ||
+    (Boolean(t.isBonus) && !t.announcementId && t.type === 'other') ||
+    !t.dueDate
+  );
+}
+
+/** True when marking this task done should offer a quick score-entry modal (manual assessment/bonus without a mark yet). */
+export function shouldPromptForCompletionScore(t?: DeadlineTask | null): boolean {
+  if (!t) return false;
+  if (t.extractedBy !== 'manual') return false;
+  if (t.submissionStatus === 'graded') return false;
+  return Boolean(t.isBonus || isAssessmentTask(t));
+}
+
+/** Resolves the matching syllabus component (if bonusTarget picks one) for a bonus task. */
+export function matchBonusComponent<T extends MarksSyllabusComponent>(t: DeadlineTask, components: T[] = []): T | undefined {
+  const target = (t.bonusTarget || '').trim();
+  const label = (t.bonusTargetLabel || '').trim().toLowerCase();
+  if (!target || target === 'total') return undefined;
+  if (target.startsWith('comp:')) {
+    const id = target.slice(5);
+    const byId = components.find(c => c.id && c.id === id);
+    if (byId) return byId;
+  }
+  if (target.startsWith('compname:')) {
+    const name = target.slice(9).toLowerCase();
+    const byName = components.find(c => c.name.toLowerCase() === name);
+    if (byName) return byName;
+  }
+  if (target.startsWith('type:')) {
+    const tp = target.slice(5).toLowerCase();
+    const byType = components.find(c => c.type.toLowerCase() === tp);
+    if (byType) return byType;
+  }
+  if (label) {
+    const byLabel = components.find(c => c.name.toLowerCase() === label);
+    if (byLabel) return byLabel;
+  }
+  return components.find(c => c.id === target || c.name.toLowerCase() === target.toLowerCase());
+}
+
+/** Calculates exact course-grade points earned by a graded bonus entry, honoring 'points' vs 'percent'. */
+export function bonusEarnedAmount(t: DeadlineTask, courseTotalWeight = 100, targetCompWeight?: number): number {
+  const rawVal = Number(t.weight) > 0 ? Number(t.weight) : Number(t.maxScore ?? t.score ?? 0);
+  const isPercent = t.bonusUnit === 'percent';
+  const denomScale = targetCompWeight && targetCompWeight > 0 ? targetCompWeight : (courseTotalWeight || 100);
+  const pointBudget = isPercent ? (rawVal / 100) * denomScale : rawVal;
+
+  if (typeof t.score === 'number' && typeof t.maxScore === 'number' && t.maxScore > 0) {
+    return (t.score / t.maxScore) * pointBudget;
+  }
+  if (typeof t.score === 'number' && t.score >= 0) {
+    return isPercent ? (t.score / 100) * denomScale : t.score;
+  }
+  return pointBudget;
 }
 
 /**
@@ -103,10 +177,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       byCourse.set(courseName, course);
     }
 
+    const targetComp = isBonus ? matchBonusComponent(t, syl?.components) : undefined;
     const bonusBase = Number(t.weight) > 0 ? Number(t.weight) : Number(t.maxScore ?? t.score ?? 0);
-    const bonusEarned = isBonus
-      ? (hasScorePair ? (t.score! / t.maxScore!) * bonusBase : (typeof t.score === 'number' ? t.score : bonusBase))
-      : 0;
+    const bonusEarned = isBonus ? bonusEarnedAmount(t, course.totalWeight, targetComp?.totalWeight) : 0;
     const weight = isBonus ? (bonusBase > 0 ? bonusBase : undefined) : (Number(t.weight) > 0 ? Number(t.weight) : undefined);
     const row: MarkRow = {
       id: t.id,
@@ -119,8 +192,10 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       completedAt: t.completedAt || (t.status === 'completed' ? (t.submittedAt || t.updatedAt) : undefined),
       createdAt: t.createdAt,
       isBonus,
+      bonusUnit: isBonus ? (t.bonusUnit === 'percent' ? 'percent' : 'points') : undefined,
       bonusTarget: isBonus ? t.bonusTarget : undefined,
-      bonusTargetLabel: isBonus ? t.bonusTargetLabel : undefined
+      bonusTargetLabel: isBonus ? t.bonusTargetLabel : undefined,
+      isStandalone: isStandaloneMarkTask(t)
     };
     if (graded) {
       if (isBonus) {
@@ -138,8 +213,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       }
     }
 
-    // Deduplicate marks within course (e.g. "Quiz 2" vs "2nd Quiz (Vector & Free Fall)", "EAP Midterm Exam" vs "Midterm")
+    // Deduplicate marks within course (never merge a bonus item into a non-bonus item)
     const existingIndex = course.marks.findIndex(m => {
+      if (Boolean(m.isBonus) !== isBonus) return false;
       if (t.gradeSourceId && (m as any).gradeSourceId && t.gradeSourceId === (m as any).gradeSourceId) return true;
       const numT = extractAssessmentNumber(t.title);
       const numM = extractAssessmentNumber(m.title);
@@ -316,14 +392,7 @@ export function deleteMarkFromTasks(tasks: DeadlineTask[], markId: string): Dele
     ...(target.dismissedGradeSources ? { dismissedGradeSources: [...target.dismissedGradeSources] } : {})
   };
 
-  const isStandaloneMark =
-    target.id.startsWith('task_bonus_') ||
-    target.id.startsWith('gbcol_') ||
-    target.id.startsWith('gb_') ||
-    target.sourceSnippet === 'gradebook' ||
-    (target.extractedBy as string) === 'gradebook' ||
-    (Boolean(target.isBonus) && !target.announcementId && target.type === 'other') ||
-    !target.dueDate;
+  const isStandaloneMark = isStandaloneMarkTask(target);
 
   if (isStandaloneMark) {
     return {

@@ -220,8 +220,10 @@ export function setupNavigationAndTaskEvents() {
   attachCoursePicker(editCourseInput, () => popupState.currentUserCourses);
 
   addGradeMode?.addEventListener('change', () => syncBonusFormUi('add', addCourseInput?.value || ''));
+  document.getElementById('add-bonus-unit')?.addEventListener('change', () => syncBonusFormUi('add', addCourseInput?.value || ''));
   addBonusEarned?.addEventListener('change', () => syncBonusFormUi('add', addCourseInput?.value || ''));
   editGradeMode?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput?.value || ''));
+  document.getElementById('edit-bonus-unit')?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput?.value || ''));
   editStatusSelect?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput?.value || ''));
   editCourseInput?.addEventListener('input', () => syncBonusFormUi('edit', editCourseInput.value));
   editCourseInput?.addEventListener('change', () => syncBonusFormUi('edit', editCourseInput.value));
@@ -297,6 +299,8 @@ export function setupNavigationAndTaskEvents() {
 
     const weightVal = addWeightInput ? addWeightInput.value.trim() : '';
     const isBonus = (document.getElementById('add-grade-mode') as HTMLSelectElement)?.value === 'bonus';
+    const addBonusUnitSel = document.getElementById('add-bonus-unit') as HTMLSelectElement | null;
+    const bonusUnit: 'points' | 'percent' = addBonusUnitSel?.value === 'percent' ? 'percent' : 'points';
     const bonusTargetSel = document.getElementById('add-bonus-target') as HTMLSelectElement | null;
     const bonusEarned = (document.getElementById('add-bonus-earned') as HTMLInputElement)?.checked || false;
     const bonusScoreRaw = (document.getElementById('add-bonus-score') as HTMLInputElement)?.value.trim() || '';
@@ -316,10 +320,10 @@ export function setupNavigationAndTaskEvents() {
         weight = parsedBonusScore;
       }
       if (weight !== undefined && !isNaN(weight) && weight > 0) {
-        weightDisplay = formatTaskWeightDisplay(weight, { isBonus: true, bonusTarget, bonusTargetLabel });
+        weightDisplay = formatTaskWeightDisplay(weight, { isBonus: true, bonusUnit, bonusTarget, bonusTargetLabel });
       }
       syllabusNote = bonusTarget === 'total'
-        ? 'Pure bonus marks added to course total'
+        ? (bonusUnit === 'percent' ? 'Bonus % added to course total' : 'Pure bonus marks added to course total')
         : `Bonus marks applied to ${bonusTargetLabel}`;
     } else if (weight !== undefined && !isNaN(weight)) {
       weightDisplay = `${weight}% of Grade`;
@@ -352,6 +356,7 @@ export function setupNavigationAndTaskEvents() {
       score: bonusGraded ? bonusScoreVal : undefined,
       maxScore: bonusGraded ? (weight || bonusScoreVal || 0) : undefined,
       isBonus: isBonus || undefined,
+      bonusUnit: isBonus ? bonusUnit : undefined,
       bonusTarget: isBonus ? bonusTarget : undefined,
       bonusTargetLabel: isBonus ? bonusTargetLabel : undefined,
       sourceSnippet: notes,
@@ -446,6 +451,8 @@ export function setupNavigationAndTaskEvents() {
     const existingTask = popupState.currentTasks.find(t => t.id === targetId);
     const weightVal = editWeightInput ? editWeightInput.value.trim() : '';
     const isBonus = (document.getElementById('edit-grade-mode') as HTMLSelectElement)?.value === 'bonus';
+    const editBonusUnitSel = document.getElementById('edit-bonus-unit') as HTMLSelectElement | null;
+    const bonusUnit: 'points' | 'percent' = editBonusUnitSel?.value === 'percent' ? 'percent' : 'points';
     const editBonusTargetSel = document.getElementById('edit-bonus-target') as HTMLSelectElement | null;
     const editBonusScoreRaw = (document.getElementById('edit-bonus-score') as HTMLInputElement)?.value.trim() || '';
     const parsedBonusScore = editBonusScoreRaw ? parseFloat(editBonusScoreRaw) : NaN;
@@ -464,10 +471,10 @@ export function setupNavigationAndTaskEvents() {
         weight = parsedBonusScore;
       }
       if (weight !== undefined && !isNaN(weight) && weight > 0) {
-        weightDisplay = formatTaskWeightDisplay(weight, { isBonus: true, bonusTarget, bonusTargetLabel });
+        weightDisplay = formatTaskWeightDisplay(weight, { isBonus: true, bonusUnit, bonusTarget, bonusTargetLabel });
       }
       syllabusNote = bonusTarget === 'total'
-        ? 'Pure bonus marks added to course total'
+        ? (bonusUnit === 'percent' ? 'Bonus % added to course total' : 'Pure bonus marks added to course total')
         : `Bonus marks applied to ${bonusTargetLabel}`;
     } else if (weight !== undefined && !isNaN(weight)) {
       weightDisplay = `${weight}% of Grade`;
@@ -501,6 +508,7 @@ export function setupNavigationAndTaskEvents() {
       score: bonusGraded ? bonusScoreVal : (keepRegularGrade ? existingTask?.score : undefined),
       maxScore: bonusGraded ? (weight || existingTask?.maxScore || bonusScoreVal || 0) : (keepRegularGrade ? existingTask?.maxScore : undefined),
       isBonus: isBonus || undefined,
+      bonusUnit: isBonus ? bonusUnit : undefined,
       bonusTarget: isBonus ? bonusTarget : undefined,
       bonusTargetLabel: isBonus ? bonusTargetLabel : undefined,
       description: descVal,

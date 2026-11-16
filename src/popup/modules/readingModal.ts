@@ -12,6 +12,7 @@ import { findPickedCourse } from '../coursePicker';
 import { getCachedProfile } from '../universitySettings';
 import { getTaskTargetBadgeHtml } from './dayDrawer';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
+import { promptCompletionScoreIfNeeded } from './marksView';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function updateAddRoomVisibility() {
@@ -33,7 +34,7 @@ export function updateEditRoomVisibility() {
 }
 
 /** Populates "Bonus On What" choices and syncs labels/visibility for Add & Edit grade mode UI. */
-export function syncBonusFormUi(prefix: 'add' | 'edit', courseInputVal: string, preferredTarget?: string): void {
+export function syncBonusFormUi(prefix: 'add' | 'edit', courseInputVal: string, preferredTarget?: string, preferredUnit?: 'points' | 'percent'): void {
   const gradeMode = document.getElementById(`${prefix}-grade-mode`) as HTMLSelectElement | null;
   const isBonus = gradeMode?.value === 'bonus';
   const weightLabel = document.getElementById(`${prefix}-weight-label`);
@@ -42,9 +43,14 @@ export function syncBonusFormUi(prefix: 'add' | 'edit', courseInputVal: string, 
   const calcBtn = document.getElementById(prefix === 'add' ? 'btn-calc-add-weight' : 'btn-calc-edit-weight');
   const bonusOpts = document.getElementById(`${prefix}-bonus-options`);
   const bonusTargetSelect = document.getElementById(`${prefix}-bonus-target`) as HTMLSelectElement | null;
+  const bonusUnitSelect = document.getElementById(`${prefix}-bonus-unit`) as HTMLSelectElement | null;
 
-  if (weightLabel) weightLabel.textContent = isBonus ? 'Bonus Marks (pure pts)' : 'Grade Weight (%)';
-  if (weightSublabel) weightSublabel.textContent = isBonus ? '(added even after syllabus %)' : '(from Syllabus)';
+  if (bonusUnitSelect && preferredUnit) {
+    bonusUnitSelect.value = preferredUnit === 'percent' ? 'percent' : 'points';
+  }
+  const unitVal = bonusUnitSelect?.value === 'percent' ? 'percent' : 'points';
+  if (weightLabel) weightLabel.textContent = isBonus ? (unitVal === 'percent' ? 'Bonus Value (%)' : 'Bonus Points (pts)') : 'Grade Weight (%)';
+  if (weightSublabel) weightSublabel.textContent = isBonus ? '(extra credit)' : '(from Syllabus)';
   if (weightInput) weightInput.placeholder = isBonus ? 'e.g. 2' : 'e.g. 5';
   if (calcBtn) (calcBtn as HTMLElement).style.display = isBonus ? 'none' : '';
   if (bonusOpts) bonusOpts.style.display = isBonus ? '' : 'none';
@@ -224,6 +230,10 @@ export function openReadingSheet(task: DeadlineTask) {
     popupActions.syncTasksToCloud(popupState.currentTasks, 'Status Change');
     closeReadingSheet();
     popupActions.showToast(nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending');
+    if (nextStatus === 'completed') {
+      const updated = popupState.currentTasks.find(t => t.id === task.id);
+      promptCompletionScoreIfNeeded(updated);
+    }
   });
 
   content.querySelector('.modal-reading-share-btn')?.addEventListener('click', () => {
@@ -357,7 +367,7 @@ export function openEditModal(task: DeadlineTask) {
       ? String(task.score)
       : '';
   }
-  syncBonusFormUi('edit', editCourseInput.value, task.bonusTarget);
+  syncBonusFormUi('edit', editCourseInput.value, task.bonusTarget, task.bonusUnit || 'points');
 
   registerOverlayCloseHandler('modal-edit-task', closeEditModal);
   openModalEl('modal-edit-task', modalEditTask);

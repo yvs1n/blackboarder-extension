@@ -87,7 +87,8 @@ describe('Vault Cryptography (Client-Side Zero-Knowledge)', () => {
     const ciphertext = await encryptVaultPayload(samplePayload, sampleSyncKey);
     const parts = ciphertext.split(':');
     // Alter 1 character in the ciphertext
-    const tamperedCipher = parts[2].slice(0, -2) + (parts[2].endsWith('a') ? 'b' : 'a') + parts[2].slice(-1);
+    const tamperedChar = parts[2].slice(-2, -1) === 'a' ? 'b' : 'a';
+    const tamperedCipher = parts[2].slice(0, -2) + tamperedChar + parts[2].slice(-1);
     const tampered = `v1:${parts[1]}:${tamperedCipher}`;
 
     await expect(decryptVaultPayload(tampered, sampleSyncKey)).rejects.toThrow();

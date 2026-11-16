@@ -7,9 +7,11 @@ import { saveProfile } from '../../utils/profile';
 import { getCachedProfile, renderStudentIdentity } from '../universitySettings';
 import {
   initMarksViewController,
+  openCompleteScoreModal,
   renderGradeTracker as marksRenderGradeTracker,
   updateSemesterSelector as marksUpdateSemesterSelector,
 } from '../marksViewController';
+import { shouldPromptForCompletionScore } from '../../utils/marks';
 import { popupActions, popupState } from './state';
 
 export function getMarksControllerHooks() {
@@ -58,4 +60,10 @@ export function renderGradeTracker(tasks: DeadlineTask[]) {
 
 export function initGradeTrackerToggle() {
   initMarksViewController(getMarksControllerHooks());
+}
+
+export function promptCompletionScoreIfNeeded(task: DeadlineTask | undefined): void {
+  if (shouldPromptForCompletionScore(task)) {
+    openCompleteScoreModal(task!, getMarksControllerHooks());
+  }
 }

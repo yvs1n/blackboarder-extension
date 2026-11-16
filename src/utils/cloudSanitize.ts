@@ -89,7 +89,8 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       t.sourceSnippet === 'gradebook' ||
       t.gradeSourceId ||
       t.submissionStatus === 'graded' ||
-      (typeof t.id === 'string' && t.id.startsWith('gbcol_'))
+      t.isBonus ||
+      (typeof t.id === 'string' && (t.id.startsWith('gbcol_') || t.id.startsWith('task_bonus_')))
     );
     const hasValidDate = !isNaN(new Date(t.dueDate).getTime());
     if (!hasValidDate) {
@@ -123,6 +124,7 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     if (clean.notes && !clean.userEdited && clean.extractedBy !== 'manual') delete clean.notes;
     if (t.isBonus) {
       clean.isBonus = true;
+      clean.bonusUnit = t.bonusUnit === 'percent' ? 'percent' : 'points';
       if (typeof t.bonusTarget === 'string' && t.bonusTarget.trim()) {
         clean.bonusTarget = t.bonusTarget.trim().slice(0, 120);
       } else {
@@ -135,6 +137,7 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       }
     } else {
       delete clean.isBonus;
+      delete clean.bonusUnit;
       delete clean.bonusTarget;
       delete clean.bonusTargetLabel;
     }

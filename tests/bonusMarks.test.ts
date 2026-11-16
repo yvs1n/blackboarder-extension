@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMarksSummary, deleteMarkFromTasks } from '../src/utils/marks';
+import { buildMarksSummary, deleteMarkFromTasks, shouldPromptForCompletionScore, isStandaloneMarkTask } from '../src/utils/marks';
 import { applySubmissionUpdates } from '../src/utils/gradebook';
 import { buildGpaSummary, UOS_GRADE_SCALE } from '../src/utils/gpa';
 import { calculateCourseTargetAnalysis } from '../src/core/targetGpa';
@@ -227,7 +227,7 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     expect(html).toContain('btn-add-course-bonus');
     expect(html).toContain('btn-add-bonus-trigger');
     expect(html).toContain('marks-row-bonus');
-    expect(html).toContain('+2% extra credit');
+    expect(html).toContain('+2 pts extra credit');
     expect(html).toContain('+2% Bonus');
   });
 
@@ -236,10 +236,10 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     const options = bonusTargetOptionsForCourse('Computer Networks', 'CS301');
     expect(options[0].value).toBe('total');
     expect(options.some(o => o.value === 'comp:s3' && o.shortLabel === 'Quizzes')).toBe(true);
-    expect(formatTaskWeightDisplay(2, { isBonus: true, bonusTarget: 'total', bonusTargetLabel: 'Course Total' }))
-      .toBe('+2 Bonus (Course Total)');
-    expect(formatTaskWeightDisplay(2, { isBonus: true, bonusTarget: 'comp:s3', bonusTargetLabel: 'Quizzes' }))
-      .toBe('+2 Bonus (Quizzes)');
+    expect(formatTaskWeightDisplay(2, { isBonus: true, bonusUnit: 'points', bonusTarget: 'total', bonusTargetLabel: 'Course Total' }))
+      .toBe('+2 pts Bonus (Course Total)');
+    expect(formatTaskWeightDisplay(2, { isBonus: true, bonusUnit: 'percent', bonusTarget: 'comp:s3', bonusTargetLabel: 'Quizzes' }))
+      .toBe('+2% Bonus (Quizzes)');
 
     // 1. Pending upcoming bonus quiz (not graded yet) must NOT award bonus marks prematurely
     const tasksWithPendingBonus = [
@@ -379,14 +379,15 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
 
     const list = [bonusTask, gbColTask, scheduledQuiz];
 
-    // 0. gradesHtml exposes delete buttons for bonus & regular marks
+    // 0. gradesHtml exposes delete buttons for standalone bonus & gradebook marks, NOT scheduled deadlines
     const html = gradesHtml(
       buildGpaSummary(list, syllabi, UOS_GRADE_SCALE),
       buildMarksSummary(list, syllabi),
       () => '#2563eb'
     );
     expect(html).toContain('class="btn-delete-mark" data-mark-id="task_bonus_12345"');
-    expect(html).toContain('class="btn-delete-mark" data-mark-id="task_quiz1"');
+    expect(html).toContain('class="btn-delete-mark" data-mark-id="gbcol_CS301__999_1"');
+    expect(html).not.toContain('class="btn-delete-mark" data-mark-id="task_quiz1"');
 
     // 1. Standalone bonus mark is removed completely
     const delBonus = deleteMarkFromTasks(list, 'task_bonus_12345');
@@ -424,5 +425,97 @@ describe('Bonus Marks (Extra Credit) functionality', () => {
     expect(updatedCount).toBe(0);
     expect(clearQuiz.tasks[0].score).toBeUndefined();
     expect(clearQuiz.tasks[0].submissionStatus).toBeUndefined();
+  });
+
+  it('supports percentage vs pure points bonus units, deadline-linked bonus marks, and completion score prompts', () => {
+    const regularMidterm = {
+      id: 't_mid',
+      title: 'Midterm Exam',
+      courseName: 'Computer Networks',
+      courseCode: 'CS301',
+      dueDate: '2026-10-15T10:00:00Z',
+      type: 'exam',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 24,
+      maxScore: 30,
+      weight: 30
+    } as unknown as DeadlineTask;
+
+    const regularQuiz1 = {
+      id: 't_q1',
+      title: 'Quiz 1',
+      courseName: 'Computer Networks',
+      courseCode: 'CS301',
+      dueDate: '2026-10-05T10:00:00Z',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 8,
+      maxScore: 10,
+      weight: 10
+    } as unknown as DeadlineTask;
+
+    // 1. 10% percentage bonus on Quizzes (20% category) => 10% of 20 = +2.0 course marks (Quizzes becomes 8+2=10/10 on graded quiz)
+    const pctCategoryBonus = {
+      id: 'task_manual_bonus_quiz',
+      title: 'Bonus Quiz',
+      courseName: 'Computer Networks',
+      courseCode: 'CS301',
+      dueDate: '2026-11-20T10:00:00Z',
+      type: 'quiz',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 10,
+      maxScore: 10,
+      weight: 10,
+      isBonus: true,
+      bonusUnit: 'percent' as const,
+      bonusTarget: 'comp:s3',
+      bonusTargetLabel: 'Quizzes',
+      extractedBy: 'manual'
+    } as unknown as DeadlineTask;
+
+    const marksSummary = buildMarksSummary([regularMidterm, regularQuiz1, pctCategoryBonus], syllabi);
+    const pctRow = marksSummary.courses[0].marks.find(m => m.id === 'task_manual_bonus_quiz');
+    expect(pctRow?.bonusUnit).toBe('percent');
+    expect(pctRow?.earned).toBe(2); // 10% of 20% Quizzes category
+    expect(pctRow?.isStandalone).toBe(false); // Linked to a deadline, not standalone
+    expect(isStandaloneMarkTask(pctCategoryBonus)).toBe(false);
+
+    const gpaSummary = buildGpaSummary([regularMidterm, regularQuiz1, pctCategoryBonus], syllabi, UOS_GRADE_SCALE);
+    // Quizzes component: 8 + 2 = 10 earned / 10 gradedWeight, Midterm: 24/30 -> 34/40 = 85%
+    expect(gpaSummary.courses[0].earnedWeight).toBe(34);
+    expect(gpaSummary.courses[0].percent).toBe(85);
+
+    // 2. Deadline-linked bonus does not render .btn-delete-mark in Marks (deleted via deadline itself)
+    const html = gradesHtml(gpaSummary, marksSummary, () => '#2563eb');
+    expect(html).not.toContain('class="btn-delete-mark" data-mark-id="task_manual_bonus_quiz"');
+    expect(html).toContain('+10%');
+
+    // 3. Completion score prompt checks: manual ungraded assessment/bonus = true; scanned or already graded = false
+    const manualPendingBonus = {
+      id: 't_man_pend',
+      title: 'Bonus Quiz 2',
+      courseName: 'Computer Networks',
+      dueDate: '2026-11-22T10:00:00Z',
+      type: 'quiz',
+      status: 'completed',
+      isBonus: true,
+      extractedBy: 'manual'
+    } as unknown as DeadlineTask;
+    expect(shouldPromptForCompletionScore(manualPendingBonus)).toBe(true);
+    expect(shouldPromptForCompletionScore({ ...manualPendingBonus, extractedBy: 'local' })).toBe(false);
+    expect(shouldPromptForCompletionScore({ ...manualPendingBonus, submissionStatus: 'graded', score: 2, maxScore: 2 })).toBe(false);
+
+    // 4. Waiting row renders "+ Score" action button in Grades card
+    const waitingMarks = buildMarksSummary([manualPendingBonus], syllabi);
+    const waitingHtml = gradesHtml(
+      buildGpaSummary([manualPendingBonus], syllabi, UOS_GRADE_SCALE),
+      waitingMarks,
+      () => '#2563eb'
+    );
+    expect(waitingHtml).toContain('class="btn-enter-mark-score" data-mark-id="t_man_pend"');
+    expect(waitingHtml).toContain('+ Score');
   });
 });

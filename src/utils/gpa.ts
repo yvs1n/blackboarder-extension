@@ -3,6 +3,7 @@ import { GradeRow } from '../core/universities';
 import { sanitizeTaskListMarks, extractAssessmentNumber } from './taskMerge';
 import { coreTitle } from './streamParser';
 import { round1, round2 } from './uiCommon';
+import { bonusEarnedAmount, matchBonusComponent } from './marks';
 
 /**
  * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
@@ -112,41 +113,6 @@ function isGraded(t: DeadlineTask): boolean {
   return t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
 }
 
-function bonusEarnedAmount(t: DeadlineTask): number {
-  const baseWeight = Number(t.weight) > 0 ? Number(t.weight) : Number(t.maxScore ?? t.score ?? 0);
-  if (typeof t.score === 'number' && typeof t.maxScore === 'number' && t.maxScore > 0) {
-    return (t.score / t.maxScore) * baseWeight;
-  }
-  if (typeof t.score === 'number' && t.score >= 0) return t.score;
-  return baseWeight;
-}
-
-function matchBonusComponent(t: DeadlineTask, components: GpaComponent[]): GpaComponent | undefined {
-  const target = (t.bonusTarget || '').trim();
-  const label = (t.bonusTargetLabel || '').trim().toLowerCase();
-  if (!target || target === 'total') return undefined;
-  if (target.startsWith('comp:')) {
-    const id = target.slice(5);
-    const byId = components.find(c => c.id && c.id === id);
-    if (byId) return byId;
-  }
-  if (target.startsWith('compname:')) {
-    const name = target.slice(9).toLowerCase();
-    const byName = components.find(c => c.name.toLowerCase() === name);
-    if (byName) return byName;
-  }
-  if (target.startsWith('type:')) {
-    const tp = target.slice(5).toLowerCase();
-    const byType = components.find(c => c.type.toLowerCase() === tp);
-    if (byType) return byType;
-  }
-  if (label) {
-    const byLabel = components.find(c => c.name.toLowerCase() === label);
-    if (byLabel) return byLabel;
-  }
-  return components.find(c => c.id === target || c.name.toLowerCase() === target.toLowerCase());
-}
-
 function pickComponent(task: DeadlineTask, components: GpaComponent[]): GpaComponent | undefined {
   const title = task.title || '';
   return components.find(c => c.type === task.type && c.matcher.test(title))
@@ -184,6 +150,7 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     const uniqueMine: DeadlineTask[] = [];
     for (const t of mine) {
       const exists = uniqueMine.some(u => {
+        if (Boolean(u.isBonus) !== Boolean(t.isBonus)) return false;
         if (t.gradeSourceId && u.gradeSourceId && t.gradeSourceId === u.gradeSourceId) return true;
         const coreT = coreTitle(t.title);
         const coreU = coreTitle(u.title);
@@ -210,9 +177,9 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     const componentBonus = new Map<GpaComponent, number>();
     for (const t of uniqueMine) {
       if (t.isBonus) {
-        const bVal = bonusEarnedAmount(t);
+        const targetComp = matchBonusComponent(t, components);
+        const bVal = bonusEarnedAmount(t, totalWeight, targetComp?.totalWeight);
         if (bVal > 0) {
-          const targetComp = matchBonusComponent(t, components);
           if (targetComp) {
             componentBonus.set(targetComp, (componentBonus.get(targetComp) || 0) + bVal);
           } else {

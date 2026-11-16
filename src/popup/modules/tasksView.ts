@@ -9,6 +9,7 @@ import { resolveCourseInfo } from '../../core/courseHelper';
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { getTaskTargetBadgeHtml, renderDoctorQuoteHtml } from './dayDrawer';
+import { promptCompletionScoreIfNeeded } from './marksView';
 import { dom, popupActions, popupState } from './state';
 
 export function showToast(message: string, actionText?: string, onAction?: () => void) {
@@ -458,6 +459,11 @@ export function renderTasks() {
           showToast('Status reverted');
         }
       );
+
+      if (nextStatus === 'completed') {
+        const updatedTask = popupState.currentTasks.find(t => t.id === task.id);
+        promptCompletionScoreIfNeeded(updatedTask);
+      }
     };
 
     card.querySelector('.status-checkbox-btn')?.addEventListener('click', handleToggleDone);

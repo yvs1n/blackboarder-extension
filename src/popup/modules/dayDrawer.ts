@@ -13,6 +13,7 @@ import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { isCalendarDeadline } from './calendarView';
 import { closeDayDrawerShell, openDayDrawerShell, registerOverlayCloseHandler } from './overlayController';
+import { promptCompletionScoreIfNeeded } from './marksView';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function selectDay(dateKey: string, openDrawer: boolean = true) {
@@ -306,6 +307,11 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
         popupActions.showToast('Status reverted');
       }
     );
+
+    if (nextStatus === 'completed') {
+      const updatedTask = popupState.currentTasks.find(t => t.id === task.id);
+      promptCompletionScoreIfNeeded(updatedTask);
+    }
   });
 
   card.querySelector('.btn-card-share')?.addEventListener('click', e => {

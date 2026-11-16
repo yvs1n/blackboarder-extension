@@ -6,8 +6,8 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-DuGpilL6.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-C8dHsVa2.css">
+  <script type="module" crossorigin src="../../assets/popup-CLJ6n8bs.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-Bgx76PUk.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -643,7 +643,7 @@
         <label class="form-label" for="add-grade-mode">Grade Contribution</label>
         <select id="add-grade-mode" class="form-select">
           <option value="syllabus" selected>Counts Toward Syllabus Total (%)</option>
-          <option value="bonus">Bonus Mark / Extra Credit (Pure Points)</option>
+          <option value="bonus">Bonus Mark / Extra Credit</option>
         </select>
       </div>
       <div class="form-group">
@@ -658,13 +658,22 @@
         <span id="add-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
       </div>
       <div id="add-bonus-options" style="display: none; border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px; margin-bottom: 10px;">
-        <div class="form-group" style="margin-bottom: 6px;">
-          <label class="form-label" for="add-bonus-target">Bonus On What</label>
-          <select id="add-bonus-target" class="form-select"></select>
-          <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">
-            Choose Course Total for pure extra marks added even after syllabus percentage, or pick a specific course category.
-          </span>
+        <div class="form-row-2" style="gap: 8px; margin-bottom: 6px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="add-bonus-unit">Bonus Type</label>
+            <select id="add-bonus-unit" class="form-select">
+              <option value="points" selected>Pure Points (pts)</option>
+              <option value="percent">Percentage (%)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="add-bonus-target">Bonus On What</label>
+            <select id="add-bonus-target" class="form-select"></select>
+          </div>
         </div>
+        <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 6px;">
+          Pure Points add flat extra marks (even past 100% syllabus total); Percentage scales against the chosen target.
+        </span>
         <div class="form-group" style="margin-bottom: 0;">
           <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 4px;">
             <input type="checkbox" id="add-bonus-earned" style="accent-color: var(--accent);">
@@ -1468,7 +1477,7 @@
           <label class="form-label" for="edit-grade-mode">Grade Contribution</label>
           <select id="edit-grade-mode" class="form-select">
             <option value="syllabus" selected>Counts Toward Syllabus Total (%)</option>
-            <option value="bonus">Bonus Mark / Extra Credit (Pure Points)</option>
+            <option value="bonus">Bonus Mark / Extra Credit</option>
           </select>
         </div>
         <div class="form-group">
@@ -1483,13 +1492,22 @@
           <span id="edit-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
         </div>
         <div id="edit-bonus-options" style="display: none; border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px; margin-bottom: 10px;">
-          <div class="form-group" style="margin-bottom: 6px;">
-            <label class="form-label" for="edit-bonus-target">Bonus On What</label>
-            <select id="edit-bonus-target" class="form-select"></select>
-            <span style="font-size: 10px; color: var(--text-muted); display: block; margin-top: 2px;">
-              Choose Course Total for pure extra marks added even after syllabus percentage, or pick a specific course category.
-            </span>
+          <div class="form-row-2" style="gap: 8px; margin-bottom: 6px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="edit-bonus-unit">Bonus Type</label>
+              <select id="edit-bonus-unit" class="form-select">
+                <option value="points" selected>Pure Points (pts)</option>
+                <option value="percent">Percentage (%)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="edit-bonus-target">Bonus On What</label>
+              <select id="edit-bonus-target" class="form-select"></select>
+            </div>
           </div>
+          <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 6px;">
+            Pure Points add flat extra marks (even past 100% syllabus total); Percentage scales against the chosen target.
+          </span>
           <div class="form-group" id="edit-bonus-score-wrap" style="margin-bottom: 0;">
             <label class="form-label" for="edit-bonus-score" style="font-size: 10.5px;">Bonus Score Earned <span style="font-weight: normal; color: var(--text-muted);">(when completed; blank = full bonus marks)</span></label>
             <input type="number" id="edit-bonus-score" class="form-input" placeholder="e.g. 2" step="0.1" min="0" max="100">
@@ -1927,17 +1945,57 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="bonus-title-input">Bonus Title / Reason</label>
-            <input type="text" id="bonus-title-input" class="form-input" placeholder="e.g. Class Participation, Extra Credit Lab, Seminar" required>
+            <input type="text" id="bonus-title-input" class="form-input" placeholder="e.g. Class Participation, Bonus Quiz, Seminar" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="bonus-val-input">Bonus Points (+% or Marks on Course)</label>
+            <label class="form-label" for="bonus-val-input">Bonus Value &amp; Format</label>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <input type="number" id="bonus-val-input" class="form-input" placeholder="e.g. 2.0" step="0.25" min="0.1" max="50" required>
-              <span style="font-weight: 700; font-size: 12px; color: var(--text-muted);">pts</span>
+              <input type="number" id="bonus-val-input" class="form-input" placeholder="e.g. 2.0" step="0.25" min="0.1" max="100" required style="flex: 1;">
+              <select id="bonus-unit-select" class="form-select" style="width: 145px; flex-shrink: 0;">
+                <option value="points" selected>Pure Points (pts)</option>
+                <option value="percent">Percentage (%)</option>
+              </select>
             </div>
-            <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">
-              Adds pure extra credit directly to your earned course total without inflating the required syllabus denominator.
+            <span id="bonus-unit-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 3px;">
+              Adds pure extra marks directly without inflating the required syllabus denominator.
             </span>
+          </div>
+          <div class="form-group" style="border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px;">
+            <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 0;">
+              <input type="checkbox" id="bonus-link-date-check" style="accent-color: var(--accent);">
+              <span style="font-weight: 600;">Link to a due date (add to Calendar &amp; Deadlines)</span>
+            </label>
+            <div id="bonus-date-wrap" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
+              <div class="form-row-2" style="gap: 8px; margin-bottom: 6px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="bonus-date-input">Due Date</label>
+                  <input type="date" id="bonus-date-input" class="form-input">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="bonus-time-input">Time (Optional)</label>
+                  <input type="time" id="bonus-time-input" class="form-input">
+                </div>
+              </div>
+              <div class="form-row-2" style="gap: 8px; margin-bottom: 6px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="bonus-type-select">Type</label>
+                  <select id="bonus-type-select" class="form-select">
+                    <option value="quiz" selected>Quiz</option>
+                    <option value="assignment">Assignment / HW</option>
+                    <option value="lab">Lab / Report</option>
+                    <option value="project">Project</option>
+                    <option value="exam">Exam</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end; padding-bottom: 6px;">
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px;">
+                    <input type="checkbox" id="bonus-earned-check" style="accent-color: var(--accent);">
+                    <span>Already graded now</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label" for="bonus-notes-input">Notes (Optional)</label>
@@ -1947,6 +2005,42 @@
         <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--surface-border);">
           <button type="button" class="btn-secondary" id="btn-cancel-bonus">Cancel</button>
           <button type="submit" class="btn-primary" style="font-weight: 700;">Save Bonus Mark</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Optional Score Entry on Completing Manual Deadline -->
+  <div id="modal-complete-score" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-complete-score-title">
+    <div class="modal-dialog" style="max-width: 360px;">
+      <div class="modal-header">
+        <h3 id="modal-complete-score-title" class="modal-title" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg class="ui-icon"><use href="#icon-check"></use></svg>
+          <span>Record Mark? (Optional)</span>
+        </h3>
+        <button type="button" class="modal-close-btn" id="btn-close-complete-score" aria-label="Close record mark dialog">✕</button>
+      </div>
+      <form id="form-complete-score">
+        <div class="modal-body" style="padding: 12px 14px; font-size: 12px; color: var(--text-main);">
+          <input type="hidden" id="complete-score-task-id">
+          <div id="complete-score-task-label" style="font-weight: 700; margin-bottom: 4px; color: var(--text-main);"></div>
+          <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 10px; line-height: 1.4;">
+            Already know your score? Enter it below. Expecting this mark from Blackboard? Skip it — your next scan will fill it in automatically.
+          </p>
+          <div class="form-row-2" style="gap: 8px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="complete-score-earned">Score Earned</label>
+              <input type="number" id="complete-score-earned" class="form-input" step="0.1" min="0" max="1000" placeholder="e.g. 2" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="complete-score-max">Out Of (Max)</label>
+              <input type="number" id="complete-score-max" class="form-input" step="0.1" min="0.1" max="1000" placeholder="e.g. 2" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--surface-border);">
+          <button type="button" class="btn-secondary" id="btn-skip-complete-score">Wait for Blackboard</button>
+          <button type="submit" class="btn-primary" style="font-weight: 700;">Save Mark</button>
         </div>
       </form>
     </div>
