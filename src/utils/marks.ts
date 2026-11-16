@@ -41,6 +41,8 @@ export interface MarkRow {
   bonusTargetLabel?: string;
   /** True when the mark has no scheduled deadline (standalone bonus mark or unannounced gradebook entry). */
   isStandalone?: boolean;
+  /** True when the mark originated from a Blackboard gradebook column rather than a scheduled task. */
+  isGradebook?: boolean;
 }
 
 export interface CourseMarks {
@@ -181,6 +183,11 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     const bonusBase = Number(t.weight) > 0 ? Number(t.weight) : Number(t.maxScore ?? t.score ?? 0);
     const bonusEarned = isBonus ? bonusEarnedAmount(t, course.totalWeight, targetComp?.totalWeight) : 0;
     const weight = isBonus ? (bonusBase > 0 ? bonusBase : undefined) : (Number(t.weight) > 0 ? Number(t.weight) : undefined);
+    const isGradebook = Boolean(
+      (t.id && (t.id.startsWith('gbcol_') || t.id.startsWith('gb_'))) ||
+      t.sourceSnippet === 'gradebook' ||
+      (t.extractedBy as string) === 'gradebook'
+    );
     const row: MarkRow = {
       id: t.id,
       title: t.title,
@@ -189,13 +196,15 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       dueDate: t.dueDate,
       gradedAt: t.gradedAt,
       submittedAt: t.submittedAt,
-      completedAt: t.completedAt || (t.status === 'completed' ? (t.submittedAt || t.updatedAt) : undefined),
+      // Only treat updatedAt as completion time for manual tasks without a real Blackboard gradedAt timestamp.
+      completedAt: t.completedAt || (!isGradebook && !t.gradedAt && t.status === 'completed' ? (t.submittedAt || t.updatedAt) : undefined),
       createdAt: t.createdAt,
       isBonus,
       bonusUnit: isBonus ? (t.bonusUnit === 'percent' ? 'percent' : 'points') : undefined,
       bonusTarget: isBonus ? t.bonusTarget : undefined,
       bonusTargetLabel: isBonus ? t.bonusTargetLabel : undefined,
-      isStandalone: isStandaloneMarkTask(t)
+      isStandalone: isStandaloneMarkTask(t),
+      isGradebook: isGradebook || undefined
     };
     if (graded) {
       if (isBonus) {
@@ -341,10 +350,13 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       if (!isNaN(tSub)) return tSub;
       const tComp = parse(m.completedAt);
       if (!isNaN(tComp)) return tComp;
-      const tCreated = parse(m.createdAt);
-      if (!isNaN(tCreated)) return tCreated;
       const tGraded = parse(m.gradedAt);
       if (!isNaN(tGraded)) return tGraded;
+      // Ignore scan-time createdAt on gradebook items so re-discovered old columns don't jump to the top
+      if (!m.isGradebook && !(m.id && (m.id.startsWith('gbcol_') || m.id.startsWith('gb_')))) {
+        const tCreated = parse(m.createdAt);
+        if (!isNaN(tCreated)) return tCreated;
+      }
       return -Infinity;
     };
     c.marks.sort((a, b) => {
