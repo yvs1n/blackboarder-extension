@@ -10,7 +10,7 @@ import {
   setScanStatus,
   ScanCheckpoint
 } from '../utils/storage';
-import { isValidTask } from '../core/courseHelper';
+import { isValidTask, isBareTypeTitle } from '../core/courseHelper';
 import { deduplicateTaskList } from '../utils/taskMerge';
 import { applySubmissionUpdates, purgeSyntheticGradebookTasks } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
@@ -159,6 +159,10 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
     if (matched && typeof matched === 'object') {
       // Matched an existing task! If user edited it, never overwrite user changes.
       if (!matched.userEdited && matched.extractedBy !== 'manual') {
+        if (isBareTypeTitle(matched.title || '') && dt.title && !isBareTypeTitle(dt.title)) {
+          matched.title = dt.title;
+          matched.updatedAt = new Date().toISOString();
+        }
         if (!matched.hasSpecificTime && dt.hasSpecificTime) {
           matched.dueDate = dt.dueDate;
           matched.hasSpecificTime = dt.hasSpecificTime;

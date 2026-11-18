@@ -58,10 +58,10 @@ function extractTaskTitle(sentence: string, taskType: TaskType): string {
   // Clean whitespace
   const clean = sentence.replace(/\s+/g, ' ').trim();
 
-  // English title label like "Quiz 2", "Assignment 3", "Project Proposal"
-  const specificMatch = clean.match(/\b((?:Final\s+Exam|Quiz|Assignment|HW|Homework|Exam|Midterm|Project|Lab)\s*(?:#?\d+|[A-Z]\b|Part\s*\d+|Phase\s*\d+|Proposal|Final)?)/i);
+  // English title label like "Quiz 2", "Assignment-1", "Lab Report 2", "Project Proposal"
+  const specificMatch = clean.match(/\b((?:Final\s+Exam|Midterm\s+Exam|Lab\s+Report|Lab\s+Exam|Pop\s+Quiz|Research\s+Paper|Term\s+Paper|Quiz|Assignment|HW|Homework|Exam|Midterm|Project|Lab)(?:[\s-]+(?:#?\d+|Part\s*\d+|Phase\s*\d+|Proposal|Final|[A-Z]\b))?)/i);
   if (specificMatch && specificMatch[1].length > 2) {
-    return toEnglishDeadlineTitle(specificMatch[1].trim(), taskType);
+    return toEnglishDeadlineTitle(specificMatch[1].replace(/[-–]/g, ' ').replace(/\s+/g, ' ').trim(), taskType);
   }
 
   // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي", "البحث العلمي"

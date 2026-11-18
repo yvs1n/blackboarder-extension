@@ -285,5 +285,23 @@ describe('Local NLP Deadline Extractor', () => {
     expect(d.getMonth()).toBe(10);
     expect(d.getDate()).toBe(19);
   });
+
+  it('preserves full Lab Report and hyphenated assessment numbers when naming deadlines', () => {
+    const ann: Announcement = {
+      id: 'ann-hyphen-lab',
+      courseCode: '1430116',
+      courseName: 'Physics 1 Lab',
+      title: 'Upcoming Deadlines',
+      postedAt: '2026-11-10T08:00:00.000Z',
+      contentText: 'Lab Report 2 is due on Nov 20.\nQuiz-3 will be held on Nov 24.',
+      sourceUrl: 'https://elearning.sharjah.ac.ae/ultra/stream',
+      scannedAt: '2026-11-10T08:05:00.000Z'
+    };
+
+    const tasks = extractDeadlinesLocally(ann);
+    expect(tasks).toHaveLength(2);
+    expect(tasks.find(t => t.type === 'lab')?.title).toBe('Lab Report 2');
+    expect(tasks.find(t => t.type === 'quiz')?.title).toBe('Quiz 3');
+  });
 });
 

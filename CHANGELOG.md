@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.9] - 2026-11-18
+
+### Fixed
+
+- **Extension & Web App Auto-Update Reliability (`updater/blackboarder-updater.ps1`, `updater/blackboarder-updater.sh`, `src/mobile/app/03-boot-sw.js`):** Fixed stale bundle pruning in the Windows/macOS/Linux native updaters where `dist/src/` caused built extensions to be skipped as source checkouts, and updated mobile `isUserBusy()` to guard open `.modal-overlay` and `.day-sheet-drawer` dialogs during background reloads.
+- **Deadline Scanning & Assessment Naming (`src/utils/streamParser.ts`, `src/engine/localExtractor.ts`, `src/scan/scanPipeline.ts`):** Added `lab` classification and `toEnglishDeadlineTitle` normalization for stream deadlines, preserved multi-word `Lab Report` and hyphenated (`Quiz-2`, `Assignment-1`) titles during local extraction, and upgraded bare announcement titles when stream cards carry specific names.
+- **Payments Category Saving, Portal Labels, & Design Alignment (`src/popup/`, `src/mobile/`, `mobile-web/companion/`):** Fixed the `<select id="payment-category">` `late_fee` option value, fixed `pt.title` portal button rendering in the web companion, and aligned `#view-payments` and calendar payment cards with the shared two-tone Swiss Grid card/icon/spacing system across extension and mobile.
+
+---
+
 ## [1.8.8] - 2026-11-18
 
 ### Added

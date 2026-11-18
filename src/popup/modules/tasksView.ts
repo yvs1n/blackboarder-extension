@@ -294,14 +294,14 @@ export function renderTasks() {
 
     const card = document.createElement('div');
     card.className = `task-card urgency-${countdown.urgency} status-${task.status}${isPayment ? ' is-payment-item' : ''}`;
-    card.style.borderLeft = `4px solid ${isPayment ? 'oklch(0.66 0.17 65)' : courseTheme.hex}`;
-    card.style.setProperty('border-left-color', isPayment ? 'oklch(0.66 0.17 65)' : courseTheme.hex, 'important');
+    card.style.borderLeft = `4px solid ${isPayment ? 'var(--accent)' : courseTheme.hex}`;
+    card.style.setProperty('border-left-color', isPayment ? 'var(--accent)' : courseTheme.hex, 'important');
     card.setAttribute('data-id', task.id);
 
     card.innerHTML = `
       <div class="task-course-banner">
         <div class="course-badge-main" style="background: ${courseTheme.bgLight} !important; border: 1px solid ${courseTheme.border} !important; color: ${courseTheme.textDark} !important;" title="${escapeHtml(resolved.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
-          <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${isPayment ? 'oklch(0.66 0.17 65)' : courseTheme.hex}; display: inline-block; flex-shrink: 0;"></span>
+          <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${isPayment ? 'var(--accent)' : courseTheme.hex}; display: inline-block; flex-shrink: 0;"></span>
           <span class="course-name-text" style="color: ${courseTheme.textDark}; font-weight: 700;">${escapeHtml(resolved.courseName)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">

@@ -72,7 +72,7 @@ function Update-GitCheckout {
 }
 
 function Remove-StaleExtensionFiles([string]$TargetDir, $KeepFiles) {
-  $isRepoCheckout = (Test-Path -LiteralPath (Join-Path $TargetDir 'src')) -or (Test-Path -LiteralPath (Join-Path $TargetDir 'package.json'))
+  $isRepoCheckout = (Test-Path -LiteralPath (Join-Path $TargetDir '.git')) -or (Test-Path -LiteralPath (Join-Path $TargetDir 'package.json'))
   if ($isRepoCheckout -or (-not $KeepFiles)) { return }
   $keep = @{}
   $keep['version.json'] = $true

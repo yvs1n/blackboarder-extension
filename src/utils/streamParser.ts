@@ -87,8 +87,9 @@ export function parseDirectStreamCard(cardText: string): DeadlineTask | null {
 
   // Identify type
   let type: TaskType = 'assignment';
-  if (/quiz|كويز/i.test(title)) type = 'quiz';
-  else if (/exam|midterm|final|امتحان/i.test(title)) type = 'exam';
+  if (/quiz|كويز|اختبار\s*قصير/i.test(title)) type = 'quiz';
+  else if (/\b(?:exam|midterm|final)\b|امتحان/i.test(title)) type = 'exam';
+  else if (/\b(?:lab(?:\s*report)?|experiment)\b|مختبر|تقرير/i.test(title)) type = 'lab';
   else if (/project|مشروع|بحث/i.test(title)) type = 'project';
   else if (/hw|homework|واجب/i.test(title)) type = 'assignment';
 
@@ -627,6 +628,7 @@ export function parseUltraStreamEntries(
       let type: TaskType = 'assignment';
       if (/quiz|كويز|اختبار\s*قصير/i.test(rawClean)) type = 'quiz';
       else if (/\b(?:exam|mid[\s_-]*term|final)\b|امتحان/i.test(rawClean)) type = 'exam';
+      else if (/\b(?:lab(?:\s*report)?|experiment)\b|مختبر|تقرير/i.test(rawClean)) type = 'lab';
       else if (/project|مشروع|بحث/i.test(rawClean)) type = 'project';
 
       const cleanTaskTitle = toEnglishDeadlineTitle(rawClean, type);

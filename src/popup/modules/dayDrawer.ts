@@ -191,7 +191,7 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   const isCompleted = task.status === 'completed';
   const isPayment = Boolean(task.isPayment);
   const resolved = resolveCourseInfo(task);
-  const courseHex = isPayment ? 'oklch(0.66 0.17 65)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
+  const courseHex = isPayment ? 'var(--accent)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
   const countdown = formatCountdown(task.dueDate, task.hasSpecificTime);
   const timeDisplay = formatTaskTime(task);

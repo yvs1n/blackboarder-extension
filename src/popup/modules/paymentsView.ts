@@ -10,7 +10,7 @@ import {
 } from '../../core/payments';
 import { getCachedSettingsSync, getSettings, saveSettings, saveStoredPayments } from '../../utils/storage';
 import { recordLocalTombstone, removeLocalTombstone } from '../../utils/tombstones';
-import { escapeHtml } from '../../utils/uiCommon';
+import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
@@ -26,10 +26,10 @@ export function getCombinedCalendarTasks(): DeadlineTask[] {
 export function updatePaymentsHeaderBadge(): void {
   const badge = document.getElementById('payments-header-badge');
   const summary = summarizePayments(popupState.currentPayments);
-  const urgent = summary.overdueCount + summary.dueSoonCount;
   if (badge) {
-    badge.textContent = urgent > 0 ? String(urgent) : '';
-    badge.hidden = urgent <= 0;
+    badge.textContent = summary.pendingCount > 0 ? String(summary.pendingCount) : '';
+    badge.hidden = summary.pendingCount <= 0;
+    badge.classList.toggle('is-overdue', summary.overdueCount > 0);
   }
 
   const strip = document.getElementById('deadlines-payments-strip');
@@ -38,15 +38,18 @@ export function updatePaymentsHeaderBadge(): void {
       const dueStr = new Date(summary.nextDue.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric' });
       const amtStr = formatPaymentAmount(summary.nextDue.amount, summary.nextDue.currency);
       strip.hidden = false;
+      strip.classList.toggle('is-overdue', summary.overdueCount > 0);
       strip.innerHTML = `
         <span class="payments-strip-text">
+          ${getSvgIcon('credit-card', 'mr-1')}
           <strong>${summary.pendingCount} unpaid fee${summary.pendingCount > 1 ? 's' : ''}</strong>
           · Next: ${escapeHtml(summary.nextDue.title)} (${dueStr}${amtStr ? ` · ${escapeHtml(amtStr)}` : ''})
         </span>
-        <button type="button" class="btn-secondary payments-strip-btn" id="btn-strip-open-payments">Payments Guide →</button>
+        <button type="button" class="btn-secondary payments-strip-btn" id="btn-strip-open-payments">Payments</button>
       `;
     } else {
       strip.hidden = true;
+      strip.classList.remove('is-overdue');
       strip.innerHTML = '';
     }
   }
@@ -161,6 +164,19 @@ export function renderPaymentsView(): void {
   const guide = universityPaymentGuide(profile?.universityId);
   const summary = summarizePayments(popupState.currentPayments);
 
+  const overviewPill = document.getElementById('payments-overview-pill');
+  if (overviewPill) {
+    overviewPill.textContent = summary.overdueCount > 0
+      ? `${summary.overdueCount} Overdue`
+      : (summary.pendingCount > 0 ? `${summary.pendingCount} Pending` : 'All Settled');
+    overviewPill.className = `settings-pill ${summary.overdueCount > 0 ? 'pill-orange' : (summary.pendingCount > 0 ? 'pill-blue' : 'pill-green')}`;
+  }
+  const countPill = document.getElementById('payments-count-pill');
+  if (countPill) {
+    const count = popupState.currentPayments.length;
+    countPill.textContent = `${count} Tracked`;
+  }
+
   const totalsStr = summary.totalsByCurrency.length > 0
     ? summary.totalsByCurrency.map(t => formatPaymentAmount(t.amount, t.currency)).join(' + ')
     : 'Amount optional';
@@ -169,22 +185,22 @@ export function renderPaymentsView(): void {
       ? `Overdue by ${Math.abs(summary.nextDueDays)}d`
       : summary.nextDueDays === 0
         ? 'Due today'
-        : `Next due in ${summary.nextDueDays}d`)
+        : `Due in ${summary.nextDueDays}d`)
     : 'All settled';
 
   summaryEl.innerHTML = `
     <div class="payments-stats-grid">
-      <div class="payments-stat-box">
-        <span class="payments-stat-label">Pending</span>
-        <strong class="payments-stat-val">${summary.pendingCount}</strong>
+      <div class="stat-card payments-stat-box">
+        <span class="stat-number payments-stat-val">${summary.pendingCount}</span>
+        <span class="stat-label payments-stat-label">Pending</span>
       </div>
-      <div class="payments-stat-box">
-        <span class="payments-stat-label">Balance Listed</span>
-        <strong class="payments-stat-val">${escapeHtml(totalsStr)}</strong>
+      <div class="stat-card payments-stat-box">
+        <span class="stat-number payments-stat-val">${escapeHtml(totalsStr)}</span>
+        <span class="stat-label payments-stat-label">Balance Listed</span>
       </div>
-      <div class="payments-stat-box">
-        <span class="payments-stat-label">Status</span>
-        <strong class="payments-stat-val ${summary.overdueCount > 0 ? 'is-overdue' : ''}">${escapeHtml(nextLabel)}</strong>
+      <div class="stat-card payments-stat-box">
+        <span class="stat-number payments-stat-val ${summary.overdueCount > 0 ? 'is-overdue' : ''}">${escapeHtml(nextLabel)}</span>
+        <span class="stat-label payments-stat-label">Next Status</span>
       </div>
     </div>
   `;
@@ -193,7 +209,7 @@ export function renderPaymentsView(): void {
     listEl.innerHTML = `
       <div class="payments-empty">
         <strong>No payment deadlines added yet</strong>
-        <span>Add an installment with <b>+ Add Payment</b> or load your term fee dates below so you never get caught off guard.</span>
+        <span>Add an installment with <b>Add Fee</b> or load your published term dates below.</span>
       </div>
     `;
   } else {
@@ -205,7 +221,7 @@ export function renderPaymentsView(): void {
       return `
         <div class="payment-row ${isPaid ? 'is-paid' : ''}" data-payment-id="${escapeHtml(p.id)}">
           <button type="button" class="payment-check-btn ${isPaid ? 'checked' : ''}" data-action="toggle-paid" data-payment-id="${escapeHtml(p.id)}" aria-label="Mark ${escapeHtml(p.title)} as ${isPaid ? 'pending' : 'paid'}">
-            ${isPaid ? '✓' : ''}
+            ${isPaid ? getSvgIcon('check') : ''}
           </button>
           <div class="payment-row-main">
             <div class="payment-row-top">
@@ -220,9 +236,9 @@ export function renderPaymentsView(): void {
             ${p.methodNote ? `<div class="payment-row-note">${escapeHtml(p.methodNote)}</div>` : ''}
           </div>
           <div class="payment-row-actions">
-            ${p.portalUrl ? `<button type="button" class="btn-icon-tiny" data-action="open-portal" data-url="${escapeHtml(p.portalUrl)}" title="Open payment portal" aria-label="Open payment portal">↗</button>` : ''}
-            <button type="button" class="btn-icon-tiny" data-action="edit" data-payment-id="${escapeHtml(p.id)}" title="Edit payment" aria-label="Edit ${escapeHtml(p.title)}">✎</button>
-            <button type="button" class="btn-icon-tiny" data-action="delete" data-payment-id="${escapeHtml(p.id)}" title="Delete payment" aria-label="Delete ${escapeHtml(p.title)}">✕</button>
+            ${p.portalUrl ? `<button type="button" class="btn-icon-tiny" data-action="open-portal" data-url="${escapeHtml(p.portalUrl)}" title="Open payment portal" aria-label="Open payment portal">${getSvgIcon('external-link')}</button>` : ''}
+            <button type="button" class="btn-icon-tiny" data-action="edit" data-payment-id="${escapeHtml(p.id)}" title="Edit payment" aria-label="Edit ${escapeHtml(p.title)}">${getSvgIcon('pencil')}</button>
+            <button type="button" class="btn-icon-tiny btn-icon-danger" data-action="delete" data-payment-id="${escapeHtml(p.id)}" title="Delete payment" aria-label="Delete ${escapeHtml(p.title)}">${getSvgIcon('trash')}</button>
           </div>
         </div>
       `;
@@ -230,14 +246,20 @@ export function renderPaymentsView(): void {
   }
 
   guideEl.innerHTML = `
-    <div class="payments-guide-header">
-      <h4 class="payments-guide-title">${escapeHtml(guide.headline)}</h4>
+    <div class="settings-card-header">
+      <div class="settings-icon-title">
+        <span class="card-icon">${getSvgIcon('book')}</span>
+        <div>
+          <h3 class="settings-card-title">${escapeHtml(guide.headline)}</h3>
+          <p class="settings-card-subtitle">Verified portals, payment channels, and term dates</p>
+        </div>
+      </div>
     </div>
     ${guide.portals.length > 0 ? `
       <div class="payments-portal-links">
         ${guide.portals.map(pt => `
           <button type="button" class="btn-outline-action payments-portal-btn" data-url="${escapeHtml(pt.url)}">
-            <span>${escapeHtml(pt.title)}</span>
+            <span class="payments-portal-head">${escapeHtml(pt.title)} ${getSvgIcon('external-link')}</span>
             <span class="payments-portal-sub">${escapeHtml(pt.description)}</span>
           </button>
         `).join('')}

@@ -302,7 +302,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.8</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.9</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -1222,7 +1222,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.8</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.9</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1423,10 +1423,13 @@
   <!-- VIEW: Payments & Financial Deadlines -->
   <section id="view-payments" class="view-panel">
     <div class="payments-view-header">
-      <button type="button" class="btn-secondary payments-back-btn" id="btn-payments-back" title="Back to Calendar">Back</button>
+      <button type="button" class="btn-secondary payments-back-btn" id="btn-payments-back" title="Back to Calendar" aria-label="Back to Calendar">
+        <svg class="ui-icon mr-1"><use href="#icon-chevron-left"></use></svg>
+        <span>Back</span>
+      </button>
       <div class="payments-view-title-wrap">
         <h2 class="payments-view-title">Payments</h2>
-        <p class="payments-view-subtitle">Tuition installments, fee deadlines &amp; official payment guide</p>
+        <p class="payments-view-subtitle">Tuition installments, fee deadlines &amp; official portals</p>
       </div>
       <button type="button" class="btn-primary payments-add-btn" id="btn-add-payment">
         <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
@@ -1434,24 +1437,47 @@
       </button>
     </div>
 
-    <div class="payments-calendar-toggle-row">
-      <div class="toggle-text-block">
-        <span class="toggle-main-label">Show in Calendar &amp; Reminders</span>
-        <span class="toggle-status-desc">Project unpaid fee due dates onto Calendar, Deadlines, ICS feed &amp; alerts</span>
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div class="settings-icon-title">
+          <span class="card-icon"><svg class="ui-icon"><use href="#icon-credit-card"></use></svg></span>
+          <div>
+            <h3 class="settings-card-title">Financial Overview</h3>
+            <p class="settings-card-subtitle">Tracked balance, status, and schedule projection</p>
+          </div>
+        </div>
+        <span class="settings-pill pill-blue" id="payments-overview-pill">0 Pending</span>
       </div>
-      <label class="switch">
-        <input type="checkbox" id="toggle-show-payments-calendar" aria-label="Show payment deadlines in calendar and reminders" checked>
-        <span class="slider round"></span>
-      </label>
+      <div id="payments-summary-card" class="payments-summary-card"></div>
+      <div class="toggle-control-row" style="margin-top: 10px;">
+        <div class="toggle-text-block">
+          <span class="toggle-main-label">Show in Calendar &amp; Reminders</span>
+          <span class="toggle-status-desc">Project unpaid fee due dates onto Calendar, Deadlines, ICS feed &amp; alerts</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-show-payments-calendar" aria-label="Show payment deadlines in calendar and reminders" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
     </div>
 
-    <div id="payments-summary-card" class="payments-summary-card"></div>
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div class="settings-icon-title">
+          <span class="card-icon"><svg class="ui-icon"><use href="#icon-list-check"></use></svg></span>
+          <div>
+            <h3 class="settings-card-title">Fee Deadlines &amp; Installments</h3>
+            <p class="settings-card-subtitle">Track due dates or mark installments as paid</p>
+          </div>
+        </div>
+        <span class="settings-pill pill-blue" id="payments-count-pill">0 Tracked</span>
+      </div>
+      <div id="payments-list" class="payments-list"></div>
+    </div>
 
-    <div class="payments-section-label">Fee Deadlines &amp; Installments</div>
-    <div id="payments-list" class="payments-list"></div>
-
-    <div class="payments-section-label">Where &amp; How to Pay</div>
-    <div id="payments-guide-card" class="payments-guide-card"></div>
+    <div class="settings-card">
+      <div id="payments-guide-card" class="payments-guide-card"></div>
+    </div>
   </section>
   </div>
 
@@ -2303,7 +2329,7 @@
               <option value="installment">Installment</option>
               <option value="registration">Registration</option>
               <option value="housing">Housing</option>
-              <option value="fine">Late Fee / Fine</option>
+              <option value="late_fee">Late Fee / Fine</option>
               <option value="other">Other Fee</option>
             </select>
           </div>

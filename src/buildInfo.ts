@@ -13,16 +13,16 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.8",
-  "build": "810fb618d1e1",
-  "commit": "669ca5cf3a48884b916b8df995e482f21abfa0ce",
-  "shortCommit": "669ca5c",
-  "timestamp": "2026-11-18T08:48:12.389Z",
-  "message": "v1.8.7: fix(marks): preserve gradebook columnDueDate and fix -Infinity NaN sort tiebreaker",
+  "version": "1.8.9",
+  "build": "5020391b08f6",
+  "commit": "fce9272cf0bc2e7e71c92546352817167ddcbb1e",
+  "shortCommit": "fce9272",
+  "timestamp": "2026-11-18T09:16:34.884Z",
+  "message": "v1.8.8: feat(payments): v1.8.8 Payments and Financial Deadlines Management",
   "changelog": [
-    "Payments & Financial Deadlines Management (src/core/payments.ts, src/popup/modules/paymentsView.ts, src/mobile/app/17-payments.js): Added a dedicated Payments section accessible from the header in both the Chrome extension and the companion web app without crowding the four main navigation tabs, complete with verified UOS Student Account / Tahseel portal links, step-by-step payment channels, published Fall/Spring installment presets, currency totals, and due-soon / overdue summaries.",
-    "Calendar, Reminders, ICS Feed, & Encrypted Cloud Sync Integration (src/utils/paymentsStorage.ts, src/utils/vaultCrypto.ts, src/background/serviceWorker.ts, src/worker/): Projected unpaid financial deadlines onto the Calendar, Day Drawer, Deadlines tab (with a quick summary banner), RFC 5545 /feed.ics calendar subscriptions, extension badge/notifications, and Web Push cron alerts (toggleable per device), sealed end-to-end inside the Zero-Knowledge Vault with tombstone-aware sync merges.",
-    "Banner Finance Portal Page Scanner (src/core/financePageParser.ts, src/content/scraper.ts): Added safe DOM table extraction on signed-in student finance summary pages to import installments and due dates without guessing unverified university APIs."
+    "Extension & Web App Auto-Update Reliability (updater/blackboarder-updater.ps1, updater/blackboarder-updater.sh, src/mobile/app/03-boot-sw.js): Fixed stale bundle pruning in the Windows/macOS/Linux native updaters where dist/src/ caused built extensions to be skipped as source checkouts, and updated mobile isUserBusy() to guard open .modal-overlay and .day-sheet-drawer dialogs during background reloads.",
+    "Deadline Scanning & Assessment Naming (src/utils/streamParser.ts, src/engine/localExtractor.ts, src/scan/scanPipeline.ts): Added lab classification and toEnglishDeadlineTitle normalization for stream deadlines, preserved multi-word Lab Report and hyphenated (Quiz-2, Assignment-1) titles during local extraction, and upgraded bare announcement titles when stream cards carry specific names.",
+    "Payments Category Saving, Portal Labels, & Design Alignment (src/popup/, src/mobile/, mobile-web/companion/): Fixed the <select id=\"payment-category\"> late_fee option value, fixed pt.title portal button rendering in the web companion, and aligned #view-payments and calendar payment cards with the shared two-tone Swiss Grid card/icon/spacing system across extension and mobile."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

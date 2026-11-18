@@ -167,9 +167,11 @@ describe('Extension automatic updates', () => {
       const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'bbs-updater-clean-'));
       try {
         fs.mkdirSync(path.join(tmp, 'assets'), { recursive: true });
+        fs.mkdirSync(path.join(tmp, 'src', 'popup'), { recursive: true });
         fs.mkdirSync(path.join(tmp, 'old-empty-dir', 'nested'), { recursive: true });
         fs.writeFileSync(path.join(tmp, 'manifest.json'), '{}');
         fs.writeFileSync(path.join(tmp, 'version.json'), '{}');
+        fs.writeFileSync(path.join(tmp, 'src', 'popup', 'index.html'), '<html></html>');
         fs.writeFileSync(path.join(tmp, 'assets', 'popup-NEWHASH.js'), 'new');
         fs.writeFileSync(path.join(tmp, 'assets', 'popup-OLDHASH.js'), 'stale');
         fs.writeFileSync(path.join(tmp, 'old-empty-dir', 'nested', 'obsolete.txt'), 'stale2');
@@ -183,7 +185,7 @@ describe('Extension automatic updates', () => {
         const runner = path.join(os.tmpdir(), `bbs-test-${Date.now()}.ps1`);
         fs.writeFileSync(
           runner,
-          `${fnSource}\nRemove-StaleExtensionFiles -TargetDir '${tmp.replace(/'/g, "''")}' -KeepFiles @('manifest.json','assets/popup-NEWHASH.js')\n`,
+          `${fnSource}\nRemove-StaleExtensionFiles -TargetDir '${tmp.replace(/'/g, "''")}' -KeepFiles @('manifest.json','src/popup/index.html','assets/popup-NEWHASH.js')\n`,
           'utf8'
         );
         try {

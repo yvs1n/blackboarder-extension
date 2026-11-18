@@ -171,7 +171,7 @@ export function createDayCell(
     const isCompleted = task.status === 'completed';
     const isPayment = Boolean(task.isPayment);
     const resolved = resolveCourseInfo(task);
-    const courseHex = isPayment ? 'oklch(0.66 0.17 65)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
+    const courseHex = isPayment ? 'var(--accent)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
     const timeStr = formatTaskTime(task);
 
     const chip = document.createElement('div');
@@ -184,7 +184,8 @@ export function createDayCell(
       chip.innerHTML = `${getSvgIcon('check')} <span>${escapeHtml(task.title)}</span>`;
       chip.title = `[Completed] ${resolved.courseName}: ${task.title} - Click to expand day view`;
     } else if (isPayment) {
-      chip.style.setProperty('background-color', 'oklch(0.66 0.17 65)', 'important');
+      chip.style.setProperty('background-color', 'var(--accent)', 'important');
+      chip.style.color = 'var(--on-accent)';
       chip.style.borderLeftColor = 'rgba(0, 0, 0, 0.25)';
       chip.innerHTML = `${getSvgIcon('credit-card')} <span>${escapeHtml(task.title)}</span>`;
       chip.title = `[Payment Due] ${task.title}${task.paymentAmountText ? ` (${task.paymentAmountText})` : ''} - ${timeStr}`;

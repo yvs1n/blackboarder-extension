@@ -63,7 +63,7 @@ update_extension_files() {
 
 cleanup_stale_files() {
   local target_dir="$1" new_version_file="$2" keep
-  [ ! -d "$target_dir/src" ] && [ ! -f "$target_dir/package.json" ] || return 0
+  [ ! -e "$target_dir/.git" ] && [ ! -f "$target_dir/package.json" ] || return 0
   keep="$(json_files "$new_version_file")"
   [ -n "$keep" ] || return 0
   (cd "$target_dir" && find . -type f ! -path ./version.json) | while IFS= read -r existing; do
