@@ -190,17 +190,17 @@ export function renderPaymentsView(): void {
 
   summaryEl.innerHTML = `
     <div class="payments-stats-grid">
-      <div class="stat-card payments-stat-box">
-        <span class="stat-number payments-stat-val">${summary.pendingCount}</span>
-        <span class="stat-label payments-stat-label">Pending</span>
+      <div class="payments-stat-box">
+        <strong class="payments-stat-val">${summary.pendingCount}</strong>
+        <span class="payments-stat-label">Pending</span>
       </div>
-      <div class="stat-card payments-stat-box">
-        <span class="stat-number payments-stat-val">${escapeHtml(totalsStr)}</span>
-        <span class="stat-label payments-stat-label">Balance Listed</span>
+      <div class="payments-stat-box">
+        <strong class="payments-stat-val">${escapeHtml(totalsStr)}</strong>
+        <span class="payments-stat-label">Balance Listed</span>
       </div>
-      <div class="stat-card payments-stat-box">
-        <span class="stat-number payments-stat-val ${summary.overdueCount > 0 ? 'is-overdue' : ''}">${escapeHtml(nextLabel)}</span>
-        <span class="stat-label payments-stat-label">Next Status</span>
+      <div class="payments-stat-box">
+        <strong class="payments-stat-val ${summary.overdueCount > 0 ? 'is-overdue' : ''}">${escapeHtml(nextLabel)}</strong>
+        <span class="payments-stat-label">Next Status</span>
       </div>
     </div>
   `;

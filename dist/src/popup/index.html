@@ -6,8 +6,8 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-BgPksAuE.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-phXf3AkK.css">
+  <script type="module" crossorigin src="../../assets/popup-BkwAhV1u.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-DlZTlo49.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -303,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.10</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.11</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -1223,7 +1223,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.10</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.11</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1424,18 +1424,20 @@
   <!-- VIEW: Payments & Financial Deadlines -->
   <section id="view-payments" class="view-panel">
     <div class="payments-view-header">
-      <button type="button" class="btn-secondary payments-back-btn" id="btn-payments-back" title="Back to Calendar" aria-label="Back to Calendar">
-        <svg class="ui-icon mr-1"><use href="#icon-chevron-left"></use></svg>
-        <span>Back</span>
-      </button>
       <div class="payments-view-title-wrap">
-        <h2 class="payments-view-title">Payments</h2>
+        <h3 class="payments-view-title">Payments &amp; Fees</h3>
         <p class="payments-view-subtitle">Tuition installments, fee deadlines &amp; official portals</p>
       </div>
-      <button type="button" class="btn-primary payments-add-btn" id="btn-add-payment">
-        <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
-        <span>Add Fee</span>
-      </button>
+      <div class="payments-view-actions">
+        <button type="button" class="btn-secondary payments-header-btn" id="btn-payments-back" title="Back to Calendar" aria-label="Back to Calendar">
+          <svg class="ui-icon mr-1"><use href="#icon-chevron-left"></use></svg>
+          <span>Back</span>
+        </button>
+        <button type="button" class="btn-primary payments-header-btn" id="btn-add-payment">
+          <svg class="ui-icon mr-1"><use href="#icon-plus"></use></svg>
+          <span>Add Fee</span>
+        </button>
+      </div>
     </div>
 
     <div class="settings-card">
@@ -2313,19 +2315,22 @@
   <div id="modal-payment" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-payment-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-payment-title">Add Payment Deadline</h3>
-        <button type="button" class="modal-close" id="btn-close-payment-modal" aria-label="Close">✕</button>
+        <h3 class="modal-title" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg class="ui-icon"><use href="#icon-credit-card"></use></svg>
+          <span id="modal-payment-title">Add Payment Deadline</span>
+        </h3>
+        <button type="button" class="modal-close-btn" id="btn-close-payment-modal" aria-label="Close">✕</button>
       </div>
-      <form id="form-payment" class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
+      <form id="form-payment">
         <input type="hidden" id="payment-id">
         <div class="form-group">
-          <label for="payment-title">Title</label>
-          <input type="text" id="payment-title" class="form-control" placeholder="e.g. Fall Tuition Installment 2 (25%)" required>
+          <label class="form-label" for="payment-title">Title</label>
+          <input type="text" id="payment-title" class="form-input" placeholder="e.g. Fall Tuition Installment 2 (25%)" required>
         </div>
         <div class="payments-form-grid">
           <div class="form-group">
-            <label for="payment-category">Category</label>
-            <select id="payment-category" class="form-control">
+            <label class="form-label" for="payment-category">Category</label>
+            <select id="payment-category" class="form-select">
               <option value="tuition">Tuition</option>
               <option value="installment">Installment</option>
               <option value="registration">Registration</option>
@@ -2335,39 +2340,39 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="payment-due-date">Due Date &amp; Time</label>
-            <input type="datetime-local" id="payment-due-date" class="form-control" required>
+            <label class="form-label" for="payment-due-date">Due Date &amp; Time</label>
+            <input type="datetime-local" id="payment-due-date" class="form-input" required>
           </div>
         </div>
         <div class="payments-form-grid">
           <div class="form-group">
-            <label for="payment-amount">Amount (optional)</label>
-            <input type="number" id="payment-amount" class="form-control" step="0.01" min="0" placeholder="e.g. 12500">
+            <label class="form-label" for="payment-amount">Amount (optional)</label>
+            <input type="number" id="payment-amount" class="form-input" step="0.01" min="0" placeholder="e.g. 12500">
           </div>
           <div class="form-group">
-            <label for="payment-currency">Currency</label>
-            <input type="text" id="payment-currency" class="form-control" maxlength="8" value="AED" placeholder="AED">
+            <label class="form-label" for="payment-currency">Currency</label>
+            <input type="text" id="payment-currency" class="form-input" maxlength="8" value="AED" placeholder="AED">
           </div>
         </div>
         <div class="payments-form-grid">
           <div class="form-group">
-            <label for="payment-term">Term / Semester (optional)</label>
-            <input type="text" id="payment-term" class="form-control" placeholder="e.g. Fall 2026/27">
+            <label class="form-label" for="payment-term">Term / Semester (optional)</label>
+            <input type="text" id="payment-term" class="form-input" placeholder="e.g. Fall 2026/27">
           </div>
           <div class="form-group">
-            <label for="payment-method-note">Method / Note (optional)</label>
-            <input type="text" id="payment-method-note" class="form-control" placeholder="e.g. Tahseel / Apple Pay / SIB">
+            <label class="form-label" for="payment-method-note">Method / Note (optional)</label>
+            <input type="text" id="payment-method-note" class="form-input" placeholder="e.g. Tahseel / Apple Pay / SIB">
           </div>
         </div>
         <div class="form-group">
-          <label for="payment-portal-url">Official Payment Portal URL (optional)</label>
-          <input type="url" id="payment-portal-url" class="form-control" placeholder="https://banner.sharjah.ac.ae">
+          <label class="form-label" for="payment-portal-url">Official Payment Portal URL (optional)</label>
+          <input type="url" id="payment-portal-url" class="form-input" placeholder="https://banner.sharjah.ac.ae">
         </div>
         <label class="payments-checkbox-row">
           <input type="checkbox" id="payment-paid-check">
           <span>Already paid</span>
         </label>
-        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
+        <div class="modal-footer">
           <button type="button" class="btn-secondary" id="btn-cancel-payment">Cancel</button>
           <button type="submit" class="btn-primary">Save Payment</button>
         </div>

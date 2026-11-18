@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.11] - 2026-11-18
+
+### Fixed
+
+- **Payments View & Modal Visual Parity (`src/popup/`, `src/mobile/`, `mobile-web/companion/`):** Added the missing `10px 14px 20px` view-panel padding to `#view-payments` matching Courses and Marks, aligned `#view-payments` header typography, compact action buttons, and stat boxes with Settings/Courses, switched `#modal-payment` to use the exact `.modal-backdrop` / `.form-label` / `.form-input` / `.form-select` / `.modal-close-btn` classes used by `#modal-edit-task`, and restored `.toggle-control-row` styling on mobile.
+
+---
+
 ## [1.8.10] - 2026-11-18
 
 ### Fixed

@@ -13,14 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.10",
-  "build": "b0b316c942ca",
-  "commit": "a179f5f73aa3a0dfd8a59345eefeb3831c9cfa6f",
-  "shortCommit": "a179f5f",
-  "timestamp": "2026-11-18T11:01:59.807Z",
-  "message": "v1.8.9: fix(v1.8.9): auto-updater cleanup, scanning naming, and Payments UI alignment",
+  "version": "1.8.11",
+  "build": "62c97242fdb6",
+  "commit": "827ad5e6b40c3997b5f59ecddc60073bd62a5d43",
+  "shortCommit": "827ad5e",
+  "timestamp": "2026-11-18T11:44:10.112Z",
+  "message": "v1.8.10: fix(v1.8.10): hide empty deadlines payments strip via [hidden]",
   "changelog": [
-    "Empty Deadlines Strip Visibility (src/popup/styles/12-payments.css, src/mobile/styles/11-payments.css): Added [hidden] { display: none !important; } rules for .payments-deadlines-strip and .payments-header-badge so the display: flex rule no longer renders an empty bordered strip above the Deadlines list when no unpaid fees exist."
+    "Payments View & Modal Visual Parity (src/popup/, src/mobile/, mobile-web/companion/): Added the missing 10px 14px 20px view-panel padding to #view-payments matching Courses and Marks, aligned #view-payments header typography, compact action buttons, and stat boxes with Settings/Courses, switched #modal-payment to use the exact .modal-backdrop / .form-label / .form-input / .form-select / .modal-close-btn classes used by #modal-edit-task, and restored .toggle-control-row styling on mobile."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

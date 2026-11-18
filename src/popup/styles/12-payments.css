@@ -1,4 +1,8 @@
 /* Payments & Financial Deadlines (matches Settings, Courses & Swiss Grid 0px tokens) */
+#view-payments {
+  padding: 10px 14px 20px;
+}
+
 .icon-btn-payments {
   position: relative;
 }
@@ -71,10 +75,9 @@
 .payments-view-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding-bottom: 12px;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--surface-border);
 }
 
 .payments-view-title-wrap {
@@ -96,13 +99,19 @@
   color: var(--text-muted);
 }
 
-.payments-back-btn,
-.payments-add-btn {
+.payments-view-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.payments-header-btn {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
-  font-size: 11.5px;
-  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 11px;
+  min-height: 28px;
   flex-shrink: 0;
 }
 
