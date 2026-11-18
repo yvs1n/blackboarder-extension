@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.10] - 2026-11-18
+
+### Fixed
+
+- **Empty Deadlines Strip Visibility (`src/popup/styles/12-payments.css`, `src/mobile/styles/11-payments.css`):** Added `[hidden] { display: none !important; }` rules for `.payments-deadlines-strip` and `.payments-header-badge` so the `display: flex` rule no longer renders an empty bordered strip above the Deadlines list when no unpaid fees exist.
+
+---
+
 ## [1.8.9] - 2026-11-18
 
 ### Fixed

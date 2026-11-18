@@ -13,16 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.9",
-  "build": "5020391b08f6",
-  "commit": "fce9272cf0bc2e7e71c92546352817167ddcbb1e",
-  "shortCommit": "fce9272",
-  "timestamp": "2026-11-18T09:16:34.884Z",
-  "message": "v1.8.8: feat(payments): v1.8.8 Payments and Financial Deadlines Management",
+  "version": "1.8.10",
+  "build": "b0b316c942ca",
+  "commit": "a179f5f73aa3a0dfd8a59345eefeb3831c9cfa6f",
+  "shortCommit": "a179f5f",
+  "timestamp": "2026-11-18T11:01:59.807Z",
+  "message": "v1.8.9: fix(v1.8.9): auto-updater cleanup, scanning naming, and Payments UI alignment",
   "changelog": [
-    "Extension & Web App Auto-Update Reliability (updater/blackboarder-updater.ps1, updater/blackboarder-updater.sh, src/mobile/app/03-boot-sw.js): Fixed stale bundle pruning in the Windows/macOS/Linux native updaters where dist/src/ caused built extensions to be skipped as source checkouts, and updated mobile isUserBusy() to guard open .modal-overlay and .day-sheet-drawer dialogs during background reloads.",
-    "Deadline Scanning & Assessment Naming (src/utils/streamParser.ts, src/engine/localExtractor.ts, src/scan/scanPipeline.ts): Added lab classification and toEnglishDeadlineTitle normalization for stream deadlines, preserved multi-word Lab Report and hyphenated (Quiz-2, Assignment-1) titles during local extraction, and upgraded bare announcement titles when stream cards carry specific names.",
-    "Payments Category Saving, Portal Labels, & Design Alignment (src/popup/, src/mobile/, mobile-web/companion/): Fixed the <select id=\"payment-category\"> late_fee option value, fixed pt.title portal button rendering in the web companion, and aligned #view-payments and calendar payment cards with the shared two-tone Swiss Grid card/icon/spacing system across extension and mobile."
+    "Empty Deadlines Strip Visibility (src/popup/styles/12-payments.css, src/mobile/styles/11-payments.css): Added [hidden] { display: none !important; } rules for .payments-deadlines-strip and .payments-header-badge so the display: flex rule no longer renders an empty bordered strip above the Deadlines list when no unpaid fees exist."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

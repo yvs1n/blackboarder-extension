@@ -31,6 +31,11 @@
   color: #ffffff;
 }
 
+.payments-header-badge[hidden],
+.payments-deadlines-strip[hidden] {
+  display: none !important;
+}
+
 .payments-deadlines-strip {
   display: flex;
   align-items: center;
