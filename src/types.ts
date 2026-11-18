@@ -124,6 +124,25 @@ export interface CumulativeGpaSummary {
   archivedSemestersCount: number;
 }
 
+export type PaymentCategory = 'tuition' | 'installment' | 'registration' | 'housing' | 'late_fee' | 'other';
+
+export interface PaymentItem {
+  id: string;
+  title: string;
+  category: PaymentCategory;
+  amount?: number;
+  currency: string;
+  dueDate: string; // ISO 8601
+  status: 'pending' | 'paid';
+  paidAt?: string;
+  termName?: string;
+  methodNote?: string;
+  portalUrl?: string;
+  source: 'manual' | 'preset' | 'portal';
+  createdAt?: string;
+  updatedAt: string;
+}
+
 export interface FirebaseSyncPayload {
   tasks: DeadlineTask[];
   lastSync: string;
@@ -137,6 +156,8 @@ export interface FirebaseSyncPayload {
   profile?: StudentProfile;
   semesters?: ArchivedSemester[];
   semestersUpdatedAt?: string;
+  payments?: PaymentItem[];
+  paymentsUpdatedAt?: string;
 }
 
 export interface Announcement {
@@ -190,6 +211,10 @@ export interface DeadlineTask {
   bonusUnit?: 'points' | 'percent'; // Whether bonus value is pure points ('points') or percentage ('percent')
   bonusTarget?: string; // 'total' (pure extra credit on final %) or 'comp:<id>' / 'type:<taskType>'
   bonusTargetLabel?: string; // Human-readable target label (e.g. 'Course Total', 'Quizzes')
+  isPayment?: boolean; // Projected client-only flag for unpaid financial deadlines on Calendar/Deadlines
+  paymentId?: string;
+  paymentAmountText?: string;
+  paymentCategory?: PaymentCategory;
   calendarSynced?: boolean;
   userEdited?: boolean;
   createdAt: string;
@@ -232,6 +257,8 @@ export interface UserSettings {
   classReminderMinutes?: number;
   /** Each day's classes in Blackboarder's calendar (Settings > Calendar); on unless turned off */
   showClassesInCalendar?: boolean;
+  /** Unpaid financial deadlines in Calendar & Deadlines; on unless turned off */
+  showPaymentsInCalendar?: boolean;
   customDomains: string[];
   customWeights?: Record<string, any>;
   autoSyncMidnight?: boolean;
@@ -255,6 +282,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   reminderHoursBefore: 24,
   classReminderMinutes: 15,
   showClassesInCalendar: true,
+  showPaymentsInCalendar: true,
   customDomains: ['blackboard.sharjah.ac.ae', 'elearning.sharjah.ac.ae', 'blackboard.com'],
   autoSyncMidnight: true,
   autoSyncOnScan: true,

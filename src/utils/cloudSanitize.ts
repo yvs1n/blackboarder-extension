@@ -1,4 +1,5 @@
-import type { DeadlineTask, QuickLink, UserCourseConfig } from '../types';
+import type { DeadlineTask, QuickLink, UserCourseConfig, PaymentItem } from '../types';
+import { sanitizePayments } from '../core/payments';
 
 /**
  * Cloud data is only protected by the sync key, so everything read back from it is untrusted.
@@ -222,4 +223,9 @@ export function sanitizeCloudCourses(courses: unknown): UserCourseConfig[] | und
     });
   }
   return out;
+}
+
+export function sanitizeCloudPayments(payments: unknown): PaymentItem[] | undefined {
+  if (!Array.isArray(payments)) return undefined;
+  return sanitizePayments(payments);
 }

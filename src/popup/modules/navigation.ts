@@ -29,6 +29,8 @@ export function rememberDraft() {
     saveDraft({ view: 'marks' });
   } else if (dom.viewCourses().classList.contains('active')) {
     saveDraft({ view: 'courses' });
+  } else if (dom.viewPayments()?.classList.contains('active')) {
+    saveDraft({ view: 'payments' });
   } else {
     clearDraft();
   }
@@ -57,6 +59,8 @@ export async function restoreDraft() {
       switchView('marks');
     } else if (d.view === 'courses') {
       switchView('courses');
+    } else if (d.view === 'payments') {
+      switchView('payments');
     }
   } finally {
     popupState.draftReady = true;
@@ -71,6 +75,7 @@ export function switchView(view: AppView) {
   dom.viewDetails().classList.remove('active');
   dom.viewMarks().classList.remove('active');
   dom.viewCourses().classList.remove('active');
+  dom.viewPayments()?.classList.remove('active');
   dom.viewAdd().classList.remove('active');
   dom.viewSettings().classList.remove('active');
 
@@ -111,6 +116,10 @@ export function switchView(view: AppView) {
       popupActions.renderUserCoursesManager();
       popupState.dirtyViews.delete('courses');
     }
+  } else if (view === 'payments') {
+    dom.viewPayments()?.classList.add('active');
+    popupActions.renderPaymentsView();
+    popupState.dirtyViews.delete('payments');
   } else if (view === 'add') {
     dom.viewAdd().classList.add('active');
     popupActions.updateAddRoomVisibility();

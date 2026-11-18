@@ -3,7 +3,8 @@ import { pushTasksToFirebase, fetchTasksFromFirebase, markCloudScanRequestComple
 import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
 import { pickNewerList } from '../utils/syncMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
-import { getUserCourses, getCoursesUpdatedAt, saveUserCourses, getQuickLinksUpdatedAt, saveQuickLinks } from '../utils/storage';
+import { getUserCourses, getCoursesUpdatedAt, saveUserCourses, getQuickLinksUpdatedAt, saveQuickLinks, getStoredPayments, mergeCloudPaymentsStorage } from '../utils/storage';
+import { paymentsAsDeadlineTasks } from '../core/payments';
 import { initAutoUpdate } from './autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
@@ -131,13 +132,14 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
     }
 
     const { tasks, changed } = mergeCloudTasks(localTasks, res.tasks, tombstones);
-    if (changed) {
-      await chrome.storage.local.set({ bbs_tasks: tasks });
+    const paymentsChanged = await mergeCloudPaymentsStorage(res.payments, res.paymentsUpdatedAt, tombstones).catch(() => false);
+    if (changed || paymentsChanged) {
+      if (changed) await chrome.storage.local.set({ bbs_tasks: tasks });
       await updateExtensionBadge();
-      console.log('[Background Sync] Pulled and merged latest deadlines & course changes from Firebase into storage');
+      console.log('[Background Sync] Pulled and merged latest deadlines & changes from Firebase into storage');
     }
 
-    return changed;
+    return changed || paymentsChanged;
   } catch (err) {
     console.info('[Background Sync] Could not pull tasks from Firebase:', err);
     return false;
@@ -225,9 +227,12 @@ async function updateExtensionBadge() {
     }
 
     const tasks: DeadlineTask[] = data.bbs_tasks || [];
+    const paymentTasks = settings.showPaymentsInCalendar !== false
+      ? paymentsAsDeadlineTasks(await getStoredPayments().catch(() => []))
+      : [];
 
     const now = Date.now();
-    const urgentTasks = tasks.filter(t => {
+    const urgentTasks = [...tasks, ...paymentTasks].filter(t => {
       if (t.status !== 'pending') return false;
       const dueTime = new Date(t.dueDate).getTime();
       const hoursLeft = (dueTime - now) / (1000 * 3600);
@@ -256,6 +261,9 @@ async function checkUpcomingDeadlines() {
     const tasks: DeadlineTask[] = data.bbs_tasks || [];
     const settings: UserSettings = data.bbs_settings || DEFAULT_SETTINGS;
     const notifiedMap: Record<string, number> = data.bbs_notified || {};
+    const paymentTasks = settings.showPaymentsInCalendar !== false
+      ? paymentsAsDeadlineTasks(await getStoredPayments().catch(() => []))
+      : [];
 
     const reminderHours = typeof settings.reminderHoursBefore === 'number' ? settings.reminderHoursBefore : 24;
     if (reminderHours <= 0) return;
@@ -266,7 +274,7 @@ async function checkUpcomingDeadlines() {
     let notificationsTriggered = 0;
     const MAX_NOTIFICATIONS_PER_CHECK = 2;
 
-    for (const task of tasks) {
+    for (const task of [...tasks, ...paymentTasks]) {
       if (task.status !== 'pending') continue;
       const dueTime = new Date(task.dueDate).getTime();
       const timeRemaining = dueTime - now;
@@ -298,8 +306,12 @@ async function checkUpcomingDeadlines() {
             chrome.notifications.create(`reminder_${task.id}`, {
               type: 'basic',
               iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-              title: `[Urgent] Upcoming ${task.type.toUpperCase()}: ${task.title}`,
-              message: `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}! Course: ${task.courseCode} - ${task.courseName}`,
+              title: task.isPayment
+                ? `[Payment Due] ${task.title}`
+                : `[Urgent] Upcoming ${task.type.toUpperCase()}: ${task.title}`,
+              message: task.isPayment
+                ? `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}${task.paymentAmountText ? ` · ${task.paymentAmountText}` : ''}`
+                : `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}! Course: ${task.courseCode} - ${task.courseName}`,
               priority: 2
             });
           }

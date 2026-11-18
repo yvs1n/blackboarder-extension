@@ -1,11 +1,12 @@
 import type {
   DeadlineTask,
+  PaymentItem,
   QuickLink,
   UserCourseConfig,
   ArchivedSemester,
 } from '../../types';
 
-export type AppView = 'calendar' | 'details' | 'marks' | 'courses' | 'add' | 'settings';
+export type AppView = 'calendar' | 'details' | 'marks' | 'courses' | 'payments' | 'add' | 'settings';
 
 export function formatDateKey(date: Date): string {
   const y = date.getFullYear();
@@ -23,6 +24,7 @@ const todayDate = new Date();
 
 export const popupState = {
   currentTasks: [] as DeadlineTask[],
+  currentPayments: [] as PaymentItem[],
   currentQuickLinks: [] as QuickLink[],
   currentUserCourses: [] as UserCourseConfig[],
   currentFilterStatus: 'pending' as 'all' | 'pending' | 'completed',
@@ -38,7 +40,7 @@ export const popupState = {
   selectedCourseFilter: null as string | null,
 
   currentActiveView: 'calendar' as AppView,
-  dirtyViews: new Set<AppView>(['calendar', 'details', 'marks', 'courses', 'settings']),
+  dirtyViews: new Set<AppView>(['calendar', 'details', 'marks', 'courses', 'payments', 'settings']),
   draftReady: false,
 
   editingTaskId: null as string | null,
@@ -60,6 +62,7 @@ export const dom = {
   viewDetails: () => document.getElementById('view-details') as HTMLElement,
   viewMarks: () => document.getElementById('view-marks') as HTMLElement,
   viewCourses: () => document.getElementById('view-courses') as HTMLElement,
+  viewPayments: () => document.getElementById('view-payments') as HTMLElement,
   viewAdd: () => document.getElementById('view-add') as HTMLElement,
   viewSettings: () => document.getElementById('view-settings') as HTMLElement,
 
@@ -165,4 +168,8 @@ export const popupActions = {
   scanActiveTab: async (_fullRescan = false) => {},
   renderScanStatus: (_status: any) => {},
   resetScanButton: () => {},
+  renderPaymentsView: () => {},
+  updatePaymentsHeaderBadge: () => {},
+  togglePaymentPaid: async (_paymentId: string) => {},
+  openPaymentModal: (_existing?: PaymentItem) => {},
 };

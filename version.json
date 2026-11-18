@@ -1,22 +1,20 @@
 {
-  "version": "1.8.7",
-  "build": "e2b691e525e1",
-  "commit": "8a2687c1ba0b8f7037247c588d85674ce7490205",
-  "shortCommit": "8a2687c",
-  "timestamp": "2026-11-16T20:00:55.717Z",
-  "message": "v1.8.7: chore(release): v1.8.7 Activity preloader, bonus targets & score entry, chronological marks, and modular codebase",
+  "version": "1.8.8",
+  "build": "810fb618d1e1",
+  "commit": "669ca5cf3a48884b916b8df995e482f21abfa0ce",
+  "shortCommit": "669ca5c",
+  "timestamp": "2026-11-18T08:48:12.389Z",
+  "message": "v1.8.7: fix(marks): preserve gradebook columnDueDate and fix -Infinity NaN sort tiebreaker",
   "changelog": [
-    "Unified Activity Stream Preloader & Smarter Course Filter (src/content/activityFilter.ts, src/content/blackboard-dark.js): Replaced Blackboard's default Activity loading flicker with a unified Swiss Grid preloader from document_start until courses and notification batches finish loading in the background, seeded course chips immediately from active enrollments, and excluded non-academic tiles (Orientation, University).",
-    "Bonus Marks & Bonus Deadlines with Target Selection and Quick Score Entry (src/popup/, src/mobile/, src/utils/marks.ts, src/utils/grades.ts): Added pure points vs. percentage (%) bonus selection, Bonus On What category targeting (Course Total or any syllabus component), optional due-date linking from Add Bonus Mark so bonus quizzes appear in Calendar & Deadlines, optional quick score entry on completing manual assessments (+ Score), and bonus mark deletion with instant Undo in both extension and companion app.",
-    "Modularity & Accessibility Hardening (scripts/lint-check.js, src/content/, src/core/, src/engine/, src/popup/modules/marksModals.ts, src/utils/taskMarkSanitize.ts): Split oversized modules so every .ts, .js, and .css source file stays <= 800 lines, enforced the modularity limit in lint-check.js, removed dead code, and upgraded interactive labels and controls across modals and content UI.",
-    "Windows & Cross-Platform Widget Design Alignment (windows-widget/, widgets/, src/worker/01-widgets-wallpaper.js): Aligned Windows native desktop/lock-screen widgets, SVG/Android cards, and iOS Scriptable widgets with the Blackboarder Swiss Grid and frosted Liquid Glass visual spec.",
-    "Quiz Instruction Merging, Gradebook Protection, & Chronological Marks Ordering (src/scan/scanPipeline.ts, src/engine/localDateTime.ts, src/utils/taskMerge.ts, src/utils/marks.ts): Merged undated and topic-listing quiz announcements cleanly onto matching deadlines without duplicates, fixed HTML line-break and ordinal/multi-date extraction edge cases, prevented bonus tasks from matching or deleting official Blackboard gradebook marks, and stopped re-scanned gradebook marks without due dates from jumping above newer assessments in Marks."
+    "Payments & Financial Deadlines Management (src/core/payments.ts, src/popup/modules/paymentsView.ts, src/mobile/app/17-payments.js): Added a dedicated Payments section accessible from the header in both the Chrome extension and the companion web app without crowding the four main navigation tabs, complete with verified UOS Student Account / Tahseel portal links, step-by-step payment channels, published Fall/Spring installment presets, currency totals, and due-soon / overdue summaries.",
+    "Calendar, Reminders, ICS Feed, & Encrypted Cloud Sync Integration (src/utils/paymentsStorage.ts, src/utils/vaultCrypto.ts, src/background/serviceWorker.ts, src/worker/): Projected unpaid financial deadlines onto the Calendar, Day Drawer, Deadlines tab (with a quick summary banner), RFC 5545 /feed.ics calendar subscriptions, extension badge/notifications, and Web Push cron alerts (toggleable per device), sealed end-to-end inside the Zero-Knowledge Vault with tombstone-aware sync merges.",
+    "Banner Finance Portal Page Scanner (src/core/financePageParser.ts, src/content/scraper.ts): Added safe DOM table extraction on signed-in student finance summary pages to import installments and due dates without guessing unverified university APIs."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-5vjUIx12.js",
-    "assets/popup-Bgx76PUk.css",
+    "assets/popup-B1b3IJ24.css",
+    "assets/popup-CFCPY-i3.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

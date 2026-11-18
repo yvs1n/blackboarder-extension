@@ -1,4 +1,5 @@
 import { createStateMachine } from '../../core/stateMachine';
+import { isFinancePortalPage } from '../../core/financePageParser';
 import { getScanStatus, setScanStatus, SCAN_STALE_MS, type ScanStatus } from '../../utils/storage';
 import { getSvgIcon } from '../../utils/uiCommon';
 import { dom, popupActions, popupState } from './state';
@@ -259,9 +260,10 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
     const isExamTab = Boolean(activeTab?.url && (
       /studentexampage|examschedule|banner.*exam|bannerextensibility|\bexam\b|\bfinal\b/i.test(activeTab.url)
     ));
+    const isFinanceTab = Boolean(activeTab?.url && isFinancePortalPage({ href: activeTab.url }));
 
-    if (isExamTab && activeTab?.id) {
-      showScanBanner('Reading exam schedule from this page...', 'active');
+    if ((isExamTab || isFinanceTab) && activeTab?.id) {
+      showScanBanner(isFinanceTab ? 'Reading payment deadlines from this page...' : 'Reading exam schedule from this page...', 'active');
       const sendTabScan = () => {
         chrome.tabs.sendMessage(activeTab.id!, { type: 'RUN_TAB_SCAN', fullRescan, interactive: true }, async res => {
           void chrome.runtime.lastError;

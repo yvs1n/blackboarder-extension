@@ -21,12 +21,15 @@ describe('Popup UI Logic & Accessibility Suite', () => {
       const addBtn = document.getElementById('btn-add-modal');
       expect(addBtn?.getAttribute('aria-label')).toBe('Add Deadline Manually');
 
+      const payBtn = document.getElementById('btn-payments-toggle');
+      expect(payBtn?.getAttribute('aria-label')).toBe('Payments and Financial Deadlines');
+
       const settingsBtn = document.getElementById('btn-settings-toggle');
       expect(settingsBtn?.getAttribute('aria-label')).toBe('Settings');
 
       // The header keeps only everyday actions
       const headerButtons = Array.from(document.querySelectorAll('.header-actions button')).map(b => b.id);
-      expect(headerButtons).toEqual(['btn-scan-tab', 'btn-add-modal', 'btn-settings-toggle']);
+      expect(headerButtons).toEqual(['btn-scan-tab', 'btn-add-modal', 'btn-payments-toggle', 'btn-settings-toggle']);
     });
 
     it('keeps the actions moved out of the header reachable in Settings', () => {

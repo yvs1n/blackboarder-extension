@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.8] - 2026-11-18
+
+### Added
+
+- **Payments & Financial Deadlines Management (`src/core/payments.ts`, `src/popup/modules/paymentsView.ts`, `src/mobile/app/17-payments.js`):** Added a dedicated Payments section accessible from the header in both the Chrome extension and the companion web app without crowding the four main navigation tabs, complete with verified UOS Student Account / Tahseel portal links, step-by-step payment channels, published Fall/Spring installment presets, currency totals, and due-soon / overdue summaries.
+- **Calendar, Reminders, ICS Feed, & Encrypted Cloud Sync Integration (`src/utils/paymentsStorage.ts`, `src/utils/vaultCrypto.ts`, `src/background/serviceWorker.ts`, `src/worker/`):** Projected unpaid financial deadlines onto the Calendar, Day Drawer, Deadlines tab (with a quick summary banner), RFC 5545 `/feed.ics` calendar subscriptions, extension badge/notifications, and Web Push cron alerts (toggleable per device), sealed end-to-end inside the Zero-Knowledge Vault with tombstone-aware sync merges.
+- **Banner Finance Portal Page Scanner (`src/core/financePageParser.ts`, `src/content/scraper.ts`):** Added safe DOM table extraction on signed-in student finance summary pages to import installments and due dates without guessing unverified university APIs.
+
+---
+
 ## [1.8.7] - 2026-11-16
 
 ### Added

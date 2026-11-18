@@ -56,3 +56,13 @@ export {
   autoRegisterDiscoveredCourses,
   recalculateTasksWithActiveCourses,
 } from './storage/coursesStorage';
+
+export {
+  PAYMENTS_STORAGE_KEY,
+  PAYMENTS_UPDATED_AT_KEY,
+  getCachedPaymentsSync,
+  getStoredPayments,
+  getStoredPaymentsUpdatedAt,
+  saveStoredPayments,
+  mergeCloudPaymentsStorage,
+} from './paymentsStorage';

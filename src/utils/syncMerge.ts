@@ -1,9 +1,10 @@
-import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
+import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester, PaymentItem } from '../types';
 import { mergeCloudTasks, mergeTombstones, TombstoneMap } from './taskMerge';
 import { purgeSyntheticGradebookTasks } from './gradebook';
 import { newerProfile, sanitizeProfile } from '../core/studentProfile';
-import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, decodeCloudKeys, sanitizeScanRequest, pruneExpiredTombstones } from './cloudSanitize';
+import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks, sanitizeCloudPayments, decodeCloudKeys, sanitizeScanRequest, pruneExpiredTombstones } from './cloudSanitize';
 import { sanitizeSemesters, mergeArchivedSemesters } from '../core/semesters';
+import { mergeCloudPayments } from '../core/payments';
 import type { CloudScanRequest } from './cloudSanitize';
 
 /**
@@ -27,6 +28,8 @@ export interface SyncSide {
   profile?: StudentProfile | null;
   semesters?: ArchivedSemester[];
   semestersUpdatedAt?: string | null;
+  payments?: PaymentItem[];
+  paymentsUpdatedAt?: string | null;
   scanRequest?: CloudScanRequest | null;
 }
 
@@ -40,11 +43,14 @@ export interface MergedSync {
   profile?: StudentProfile;
   semesters?: ArchivedSemester[];
   semestersUpdatedAt?: string;
+  payments?: PaymentItem[];
+  paymentsUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
-  /** True when the cloud's courses, quick links or semesters won, so this device should take them too */
+  /** True when the cloud's courses, quick links, semesters or payments changed/won */
   coursesFromCloud: boolean;
   quickLinksFromCloud: boolean;
   semestersFromCloud: boolean;
+  paymentsFromCloud: boolean;
 }
 
 const time = (stamp?: string | null) => {
@@ -105,6 +111,8 @@ export function readCloudSide(data: any): SyncSide {
     profile: sanitizeProfile(data.profile),
     semesters: sanitizeSemesters(data.semesters),
     semestersUpdatedAt: typeof data.semestersUpdatedAt === 'string' ? data.semestersUpdatedAt : undefined,
+    payments: sanitizeCloudPayments(data.payments),
+    paymentsUpdatedAt: typeof data.paymentsUpdatedAt === 'string' ? data.paymentsUpdatedAt : undefined,
     scanRequest: sanitizeScanRequest(data.scanRequest)
   };
 }
@@ -135,6 +143,9 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
   const mergedSemesters = mergeArchivedSemesters(local.semesters, c.semesters);
   const semPick = pickNewerList({ items: local.semesters, updatedAt: local.semestersUpdatedAt }, { items: c.semesters, updatedAt: c.semestersUpdatedAt }, false);
   const semestersUpdatedAt = semPick.updatedAt || (mergedSemesters.length > 0 ? (local.semestersUpdatedAt || c.semestersUpdatedAt || new Date().toISOString()) : undefined);
+  const mergedPayments = mergeCloudPayments(local.payments || [], c.payments || [], tombstones);
+  const payPick = pickNewerList({ items: local.payments, updatedAt: local.paymentsUpdatedAt }, { items: c.payments, updatedAt: c.paymentsUpdatedAt }, false);
+  const paymentsUpdatedAt = payPick.updatedAt || (mergedPayments.length > 0 ? (local.paymentsUpdatedAt || c.paymentsUpdatedAt || new Date().toISOString()) : undefined);
 
   return {
     tasks,
@@ -146,9 +157,12 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
     profile: newerProfile(local.profile, c.profile) || undefined,
     semesters: mergedSemesters.length > 0 ? mergedSemesters : undefined,
     semestersUpdatedAt,
+    payments: (Array.isArray(local.payments) || Array.isArray(c.payments)) ? mergedPayments : undefined,
+    paymentsUpdatedAt,
     scanRequest: newerScanRequest(local.scanRequest, c.scanRequest),
     coursesFromCloud: courses.fromCloud,
     quickLinksFromCloud: links.fromCloud,
-    semestersFromCloud: semPick.fromCloud || ((c.semesters?.length ?? 0) > (local.semesters?.length ?? 0))
+    semestersFromCloud: semPick.fromCloud || ((c.semesters?.length ?? 0) > (local.semesters?.length ?? 0)),
+    paymentsFromCloud: JSON.stringify(mergedPayments) !== JSON.stringify(local.payments || [])
   };
 }

@@ -6,6 +6,7 @@ import { getCachedSettingsSync } from '../../utils/storage';
 import { compareTasksByTime, formatTaskTime } from '../../utils/calendar';
 import { matchesSelectedCourseFilter, resolveCourseInfo } from '../../core/courseHelper';
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
+import { getCombinedCalendarTasks } from './paymentsView';
 import { dom, formatDateKey, formatMonthYear, popupActions, popupState } from './state';
 
 /**
@@ -25,7 +26,7 @@ export function renderCalendar(animationDirection: 'next' | 'prev' | 'none' = 'n
   calMonthTitle.textContent = formatMonthYear(popupState.calendarYear, popupState.calendarMonth);
 
   const tasksByDate = new Map<string, DeadlineTask[]>();
-  popupState.currentTasks.forEach(task => {
+  getCombinedCalendarTasks().forEach(task => {
     if (!matchesSelectedCourseFilter(task, popupState.selectedCourseFilter)) return;
     if (!isCalendarDeadline(task)) return;
     const d = new Date(task.dueDate);
@@ -168,12 +169,13 @@ export function createDayCell(
 
   visibleTasks.forEach(task => {
     const isCompleted = task.status === 'completed';
+    const isPayment = Boolean(task.isPayment);
     const resolved = resolveCourseInfo(task);
-    const courseHex = getCourseHex(resolved.courseName, resolved.courseCode, task.title);
+    const courseHex = isPayment ? 'oklch(0.66 0.17 65)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
     const timeStr = formatTaskTime(task);
 
     const chip = document.createElement('div');
-    chip.className = 'cal-event-chip';
+    chip.className = `cal-event-chip${isPayment ? ' is-payment' : ''}`;
 
     if (isCompleted) {
       chip.classList.add('is-completed');
@@ -181,6 +183,11 @@ export function createDayCell(
       chip.style.borderLeftColor = courseHex;
       chip.innerHTML = `${getSvgIcon('check')} <span>${escapeHtml(task.title)}</span>`;
       chip.title = `[Completed] ${resolved.courseName}: ${task.title} - Click to expand day view`;
+    } else if (isPayment) {
+      chip.style.setProperty('background-color', 'oklch(0.66 0.17 65)', 'important');
+      chip.style.borderLeftColor = 'rgba(0, 0, 0, 0.25)';
+      chip.innerHTML = `${getSvgIcon('credit-card')} <span>${escapeHtml(task.title)}</span>`;
+      chip.title = `[Payment Due] ${task.title}${task.paymentAmountText ? ` (${task.paymentAmountText})` : ''} - ${timeStr}`;
     } else {
       chip.style.backgroundColor = courseHex;
       chip.style.setProperty('background-color', courseHex, 'important');

@@ -1,8 +1,9 @@
-import { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
+import { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester, PaymentItem } from '../types';
 import { sanitizeCloudTasks, encodeCloudKeys, decodeCloudKeys, sanitizeCloudQuickLinks, sanitizeCloudCourses, sanitizeScanRequest } from './cloudSanitize';
 import type { CloudScanRequest } from './cloudSanitize';
 import { getProfile, mergeCloudProfile } from './profile';
 import { getStoredSemesters, getStoredSemestersUpdatedAt, mergeCloudSemesters, saveStoredSemesters } from './semestersStorage';
+import { getStoredPayments, getStoredPaymentsUpdatedAt, mergeCloudPaymentsStorage, saveStoredPayments } from './paymentsStorage';
 import { mergeForCloudWrite, readCloudSide } from './syncMerge';
 import { wrapCloudVault, unwrapCloudVault } from './vaultCrypto';
 
@@ -92,6 +93,8 @@ export interface FirebaseSyncPayload {
   profile?: StudentProfile;
   semesters?: ArchivedSemester[];
   semestersUpdatedAt?: string;
+  payments?: PaymentItem[];
+  paymentsUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
 }
 
@@ -123,6 +126,8 @@ export async function pushTasksToFirebase(
     const profile = await getProfile();
     const semesters = await getStoredSemesters();
     const semestersUpdatedAt = await getStoredSemestersUpdatedAt();
+    const payments = await getStoredPayments();
+    const paymentsUpdatedAt = await getStoredPaymentsUpdatedAt();
     for (let attempt = 0; ; attempt++) {
       const cloudRes = await fetch(targetUrl, { cache: 'no-store', headers: { 'X-Firebase-ETag': 'true' } });
       if (!cloudRes || !cloudRes.ok) {
@@ -141,11 +146,16 @@ export async function pushTasksToFirebase(
         quickLinksUpdatedAt,
         profile,
         semesters,
-        semestersUpdatedAt
+        semestersUpdatedAt,
+        payments,
+        paymentsUpdatedAt: paymentsUpdatedAt || undefined
       }, cloud);
 
       if (merged.semestersFromCloud && merged.semesters) {
         await saveStoredSemesters(merged.semesters, merged.semestersUpdatedAt);
+      }
+      if (merged.paymentsFromCloud && merged.payments) {
+        await saveStoredPayments(merged.payments, merged.paymentsUpdatedAt);
       }
 
       const lastSync = new Date().toISOString();
@@ -165,6 +175,8 @@ export async function pushTasksToFirebase(
         profile: merged.profile,
         semesters: merged.semesters,
         semestersUpdatedAt: merged.semestersUpdatedAt,
+        payments: merged.payments,
+        paymentsUpdatedAt: merged.paymentsUpdatedAt,
         // And so does the phone's scan request, or the extension would never see it
         scanRequest: merged.scanRequest
       };
@@ -218,6 +230,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   profile?: StudentProfile;
   semesters?: ArchivedSemester[];
   semestersUpdatedAt?: string;
+  payments?: PaymentItem[];
+  paymentsUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
 }> {
   const cleanKey = extractSyncKey(syncKey);
@@ -245,6 +259,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
 
     await mergeCloudProfile(data?.profile).catch(() => false);
     await mergeCloudSemesters(data?.semesters, data?.semestersUpdatedAt).catch(() => false);
+    const decodedTombstones = decodeCloudKeys(data?.tombstones) || {};
+    await mergeCloudPaymentsStorage(data?.payments, data?.paymentsUpdatedAt, decodedTombstones).catch(() => false);
     const quickLinks = sanitizeCloudQuickLinks(data?.quickLinks);
     const courses = sanitizeCloudCourses(data?.courses);
     if (!data || !Array.isArray(data.tasks)) {
@@ -257,10 +273,12 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
         quickLinksUpdatedAt: data?.quickLinksUpdatedAt,
         courses,
         coursesUpdatedAt: data?.coursesUpdatedAt,
-        tombstones: decodeCloudKeys(data?.tombstones),
+        tombstones: decodedTombstones,
         profile: data?.profile,
         semesters: data?.semesters,
         semestersUpdatedAt: data?.semestersUpdatedAt,
+        payments: data?.payments,
+        paymentsUpdatedAt: data?.paymentsUpdatedAt,
         scanRequest: sanitizeScanRequest(data?.scanRequest)
       };
     }
@@ -274,10 +292,12 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       quickLinksUpdatedAt: data.quickLinksUpdatedAt,
       courses,
       coursesUpdatedAt: data.coursesUpdatedAt,
-      tombstones: decodeCloudKeys(data.tombstones),
+      tombstones: decodedTombstones,
       profile: data.profile,
       semesters: data.semesters,
       semestersUpdatedAt: data.semestersUpdatedAt,
+      payments: data.payments,
+      paymentsUpdatedAt: data.paymentsUpdatedAt,
       scanRequest: sanitizeScanRequest(data.scanRequest)
     };
   } catch (err: any) {

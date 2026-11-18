@@ -10,6 +10,7 @@ import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { getTaskTargetBadgeHtml, renderDoctorQuoteHtml } from './dayDrawer';
 import { promptCompletionScoreIfNeeded } from './marksView';
+import { getCombinedCalendarTasks, openPaymentModal, togglePaymentPaid } from './paymentsView';
 import { dom, popupActions, popupState } from './state';
 
 export function showToast(message: string, actionText?: string, onAction?: () => void) {
@@ -154,7 +155,7 @@ export function updateCourseFilterOptions(tasks: DeadlineTask[]) {
 
 export function renderTasks() {
   const taskListEl = dom.taskListEl();
-  const filtered = popupState.currentTasks.filter(task => {
+  const filtered = getCombinedCalendarTasks().filter(task => {
     if (popupState.currentFilterStatus === 'pending' && task.status !== 'pending') return false;
     if (popupState.currentFilterStatus === 'completed' && task.status !== 'completed') return false;
 
@@ -232,17 +233,18 @@ export function renderTasks() {
   const fragment = document.createDocumentFragment();
 
   filtered.forEach(task => {
+    const isPayment = Boolean(task.isPayment);
     const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
     const isCompleted = task.status === 'completed';
     const resolved = resolveCourseInfo(task);
     const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
     const gcalUrl = createGoogleCalendarUrl(task);
 
-    const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
+    const targetBadgeHtml = isPayment ? '' : getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
     const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
     let roomBadgeHtml = '';
-    if (!isHwOrProject) {
+    if (!isPayment && !isHwOrProject) {
       if (task.room) {
         roomBadgeHtml = `
           <button type="button" class="room-pill-btn" data-id="${escapeHtml(task.id)}" title="Click to change room">
@@ -291,21 +293,22 @@ export function renderTasks() {
     }
 
     const card = document.createElement('div');
-    card.className = `task-card urgency-${countdown.urgency} status-${task.status}`;
-    card.style.borderLeft = `4px solid ${courseTheme.hex}`;
-    card.style.setProperty('border-left-color', courseTheme.hex, 'important');
+    card.className = `task-card urgency-${countdown.urgency} status-${task.status}${isPayment ? ' is-payment-item' : ''}`;
+    card.style.borderLeft = `4px solid ${isPayment ? 'oklch(0.66 0.17 65)' : courseTheme.hex}`;
+    card.style.setProperty('border-left-color', isPayment ? 'oklch(0.66 0.17 65)' : courseTheme.hex, 'important');
     card.setAttribute('data-id', task.id);
 
     card.innerHTML = `
       <div class="task-course-banner">
         <div class="course-badge-main" style="background: ${courseTheme.bgLight} !important; border: 1px solid ${courseTheme.border} !important; color: ${courseTheme.textDark} !important;" title="${escapeHtml(resolved.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
-          <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${courseTheme.hex}; display: inline-block; flex-shrink: 0;"></span>
+          <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${isPayment ? 'oklch(0.66 0.17 65)' : courseTheme.hex}; display: inline-block; flex-shrink: 0;"></span>
           <span class="course-name-text" style="color: ${courseTheme.textDark}; font-weight: 700;">${escapeHtml(resolved.courseName)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
+          ${(isPayment && task.paymentAmountText) ? `<span class="payment-task-pill">${escapeHtml(task.paymentAmountText)}</span>` : ''}
           <span class="type-pill type-${escapeHtml(task.type)}" style="display: inline-flex; align-items: center; gap: 3px;">
-            ${getTaskTypeIcon(task.type)}
-            <span>${(task.type || 'assignment').toUpperCase()}</span>
+            ${isPayment ? getSvgIcon('credit-card') : getTaskTypeIcon(task.type)}
+            <span>${isPayment ? 'PAYMENT' : (task.type || 'assignment').toUpperCase()}</span>
           </span>
         </div>
       </div>
@@ -362,6 +365,11 @@ export function renderTasks() {
 
     card.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+      if (isPayment && task.paymentId) {
+        const existing = popupState.currentPayments.find(p => p.id === task.paymentId);
+        if (existing) openPaymentModal(existing);
+        return;
+      }
       popupActions.openReadingSheet(task);
     });
 
@@ -404,11 +412,20 @@ export function renderTasks() {
 
     card.querySelector('.btn-edit-card')?.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isPayment && task.paymentId) {
+        const existing = popupState.currentPayments.find(p => p.id === task.paymentId);
+        if (existing) openPaymentModal(existing);
+        return;
+      }
       popupActions.openEditModal(task);
     });
 
     const handleToggleDone = async (e: Event) => {
       e.stopPropagation();
+      if (isPayment && task.paymentId) {
+        await togglePaymentPaid(task.paymentId);
+        return;
+      }
       const currentTask = popupState.currentTasks.find(t => t.id === task.id) || task;
       const prevStatus = currentTask.status;
       const currentlyCompleted = prevStatus === 'completed';

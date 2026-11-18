@@ -1,5 +1,5 @@
 import { Announcement, DeadlineTask } from '../types';
-import { getSettings, getTasks, saveTasksMergingLatest, getLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
+import { getSettings, getStoredPayments, getTasks, saveStoredPayments, saveTasksMergingLatest, getLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
 import { setActiveUserCourses } from '../core/userCourses';
 import { isValidTask } from '../core/courseHelper';
 import { deduplicateTaskList } from '../utils/taskMerge';
@@ -14,6 +14,9 @@ import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
 import { ScanGate, ScanRun } from './scanGate';
 import { detectUniversityFromHost } from '../utils/profile';
 import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks, extractStudentFromExamDoc } from '../core/examSchedule';
+import { isFinancePortalPage, parseFinancePageFromDoc } from '../core/financePageParser';
+import { mergeCloudPayments } from '../core/payments';
+import { getLocalTombstones } from '../utils/tombstones';
 import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
 import { fetchCourseAnnouncements, isGenericPlaceholderName, readBlackboardApi } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
@@ -101,8 +104,9 @@ export function runScan(interactive: boolean = false, fullRescan: boolean = fals
 
 async function runScanInner(run: ScanRun) {
   const onExamPage = isExamSchedulePage(window.location, document);
+  const onFinancePage = isFinancePortalPage(window.location, document);
   await runBlackboardScan(run);
-  if (!onExamPage) await refreshExamScheduleAfterScan(run);
+  if (!onExamPage && !onFinancePage) await refreshExamScheduleAfterScan(run);
 }
 
 async function waitForExamScheduleTasks(maxWaitMs = 5000): Promise<DeadlineTask[]> {
@@ -216,6 +220,44 @@ async function refreshExamScheduleAfterScan(run: ScanRun): Promise<void> {
   }
 }
 
+async function runFinancePageScan(run: ScanRun): Promise<{ found: number; added: number }> {
+  if (run.interactive) {
+    await setScanStatus({ state: 'running', message: 'Reading payment deadlines from this page...' });
+  }
+  const scraped = parseFinancePageFromDoc(document, window.location.href);
+  if (scraped.length === 0) {
+    lastTabScanResult = { ok: true, newCount: 0, message: 'No installment or due date rows found on this page yet.' };
+    if (run.interactive) {
+      run.reported = true;
+      await setScanStatus({ state: 'done', message: lastTabScanResult.message, newCount: 0 });
+      showSidekickToast('Finance Page Scanned', lastTabScanResult.message, 0);
+    }
+    return { found: 0, added: 0 };
+  }
+  const existing = await getStoredPayments();
+  const tombs = getLocalTombstones();
+  const existingIds = new Set(existing.map(p => p.id));
+  const merged = mergeCloudPayments(existing, scraped, tombs);
+  const added = merged.filter(p => !existingIds.has(p.id)).length;
+  await saveStoredPayments(merged, new Date().toISOString());
+  try {
+    const currentSettings = await getSettings();
+    if (currentSettings.autoSyncOnScan !== false && isExtensionContextValid()) {
+      chrome.runtime.sendMessage({ type: 'SYNC_TO_SERVER' }).catch(() => {});
+    }
+  } catch {}
+  const msg = added > 0
+    ? `Saved ${added} new fee deadline${added > 1 ? 's' : ''} (${scraped.length} scanned).`
+    : `All ${scraped.length} fee deadlines on this page are already tracked.`;
+  lastTabScanResult = { ok: true, newCount: added, message: msg };
+  if (run.interactive || added > 0) showSidekickToast('Payments Scanned', msg, added);
+  if (run.interactive) {
+    run.reported = true;
+    await setScanStatus({ state: 'done', message: msg, newCount: added });
+  }
+  return { found: scraped.length, added };
+}
+
 async function runBlackboardScan(run: ScanRun) {
   const { fullRescan } = run;
   if (!isExtensionContextValid()) {
@@ -233,6 +275,10 @@ async function runBlackboardScan(run: ScanRun) {
 
   if (isExamSchedulePage(window.location, document)) {
     await runExamScheduleScan(run);
+    return;
+  }
+  if (isFinancePortalPage(window.location, document)) {
+    await runFinancePageScan(run);
     return;
   }
 
@@ -362,6 +408,7 @@ async function runBlackboardScan(run: ScanRun) {
 
 function isBlackboardSite(): boolean {
   if (isExamSchedulePage(window.location, document)) return true;
+  if (isFinancePortalPage(window.location, document)) return true;
   const host = window.location.hostname.toLowerCase();
   if (host.includes('blackboard') || host.startsWith('learn.') || host.startsWith('ilearn.') || host.startsWith('elearning.')) {
     return true;
@@ -378,6 +425,7 @@ function init() {
   (window as any).__BBS_SCRAPER_INITIALIZED__ = true;
   if (!isBlackboardSite()) return;
   const onExamPage = isExamSchedulePage(window.location, document);
+  const onFinancePage = isFinancePortalPage(window.location, document);
 
   getUserCourses().catch(() => {});
   detectUniversityFromHost(window.location.hostname).catch(() => null);
@@ -398,6 +446,11 @@ function init() {
     if (isExamSchedulePage(window.location, document)) {
       showSidekickToast('Exam Schedule', 'Scanning exam schedule on this page...', 0, true, () => scanGate.abort());
       runExamScheduleScan({ interactive: true, fullRescan: false, reported: false }).catch(() => {});
+      return;
+    }
+    if (isFinancePortalPage(window.location, document)) {
+      showSidekickToast('Payments', 'Scanning financial deadlines on this page...', 0, true, () => scanGate.abort());
+      runFinancePageScan({ interactive: true, fullRescan: false, reported: false }).catch(() => {});
       return;
     }
     const scanStartedAt = Date.now();
@@ -425,7 +478,7 @@ function init() {
     });
   });
 
-  if (!onExamPage) {
+  if (!onExamPage && !onFinancePage) {
     startCourseColorPainter(getBlackboardJson);
     startActivityFilter(getBlackboardJson);
     startStudentProfileBadge();
@@ -547,6 +600,7 @@ function isSignInPage(): boolean {
 }
 
 function scheduleAutoScan(): void {
+  if (isFinancePortalPage(window.location, document)) return;
   getSettings()
     .then(settings => {
       if (!settings.autoScanOnPageLoad || !isExtensionContextValid() || isSignInPage()) return;

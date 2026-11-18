@@ -14,6 +14,7 @@ import { getCachedProfile } from '../universitySettings';
 import { isCalendarDeadline } from './calendarView';
 import { closeDayDrawerShell, openDayDrawerShell, registerOverlayCloseHandler } from './overlayController';
 import { promptCompletionScoreIfNeeded } from './marksView';
+import { deletePaymentItem, getCombinedCalendarTasks, openPaymentModal, togglePaymentPaid } from './paymentsView';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function selectDay(dateKey: string, openDrawer: boolean = true) {
@@ -48,7 +49,7 @@ export function openDayExpandedDrawer(dateKey: string) {
     year: 'numeric',
   });
 
-  const tasksOnDate = popupState.currentTasks.filter(task => {
+  const tasksOnDate = getCombinedCalendarTasks().filter(task => {
     if (!matchesSelectedCourseFilter(task, popupState.selectedCourseFilter)) return false;
     if (!isCalendarDeadline(task)) return false;
     const taskD = new Date(task.dueDate);
@@ -188,18 +189,19 @@ export function getTaskTargetBadgeHtml(
 
 export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   const isCompleted = task.status === 'completed';
+  const isPayment = Boolean(task.isPayment);
   const resolved = resolveCourseInfo(task);
-  const courseHex = getCourseHex(resolved.courseName, resolved.courseCode, task.title);
+  const courseHex = isPayment ? 'oklch(0.66 0.17 65)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
   const countdown = formatCountdown(task.dueDate, task.hasSpecificTime);
   const timeDisplay = formatTaskTime(task);
 
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
   const { plan: trajectoryPlan, targetGpa } = getCurrentTrajectoryPlan();
-  const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
+  const targetBadgeHtml = isPayment ? '' : getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
   const card = document.createElement('div');
-  card.className = `day-summary-card ${isCompleted ? 'is-completed' : ''}`;
+  card.className = `day-summary-card ${isCompleted ? 'is-completed' : ''} ${isPayment ? 'is-payment-item' : ''}`;
   card.style.borderLeft = `4px solid ${courseHex}`;
   card.style.setProperty('border-left-color', courseHex, 'important');
 
@@ -211,8 +213,8 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       </span>
       <div style="display: flex; align-items: center; gap: 5px;">
         <span class="type-pill type-${escapeHtml(task.type)}" style="font-size: 9px; padding: 1px 5px; display: inline-flex; align-items: center; gap: 3px;">
-          ${getTaskTypeIcon(task.type)}
-          <span>${escapeHtml(task.type)}</span>
+          ${isPayment ? getSvgIcon('credit-card') : getTaskTypeIcon(task.type)}
+          <span>${isPayment ? 'PAYMENT' : escapeHtml(task.type)}</span>
         </span>
         <span class="day-card-status-badge ${isCompleted ? 'status-done' : countdown.urgency}">
           ${isCompleted ? `${getSvgIcon('check', 'mr-1')} Completed` : countdown.label}
@@ -230,6 +232,7 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       <div class="day-card-time" title="Scheduled / Due Time">
         ${getSvgIcon('clock', 'mr-1')} <span class="day-card-time-text">${escapeHtml(timeDisplay)}</span>
       </div>
+      ${(isPayment && task.paymentAmountText) ? `<span class="payment-task-pill">${escapeHtml(task.paymentAmountText)}</span>` : ''}
       ${(!isHwOrProject && task.room) ? `
         <div class="day-card-room" title="Classroom / Exam Hall" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #4338ca; background: #e0e7ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #c7d2fe;">
           ${getSvgIcon('pin', 'mr-1')} <span class="day-card-room-text">${escapeHtml(task.room)}</span>
@@ -286,6 +289,10 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
 
   card.querySelector('.btn-card-toggle')?.addEventListener('click', async e => {
     e.stopPropagation();
+    if (isPayment && task.paymentId) {
+      await togglePaymentPaid(task.paymentId);
+      return;
+    }
     const prevStatus = task.status;
     const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
     popupState.currentTasks = popupActions.applyTaskUpdateLocal(task.id, {
@@ -321,11 +328,20 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
 
   card.querySelector('.btn-card-edit')?.addEventListener('click', e => {
     e.stopPropagation();
+    if (isPayment && task.paymentId) {
+      const existing = popupState.currentPayments.find(p => p.id === task.paymentId);
+      if (existing) openPaymentModal(existing);
+      return;
+    }
     popupActions.openEditModal(task);
   });
 
   card.querySelector('.btn-card-delete')?.addEventListener('click', async e => {
     e.stopPropagation();
+    if (isPayment && task.paymentId) {
+      await deletePaymentItem(task.paymentId);
+      return;
+    }
     const taskToDelete = task;
     recordLocalTombstone(task.id);
     popupState.currentTasks = popupActions.removeTaskLocal(task.id);
@@ -395,7 +411,7 @@ export function renderSelectedDay() {
   const emptyGuide = document.getElementById('calendar-empty-guide');
   const dayContainer = document.getElementById('selected-day-container');
   if (emptyGuide && dayContainer) {
-    if (popupState.currentTasks.length === 0 && !hasCourses) {
+    if (popupState.currentTasks.length === 0 && popupState.currentPayments.length === 0 && !hasCourses) {
       emptyGuide.style.display = 'block';
       dayContainer.style.display = 'none';
       const openBbBtn = document.getElementById('btn-empty-guide-open-bb');
@@ -434,7 +450,7 @@ export function renderSelectedDay() {
     });
   }
 
-  const tasksOnDate = popupState.currentTasks.filter(task => {
+  const tasksOnDate = getCombinedCalendarTasks().filter(task => {
     if (!matchesSelectedCourseFilter(task, popupState.selectedCourseFilter)) return false;
     if (!isCalendarDeadline(task)) return false;
     const taskD = new Date(task.dueDate);

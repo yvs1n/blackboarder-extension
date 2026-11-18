@@ -160,6 +160,8 @@ export async function wrapCloudVault(payload: Record<string, any>, syncKey: stri
     profile: payload.profile,
     semesters: Array.isArray(payload.semesters) ? payload.semesters : undefined,
     semestersUpdatedAt: payload.semestersUpdatedAt,
+    payments: Array.isArray(payload.payments) ? payload.payments : undefined,
+    paymentsUpdatedAt: payload.paymentsUpdatedAt,
     count: typeof payload.count === 'number' ? payload.count : (payload.tasks ? payload.tasks.length : 0),
     device,
     lastSync,

@@ -1,4 +1,5 @@
 import type { DeadlineTask, QuickLink, UserCourseConfig } from '../../types';
+import { sanitizePayments, sortPayments } from '../../core/payments';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
 import { sanitizeSemesters } from '../../core/semesters';
 import { profileUniversity } from '../../core/studentProfile';
@@ -14,8 +15,10 @@ import {
   getQuickLinks,
   getQuickLinksUpdatedAt,
   getSettings,
+  getStoredPayments,
   getTasks,
   getUserCourses,
+  PAYMENTS_STORAGE_KEY,
   recalculateTasksWithActiveCourses,
   safeSetLocalStorage,
   saveQuickLinks,
@@ -61,6 +64,7 @@ export function renderAllViewsNow() {
   popupActions.updateStats(popupState.currentTasks);
   popupActions.updateCourseFilterOptions(popupState.currentTasks);
   popupActions.renderQuickLinksBar();
+  popupActions.updatePaymentsHeaderBadge();
 
   if (popupState.currentActiveView === 'calendar') {
     popupActions.renderCalendar();
@@ -71,11 +75,13 @@ export function renderAllViewsNow() {
     popupActions.renderGradeTracker(popupState.currentTasks);
   } else if (popupState.currentActiveView === 'courses') {
     popupActions.renderUserCoursesManager();
+  } else if (popupState.currentActiveView === 'payments') {
+    popupActions.renderPaymentsView();
   } else if (popupState.currentActiveView === 'settings') {
     popupActions.renderUserCoursesManager();
   }
 
-  (['calendar', 'details', 'marks', 'courses', 'settings'] as AppView[]).forEach(v => {
+  (['calendar', 'details', 'marks', 'courses', 'payments', 'settings'] as AppView[]).forEach(v => {
     if (v !== popupState.currentActiveView) {
       popupState.dirtyViews.add(v);
     }
@@ -257,6 +263,14 @@ export async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | n
         await popupActions.updateSemesterSelector();
       }
 
+      if (res.payments) {
+        const freshPayments = await getStoredPayments().catch(() => popupState.currentPayments);
+        if (JSON.stringify(freshPayments) !== JSON.stringify(popupState.currentPayments)) {
+          popupState.currentPayments = freshPayments;
+          refreshAllViews();
+        }
+      }
+
       if (res.lastSync === undefined && settings.syncKey) {
         const coursesUpdatedAt = await getCoursesUpdatedAt();
         pushTasksToFirebase(
@@ -311,6 +325,10 @@ export function setupStorageAndSyncListeners() {
       if (area === 'local' && changes[SEMESTERS_STORAGE_KEY]) {
         popupState.cachedSemesters = sanitizeSemesters(changes[SEMESTERS_STORAGE_KEY].newValue);
         popupActions.updateSemesterSelector().catch(() => {});
+        refreshAllViews();
+      }
+      if (area === 'local' && changes[PAYMENTS_STORAGE_KEY]) {
+        popupState.currentPayments = sortPayments(sanitizePayments(changes[PAYMENTS_STORAGE_KEY].newValue));
         refreshAllViews();
       }
     });

@@ -6,10 +6,12 @@ import { purgeSyntheticGradebookTasks } from '../utils/gradebook';
 import { SEMESTERS_STORAGE_KEY } from '../utils/semestersStorage';
 import {
   getCachedCoursesSync,
+  getCachedPaymentsSync,
   getCachedQuickLinksSync,
   getCachedTasksSync,
   getQuickLinks,
   getScanStatus,
+  getStoredPayments,
   getTasks,
   saveTasksMergingLatest,
 } from '../utils/storage';
@@ -53,6 +55,13 @@ import {
   switchView,
 } from './modules/navigation';
 import { initOverlayKeyboardHandler } from './modules/overlayController';
+import {
+  initPaymentsView,
+  openPaymentModal,
+  renderPaymentsView,
+  togglePaymentPaid,
+  updatePaymentsHeaderBadge,
+} from './modules/paymentsView';
 import {
   initQuickLinksModal,
   openQuickLinkUrl,
@@ -157,6 +166,10 @@ Object.assign(popupActions, {
   scanActiveTab: (fullRescan = false) => scanActiveTab(fullRescan, refreshDataInBackground),
   renderScanStatus,
   resetScanButton,
+  renderPaymentsView,
+  updatePaymentsHeaderBadge,
+  togglePaymentPaid,
+  openPaymentModal,
 });
 
 function setupEvents() {
@@ -169,6 +182,7 @@ function setupEvents() {
   setupNavigationAndTaskEvents();
   setupSettingsEvents();
   setupCourseEvents();
+  initPaymentsView();
 
   const btnScanTab = dom.btnScanTab();
   const headerScanBanner = dom.headerScanBanner();
@@ -223,6 +237,9 @@ async function initApp() {
   renderQuickLinksBar();
   initQuickLinksModal();
 
+  popupState.currentPayments = getCachedPaymentsSync();
+  updatePaymentsHeaderBadge();
+
   const cachedTasks = getCachedTasksSync();
   if (cachedTasks && cachedTasks.length > 0) {
     const validCached = cachedTasks.filter(isValidTask);
@@ -255,6 +272,12 @@ async function initApp() {
     if (startupPurgedIds.length > 0) {
       startupPurgedIds.forEach(id => recordLocalTombstone(id));
       saveTasksMergingLatest(popupState.currentTasks).catch(() => {});
+    }
+
+    const storedPayments = await getStoredPayments().catch(() => []);
+    if (JSON.stringify(storedPayments) !== JSON.stringify(popupState.currentPayments)) {
+      popupState.currentPayments = storedPayments;
+      refreshAllViews();
     }
   })().catch(() => {});
 
