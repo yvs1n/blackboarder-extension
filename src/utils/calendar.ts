@@ -295,58 +295,133 @@ export function compareTasksByTime(a: DeadlineTask, b: DeadlineTask): number {
   return (a.title || '').localeCompare(b.title || '');
 }
 
+function formatRemainingDuration(timeRemaining: number): { short: string; detail: string } {
+  if (timeRemaining <= 0) return { short: 'Now', detail: 'Due now' };
+  const totalMins = Math.max(1, Math.round(timeRemaining / 60000));
+  if (totalMins < 60) {
+    return { short: `${totalMins}m`, detail: `${totalMins} min remaining` };
+  }
+  if (totalMins < 24 * 60) {
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    const label = m >= 5 && h < 6 ? `${h}h ${m}m` : `${Math.round(totalMins / 60)}h`;
+    return { short: label, detail: `${label} remaining` };
+  }
+  const d = Math.floor(totalMins / 1440);
+  const remH = Math.round((totalMins % 1440) / 60);
+  const label = remH > 0 && d < 3 ? `${d}d ${remH}h` : `${Math.round(totalMins / 1440)}d`;
+  return { short: label, detail: `${label} remaining` };
+}
+
+function formatAssessmentTypeLabel(type?: string, isPayment?: boolean): string {
+  if (isPayment || type === 'payment') return 'Payment';
+  switch ((type || '').toLowerCase()) {
+    case 'exam': return 'Exam';
+    case 'quiz': return 'Quiz';
+    case 'homework': return 'Homework';
+    case 'lab': return 'Lab';
+    case 'project': return 'Project';
+    default: return 'Deadline';
+  }
+}
+
 /**
- * Formats a notification title and body for deadlines across extension and mobile companion apps.
+ * Formats a plain, high-signal notification title and body (no emojis) for deadlines
+ * across the Chrome extension, mobile companion PWA, and server push alerts.
  */
 export function formatNotificationPayload(
   task: DeadlineTask,
   windowType: string,
   timeRemaining: number
 ): { title: string; body: string } {
+  const isPayment = Boolean(task.isPayment || (task.type as string) === 'payment');
   const resolved = resolveCourseInfo(task);
-  const courseDisplay = resolved.courseCode && resolved.courseCode.toLowerCase() !== 'uos'
-    ? `${resolved.courseName} (${resolved.courseCode})`
-    : (resolved.courseName || 'General Course');
+  const rawCourseName = isPayment
+    ? (task.courseName || 'Payments & Fees')
+    : (resolved.courseName || task.courseName || 'General Course');
+  const rawCourseCode = isPayment
+    ? ''
+    : (resolved.courseCode && resolved.courseCode.toLowerCase() !== 'uos' && resolved.courseCode !== rawCourseName
+      ? resolved.courseCode
+      : '');
+  const courseDisplay = rawCourseCode ? `${rawCourseName} (${rawCourseCode})` : rawCourseName;
+  const shortCourse = rawCourseName && rawCourseName !== 'General Course'
+    ? (rawCourseName.length <= 28 ? rawCourseName : (rawCourseCode || `${rawCourseName.slice(0, 25).trim()}...`))
+    : rawCourseCode;
 
   const dueDateObj = new Date(task.dueDate);
-  const timeStr = !isNaN(dueDateObj.getTime()) ? dueDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-  const dateStr = !isNaN(dueDateObj.getTime()) ? dueDateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+  const validDate = !isNaN(dueDateObj.getTime());
+  const hasTime = task.hasSpecificTime !== false;
+  const timeStr = validDate && hasTime ? dueDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  const dateStr = validDate ? dueDateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '';
 
-  const room = task.room || resolveTaskRoom({
-    courseNameOrCode: task.courseName || task.courseCode || '',
-    announcementText: task.description || task.sourceSnippet || '',
-    title: task.title,
-    existingRoom: task.room,
-    type: task.type
-  }).room;
+  const room = isPayment
+    ? ''
+    : (task.room || resolveTaskRoom({
+        courseNameOrCode: task.courseName || task.courseCode || '',
+        announcementText: task.description || task.sourceSnippet || '',
+        title: task.title,
+        existingRoom: task.room,
+        type: task.type
+      }).room);
+
   let locationStr = '';
-  if (room) {
-    locationStr = `📍 Room: ${room}`;
+  if (isPayment) {
+    locationStr = 'Portal: University Finance / Payment Portal';
+  } else if (room) {
+    const cleanRoom = String(room).replace(/^room\s*:?\s*/i, '').trim();
+    locationStr = `Location: Room ${cleanRoom}`;
   } else if (task.type === 'exam' || task.type === 'quiz') {
-    locationStr = '📍 In-class on paper';
+    locationStr = 'Location: In-class assessment';
   } else {
-    locationStr = '💻 Online Submission on Blackboard';
+    locationStr = 'Submission: Online on Blackboard';
   }
 
-  const weightStr = task.weight ? ` • Worth ${task.weight}%` : '';
+  const typeLabel = formatAssessmentTypeLabel(task.type, isPayment);
+  const titleLower = (task.title || '').toLowerCase();
+  const metaParts: string[] = [courseDisplay];
+  if (!isPayment && typeLabel !== 'Deadline' && !titleLower.includes(typeLabel.toLowerCase())) {
+    metaParts.push(typeLabel);
+  }
+  if (isPayment && task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase())) {
+    metaParts.push(`Amount: ${task.paymentAmountText}`);
+  } else if (!isPayment) {
+    if (task.isBonus) {
+      metaParts.push(task.weight ? `Bonus (+${task.weight}%)` : 'Bonus');
+    } else if (task.weight) {
+      metaParts.push(`Worth ${task.weight}% of grade`);
+    }
+    if (typeof task.maxScore === 'number' && task.maxScore > 0) {
+      metaParts.push(`${task.maxScore} pts`);
+    }
+  }
+
+  const { short: shortLeft, detail: detailLeft } = formatRemainingDuration(timeRemaining);
+  const scheduleWhen = dateStr
+    ? (timeStr ? `${dateStr} at ${timeStr}` : (isPayment ? dateStr : `${dateStr} (During class)`))
+    : 'Scheduled time';
 
   let title = '';
   let timeDesc = '';
-  if (windowType === 'due') {
-    title = `⏳ Due Now: ${task.title}`;
-    timeDesc = `🕒 Due time has arrived (${dateStr} at ${timeStr})`;
-  } else if (timeRemaining <= 4 * 3600 * 1000) {
-    const minsLeft = Math.max(1, Math.round(timeRemaining / (60 * 1000)));
-    const countdownStr = minsLeft >= 60 ? `about ${Math.round(minsLeft / 60)} hour(s)` : `${minsLeft} minutes`;
-    title = `🚨 Urgent (${windowType}): ${task.title}`;
-    timeDesc = `🕒 Due: ${dateStr} at ${timeStr} (in ${countdownStr})`;
+  const isDueNow = windowType === 'due' || timeRemaining <= 0;
+
+  if (isDueNow) {
+    if (isPayment) {
+      title = `Payment Due Now: ${task.title}${task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase()) ? ` (${task.paymentAmountText})` : ''}`;
+    } else {
+      title = `Due Now: ${task.title}${shortCourse ? ` · ${shortCourse}` : ''}`;
+    }
+    timeDesc = `Due: ${scheduleWhen} (Due now)`;
   } else {
-    const hoursLeft = Math.max(1, Math.round(timeRemaining / (3600 * 1000)));
-    title = `⏰ Reminder (${windowType}): ${task.title}`;
-    timeDesc = `🕒 Due: ${dateStr} at ${timeStr} (~${hoursLeft}h left)`;
+    if (isPayment) {
+      title = `Payment Due in ${shortLeft}: ${task.title}${task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase()) ? ` (${task.paymentAmountText})` : ''}`;
+    } else {
+      title = `Due in ${shortLeft}: ${task.title}${shortCourse ? ` · ${shortCourse}` : ''}`;
+    }
+    timeDesc = `Due: ${scheduleWhen} (${detailLeft})`;
   }
 
-  const body = `${courseDisplay}${weightStr}\n${timeDesc}\n${locationStr}`;
+  const body = `${metaParts.join(' · ')}\n${timeDesc}\n${locationStr}`;
 
   return { title, body };
 }

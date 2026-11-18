@@ -9,6 +9,7 @@ import { initAutoUpdate } from './autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
 import { registerExtraSiteScripts, getExtraSites, originPattern, EXTRA_SITES_KEY } from '../utils/blackboardSites';
 import { dueClassReminders, nextClassReminderAt, classReminderText } from '../core/classSchedule';
+import { formatNotificationPayload } from '../utils/calendar';
 import { refreshExamSchedule } from './examRefresh';
 import { scanOrchestrator } from './scanOrchestrator';
 import { GET_BLACKBOARD_XSRF, readBlackboardXsrf } from '../utils/blackboardXsrf';
@@ -296,22 +297,18 @@ async function checkUpcomingDeadlines() {
 
           if (notificationsTriggered < MAX_NOTIFICATIONS_PER_CHECK) {
             notificationsTriggered++;
-            const hoursLeft = Math.round(timeRemaining / (3600 * 1000));
-            const timeText = timeRemaining <= 0
-              ? 'now (or overdue)'
-              : hoursLeft <= 1
-                ? 'under 1 hour'
-                : `about ${hoursLeft} hours`;
+            const windowLabel = timeRemaining <= 0
+              ? 'due'
+              : reminderHours >= 24
+                ? `${Math.round(reminderHours / 24)}d`
+                : `${reminderHours}h`;
+            const { title, body } = formatNotificationPayload(task, windowLabel, timeRemaining);
 
             chrome.notifications.create(`reminder_${task.id}`, {
               type: 'basic',
               iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-              title: task.isPayment
-                ? `[Payment Due] ${task.title}`
-                : `[Urgent] Upcoming ${task.type.toUpperCase()}: ${task.title}`,
-              message: task.isPayment
-                ? `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}${task.paymentAmountText ? ` · ${task.paymentAmountText}` : ''}`
-                : `Due ${timeText === 'now (or overdue)' ? timeText : 'in ' + timeText}! Course: ${task.courseCode} - ${task.courseName}`,
+              title,
+              message: body,
               priority: 2
             });
           }

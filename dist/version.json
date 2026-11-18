@@ -1,18 +1,18 @@
 {
-  "version": "1.8.12",
-  "build": "5b974bceabd0",
-  "commit": "d40e01b28798b152d1cbd7f10c9a8fc98a1b6d06",
-  "shortCommit": "d40e01b",
-  "timestamp": "2026-11-18T12:03:48.318Z",
-  "message": "v1.8.11: fix(v1.8.11): match Payments view edge padding, header, and modal form classes",
+  "version": "1.8.13",
+  "build": "0db2fdf9e5c7",
+  "commit": "1c34426a94aad51b82e61fc693dd44b6de323c67",
+  "shortCommit": "1c34426",
+  "timestamp": "2026-11-18T15:43:24.764Z",
+  "message": "v1.8.12: fix(updater): reload immediately on manual Update now and harden Windows updater (v1.8.12)",
   "changelog": [
-    "Extension In-App Update Reliability (src/background/autoUpdate.ts, src/popup/modules/settingsUpdates.ts, updater/blackboarder-updater.ps1): Clicking Update now now triggers an immediate extension reload (chrome.runtime.reload()) once new files land on disk instead of waiting for reloadWhenIdle() while the popup/side panel is still open, surfaces 'error', 'dev-checkout', and 'up-to-date' responses explicitly in toast notifications instead of silently resetting the button, and skips locked or byte-identical self-updater scripts (updater/host.bat) during Windows file copies while cache-busting the GitHub ZIP request and cleaning up stale files even on matching-build runs."
+    "Purposeful, Emoji-Free Push & System Notifications (src/utils/calendar.ts, mobile-web/companion/sw.js, src/worker/04-web-push.js, src/mobile/app/, src/background/serviceWorker.ts): Removed all decorative emojis from push and desktop notifications and redesigned titles and bodies to surface immediate, high-signal information alongside the app icon/badge: exact time remaining (Due in 1h 30m: Quiz 1 · Calculus I / Due Now), full course name and code, assessment type, syllabus weight (Worth 10% of grade), bonus or point totals (25 pts), exact due schedule (During class vs specific time), and room or submission location (Location: Room W9-102, Location: In-class assessment, Submission: Online on Blackboard, or Portal: University Finance / Payment Portal)."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-CmfkKyrO.js",
     "assets/popup-DlZTlo49.css",
+    "assets/popup-V91Ecwvi.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

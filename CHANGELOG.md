@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.13] - 2026-11-18
+
+### Changed
+
+- **Purposeful, Emoji-Free Push & System Notifications (`src/utils/calendar.ts`, `mobile-web/companion/sw.js`, `src/worker/04-web-push.js`, `src/mobile/app/`, `src/background/serviceWorker.ts`):** Removed all decorative emojis from push and desktop notifications and redesigned titles and bodies to surface immediate, high-signal information alongside the app icon/badge: exact time remaining (`Due in 1h 30m: Quiz 1 · Calculus I` / `Due Now`), full course name and code, assessment type, syllabus weight (`Worth 10% of grade`), bonus or point totals (`25 pts`), exact due schedule (`During class` vs specific time), and room or submission location (`Location: Room W9-102`, `Location: In-class assessment`, `Submission: Online on Blackboard`, or `Portal: University Finance / Payment Portal`).
+
+---
+
 ## [1.8.12] - 2026-11-18
 
 ### Fixed
