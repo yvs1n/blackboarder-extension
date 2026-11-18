@@ -285,7 +285,29 @@ export function initExtensionUpdateSystem() {
     }
     if (res?.ok && res.status) {
       render(res.status, true);
-      if (res.status.state === 'updated') popupActions.showToast('Update installed! Click Restart now to finish.');
+      if (res.status.state === 'updated') {
+        if (btn) {
+          btn.setAttribute('disabled', 'true');
+          const span = btn.querySelector('span');
+          if (span) span.textContent = 'Restarting...';
+        }
+        popupActions.showToast('Update installed! Restarting Blackboarder...');
+        setTimeout(() => {
+          try {
+            chrome.runtime.reload();
+          } catch {
+            /* ignore if background worker already initiated reload */
+          }
+        }, 120);
+      } else if (res.status.state === 'up-to-date') {
+        popupActions.showToast('Blackboarder is already up to date!');
+      } else if (res.status.state === 'error' || res.status.state === 'dev-checkout') {
+        popupActions.showToast(res.status.error || 'Update failed. Check Settings > Updates.');
+      } else if (res.status.state === 'update-available' && !res.status.helperInstalled) {
+        popupActions.showToast('Auto-updater is not connected. Run update.bat in your Blackboarder folder.');
+      }
+    } else if (res?.error && /message port closed/i.test(res.error)) {
+      popupActions.showToast('Update installed! Restarting Blackboarder...');
     } else {
       popupActions.showToast(res?.error || 'Update failed. Check Settings or update manually.');
     }

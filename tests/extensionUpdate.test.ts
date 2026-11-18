@@ -8,6 +8,7 @@ import {
   AUTO_UPDATE_ENABLED_KEY,
   JUST_UPDATED_KEY,
   NATIVE_HOST_NAME,
+  applyUpdate,
   runAutoUpdate
 } from '../src/background/autoUpdate';
 import { BUILD_INFO } from '../src/buildInfo';
@@ -160,6 +161,80 @@ describe('Extension automatic updates', () => {
     expect(autoOff.status.state).toBe('update-available');
     expect(autoOff.store[JUST_UPDATED_KEY]).toBeUndefined();
     expect(autoOff.reloadSpy).not.toHaveBeenCalled();
+  });
+
+  it('reloads immediately on manual applyUpdate even while the popup is open, and errors if disk files stay stale', async () => {
+    vi.useFakeTimers();
+    try {
+      const setupEnv = (diskUpdatesAfterHelper: boolean) => {
+        let diskBuild = BUILD_INFO.build;
+        const store: Record<string, any> = {};
+        const reloadSpy = vi.fn();
+
+        (globalThis as any).chrome = {
+          storage: {
+            local: {
+              get: vi.fn(async (key: string | string[]) => {
+                if (typeof key === 'string') return { [key]: store[key] };
+                const out: Record<string, any> = {};
+                for (const k of key) out[k] = store[k];
+                return out;
+              }),
+              set: vi.fn(async (obj: Record<string, any>) => Object.assign(store, obj))
+            }
+          },
+          alarms: { create: vi.fn() },
+          runtime: {
+            lastError: null,
+            getURL: (rel: string) => `chrome-extension://testid/${rel}`,
+            getContexts: vi.fn(async () => [{ contextType: 'POPUP' }]),
+            reload: reloadSpy,
+            sendNativeMessage: vi.fn((_host: string, msg: any, cb: (reply: any) => void) => {
+              if (msg.type === 'ping') cb({ ok: true, helperVersion: 1 });
+              else if (msg.type === 'update') {
+                if (diskUpdatesAfterHelper) diskBuild = 'ffffffffffff';
+                cb({ ok: true, changed: diskUpdatesAfterHelper, build: 'ffffffffffff' });
+              } else cb({ ok: false });
+            })
+          }
+        };
+
+        globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.startsWith('chrome-extension://testid/version.json')) {
+            return new Response(JSON.stringify({ build: diskBuild }), { status: 200 });
+          }
+          return new Response(
+            JSON.stringify({
+              version: '9.9.9',
+              build: 'ffffffffffff',
+              shortCommit: 'fffffff',
+              timestamp: '2099-01-01T00:00:00.000Z',
+              message: 'Manual update build'
+            }),
+            { status: 200 }
+          );
+        }) as typeof fetch;
+
+        return { reloadSpy, store };
+      };
+
+      const success = setupEnv(true);
+      const okStatus = await applyUpdate();
+      expect(okStatus.state).toBe('updated');
+      expect(success.store[JUST_UPDATED_KEY]?.toBuild).toBe('ffffffffffff');
+      vi.advanceTimersByTime(200);
+      expect(success.reloadSpy).toHaveBeenCalledTimes(1);
+
+      const stale = setupEnv(false);
+      const errStatus = await applyUpdate();
+      expect(errStatus.state).toBe('error');
+      expect(errStatus.error).toContain('Files on disk did not update');
+      vi.advanceTimersByTime(200);
+      expect(stale.reloadSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   if (process.platform === 'win32') {

@@ -13,14 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.11",
-  "build": "62c97242fdb6",
-  "commit": "827ad5e6b40c3997b5f59ecddc60073bd62a5d43",
-  "shortCommit": "827ad5e",
-  "timestamp": "2026-11-18T11:44:10.112Z",
-  "message": "v1.8.10: fix(v1.8.10): hide empty deadlines payments strip via [hidden]",
+  "version": "1.8.12",
+  "build": "5b974bceabd0",
+  "commit": "d40e01b28798b152d1cbd7f10c9a8fc98a1b6d06",
+  "shortCommit": "d40e01b",
+  "timestamp": "2026-11-18T12:03:48.318Z",
+  "message": "v1.8.11: fix(v1.8.11): match Payments view edge padding, header, and modal form classes",
   "changelog": [
-    "Payments View & Modal Visual Parity (src/popup/, src/mobile/, mobile-web/companion/): Added the missing 10px 14px 20px view-panel padding to #view-payments matching Courses and Marks, aligned #view-payments header typography, compact action buttons, and stat boxes with Settings/Courses, switched #modal-payment to use the exact .modal-backdrop / .form-label / .form-input / .form-select / .modal-close-btn classes used by #modal-edit-task, and restored .toggle-control-row styling on mobile."
+    "Extension In-App Update Reliability (src/background/autoUpdate.ts, src/popup/modules/settingsUpdates.ts, updater/blackboarder-updater.ps1): Clicking Update now now triggers an immediate extension reload (chrome.runtime.reload()) once new files land on disk instead of waiting for reloadWhenIdle() while the popup/side panel is still open, surfaces 'error', 'dev-checkout', and 'up-to-date' responses explicitly in toast notifications instead of silently resetting the button, and skips locked or byte-identical self-updater scripts (updater/host.bat) during Windows file copies while cache-busting the GitHub ZIP request and cleaning up stale files even on matching-build runs."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

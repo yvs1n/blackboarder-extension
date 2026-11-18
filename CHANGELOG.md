@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.12] - 2026-11-18
+
+### Fixed
+
+- **Extension In-App Update Reliability (`src/background/autoUpdate.ts`, `src/popup/modules/settingsUpdates.ts`, `updater/blackboarder-updater.ps1`):** Clicking **Update now** now triggers an immediate extension reload (`chrome.runtime.reload()`) once new files land on disk instead of waiting for `reloadWhenIdle()` while the popup/side panel is still open, surfaces `'error'`, `'dev-checkout'`, and `'up-to-date'` responses explicitly in toast notifications instead of silently resetting the button, and skips locked or byte-identical self-updater scripts (`updater/host.bat`) during Windows file copies while cache-busting the GitHub ZIP request and cleaning up stale files even on matching-build runs.
+
+---
+
 ## [1.8.11] - 2026-11-18
 
 ### Fixed

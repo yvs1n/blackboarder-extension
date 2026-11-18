@@ -197,13 +197,24 @@ export function applyUpdate(): Promise<AutoUpdateStatus> {
   return runningUpdate;
 }
 
+function scheduleImmediateReload(): void {
+  // Give sendResponse a moment to reach the popup/side panel before tearing down the service worker.
+  setTimeout(() => {
+    try {
+      chrome.runtime.reload();
+    } catch {
+      /* ignore when runtime reload is unavailable */
+    }
+  }, 150);
+}
+
 async function doApplyUpdate(): Promise<AutoUpdateStatus> {
   const base = { installedBuild: BUILD_INFO.build, checkedAt: new Date().toISOString() };
 
   if (await hasNewFilesOnDisk()) {
     await markJustUpdated(null);
     const saved = await saveStatus({ ...base, state: 'updated', helperInstalled: Boolean(await sendToHelper({ type: 'ping' })) });
-    await reloadWhenIdle();
+    scheduleImmediateReload();
     return saved;
   }
 
@@ -227,11 +238,21 @@ async function doApplyUpdate(): Promise<AutoUpdateStatus> {
   if (await hasNewFilesOnDisk()) {
     await markJustUpdated(remote);
     const saved = await saveStatus({ ...base, ...remoteFields, state: 'updated', helperInstalled });
-    await reloadWhenIdle();
+    scheduleImmediateReload();
     return saved;
   }
 
-  return saveStatus({ ...base, ...remoteFields, state: 'update-available', helperInstalled });
+  if (remote && remote.build === BUILD_INFO.build) {
+    return saveStatus({ ...base, ...remoteFields, state: 'up-to-date', helperInstalled });
+  }
+
+  return saveStatus({
+    ...base,
+    ...remoteFields,
+    state: 'error',
+    helperInstalled,
+    error: 'Files on disk did not update. Run update.bat in your Blackboarder folder or reload from chrome://extensions.',
+  });
 }
 
 export async function getAutoUpdateStatus(): Promise<AutoUpdateStatus | null> {

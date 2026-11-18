@@ -101,7 +101,9 @@ function Update-ExtensionFiles {
   try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $zip = Join-Path $work 'main.zip'
-    Invoke-WebRequest -UseBasicParsing -Uri $ZipUrl -OutFile $zip
+    $sep = if ($ZipUrl -match '\?') { '&' } else { '?' }
+    $freshZipUrl = "$ZipUrl$($sep)t=$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
+    Invoke-WebRequest -UseBasicParsing -Uri $freshZipUrl -Headers @{ 'Cache-Control' = 'no-cache' } -OutFile $zip
     $unpacked = Join-Path $work 'src'
     Expand-Archive -LiteralPath $zip -DestinationPath $unpacked -Force
 
@@ -117,6 +119,7 @@ function Update-ExtensionFiles {
     $installedFile = Join-Path $ExtDir 'version.json'
     $oldInfo = Read-VersionFile $installedFile
     if ($oldInfo -and $oldInfo.build -eq $newInfo.build) {
+      Remove-StaleExtensionFiles $ExtDir $newInfo.files
       return @{ ok = $true; changed = $false; build = $newInfo.build }
     }
 
@@ -128,7 +131,16 @@ function Update-ExtensionFiles {
       $dest = Join-Path $ExtDir $rel
       $destDir = Split-Path -Parent $dest
       if (-not (Test-Path -LiteralPath $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-      Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
+      if (Test-Path -LiteralPath $dest) {
+        $sameHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash
+        if ($sameHash) { continue }
+      }
+      try {
+        Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
+      } catch {
+        # cmd.exe holds updater\host.bat open while running as the native host; never abort over a running helper file lock
+        if ($rel -notlike 'updater\*') { throw }
+      }
     }
 
     # Remove any old/stale files in $ExtDir that are not in the new build (old hashed bundles, leftovers)
