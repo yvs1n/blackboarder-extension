@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.14] - 2026-11-19
+
+### Changed
+
+- **Editorial Landing Page & Interactive Stage Redesign (`mobile-web/index.html`, `mobile-web/landing-motion.js`):** Rebuilt the landing page using Convert's centered editorial rhythm, spacious display pacing, 2x2 capability card showcase with tilted Swiss pairs, `$0` pricing centerpiece, closing atmospheric banner, and centered footer while strictly preserving Blackboarder's Swiss Grid `0px` square geometry, `Inter Tight` + `Inter` typography, and two-tone dark-first (`#121215`) / light (`#f8fafc`) design tokens. Added subtle drifting radial studio lighting with fine SVG film grain, an interactive animated hero demo stage showing Blackboard Ultra announcements being scanned and synced into the extension/companion UI (`Calendar`, `Deadlines`, `Marks & GPA`, `Vault`), and an interactive sample extractor sandbox (`Midterm`, `Arabic Quiz`, `Exam Table`, `Tuition Fee`).
+
+---
+
 ## [1.8.13] - 2026-11-18
 
 ### Changed

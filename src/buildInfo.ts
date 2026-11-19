@@ -13,14 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.13",
-  "build": "0db2fdf9e5c7",
-  "commit": "1c34426a94aad51b82e61fc693dd44b6de323c67",
-  "shortCommit": "1c34426",
-  "timestamp": "2026-11-18T15:43:24.764Z",
-  "message": "v1.8.12: fix(updater): reload immediately on manual Update now and harden Windows updater (v1.8.12)",
+  "version": "1.8.14",
+  "build": "44b0bead311c",
+  "commit": "826bac9aa44c8dc6503d22b8b4af86c299190bc5",
+  "shortCommit": "826bac9",
+  "timestamp": "2026-11-19T13:41:45.848Z",
+  "message": "v1.8.13: feat(notifications): make push and system notifications purposeful and emoji-free (v1.8.13)",
   "changelog": [
-    "Purposeful, Emoji-Free Push & System Notifications (src/utils/calendar.ts, mobile-web/companion/sw.js, src/worker/04-web-push.js, src/mobile/app/, src/background/serviceWorker.ts): Removed all decorative emojis from push and desktop notifications and redesigned titles and bodies to surface immediate, high-signal information alongside the app icon/badge: exact time remaining (Due in 1h 30m: Quiz 1 · Calculus I / Due Now), full course name and code, assessment type, syllabus weight (Worth 10% of grade), bonus or point totals (25 pts), exact due schedule (During class vs specific time), and room or submission location (Location: Room W9-102, Location: In-class assessment, Submission: Online on Blackboard, or Portal: University Finance / Payment Portal)."
+    "Editorial Landing Page & Interactive Stage Redesign (mobile-web/index.html, mobile-web/landing-motion.js): Rebuilt the landing page using Convert's centered editorial rhythm, spacious display pacing, 2x2 capability card showcase with tilted Swiss pairs, $0 pricing centerpiece, closing atmospheric banner, and centered footer while strictly preserving Blackboarder's Swiss Grid 0px square geometry, Inter Tight + Inter typography, and two-tone dark-first (#121215) / light (#f8fafc) design tokens. Added subtle drifting radial studio lighting with fine SVG film grain, an interactive animated hero demo stage showing Blackboard Ultra announcements being scanned and synced into the extension/companion UI (Calendar, Deadlines, Marks & GPA, Vault), and an interactive sample extractor sandbox (Midterm, Arabic Quiz, Exam Table, Tuition Fee)."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
