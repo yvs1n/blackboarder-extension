@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.15] - 2026-11-19
+
+### Fixed
+
+- **Landing Page Mobile Viewport Layout (`mobile-web/index.html`):** Fixed mobile CSS Grid intrinsic width expansion (`grid-template-columns: minmax(0, 1fr)` on `.stage-canvas` and `repeat(7, minmax(0, 1fr))` on `.mock-cal-grid` with `min-width: 0` across stage panes, weekday cells, status labels, and vault key boxes) so all 7 calendar columns and interactive stage tabs (`Scan Flow`, `Marks & GPA`, `Phone & Vault`) fit within narrow phone viewports (`375px` / `390px`) without right-edge clipping or column distortion, simplified the mobile sticky header to a single clean row with full `Install ->` CTA, and tuned mobile typography, 2x2 step/utility grids, and card padding.
+
+---
+
 ## [1.8.14] - 2026-11-19
 
 ### Changed

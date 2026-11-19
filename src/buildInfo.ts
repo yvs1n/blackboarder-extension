@@ -13,14 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.14",
-  "build": "44b0bead311c",
-  "commit": "826bac9aa44c8dc6503d22b8b4af86c299190bc5",
-  "shortCommit": "826bac9",
-  "timestamp": "2026-11-19T13:41:45.848Z",
-  "message": "v1.8.13: feat(notifications): make push and system notifications purposeful and emoji-free (v1.8.13)",
+  "version": "1.8.15",
+  "build": "cbec5b60f469",
+  "commit": "55ab8819d717fb7263067070cc0037b468964ff5",
+  "shortCommit": "55ab881",
+  "timestamp": "2026-11-19T14:10:47.837Z",
+  "message": "v1.8.14: feat(landing): editorial Convert-inspired landing page in Blackboarder Swiss Grid system (v1.8.14)",
   "changelog": [
-    "Editorial Landing Page & Interactive Stage Redesign (mobile-web/index.html, mobile-web/landing-motion.js): Rebuilt the landing page using Convert's centered editorial rhythm, spacious display pacing, 2x2 capability card showcase with tilted Swiss pairs, $0 pricing centerpiece, closing atmospheric banner, and centered footer while strictly preserving Blackboarder's Swiss Grid 0px square geometry, Inter Tight + Inter typography, and two-tone dark-first (#121215) / light (#f8fafc) design tokens. Added subtle drifting radial studio lighting with fine SVG film grain, an interactive animated hero demo stage showing Blackboard Ultra announcements being scanned and synced into the extension/companion UI (Calendar, Deadlines, Marks & GPA, Vault), and an interactive sample extractor sandbox (Midterm, Arabic Quiz, Exam Table, Tuition Fee)."
+    "Landing Page Mobile Viewport Layout (mobile-web/index.html): Fixed mobile CSS Grid intrinsic width expansion (grid-template-columns: minmax(0, 1fr) on .stage-canvas and repeat(7, minmax(0, 1fr)) on .mock-cal-grid with min-width: 0 across stage panes, weekday cells, status labels, and vault key boxes) so all 7 calendar columns and interactive stage tabs (Scan Flow, Marks & GPA, Phone & Vault) fit within narrow phone viewports (375px / 390px) without right-edge clipping or column distortion, simplified the mobile sticky header to a single clean row with full Install -> CTA, and tuned mobile typography, 2x2 step/utility grids, and card padding."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
