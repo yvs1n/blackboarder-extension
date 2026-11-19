@@ -13,14 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.15",
-  "build": "cbec5b60f469",
-  "commit": "55ab8819d717fb7263067070cc0037b468964ff5",
-  "shortCommit": "55ab881",
-  "timestamp": "2026-11-19T14:10:47.837Z",
-  "message": "v1.8.14: feat(landing): editorial Convert-inspired landing page in Blackboarder Swiss Grid system (v1.8.14)",
+  "version": "1.8.16",
+  "build": "31c6f6289703",
+  "commit": "52bdc6784619b02773c7f740d4ba635a4718eaa2",
+  "shortCommit": "52bdc67",
+  "timestamp": "2026-11-19T16:34:33.768Z",
+  "message": "v1.8.15: fix(landing): overhaul mobile viewport layout and stage grid width constraints (v1.8.15)",
   "changelog": [
-    "Landing Page Mobile Viewport Layout (mobile-web/index.html): Fixed mobile CSS Grid intrinsic width expansion (grid-template-columns: minmax(0, 1fr) on .stage-canvas and repeat(7, minmax(0, 1fr)) on .mock-cal-grid with min-width: 0 across stage panes, weekday cells, status labels, and vault key boxes) so all 7 calendar columns and interactive stage tabs (Scan Flow, Marks & GPA, Phone & Vault) fit within narrow phone viewports (375px / 390px) without right-edge clipping or column distortion, simplified the mobile sticky header to a single clean row with full Install -> CTA, and tuned mobile typography, 2x2 step/utility grids, and card padding."
+    "Original Swiss Architectural Landing Page & Horizontal Mobile Stage (mobile-web/index.html, mobile-web/landing-motion.js): Kept the hero side-by-side Blackboarder stage horizontal across mobile viewports via proportional ResizeObserver viewport scaling (with an external full-size scene toolbar above it), replaced the hollow traffic-light squares with real padlock and Blackboarder SVG icons, removed the standalone pricing card section in favor of integrating the free MIT guarantee directly into the FAQ aside, added speckled graphite micro-texture and subtle architectural crosshairs over dark-first (#121215) and light (#f8fafc) surfaces, and introduced an asymmetric Capabilities Workbench pairing the live announcement extractor with an interactive SGPA / Target Exam Score simulator alongside pure-black frosted widget and phone companion previews."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.16] - 2026-11-19
+
+### Changed
+
+- **Original Swiss Architectural Landing Page & Horizontal Mobile Stage (`mobile-web/index.html`, `mobile-web/landing-motion.js`):** Kept the hero side-by-side Blackboarder stage horizontal across mobile viewports via proportional `ResizeObserver` viewport scaling (with an external full-size scene toolbar above it), replaced the hollow traffic-light squares with real padlock and Blackboarder SVG icons, removed the standalone pricing card section in favor of integrating the free MIT guarantee directly into the FAQ aside, added speckled graphite micro-texture and subtle architectural crosshairs over dark-first (`#121215`) and light (`#f8fafc`) surfaces, and introduced an asymmetric Capabilities Workbench pairing the live announcement extractor with an interactive SGPA / Target Exam Score simulator alongside pure-black frosted widget and phone companion previews.
+
+---
+
 ## [1.8.15] - 2026-11-19
 
 ### Fixed
