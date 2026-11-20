@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.27] - 2026-11-21
+
+### Changed
+
+- **Active Header Button Highlights (`src/popup/modules/navigation.ts`, `src/mobile/app/14-modals-actions.js`):** Extended the active inverted highlight (`.active` white button in dark mode / dark button in light mode, matching Payments) to both **Settings** (`#btn-settings-toggle`) and **Add Custom Deadline** (`#btn-add-modal` / `#btn-web-add`).
+
+---
+
 ## [1.8.26] - 2026-11-20
 
 ### Added

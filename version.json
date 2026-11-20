@@ -1,18 +1,18 @@
 {
-  "version": "1.8.26",
-  "build": "905306d3bed8",
-  "commit": "1b077fbf4f53b40550253bf34904f52786ff494c",
-  "shortCommit": "1b077fb",
-  "timestamp": "2026-11-20T17:09:34.654Z",
-  "message": "Lock desktop popup 480x600 size across all tabs and persist payment add/edit drafts (v1.8.24)",
+  "version": "1.8.27",
+  "build": "be6476f619b8",
+  "commit": "5f99810a05bfda1bb1e63040d0e5c72ebf9c7f4e",
+  "shortCommit": "5f99810",
+  "timestamp": "2026-11-20T21:06:21.102Z",
+  "message": "Remove hover delay on non-CTA controls and add Ignore Mark toggle in Marks tab (v1.8.26)",
   "changelog": [
-    "Ignore / Include Mark Toggle in Marks Tab (src/types.ts, src/utils/marks.ts, src/utils/gpa.ts, src/utils/grades.ts, src/popup/marksViewController.ts, src/mobile/app/10-marks-tracker.js): Every mark row (including Blackboard gradebook columns and bonus rows) now has an Ignore button (eye icon) to exclude duplicate or aggregate columns (such as \"Out of 55\" or \"CourseWork without Bonus\") from GPA, course percentage, target grade planning, and syllabus progress calculations while keeping the row visible with an Ignored pill and Undo toast across extension, Companion PWA, cloud Vault sync, and future gradebook scans."
+    "Active Header Button Highlights (src/popup/modules/navigation.ts, src/mobile/app/14-modals-actions.js): Extended the active inverted highlight (.active white button in dark mode / dark button in light mode, matching Payments) to both Settings (#btn-settings-toggle) and Add Custom Deadline (#btn-add-modal / #btn-web-add)."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
     "assets/popup-B3giqiMO.css",
-    "assets/popup-CC8FUrUP.js",
+    "assets/popup-DFaku7ei.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

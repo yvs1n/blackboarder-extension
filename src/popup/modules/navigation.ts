@@ -107,6 +107,8 @@ export function switchView(view: AppView) {
   dom.tabNavMarks().classList.remove('active');
   dom.tabNavCourses().classList.remove('active');
   document.getElementById('btn-payments-toggle')?.classList.toggle('active', view === 'payments');
+  dom.btnSettingsToggle()?.classList.toggle('active', view === 'settings');
+  dom.btnAddModal()?.classList.toggle('active', view === 'add');
 
   popupState.currentActiveView = view;
 
