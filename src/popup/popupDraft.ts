@@ -5,6 +5,8 @@
 export interface PopupDraft {
   view: 'add' | 'edit' | 'settings' | 'courses' | 'marks' | 'payments';
   taskId?: string;
+  paymentModalMode?: 'add' | 'edit';
+  paymentId?: string;
   settingsPage?: string;
   fields?: Record<string, string | boolean>;
   savedAt: number;

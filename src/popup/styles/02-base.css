@@ -10,6 +10,8 @@ html {
   min-width: 480px;
   max-width: 480px;
   height: 600px;
+  min-height: 600px;
+  max-height: 600px;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -32,6 +34,8 @@ body {
 
 .popup-views-scroll {
   flex: 1 1 auto;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -42,8 +46,9 @@ body {
   contain: layout style;
 }
 
-/* Mobile browser extensions (Firefox for Android, Edge Android, Quetta) open popups in < 480px viewports */
-@media (max-width: 479px) {
+/* Mobile browser extensions (Firefox for Android, Edge Android, Quetta) open popups in < 480px touch viewports.
+   Requiring (pointer: coarse) prevents Windows DPI scaling or desktop zoom from shrinking desktop popups. */
+@media (max-width: 479px) and (pointer: coarse) {
   html,
   body {
     width: 100% !important;

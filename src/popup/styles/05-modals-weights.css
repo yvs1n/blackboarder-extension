@@ -3,6 +3,8 @@
    ========================================================================== */
 .view-panel {
   display: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .view-panel.active {

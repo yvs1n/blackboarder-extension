@@ -10,8 +10,8 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>BlackboarderWidget</AssemblyName>
     <RootNamespace>BlackboarderWidget</RootNamespace>
-    <Version>1.8.23</Version>
-    <InformationalVersion>1.8.23</InformationalVersion>
+    <Version>1.8.24</Version>
+    <InformationalVersion>1.8.24</InformationalVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 

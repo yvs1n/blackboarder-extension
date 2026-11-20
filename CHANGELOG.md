@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.24] - 2026-11-20
+
+### Fixed
+
+- **Locked Desktop Extension Popup Dimensions Across All Menus (`src/popup/styles/02-base.css`, `src/popup/styles/05-modals-weights.css`):** Scoped `< 480px` mobile popup responsiveness strictly to touch screens (`(max-width: 479px) and (pointer: coarse)`), locked `html` min/max height to `600px`, and gave `.popup-views-scroll` and `.view-panel` explicit `width: 100%` so desktop popups never shrink horizontally or vertically when switching to Finance/Payments or any other tab.
+- **Persistent Drafts When Adding or Editing Financial Deadlines (`src/popup/popupDraft.ts`, `src/popup/modules/paymentsView.ts`, `src/popup/modules/navigation.ts`):** Closing the extension while adding or editing an item inside `#modal-payment` now preserves the open modal, edit target ID, and all unsaved form fields across reopens identically to academic deadlines.
+
+---
+
 ## [1.8.23] - 2026-11-20
 
 ### Changed

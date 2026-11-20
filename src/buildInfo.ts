@@ -13,15 +13,15 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.23",
-  "build": "b9f95cef4010",
-  "commit": "56406a86c074bc3e93dce687871de94d2c4ec628",
-  "shortCommit": "56406a8",
-  "timestamp": "2026-11-20T16:20:37.890Z",
-  "message": "Add Android extension build, iOS Safari userscript scanner, and adaptive install guide (v1.8.22)",
+  "version": "1.8.24",
+  "build": "3f7a8b5873cb",
+  "commit": "bbefbb06d7951842c796718575607d57355ff048",
+  "shortCommit": "bbefbb0",
+  "timestamp": "2026-11-20T16:35:06.441Z",
+  "message": "Align Swiss Grid design system across all surfaces and add scroll reveals (v1.8.23)",
   "changelog": [
-    "Unified Swiss Grid Design System (docs/DESIGN_SYSTEM.md, mobile-web/index.html, src/popup/styles/, src/mobile/styles/, src/userscript/overlayUi.ts, src/content/content.css): Updated DESIGN_SYSTEM.md from the landing page tokens and unified light/dark surfaces (--bg, --bg-alt, --surface, --surface-elevated, --surface-hover), borders (#e2e8f0 / #cbd5e1 light, #2c2c36 / #3f3f4c dark), typography stacks (Inter Tight, Inter, --font-mono), and primary accent tokens (#18181b / #f4f4f6) across Landing Page, Extension, Companion PWA, Blackboard floating pill, and Safari Userscript overlay.",
-    "Landing Page Scroll Reveal Animations (mobile-web/index.html, mobile-web/landing-motion.js): Added IntersectionObserver scroll-reveal choreography (bb-reveal / is-in) with subtle staggered entrances for feature grids, workbench panels, device preview cards, adaptive install steps, FAQs, and closing panels while respecting prefers-reduced-motion."
+    "Locked Desktop Extension Popup Dimensions Across All Menus (src/popup/styles/02-base.css, src/popup/styles/05-modals-weights.css): Scoped < 480px mobile popup responsiveness strictly to touch screens ((max-width: 479px) and (pointer: coarse)), locked html min/max height to 600px, and gave .popup-views-scroll and .view-panel explicit width: 100% so desktop popups never shrink horizontally or vertically when switching to Finance/Payments or any other tab.",
+    "Persistent Drafts When Adding or Editing Financial Deadlines (src/popup/popupDraft.ts, src/popup/modules/paymentsView.ts, src/popup/modules/navigation.ts): Closing the extension while adding or editing an item inside #modal-payment now preserves the open modal, edit target ID, and all unsaved form fields across reopens identically to academic deadlines."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

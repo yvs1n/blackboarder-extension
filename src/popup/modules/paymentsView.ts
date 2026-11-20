@@ -109,6 +109,7 @@ function setPaymentModalVisible(visible: boolean): void {
   if (!modal) return;
   if (visible) openModalEl('modal-payment', modal);
   else closeModalEl('modal-payment', modal);
+  popupActions.rememberDraft();
 }
 
 /** Opens the Add/Edit Payment dialog pre-populated for creating or editing a fee deadline. */
@@ -343,6 +344,10 @@ export function initPaymentsView(): void {
   document.getElementById('modal-payment')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) setPaymentModalVisible(false);
   });
+
+  const formPaymentEl = document.getElementById('form-payment');
+  formPaymentEl?.addEventListener('input', () => popupActions.rememberDraft());
+  formPaymentEl?.addEventListener('change', () => popupActions.rememberDraft());
 
   document.getElementById('form-payment')?.addEventListener('submit', async (e) => {
     e.preventDefault();

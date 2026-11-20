@@ -19,8 +19,20 @@ function currentSettingsPage(): string {
 export function rememberDraft() {
   if (!popupState.draftReady) return;
   const modalEditTask = dom.modalEditTask();
+  const modalPayment = document.getElementById('modal-payment');
+  const formPayment = document.getElementById('form-payment');
+  const isPaymentModalOpen = Boolean(modalPayment && (isOverlayOpen('modal-payment') || modalPayment.style.display === 'flex'));
+
   if ((isOverlayOpen('modal-edit-task') || modalEditTask.style.display === 'flex') && popupState.editingTaskId) {
     saveDraft({ view: 'edit', taskId: popupState.editingTaskId, fields: collectFields(dom.formEditTask()) });
+  } else if (isPaymentModalOpen && formPayment) {
+    const paymentId = ((document.getElementById('payment-id') as HTMLInputElement | null)?.value || '').trim();
+    saveDraft({
+      view: 'payments',
+      paymentModalMode: paymentId ? 'edit' : 'add',
+      paymentId: paymentId || undefined,
+      fields: collectFields(formPayment)
+    });
   } else if (dom.viewAdd().classList.contains('active')) {
     saveDraft({ view: 'add', fields: collectFields(dom.formAddTask()) });
   } else if (dom.viewSettings().classList.contains('active')) {
@@ -36,7 +48,7 @@ export function rememberDraft() {
   }
 }
 
-/** Reopens what was being done when the popup closed: adding or editing a deadline, or a settings page. */
+/** Reopens what was being done when the popup closed: adding or editing a deadline/payment, or a settings page. */
 export async function restoreDraft() {
   try {
     const d = await loadDraft();
@@ -61,6 +73,17 @@ export async function restoreDraft() {
       switchView('courses');
     } else if (d.view === 'payments') {
       switchView('payments');
+      if (d.paymentModalMode) {
+        const existing = d.paymentModalMode === 'edit' && d.paymentId
+          ? popupState.currentPayments.find(p => p.id === d.paymentId)
+          : undefined;
+        popupActions.openPaymentModal(existing);
+        applyFields(d.fields);
+        if (d.paymentModalMode === 'edit') {
+          const titleHeading = document.getElementById('modal-payment-title');
+          if (titleHeading) titleHeading.textContent = 'Edit Financial Deadline';
+        }
+      }
     }
   } finally {
     popupState.draftReady = true;
