@@ -6,7 +6,7 @@ import type {
   ArchivedSemester,
 } from '../../types';
 
-export type AppView = 'calendar' | 'details' | 'marks' | 'courses' | 'payments' | 'add' | 'settings';
+export type AppView = 'calendar' | 'details' | 'marks' | 'courses' | 'payments' | 'settings';
 
 export function formatDateKey(date: Date): string {
   const y = date.getFullYear();
@@ -63,7 +63,6 @@ export const dom = {
   viewMarks: () => document.getElementById('view-marks') as HTMLElement,
   viewCourses: () => document.getElementById('view-courses') as HTMLElement,
   viewPayments: () => document.getElementById('view-payments') as HTMLElement,
-  viewAdd: () => document.getElementById('view-add') as HTMLElement,
   viewSettings: () => document.getElementById('view-settings') as HTMLElement,
 
   calMonthTitle: () => document.getElementById('cal-month-title') as HTMLElement,
@@ -104,6 +103,8 @@ export const dom = {
   hsbIcon: () => document.getElementById('hsb-icon') as SVGElement | null,
   hsbText: () => document.getElementById('hsb-text') as HTMLSpanElement | null,
 
+  modalAddTask: () => document.getElementById('modal-add-task') as HTMLElement | null,
+  btnCloseAddModal: () => document.getElementById('btn-close-add-modal') as HTMLButtonElement | null,
   modalEditTask: () => document.getElementById('modal-edit-task') as HTMLElement,
   formAddTask: () => document.getElementById('form-add-task') as HTMLFormElement,
   formEditTask: () => document.getElementById('form-edit-task') as HTMLFormElement,
@@ -152,6 +153,8 @@ export const popupActions = {
   closeRoomPicker: () => {},
   openEditModal: (_task: DeadlineTask) => {},
   closeEditModal: () => {},
+  openAddTaskModal: (_options?: { dateStr?: string; focus?: boolean }) => {},
+  closeAddTaskModal: () => {},
   openAddModalOnDate: (_dateStr: string) => {},
   updateAddRoomVisibility: () => {},
   updateEditRoomVisibility: () => {},

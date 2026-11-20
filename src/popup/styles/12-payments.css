@@ -44,13 +44,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   padding: 10px 12px;
-  margin-bottom: 10px;
+  margin: 2px 14px 8px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-left: 3px solid var(--accent);
   font-size: 11.5px;
+  box-sizing: border-box;
 }
 
 .payments-deadlines-strip.is-overdue {
@@ -58,12 +59,15 @@
 }
 
 .payments-strip-text {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
   color: var(--text-main);
-  line-height: 1.35;
+  line-height: 1.4;
+}
+
+.payments-strip-text .ui-icon {
+  vertical-align: -2px;
 }
 
 .payments-strip-btn {

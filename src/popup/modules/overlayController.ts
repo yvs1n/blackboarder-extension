@@ -12,6 +12,7 @@ import { dom } from './state';
 
 export type PopupOverlayId =
   | 'day-expanded-drawer'
+  | 'modal-add-task'
   | 'modal-edit-task'
   | 'modal-reading-sheet'
   | 'modal-room-picker'
@@ -31,6 +32,7 @@ interface StackEntry {
 
 const MODAL_DISMISS_ORDER: PopupOverlayId[] = [
   'modal-room-picker',
+  'modal-add-task',
   'modal-edit-task',
   'modal-reading-sheet',
   'modal-course-import',

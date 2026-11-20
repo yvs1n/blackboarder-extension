@@ -48,6 +48,8 @@ import {
   updateSemesterSelector,
 } from './modules/marksView';
 import {
+  closeAddTaskModal,
+  openAddTaskModal,
   rememberDraft,
   restoreDraft,
   setupNavigationAndTaskEvents,
@@ -152,6 +154,8 @@ Object.assign(popupActions, {
   closeRoomPicker,
   openEditModal,
   closeEditModal,
+  openAddTaskModal,
+  closeAddTaskModal,
   openAddModalOnDate,
   updateAddRoomVisibility,
   updateEditRoomVisibility,

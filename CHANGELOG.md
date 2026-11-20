@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.28] - 2026-11-21
+
+### Changed
+
+- **Add Custom Deadline Modal in Extension (`src/popup/index.html`, `src/popup/modules/navigation.ts`, `src/popup/modules/overlayController.ts`, `src/popup/popupDraft.ts`):** Converted `#view-add` into a floating `#modal-add-task` dialog matching Companion PWA, opening over the currently active tab (Calendar, Deadlines, Marks, Courses, Payments, or Settings), keeping `#btn-add-modal` highlighted while open, supporting Escape/backdrop dismissal, and preserving typed draft fields plus underlying tab state across popup closes.
+
+### Fixed
+
+- **Unpaid Fees Banner Width & Wrapping (`src/popup/styles/12-payments.css`, `src/mobile/styles/11-payments.css`):** Aligned `#deadlines-payments-strip` to the `14px` horizontal inset of `.controls-bar` and task cards in the extension Deadlines tab, and switched `.payments-strip-text` to `flex: 1 1 auto; min-width: 0; display: block;` so fee summary text wraps cleanly alongside the Payments button.
+
+---
+
 ## [1.8.27] - 2026-11-21
 
 ### Changed

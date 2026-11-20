@@ -302,7 +302,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.27</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.28</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -601,109 +601,6 @@
         <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
         <span>Manage Quick Links (Attendance, Study Plan, Marks)</span>
       </button>
-  </section>
-
-  <section id="view-add" class="view-panel">
-    <h3 style="font-size: 15px; margin-bottom: 12px; font-weight: 700;">Add Custom Deadline</h3>
-    <form id="form-add-task">
-      <div class="form-group">
-        <label class="form-label">Task / Title</label>
-        <input type="text" id="add-title" class="form-input" placeholder="e.g. Quiz 2: Binary Trees" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Course Code & Name</label>
-        <input type="text" id="add-course" class="form-input" placeholder="e.g. Calculus I" required>
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        <div class="form-group">
-          <label class="form-label">Due Date</label>
-          <input type="date" id="add-date" class="form-input" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Due Time</label>
-          <input type="time" id="add-time" class="form-input" value="23:59">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Room / Location <span style="font-weight: normal; color: var(--text-muted);">(Optional - defaults to course schedule)</span></label>
-        <input type="text" id="add-room" class="form-input" placeholder="e.g. A8-103, A12-110, A3-184">
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        <div class="form-group">
-          <label class="form-label">Category</label>
-          <select id="add-type" class="form-select">
-            <option value="quiz">Quiz</option>
-            <option value="assignment" selected>Assignment / HW</option>
-            <option value="exam">Exam / Midterm</option>
-            <option value="project">Project</option>
-            <option value="lab">Lab Report</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Priority</label>
-          <select id="add-priority" class="form-select">
-            <option value="high">High (Urgent)</option>
-            <option value="medium" selected>Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="add-grade-mode">Grade Contribution</label>
-        <select id="add-grade-mode" class="form-select">
-          <option value="syllabus" selected>Counts Toward Syllabus Total (%)</option>
-          <option value="bonus">Bonus Mark / Extra Credit</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="add-weight"><span id="add-weight-label">Grade Weight (%)</span> <span id="add-weight-sublabel" style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
-        <div style="display: flex; gap: 6px;">
-          <input type="number" id="add-weight" class="form-input" placeholder="e.g. 5" step="0.1" min="0" max="100">
-          <button type="button" class="btn-secondary" id="btn-calc-add-weight" title="Auto-detect weight from course syllabus" style="font-size: 11px; white-space: nowrap; padding: 0 8px;">
-            <svg class="ui-icon mr-1"><use href="#icon-scale"></use></svg>
-            <span>Auto-Weight</span>
-          </button>
-        </div>
-        <span id="add-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
-      </div>
-      <div id="add-bonus-options" style="display: none; border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px; margin-bottom: 10px;">
-        <div class="form-row-2" style="gap: 8px; margin-bottom: 6px;">
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="add-bonus-unit">Bonus Type</label>
-            <select id="add-bonus-unit" class="form-select">
-              <option value="points" selected>Pure Points (pts)</option>
-              <option value="percent">Percentage (%)</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="add-bonus-target">Bonus On What</label>
-            <select id="add-bonus-target" class="form-select"></select>
-          </div>
-        </div>
-        <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 6px;">
-          Pure Points add flat extra marks (even past 100% syllabus total); Percentage scales against the chosen target.
-        </span>
-        <div class="form-group" style="margin-bottom: 0;">
-          <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 4px;">
-            <input type="checkbox" id="add-bonus-earned" style="accent-color: var(--accent);">
-            <span style="font-weight: 600;">Already graded / earned</span>
-          </label>
-          <div id="add-bonus-score-wrap" style="display: none; margin-top: 4px;">
-            <label class="form-label" for="add-bonus-score" style="font-size: 10.5px;">Score Earned <span style="font-weight: normal; color: var(--text-muted);">(leave blank for full bonus marks)</span></label>
-            <input type="number" id="add-bonus-score" class="form-input" placeholder="e.g. 2" step="0.1" min="0" max="100">
-          </div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes / Instructions</label>
-        <textarea id="add-notes" class="form-textarea" placeholder="Optional notes..."></textarea>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-secondary" id="btn-cancel-add">Cancel</button>
-        <button type="submit" class="btn-primary">Save Deadline</button>
-      </div>
-    </form>
   </section>
 
   <!-- VIEW 4: Settings -->
@@ -1222,7 +1119,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.27</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.28</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1481,6 +1378,118 @@
       <div id="payments-guide-card" class="payments-guide-card"></div>
     </div>
   </section>
+  </div>
+
+  <!-- MODAL: Add Custom Deadline -->
+  <div id="modal-add-task" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-add-task-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-add-task-title" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg class="ui-icon"><use href="#icon-plus"></use></svg>
+          <span>Add Custom Deadline</span>
+        </h3>
+        <button type="button" class="modal-close-btn" id="btn-close-add-modal" aria-label="Close add deadline dialog">✕</button>
+      </div>
+      <form id="form-add-task">
+        <div class="form-group">
+          <label class="form-label" for="add-title">Task / Title</label>
+          <input type="text" id="add-title" class="form-input" placeholder="e.g. Quiz 2: Binary Trees" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="add-course">Course Code & Name</label>
+          <input type="text" id="add-course" class="form-input" placeholder="e.g. Calculus I" required>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label" for="add-date">Due Date</label>
+            <input type="date" id="add-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add-time">Due Time</label>
+            <input type="time" id="add-time" class="form-input" value="23:59">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="add-room">Room / Location <span style="font-weight: normal; color: var(--text-muted);">(Optional - defaults to course schedule)</span></label>
+          <input type="text" id="add-room" class="form-input" placeholder="e.g. A8-103, A12-110, A3-184">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label class="form-label" for="add-type">Category</label>
+            <select id="add-type" class="form-select">
+              <option value="quiz">Quiz</option>
+              <option value="assignment" selected>Assignment / HW</option>
+              <option value="exam">Exam / Midterm</option>
+              <option value="project">Project</option>
+              <option value="lab">Lab Report</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="add-priority">Priority</label>
+            <select id="add-priority" class="form-select">
+              <option value="high">High (Urgent)</option>
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="add-grade-mode">Grade Contribution</label>
+          <select id="add-grade-mode" class="form-select">
+            <option value="syllabus" selected>Counts Toward Syllabus Total (%)</option>
+            <option value="bonus">Bonus Mark / Extra Credit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="add-weight"><span id="add-weight-label">Grade Weight (%)</span> <span id="add-weight-sublabel" style="font-weight: normal; color: var(--text-muted);">(from Syllabus)</span></label>
+          <div style="display: flex; gap: 6px;">
+            <input type="number" id="add-weight" class="form-input" placeholder="e.g. 5" step="0.1" min="0" max="100">
+            <button type="button" class="btn-secondary" id="btn-calc-add-weight" title="Auto-detect weight from course syllabus" style="font-size: 11px; white-space: nowrap; padding: 0 8px;">
+              <svg class="ui-icon mr-1"><use href="#icon-scale"></use></svg>
+              <span>Auto-Weight</span>
+            </button>
+          </div>
+          <span id="add-weight-hint" style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 2px;"></span>
+        </div>
+        <div id="add-bonus-options" style="display: none; border: 1px solid var(--surface-border); background: var(--surface-hover); padding: 8px 10px; margin-bottom: 10px;">
+          <div class="form-row-2" style="gap: 8px; margin-bottom: 6px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="add-bonus-unit">Bonus Type</label>
+              <select id="add-bonus-unit" class="form-select">
+                <option value="points" selected>Pure Points (pts)</option>
+                <option value="percent">Percentage (%)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-label" for="add-bonus-target">Bonus On What</label>
+              <select id="add-bonus-target" class="form-select"></select>
+            </div>
+          </div>
+          <span style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 6px;">
+            Pure Points add flat extra marks (even past 100% syllabus total); Percentage scales against the chosen target.
+          </span>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 4px;">
+              <input type="checkbox" id="add-bonus-earned" style="accent-color: var(--accent);">
+              <span style="font-weight: 600;">Already graded / earned</span>
+            </label>
+            <div id="add-bonus-score-wrap" style="display: none; margin-top: 4px;">
+              <label class="form-label" for="add-bonus-score" style="font-size: 10.5px;">Score Earned <span style="font-weight: normal; color: var(--text-muted);">(leave blank for full bonus marks)</span></label>
+              <input type="number" id="add-bonus-score" class="form-input" placeholder="e.g. 2" step="0.1" min="0" max="100">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="add-notes">Notes / Instructions</label>
+          <textarea id="add-notes" class="form-textarea" placeholder="Optional notes..."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="btn-cancel-add">Cancel</button>
+          <button type="submit" class="btn-primary">Save Deadline</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- MODAL: Edit Task -->

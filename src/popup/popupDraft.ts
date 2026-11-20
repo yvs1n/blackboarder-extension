@@ -4,6 +4,7 @@
  */
 export interface PopupDraft {
   view: 'add' | 'edit' | 'settings' | 'courses' | 'marks' | 'payments';
+  returnView?: 'calendar' | 'details' | 'settings' | 'courses' | 'marks' | 'payments';
   taskId?: string;
   paymentModalMode?: 'add' | 'edit';
   paymentId?: string;
@@ -25,7 +26,8 @@ const storage = (): chrome.storage.StorageArea | null => {
 };
 
 export function isDraftFresh(d: PopupDraft | null | undefined, now = Date.now()): d is PopupDraft {
-  return !!d && typeof d === 'object' && ['add', 'edit', 'settings', 'courses', 'marks', 'payments'].includes(d.view) &&
+  return !!d && typeof d === 'object' &&
+    ['add', 'edit', 'settings', 'courses', 'marks', 'payments'].includes(d.view) &&
     typeof d.savedAt === 'number' && now - d.savedAt < DRAFT_MAX_AGE_MS;
 }
 

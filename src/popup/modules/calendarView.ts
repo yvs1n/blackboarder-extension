@@ -128,11 +128,7 @@ export function navigateToToday(): void {
 }
 
 export function openAddModalOnDate(dateStr: string) {
-  const addDateInput = document.getElementById('add-date') as HTMLInputElement;
-  if (addDateInput) {
-    addDateInput.value = dateStr;
-  }
-  popupActions.switchView('add');
+  popupActions.openAddTaskModal({ dateStr, focus: true });
 }
 
 export function createDayCell(

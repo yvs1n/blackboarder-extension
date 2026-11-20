@@ -1,18 +1,19 @@
 {
-  "version": "1.8.27",
-  "build": "be6476f619b8",
-  "commit": "5f99810a05bfda1bb1e63040d0e5c72ebf9c7f4e",
-  "shortCommit": "5f99810",
-  "timestamp": "2026-11-20T21:06:21.102Z",
-  "message": "Remove hover delay on non-CTA controls and add Ignore Mark toggle in Marks tab (v1.8.26)",
+  "version": "1.8.28",
+  "build": "6435b5b96a69",
+  "commit": "00880eb80f24703fc73a3af23de3c2ebe53da537",
+  "shortCommit": "00880eb",
+  "timestamp": "2026-11-20T21:17:47.487Z",
+  "message": "Add active header button highlights for Settings and Add Deadline (v1.8.27)",
   "changelog": [
-    "Active Header Button Highlights (src/popup/modules/navigation.ts, src/mobile/app/14-modals-actions.js): Extended the active inverted highlight (.active white button in dark mode / dark button in light mode, matching Payments) to both Settings (#btn-settings-toggle) and Add Custom Deadline (#btn-add-modal / #btn-web-add)."
+    "Add Custom Deadline Modal in Extension (src/popup/index.html, src/popup/modules/navigation.ts, src/popup/modules/overlayController.ts, src/popup/popupDraft.ts): Converted #view-add into a floating #modal-add-task dialog matching Companion PWA, opening over the currently active tab (Calendar, Deadlines, Marks, Courses, Payments, or Settings), keeping #btn-add-modal highlighted while open, supporting Escape/backdrop dismissal, and preserving typed draft fields plus underlying tab state across popup closes.",
+    "Unpaid Fees Banner Width & Wrapping (src/popup/styles/12-payments.css, src/mobile/styles/11-payments.css): Aligned #deadlines-payments-strip to the 14px horizontal inset of .controls-bar and task cards in the extension Deadlines tab, and switched .payments-strip-text to flex: 1 1 auto; min-width: 0; display: block; so fee summary text wraps cleanly alongside the Payments button."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-B3giqiMO.css",
-    "assets/popup-DFaku7ei.js",
+    "assets/popup-BdU5GeXX.css",
+    "assets/popup-DcdcEGUP.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

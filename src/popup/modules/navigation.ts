@@ -9,18 +9,29 @@ import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { attachCoursePicker } from '../coursePicker';
 import { applyFields, clearDraft, collectFields, loadDraft, saveDraft } from '../popupDraft';
 import { parsePickedCourse, syncBonusFormUi } from './readingModal';
-import { isOverlayOpen } from './overlayController';
+import { closeModalEl, isOverlayOpen, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { AppView, dom, popupActions, popupState } from './state';
 
 function currentSettingsPage(): string {
   return document.querySelector<HTMLElement>('.settings-nav-tab.active')?.dataset.settingsPage || 'general';
 }
 
+function getActiveMainView(): AppView {
+  if (dom.viewSettings().classList.contains('active')) return 'settings';
+  if (dom.viewMarks().classList.contains('active')) return 'marks';
+  if (dom.viewCourses().classList.contains('active')) return 'courses';
+  if (dom.viewPayments()?.classList.contains('active')) return 'payments';
+  if (dom.viewDetails().classList.contains('active')) return 'details';
+  return 'calendar';
+}
+
 export function rememberDraft() {
   if (!popupState.draftReady) return;
+  const modalAddTask = dom.modalAddTask();
   const modalEditTask = dom.modalEditTask();
   const modalPayment = document.getElementById('modal-payment');
   const formPayment = document.getElementById('form-payment');
+  const isAddModalOpen = Boolean(modalAddTask && (isOverlayOpen('modal-add-task') || modalAddTask.style.display === 'flex'));
   const isPaymentModalOpen = Boolean(modalPayment && (isOverlayOpen('modal-payment') || modalPayment.style.display === 'flex'));
 
   if ((isOverlayOpen('modal-edit-task') || modalEditTask.style.display === 'flex') && popupState.editingTaskId) {
@@ -33,8 +44,14 @@ export function rememberDraft() {
       paymentId: paymentId || undefined,
       fields: collectFields(formPayment)
     });
-  } else if (dom.viewAdd().classList.contains('active')) {
-    saveDraft({ view: 'add', fields: collectFields(dom.formAddTask()) });
+  } else if (isAddModalOpen) {
+    const baseView = getActiveMainView();
+    saveDraft({
+      view: 'add',
+      returnView: baseView,
+      settingsPage: baseView === 'settings' ? currentSettingsPage() : undefined,
+      fields: collectFields(dom.formAddTask())
+    });
   } else if (dom.viewSettings().classList.contains('active')) {
     saveDraft({ view: 'settings', settingsPage: currentSettingsPage() });
   } else if (dom.viewMarks().classList.contains('active')) {
@@ -54,9 +71,17 @@ export async function restoreDraft() {
     const d = await loadDraft();
     if (!d) return;
     if (d.view === 'add') {
-      switchView('add');
+      if (d.returnView === 'settings') {
+        switchView('settings');
+        showSettingsPage(d.settingsPage || 'general');
+      } else if (d.returnView && d.returnView !== 'calendar') {
+        switchView(d.returnView);
+      }
+      openAddTaskModal({ focus: true });
       applyFields(d.fields);
       popupActions.updateAddRoomVisibility();
+      const addCourseEl = document.getElementById('add-course') as HTMLInputElement | null;
+      syncBonusFormUi('add', addCourseEl?.value || '');
     } else if (d.view === 'edit') {
       const task = popupState.currentTasks.find(t => t.id === d.taskId) ||
         (await getTasks().catch(() => [] as DeadlineTask[])).find(t => t.id === d.taskId);
@@ -67,10 +92,8 @@ export async function restoreDraft() {
     } else if (d.view === 'settings') {
       switchView('settings');
       showSettingsPage(d.settingsPage || 'general');
-    } else if (d.view === 'marks') {
-      switchView('marks');
-    } else if (d.view === 'courses') {
-      switchView('courses');
+    } else if (d.view === 'marks' || d.view === 'courses') {
+      switchView(d.view);
     } else if (d.view === 'payments') {
       switchView('payments');
       if (d.paymentModalMode) {
@@ -91,6 +114,33 @@ export async function restoreDraft() {
   }
 }
 
+export function openAddTaskModal(options: { dateStr?: string; focus?: boolean } = {}) {
+  const modal = dom.modalAddTask();
+  if (!modal) return;
+  const addDateInput = document.getElementById('add-date') as HTMLInputElement | null;
+  if (options.dateStr && addDateInput) {
+    addDateInput.value = options.dateStr;
+  } else if (addDateInput && !addDateInput.value && popupState.selectedDateStr) {
+    addDateInput.value = popupState.selectedDateStr;
+  }
+  popupActions.updateAddRoomVisibility();
+  const addCourseEl = document.getElementById('add-course') as HTMLInputElement | null;
+  syncBonusFormUi('add', addCourseEl?.value || '');
+  openModalEl('modal-add-task', modal);
+  dom.btnAddModal()?.classList.add('active');
+  if (options.focus) {
+    requestAnimationFrame(() => (document.getElementById('add-title') as HTMLInputElement | null)?.focus());
+  }
+  rememberDraft();
+}
+
+export function closeAddTaskModal() {
+  const modal = dom.modalAddTask();
+  if (modal) closeModalEl('modal-add-task', modal);
+  dom.btnAddModal()?.classList.remove('active');
+  rememberDraft();
+}
+
 export function switchView(view: AppView) {
   popupActions.closeDayExpandedDrawer();
 
@@ -99,7 +149,6 @@ export function switchView(view: AppView) {
   dom.viewMarks().classList.remove('active');
   dom.viewCourses().classList.remove('active');
   dom.viewPayments()?.classList.remove('active');
-  dom.viewAdd().classList.remove('active');
   dom.viewSettings().classList.remove('active');
 
   dom.tabNavCalendar().classList.remove('active');
@@ -108,7 +157,6 @@ export function switchView(view: AppView) {
   dom.tabNavCourses().classList.remove('active');
   document.getElementById('btn-payments-toggle')?.classList.toggle('active', view === 'payments');
   dom.btnSettingsToggle()?.classList.toggle('active', view === 'settings');
-  dom.btnAddModal()?.classList.toggle('active', view === 'add');
 
   popupState.currentActiveView = view;
 
@@ -146,11 +194,6 @@ export function switchView(view: AppView) {
     dom.viewPayments()?.classList.add('active');
     popupActions.renderPaymentsView();
     popupState.dirtyViews.delete('payments');
-  } else if (view === 'add') {
-    dom.viewAdd().classList.add('active');
-    popupActions.updateAddRoomVisibility();
-    const addCourseEl = document.getElementById('add-course') as HTMLInputElement | null;
-    syncBonusFormUi('add', addCourseEl?.value || '');
   } else if (view === 'settings') {
     dom.viewSettings().classList.add('active');
     popupActions.loadSettingsForm();
@@ -206,11 +249,19 @@ export function setupNavigationAndTaskEvents() {
   dom.tabNavCourses().addEventListener('click', () => switchView('courses'));
 
   dom.btnAddModal().addEventListener('click', () => {
-    (document.getElementById('add-date') as HTMLInputElement).value = popupState.selectedDateStr;
-    switchView('add');
+    if (isOverlayOpen('modal-add-task')) {
+      closeAddTaskModal();
+      return;
+    }
+    openAddTaskModal({ dateStr: popupState.selectedDateStr, focus: true });
   });
+  registerOverlayCloseHandler('modal-add-task', closeAddTaskModal);
+  dom.btnCloseAddModal()?.addEventListener('click', closeAddTaskModal);
   dom.btnSettingsToggle().addEventListener('click', () => switchView('settings'));
-  dom.btnCancelAdd().addEventListener('click', () => switchView('calendar'));
+  dom.btnCancelAdd().addEventListener('click', closeAddTaskModal);
+  dom.modalAddTask()?.addEventListener('click', e => {
+    if (e.target === dom.modalAddTask()) closeAddTaskModal();
+  });
   dom.btnCancelSettings().addEventListener('click', () => switchView('calendar'));
   initSettingsNav();
 
@@ -417,7 +468,7 @@ export function setupNavigationAndTaskEvents() {
     syncBonusFormUi('add', '');
     popupState.selectedDateStr = dateVal;
     popupActions.refreshAllViews();
-    switchView('calendar');
+    closeAddTaskModal();
     popupActions.syncTasksToCloud(popupState.currentTasks, 'Added Deadline');
   });
 

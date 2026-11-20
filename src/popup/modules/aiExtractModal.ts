@@ -39,7 +39,7 @@ export function initAiExtractModal() {
   const btnAddCustom = document.getElementById('btn-add-deadline-header');
 
   btnAddCustom?.addEventListener('click', () => {
-    popupActions.switchView('add');
+    popupActions.openAddTaskModal({ dateStr: popupState.selectedDateStr, focus: true });
   });
 
   function closeExtractModal() {

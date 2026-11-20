@@ -75,4 +75,33 @@ describe('Popup Draft Persistence for Financial Deadlines (Add & Edit Modal)', (
     expect((document.getElementById('payment-amount') as HTMLInputElement).value).toBe('4200');
     expect((document.getElementById('payment-paid-check') as HTMLInputElement).checked).toBe(true);
   });
+
+  it('recognizes add modal drafts layered over Deadlines or Settings tabs', async () => {
+    saveDraft({
+      view: 'add',
+      returnView: 'details',
+      fields: {
+        'add-title': 'Midterm Review Quiz',
+        'add-course': 'PHYS101',
+      }
+    });
+
+    const loaded = await loadDraft();
+    expect(isDraftFresh(loaded)).toBe(true);
+    expect(loaded?.view).toBe('add');
+    expect(loaded?.returnView).toBe('details');
+    expect(loaded?.fields?.['add-title']).toBe('Midterm Review Quiz');
+
+    saveDraft({
+      view: 'add',
+      returnView: 'settings',
+      settingsPage: 'calendar',
+      fields: { 'add-title': 'Lab Report 3' }
+    });
+    const settingsLoaded = await loadDraft();
+    expect(isDraftFresh(settingsLoaded)).toBe(true);
+    expect(settingsLoaded?.view).toBe('add');
+    expect(settingsLoaded?.returnView).toBe('settings');
+    expect(settingsLoaded?.settingsPage).toBe('calendar');
+  });
 });
