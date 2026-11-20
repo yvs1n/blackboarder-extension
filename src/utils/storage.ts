@@ -66,3 +66,12 @@ export {
   saveStoredPayments,
   mergeCloudPaymentsStorage,
 } from './paymentsStorage';
+
+export {
+  SEMESTERS_STORAGE_KEY,
+  SEMESTERS_UPDATED_AT_KEY,
+  getStoredSemesters,
+  getStoredSemestersUpdatedAt,
+  saveStoredSemesters,
+  mergeCloudSemesters,
+} from './semestersStorage';

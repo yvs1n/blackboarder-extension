@@ -112,8 +112,8 @@
 }
 
 .btn-drawer-close:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--surface-hover);
+  color: var(--text-main);
 }
 
 .day-drawer-body {
@@ -140,7 +140,7 @@
 }
 
 .day-summary-card:hover {
-  border-color: #cbd5e1;
+  border-color: var(--surface-border-strong);
 }
 
 .day-summary-card.is-completed {
@@ -323,13 +323,13 @@
 }
 
 .btn-card-delete {
-  color: #18181b;
-  border-color: #d4d4d8;
-  background: #ffffff;
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+  background: var(--surface);
 }
 
 .btn-card-delete:hover {
-  background: #f4f4f5;
+  background: var(--surface-hover);
 }
 
 .day-drawer-empty {

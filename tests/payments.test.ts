@@ -12,6 +12,8 @@ import {
   universityPaymentGuide,
 } from '../src/core/payments';
 import { isFinancePortalPage, parseFinancePageFromHtml } from '../src/core/financePageParser';
+import { initPaymentsView, openPaymentModal } from '../src/popup/modules/paymentsView';
+import { popupState } from '../src/popup/modules/state';
 import { mergeForCloudWrite, readCloudSide } from '../src/utils/syncMerge';
 import { unwrapCloudVault, wrapCloudVault } from '../src/utils/vaultCrypto';
 import type { PaymentItem } from '../src/types';
@@ -226,5 +228,51 @@ describe('finance page parser and vault integration', () => {
     const vault = await wrapCloudVault({ tasks: [], payments: merged.payments, paymentsUpdatedAt: merged.paymentsUpdatedAt }, 'test-sync-key-123');
     const unwrapped = await unwrapCloudVault(vault, 'test-sync-key-123');
     expect(unwrapped.payments).toHaveLength(2);
+  });
+
+  it('opens #modal-payment with a valid datetime-local value and adds a payment on submit', async () => {
+    popupState.currentPayments = [];
+    document.body.innerHTML = `
+      <div id="payments-summary-card"></div>
+      <div id="payments-list"></div>
+      <div id="payments-guide-card"></div>
+      <div id="modal-payment" class="modal-backdrop hidden" style="display: none;">
+        <h3 id="modal-payment-title"></h3>
+        <form id="form-payment">
+          <input type="hidden" id="payment-id" />
+          <input type="text" id="payment-title" />
+          <select id="payment-category"><option value="installment">Installment</option></select>
+          <input type="datetime-local" id="payment-due-date" />
+          <input type="number" id="payment-amount" />
+          <input type="text" id="payment-currency" value="AED" />
+          <input type="text" id="payment-term" />
+          <input type="text" id="payment-method-note" />
+          <input type="text" id="payment-portal-url" />
+          <input type="checkbox" id="payment-paid-check" />
+          <button type="submit">Save Payment</button>
+        </form>
+      </div>
+    `;
+    initPaymentsView();
+    openPaymentModal();
+
+    const dateInput = document.getElementById('payment-due-date') as HTMLInputElement;
+    // datetime-local requires YYYY-MM-DDTHH:mm (16 chars)
+    expect(dateInput.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+
+    (document.getElementById('payment-title') as HTMLInputElement).value = 'Spring Tuition Installment 1';
+    (document.getElementById('payment-amount') as HTMLInputElement).value = '9500';
+    (document.getElementById('payment-portal-url') as HTMLInputElement).value = 'banner.sharjah.ac.ae';
+    dateInput.value = '2026-11-27T23:59';
+
+    const form = document.getElementById('form-payment') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(r => setTimeout(r, 25));
+
+    expect(popupState.currentPayments).toHaveLength(1);
+    expect(popupState.currentPayments[0].title).toBe('Spring Tuition Installment 1');
+    expect(popupState.currentPayments[0].amount).toBe(9500);
+    expect(popupState.currentPayments[0].portalUrl).toBe('https://banner.sharjah.ac.ae/');
+    expect(document.getElementById('payments-list')?.textContent).toContain('Spring Tuition Installment 1');
   });
 });

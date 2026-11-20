@@ -2,13 +2,42 @@ import { applyCourseImport, type CourseDraft } from '../../core/courseDocument';
 import { courseImportReviewHtml, readCourseImportReview } from '../../core/courseImportView';
 import { mergeImportedCourses, parseCoursesFromJson } from '../../core/courseImporter';
 import { fileToText, type PdfJsLike } from '../../core/documentText';
+import { createStateMachine } from '../../core/stateMachine';
 import { findCoursesInDocument } from '../../engine/aiCourseImport';
 import { resolveAiEndpoint } from '../../engine/aiProviders';
 import { getSettings, saveUserCourses } from '../../utils/storage';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 
+export type CourseImportState = 'idle' | 'reading' | 'reviewing' | 'saving' | 'error';
+export type CourseImportEvent = 'READ' | 'REVIEW' | 'EMPTY' | 'SAVE' | 'FAIL' | 'RESET';
+
+export const courseImportMachine = createStateMachine<CourseImportState, CourseImportEvent>({
+  initial: 'idle',
+  transitions: {
+    idle: { READ: 'reading', RESET: 'idle' },
+    reading: { READ: 'reading', REVIEW: 'reviewing', EMPTY: 'idle', FAIL: 'error', RESET: 'idle' },
+    reviewing: { READ: 'reading', SAVE: 'saving', RESET: 'idle' },
+    saving: { RESET: 'idle', FAIL: 'reviewing' },
+    error: { READ: 'reading', RESET: 'idle' }
+  },
+  onTransition(next) {
+    const busy = next === 'reading' || next === 'saving';
+    const previewBtn = document.getElementById('btn-preview-banner') as HTMLButtonElement | null;
+    const confirmBtn = document.getElementById('btn-confirm-banner-import') as HTMLButtonElement | null;
+    if (previewBtn) previewBtn.disabled = busy;
+    if (confirmBtn) confirmBtn.disabled = busy;
+  }
+});
+
 let detectedImportCourses: CourseDraft[] = [];
+let importRunId = 0;
+
+export function resetCourseImporterState(): void {
+  importRunId++;
+  detectedImportCourses = [];
+  courseImportMachine.send('RESET');
+}
 
 /** pdf.js ships inside the extension and is loaded only when a PDF is imported. */
 async function loadPdfJs(): Promise<PdfJsLike> {
@@ -25,7 +54,7 @@ function setImportStatus(text: string) {
 export async function openCourseImporter() {
   const modal = document.getElementById('modal-course-import');
   if (!modal) return;
-  detectedImportCourses = [];
+  resetCourseImporterState();
   const previewContainer = document.getElementById('import-banner-preview-container');
   if (previewContainer) previewContainer.style.display = 'none';
   const bannerText = document.getElementById('import-banner-text') as HTMLTextAreaElement;
@@ -47,6 +76,7 @@ export async function openCourseImporter() {
 }
 
 export function closeCourseImporter() {
+  resetCourseImporterState();
   closeModalEl('modal-course-import', document.getElementById('modal-course-import'));
 }
 
@@ -70,15 +100,20 @@ export function switchImporterTab(tab: 'banner' | 'json') {
 }
 
 export async function handleImportDocumentFile(file: File) {
+  const runId = ++importRunId;
+  courseImportMachine.send('READ');
   const label = document.getElementById('import-file-label');
   if (label) label.textContent = file.name;
   setImportStatus(`Reading ${file.name}...`);
   try {
     const text = await fileToText(file, loadPdfJs);
+    if (runId !== importRunId) return;
     const area = document.getElementById('import-banner-text') as HTMLTextAreaElement | null;
     if (area) area.value = text;
     await handlePreviewBanner();
   } catch (e: any) {
+    if (runId !== importRunId) return;
+    courseImportMachine.send('FAIL');
     setImportStatus(String(e?.message || 'That file could not be read.'));
   }
 }
@@ -88,20 +123,30 @@ export async function handlePreviewBanner() {
   const container = document.getElementById('import-banner-preview-container');
   const list = document.getElementById('import-banner-preview-list');
   if (!text.trim()) {
+    courseImportMachine.send('EMPTY');
     setImportStatus('Choose a file or paste the text first.');
     return;
   }
+  const runId = ++importRunId;
+  courseImportMachine.send('READ');
   const useAi = !document.getElementById('import-ai-row')?.hidden && (document.getElementById('import-use-ai') as HTMLInputElement | null)?.checked;
   const ai = useAi ? resolveAiEndpoint(await getSettings()) : null;
+  if (runId !== importRunId) return;
   setImportStatus(ai ? 'Reading it with your AI model...' : 'Looking for courses...');
   const result = await findCoursesInDocument(text, ai);
+  if (runId !== importRunId) return;
   detectedImportCourses = result.courses;
-  if (!container || !list) return;
+  if (!container || !list) {
+    courseImportMachine.send('EMPTY');
+    return;
+  }
   if (!detectedImportCourses.length) {
+    courseImportMachine.send('EMPTY');
     container.style.display = 'none';
     setImportStatus(`No courses found${result.aiProblem ? ` (AI: ${result.aiProblem})` : ''}. Check the text above, or add the course yourself with Add Course.`);
     return;
   }
+  courseImportMachine.send('REVIEW');
   const n = detectedImportCourses.length;
   setImportStatus(`Found ${n} course${n === 1 ? '' : 's'}${result.source === 'ai' ? ' with your AI model' : ''}.${result.aiProblem ? ` The AI could not help (${result.aiProblem}), so the built-in reader was used.` : ''}`);
   list.innerHTML = courseImportReviewHtml(detectedImportCourses, popupState.currentUserCourses);
@@ -116,9 +161,14 @@ export async function handleConfirmBannerImport() {
     popupActions.showToast('Nothing ticked to save.');
     return;
   }
-  await popupActions.handleCoursesUpdated(applyCourseImport(popupState.currentUserCourses, picks));
-  closeCourseImporter();
-  popupActions.showToast(`Saved ${picks.length} course${picks.length === 1 ? '' : 's'}. They sync to your phone.`);
+  if (!courseImportMachine.send('SAVE')) return;
+  try {
+    await popupActions.handleCoursesUpdated(applyCourseImport(popupState.currentUserCourses, picks));
+    closeCourseImporter();
+    popupActions.showToast(`Saved ${picks.length} course${picks.length === 1 ? '' : 's'}. They sync to your phone.`);
+  } catch {
+    courseImportMachine.send('FAIL');
+  }
 }
 
 export async function handleConfirmJsonImport() {

@@ -129,9 +129,10 @@ export function openPaymentModal(existing?: PaymentItem): void {
 
   const profile = getCachedProfile();
   const guide = universityPaymentGuide(profile?.universityId);
-  const d = existing ? new Date(existing.dueDate) : new Date();
+  const d = existing ? new Date(existing.dueDate) : new Date(Date.now() + 7 * 86400000);
+  if (!existing) d.setHours(23, 59, 0, 0);
   const dateStr = !isNaN(d.getTime())
-    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
     : '';
 
   if (titleHeading) titleHeading.textContent = existing ? 'Edit Financial Deadline' : 'Add Payment / Fee Deadline';
@@ -351,15 +352,27 @@ export function initPaymentsView(): void {
     const amtRaw = (document.getElementById('payment-amount') as HTMLInputElement).value.trim();
     const amount = amtRaw !== '' && Number.isFinite(Number(amtRaw)) ? Number(amtRaw) : undefined;
     const currency = ((document.getElementById('payment-currency') as HTMLInputElement).value.trim() || 'AED').toUpperCase();
-    const dateVal = (document.getElementById('payment-due-date') as HTMLInputElement).value;
+    const dateVal = (document.getElementById('payment-due-date') as HTMLInputElement).value.trim();
     const termName = (document.getElementById('payment-term') as HTMLInputElement).value.trim() || undefined;
     const methodNote = (document.getElementById('payment-method-note') as HTMLInputElement).value.trim() || undefined;
-    const portalUrl = (document.getElementById('payment-portal-url') as HTMLInputElement).value.trim() || undefined;
+    const rawPortalUrl = (document.getElementById('payment-portal-url') as HTMLInputElement).value.trim();
+    const portalUrl = rawPortalUrl
+      ? (/^https?:\/\//i.test(rawPortalUrl) ? rawPortalUrl : `https://${rawPortalUrl}`)
+      : undefined;
     const isPaid = (document.getElementById('payment-paid-check') as HTMLInputElement).checked;
-    if (!title || !dateVal) return;
+    if (!title || !dateVal) {
+      popupActions.showToast('Please enter a title and due date.');
+      return;
+    }
+
+    const parsedDue = new Date(dateVal.includes('T') ? dateVal : `${dateVal}T23:59:00`);
+    if (isNaN(parsedDue.getTime())) {
+      popupActions.showToast('Please select a valid due date.');
+      return;
+    }
 
     const nowIso = new Date().toISOString();
-    const dueIso = new Date(`${dateVal}T23:59:00`).toISOString();
+    const dueIso = parsedDue.toISOString();
     const existing = idVal ? popupState.currentPayments.find(p => p.id === idVal) : undefined;
     const nextItem: PaymentItem = {
       id: existing?.id || `pay_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,

@@ -7,6 +7,7 @@ import {
   type AutoUpdateStatus
 } from '../../background/autoUpdate';
 import { BUILD_INFO } from '../../buildInfo';
+import { createStateMachine } from '../../core/stateMachine';
 import { IS_STORE_BUILD } from '../../utils/storeBuild';
 import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/updateBanner';
 import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../../utils/updateChecker';
@@ -14,6 +15,23 @@ import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overla
 import { popupActions } from './state';
 
 const LAST_SEEN_BUILD_KEY = 'bbs_last_seen_build';
+
+export type UpdateActionState = 'idle' | 'checking' | 'applying' | 'restarting';
+export type UpdateActionEvent = 'CHECK' | 'APPLY' | 'RESTART' | 'FINISH';
+
+export const updateActionMachine = createStateMachine<UpdateActionState, UpdateActionEvent>({
+  initial: 'idle',
+  transitions: {
+    idle: { CHECK: 'checking', APPLY: 'applying', RESTART: 'restarting' },
+    checking: { APPLY: 'applying', FINISH: 'idle' },
+    applying: { RESTART: 'restarting', FINISH: 'idle' },
+    restarting: { FINISH: 'idle' }
+  }
+});
+
+export function resetUpdateActionState(): void {
+  updateActionMachine.reset();
+}
 
 function getChangelogEntries(): string[] {
   const entries = (BUILD_INFO as { changelog?: readonly string[] }).changelog;
@@ -258,84 +276,105 @@ export function initExtensionUpdateSystem() {
     });
 
   const applyUpdateNow = async (btn: HTMLElement | null) => {
+    if (!updateActionMachine.send('APPLY')) return;
     if (btn) {
       btn.setAttribute('disabled', 'true');
       const span = btn.querySelector('span');
       if (span) span.textContent = 'Updating...';
     }
     popupActions.showToast('Updating Blackboarder... Please wait');
-    const res = await new Promise<{ ok: boolean; status?: AutoUpdateStatus; error?: string }>(resolve => {
-      try {
-        chrome.runtime.sendMessage({ type: 'APPLY_UPDATE' }, r => {
-          if (chrome.runtime.lastError) resolve({ ok: false, error: chrome.runtime.lastError.message });
-          else resolve(r || { ok: false });
-        });
-      } catch (err) {
-        resolve({ ok: false, error: String(err) });
-      }
-    });
-    if (btn) {
-      btn.removeAttribute('disabled');
-      const span = btn.querySelector('span');
-      if (span) {
-        if (btn.id === 'btn-check-ext-update') span.textContent = 'Check for Updates';
-        else if (btn.id === 'btn-ext-apply-update') span.textContent = 'Update now';
-        else span.textContent = 'Update Now';
-      }
-    }
-    if (res?.ok && res.status) {
-      render(res.status, true);
-      if (res.status.state === 'updated') {
-        if (btn) {
-          btn.setAttribute('disabled', 'true');
-          const span = btn.querySelector('span');
-          if (span) span.textContent = 'Restarting...';
+    try {
+      const res = await new Promise<{ ok: boolean; status?: AutoUpdateStatus; error?: string }>(resolve => {
+        try {
+          chrome.runtime.sendMessage({ type: 'APPLY_UPDATE' }, r => {
+            if (chrome.runtime.lastError) resolve({ ok: false, error: chrome.runtime.lastError.message });
+            else resolve(r || { ok: false });
+          });
+        } catch (err) {
+          resolve({ ok: false, error: String(err) });
         }
-        popupActions.showToast('Update installed! Restarting Blackboarder...');
-        setTimeout(() => {
-          try {
-            chrome.runtime.reload();
-          } catch {
-            /* ignore if background worker already initiated reload */
-          }
-        }, 120);
-      } else if (res.status.state === 'up-to-date') {
-        popupActions.showToast('Blackboarder is already up to date!');
-      } else if (res.status.state === 'error' || res.status.state === 'dev-checkout') {
-        popupActions.showToast(res.status.error || 'Update failed. Check Settings > Updates.');
-      } else if (res.status.state === 'update-available' && !res.status.helperInstalled) {
-        popupActions.showToast('Auto-updater is not connected. Run update.bat in your Blackboarder folder.');
+      });
+      if (btn) {
+        btn.removeAttribute('disabled');
+        const span = btn.querySelector('span');
+        if (span) {
+          if (btn.id === 'btn-check-ext-update') span.textContent = 'Check for Updates';
+          else if (btn.id === 'btn-ext-apply-update') span.textContent = 'Update now';
+          else span.textContent = 'Update Now';
+        }
       }
-    } else if (res?.error && /message port closed/i.test(res.error)) {
-      popupActions.showToast('Update installed! Restarting Blackboarder...');
-    } else {
-      popupActions.showToast(res?.error || 'Update failed. Check Settings or update manually.');
+      if (res?.ok && res.status) {
+        render(res.status, true);
+        if (res.status.state === 'updated') {
+          updateActionMachine.send('RESTART');
+          if (btn) {
+            btn.setAttribute('disabled', 'true');
+            const span = btn.querySelector('span');
+            if (span) span.textContent = 'Restarting...';
+          }
+          popupActions.showToast('Update installed! Restarting Blackboarder...');
+          setTimeout(() => {
+            try {
+              chrome.runtime.reload();
+            } catch {
+              /* ignore if background worker already initiated reload */
+            }
+          }, 120);
+          return;
+        } else if (res.status.state === 'up-to-date') {
+          popupActions.showToast('Blackboarder is already up to date!');
+        } else if (res.status.state === 'error' || res.status.state === 'dev-checkout') {
+          popupActions.showToast(res.status.error || 'Update failed. Check Settings > Updates.');
+        } else if (res.status.state === 'update-available' && !res.status.helperInstalled) {
+          popupActions.showToast('Auto-updater is not connected. Run update.bat in your Blackboarder folder.');
+        }
+      } else if (res?.error && /message port closed/i.test(res.error)) {
+        updateActionMachine.send('RESTART');
+        popupActions.showToast('Update installed! Restarting Blackboarder...');
+        return;
+      } else {
+        popupActions.showToast(res?.error || 'Update failed. Check Settings or update manually.');
+      }
+    } finally {
+      if (updateActionMachine.state() !== 'restarting') {
+        updateActionMachine.send('FINISH');
+      }
     }
   };
 
   const performCheck = async (manual: boolean) => {
+    if (manual && !updateActionMachine.send('CHECK')) return;
     if (manual) {
       setPill('Checking...', 'blue');
       if (statusDesc) statusDesc.textContent = 'Checking GitHub for a newer version...';
     }
-    const status = await askBackground('RUN_AUTO_UPDATE');
-    if (status) {
-      render(status, manual);
-      if (manual) {
-        switch (status.state) {
-          case 'update-available':
-            if (status.helperInstalled) applyUpdateNow(btnCheckManual);
-            else popupActions.showToast('New version available! Open Settings > Updates or download ZIP.');
-            break;
-          case 'updated': popupActions.showToast('Update installed. It applies when you close this window.'); break;
-          case 'dev-checkout': popupActions.showToast('New version on GitHub. Run git pull to update.'); break;
-          case 'offline': popupActions.showToast('Could not reach GitHub right now.'); break;
-          case 'error': popupActions.showToast('Update check failed. See Settings for details.'); break;
-          default: popupActions.showToast(BUILD_INFO.build ? `Blackboarder is up to date (${BUILD_INFO.build})!` : 'Blackboarder is up to date!'); break;
+    try {
+      const status = await askBackground('RUN_AUTO_UPDATE');
+      if (status) {
+        render(status, manual);
+        if (manual) {
+          switch (status.state) {
+            case 'update-available':
+              if (status.helperInstalled) {
+                await applyUpdateNow(btnCheckManual);
+                return;
+              }
+              popupActions.showToast('New version available! Open Settings > Updates or download ZIP.');
+              break;
+            case 'updated': popupActions.showToast('Update installed. It applies when you close this window.'); break;
+            case 'dev-checkout': popupActions.showToast('New version on GitHub. Run git pull to update.'); break;
+            case 'offline': popupActions.showToast('Could not reach GitHub right now.'); break;
+            case 'error': popupActions.showToast('Update check failed. See Settings for details.'); break;
+            default: popupActions.showToast(BUILD_INFO.build ? `Blackboarder is up to date (${BUILD_INFO.build})!` : 'Blackboarder is up to date!'); break;
+          }
         }
+      } else if (manual) {
+        popupActions.showToast('Could not check for updates right now.');
       }
-    } else if (manual) {
-      popupActions.showToast('Could not check for updates right now.');
+    } finally {
+      if (manual && updateActionMachine.state() === 'checking') {
+        updateActionMachine.send('FINISH');
+      }
     }
   };
 

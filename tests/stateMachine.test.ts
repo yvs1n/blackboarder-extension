@@ -21,6 +21,9 @@ import {
   stopActiveScan,
   resetScanBannerState,
 } from '../src/popup/modules/scanBanner';
+import { aiExtractMachine, resetAiExtractModalState } from '../src/popup/modules/aiExtractModal';
+import { courseImportMachine, resetCourseImporterState } from '../src/popup/modules/courseImporter';
+import { resetUpdateActionState, updateActionMachine } from '../src/popup/modules/settingsUpdates';
 import { setScanStatus } from '../src/utils/storage';
 
 vi.mock('../src/utils/storage', async () => {
@@ -312,5 +315,55 @@ describe('Scan Banner State Machine & Orphaned Timer Protection', () => {
       message: 'Scan cancelled.',
       newCount: 0,
     });
+  });
+});
+
+describe('Extension Update, Course Importer, and AI Extractor State Machines', () => {
+  beforeEach(() => {
+    resetUpdateActionState();
+    resetCourseImporterState();
+    resetAiExtractModalState();
+  });
+
+  it('prevents concurrent update checks and applies via updateActionMachine', () => {
+    expect(updateActionMachine.state()).toBe('idle');
+    expect(updateActionMachine.send('CHECK')).toBe(true);
+    expect(updateActionMachine.state()).toBe('checking');
+    // Second concurrent CHECK while already checking is rejected
+    expect(updateActionMachine.send('CHECK')).toBe(false);
+    // Can transition from checking directly into applying when helper is installed
+    expect(updateActionMachine.send('APPLY')).toBe(true);
+    expect(updateActionMachine.state()).toBe('applying');
+    expect(updateActionMachine.send('RESTART')).toBe(true);
+    expect(updateActionMachine.state()).toBe('restarting');
+    resetUpdateActionState();
+    expect(updateActionMachine.state()).toBe('idle');
+  });
+
+  it('enforces courseImportMachine reading -> reviewing -> saving lifecycle', () => {
+    expect(courseImportMachine.state()).toBe('idle');
+    expect(courseImportMachine.send('SAVE')).toBe(false);
+    expect(courseImportMachine.send('READ')).toBe(true);
+    expect(courseImportMachine.state()).toBe('reading');
+    expect(courseImportMachine.send('REVIEW')).toBe(true);
+    expect(courseImportMachine.state()).toBe('reviewing');
+    expect(courseImportMachine.send('SAVE')).toBe(true);
+    expect(courseImportMachine.state()).toBe('saving');
+    // Double-save while saving is rejected
+    expect(courseImportMachine.send('SAVE')).toBe(false);
+    resetCourseImporterState();
+    expect(courseImportMachine.state()).toBe('idle');
+  });
+
+  it('enforces aiExtractMachine extracting -> results / empty / error lifecycle', () => {
+    expect(aiExtractMachine.state()).toBe('idle');
+    expect(aiExtractMachine.send('EXTRACT')).toBe(true);
+    expect(aiExtractMachine.state()).toBe('extracting');
+    // Concurrent EXTRACT while extracting is rejected
+    expect(aiExtractMachine.send('EXTRACT')).toBe(false);
+    expect(aiExtractMachine.send('FOUND')).toBe(true);
+    expect(aiExtractMachine.state()).toBe('results');
+    resetAiExtractModalState();
+    expect(aiExtractMachine.state()).toBe('idle');
   });
 });

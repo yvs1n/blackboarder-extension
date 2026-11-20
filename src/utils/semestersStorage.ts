@@ -1,20 +1,13 @@
 import type { ArchivedSemester } from '../types';
 import { sanitizeSemesters, mergeArchivedSemesters } from '../core/semesters';
+import { isExtensionContextValid, safeGetLocalStorage, safeSetLocalStorage } from './storage/env';
 
 export const SEMESTERS_STORAGE_KEY = 'bbs_semesters';
 export const SEMESTERS_UPDATED_AT_KEY = 'bbs_semesters_updated_at';
 
-function hasChromeStorage(): boolean {
-  try {
-    return typeof chrome !== 'undefined' && !!chrome.runtime?.id && !!chrome.storage?.local;
-  } catch {
-    return false;
-  }
-}
-
 function readLocalStorage<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = safeGetLocalStorage(key);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -22,14 +15,12 @@ function readLocalStorage<T>(key: string): T | null {
 }
 
 function writeLocalStorage(key: string, val: unknown): void {
-  try {
-    localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
-  } catch {}
+  safeSetLocalStorage(key, typeof val === 'string' ? val : JSON.stringify(val));
 }
 
 /** Reads stored archived semesters from extension storage or localStorage. */
 export async function getStoredSemesters(): Promise<ArchivedSemester[]> {
-  if (hasChromeStorage()) {
+  if (isExtensionContextValid()) {
     try {
       const res = await chrome.storage.local.get([SEMESTERS_STORAGE_KEY]);
       const clean = sanitizeSemesters(res?.[SEMESTERS_STORAGE_KEY]);
@@ -42,7 +33,7 @@ export async function getStoredSemesters(): Promise<ArchivedSemester[]> {
 
 /** Reads the last update timestamp for archived semesters. */
 export async function getStoredSemestersUpdatedAt(): Promise<string | null> {
-  if (hasChromeStorage()) {
+  if (isExtensionContextValid()) {
     try {
       const res = await chrome.storage.local.get([SEMESTERS_UPDATED_AT_KEY]);
       if (typeof res?.[SEMESTERS_UPDATED_AT_KEY] === 'string') {
@@ -50,11 +41,7 @@ export async function getStoredSemestersUpdatedAt(): Promise<string | null> {
       }
     } catch {}
   }
-  try {
-    return localStorage.getItem(SEMESTERS_UPDATED_AT_KEY);
-  } catch {
-    return null;
-  }
+  return safeGetLocalStorage(SEMESTERS_UPDATED_AT_KEY);
 }
 
 /** Saves archived semesters, updating both chrome.storage and localStorage. */
@@ -65,7 +52,7 @@ export async function saveStoredSemesters(
   const clean = sanitizeSemesters(semesters);
   const stamp = updatedAt || new Date().toISOString();
 
-  if (hasChromeStorage()) {
+  if (isExtensionContextValid()) {
     try {
       await chrome.storage.local.set({
         [SEMESTERS_STORAGE_KEY]: clean,

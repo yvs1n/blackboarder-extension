@@ -137,7 +137,7 @@
 
 .btn-danger:hover {
   background: var(--danger);
-  color: white;
+  color: var(--on-accent);
 }
 
 /* Modal Backdrop & Dialog */

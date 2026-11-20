@@ -233,9 +233,9 @@ body.is-standalone .header {
 }
 
 .icon-btn:hover {
-  background: var(--bg);
+  background: var(--surface-hover);
   color: var(--text-main);
-  border-color: #cbd5e1;
+  border-color: var(--surface-border-strong);
 }
 
 .btn-scan-main {
@@ -275,7 +275,6 @@ body.is-standalone .header {
 
 .btn-scan-main:hover {
   background: var(--primary-hover);
-  transform: translateY(-1px);
 }
 [data-theme="dark"] .btn-scan-main:hover {
   background: #ffffff;

@@ -255,8 +255,8 @@
 
 .btn-ql-action.delete:hover {
   color: var(--danger);
-  border-color: #d4d4d8;
-  background: #f4f4f5;
+  border-color: var(--surface-border-strong);
+  background: var(--surface-hover);
 }
 
 /* Quick Links Reorder Controls & Drag and Drop */

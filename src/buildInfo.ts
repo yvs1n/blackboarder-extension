@@ -13,15 +13,16 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.18",
-  "build": "4bae58aac503",
-  "commit": "a366599b4e27cfd13af015807d2fcd5d4cd3c0e5",
-  "shortCommit": "a366599",
-  "timestamp": "2026-11-20T14:15:25.743Z",
-  "message": "v1.8.17: fix(widget,landing): v1.8.17 Windows widget update & sync fixes, landing polish, OG preview, and /old archive",
+  "version": "1.8.19",
+  "build": "95f9d4364423",
+  "commit": "5e392dd4ad01378190d078f2cb31f2574c88033f",
+  "shortCommit": "5e392dd",
+  "timestamp": "2026-11-20T14:53:54.327Z",
+  "message": "v1.8.18: fix(widget): v1.8.18 self-updater lock resilience, responsive layout, and cached live preview",
   "changelog": [
-    "Windows Widget Self-Updater File Lock Resilience (windows-widget/SelfUpdater.cs): Fixed Access to the path is denied. during in-app updates when an older process is still running from a locked .exe.old image or when the executable folder restricts temporary file writes. Downloads now stream into %LOCALAPPDATA%\\Blackboarder\\updates with live percentage progress (IProgress<string>), normalize .exe.old* process paths back to canonical BlackboarderWidget.exe, terminate stale duplicate widget processes before swapping, dynamically pick an unlocked .old.N backup slot, and fall back to a detached post-exit cmd.exe swap helper if an in-place move is ever blocked.",
-    "Windows Widget Responsive Layout & 60fps Live Preview (windows-widget/SettingsForm.cs, windows-widget/LiquidGlassRenderer.cs, windows-widget/TrayApplicationContext.cs): Added UpdateResponsiveLayout() so all left-column cards, inputs, trackbars, and wrapped status labels dynamically adapt to the available scroll client width on window resize, maximize, and DPI scaling without vertical scrollbar overlap, while scaling the right Live Real-Time Preview frame proportionally in 16:9. Added thread-safe in-memory pre-scaled wallpaper bitmap caching and font resolution caching in LiquidGlassRenderer, double-buffered ResizeRedraw card panels (BufferedCardPanel), and a 45ms preview debounce for instant slider interaction."
+    "Extension & Companion Button Hover Contrast (src/popup/styles/, src/mobile/styles/): Fixed hardcoded light-mode hover fills (#f1f5f9, #fff, #f4f4f5, #cbd5e1) on .task-card-footer .btn-card-action:hover, .btn-card-delete, .btn-danger:hover, .selected-day-item:hover, .btn-drawer-close:hover, and mobile .btn-card-action:hover / .filter-chip:hover that overrode dark-mode tokens and painted white text on a white background when hovering Share, Edit, or Delete buttons. Removed the 3D button offset transform from inside the compact extension popup and companion app while keeping it on the landing page.",
+    "Payment & Fee Deadline Modal Submission (src/popup/modules/paymentsView.ts, src/popup/index.html, src/mobile/app/17-payments.js, mobile-web/companion/index.html): Fixed openPaymentModal formatting YYYY-MM-DD instead of YYYY-MM-DDTHH:mm for <input type=\"datetime-local\" id=\"payment-due-date\"> and fixed form-payment submit appending a duplicate T23:59:00 suffix onto datetime-local values (which threw RangeError: Invalid time value and prevented saving financial deadlines). Normalized bare portal domains (banner.sharjah.ac.ae -> https://banner.sharjah.ac.ae) so optional portal URLs never block submission.",
+    "Explicit State Machines & Storage Helper Reuse (src/popup/modules/, src/mobile/app/, src/utils/): Added explicit finite state machines (createStateMachine) for extension update actions (updateActionMachine in settingsUpdates.ts), syllabus/schedule course importing (courseImportMachine in courseImporter.ts), AI announcement extraction (aiExtractMachine in aiExtractModal.ts), mobile QR camera scanning (qrScanner.machine in 00-state.js), cloud scan request polling (cloudScanMachine in 12-settings.js), and Web Companion self-updates (webUpdateMachine in 03-boot-sw.js), while removing the duplicate Escape key listener in 13-modals-init.js that closed the underlying Day Sheet when dismissing a nested modal. Refactored paymentsStorage.ts and semestersStorage.ts to reuse src/utils/storage/env.ts helpers behind the src/utils/storage.ts barrel."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

@@ -223,7 +223,7 @@
 }
 
 .task-card:hover {
-  border-color: #cbd5e1;
+  border-color: var(--surface-border-strong);
 }
 
 .task-card.status-completed {
@@ -607,9 +607,9 @@
 .task-card-footer .btn-card-action:hover,
 .task-actions .btn-card-action:hover,
 .day-card-actions .btn-card-action:hover {
-  background: #f1f5f9;
+  background: var(--surface-hover);
   color: var(--text-main);
-  border-color: #cbd5e1;
+  border-color: var(--surface-border-strong);
 }
 
 .btn-card-toggle {
@@ -647,13 +647,14 @@
 }
 
 .btn-card-delete {
-  color: #18181b !important;
-  border-color: #d4d4d8 !important;
-  background: #fff !important;
+  color: var(--text-main) !important;
+  border-color: var(--surface-border-strong) !important;
+  background: var(--surface) !important;
 }
 
 .btn-card-delete:hover {
-  background: #f4f4f5 !important;
+  background: var(--surface-hover) !important;
+  border-color: var(--text-muted) !important;
 }
 
 /* btn-share-card / btn-edit-card - used in task-card-footer */

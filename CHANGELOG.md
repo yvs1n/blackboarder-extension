@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.19] - 2026-11-20
+
+### Fixed
+
+- **Extension & Companion Button Hover Contrast (`src/popup/styles/`, `src/mobile/styles/`):** Fixed hardcoded light-mode hover fills (`#f1f5f9`, `#fff`, `#f4f4f5`, `#cbd5e1`) on `.task-card-footer .btn-card-action:hover`, `.btn-card-delete`, `.btn-danger:hover`, `.selected-day-item:hover`, `.btn-drawer-close:hover`, and mobile `.btn-card-action:hover` / `.filter-chip:hover` that overrode dark-mode tokens and painted white text on a white background when hovering Share, Edit, or Delete buttons. Removed the 3D button offset transform from inside the compact extension popup and companion app while keeping it on the landing page.
+- **Payment & Fee Deadline Modal Submission (`src/popup/modules/paymentsView.ts`, `src/popup/index.html`, `src/mobile/app/17-payments.js`, `mobile-web/companion/index.html`):** Fixed `openPaymentModal` formatting `YYYY-MM-DD` instead of `YYYY-MM-DDTHH:mm` for `<input type="datetime-local" id="payment-due-date">` and fixed `form-payment` submit appending a duplicate `T23:59:00` suffix onto `datetime-local` values (which threw `RangeError: Invalid time value` and prevented saving financial deadlines). Normalized bare portal domains (`banner.sharjah.ac.ae` -> `https://banner.sharjah.ac.ae`) so optional portal URLs never block submission.
+
+### Changed
+
+- **Explicit State Machines & Storage Helper Reuse (`src/popup/modules/`, `src/mobile/app/`, `src/utils/`):** Added explicit finite state machines (`createStateMachine`) for extension update actions (`updateActionMachine` in `settingsUpdates.ts`), syllabus/schedule course importing (`courseImportMachine` in `courseImporter.ts`), AI announcement extraction (`aiExtractMachine` in `aiExtractModal.ts`), mobile QR camera scanning (`qrScanner.machine` in `00-state.js`), cloud scan request polling (`cloudScanMachine` in `12-settings.js`), and Web Companion self-updates (`webUpdateMachine` in `03-boot-sw.js`), while removing the duplicate `Escape` key listener in `13-modals-init.js` that closed the underlying Day Sheet when dismissing a nested modal. Refactored `paymentsStorage.ts` and `semestersStorage.ts` to reuse `src/utils/storage/env.ts` helpers behind the `src/utils/storage.ts` barrel.
+
+---
+
 ## [1.8.18] - 2026-11-20
 
 ### Fixed

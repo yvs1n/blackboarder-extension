@@ -1,4 +1,5 @@
 import type { DeadlineTask } from '../../types';
+import { createStateMachine } from '../../core/stateMachine';
 import { activeCourseHintOptions } from '../../core/userCourses';
 import { extractDeadlinesLocally } from '../../engine/localExtractor';
 import { compareTasksByTime } from '../../utils/calendar';
@@ -7,6 +8,27 @@ import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { applyRoomChange, closeReadingSheet, closeRoomPicker } from './readingModal';
 import { popupActions, popupState } from './state';
+
+export type AiExtractState = 'idle' | 'extracting' | 'results' | 'empty' | 'error';
+export type AiExtractEvent = 'EXTRACT' | 'FOUND' | 'EMPTY' | 'FAIL' | 'RESET';
+
+export const aiExtractMachine = createStateMachine<AiExtractState, AiExtractEvent>({
+  initial: 'idle',
+  transitions: {
+    idle: { EXTRACT: 'extracting', RESET: 'idle' },
+    extracting: { FOUND: 'results', EMPTY: 'empty', FAIL: 'error', RESET: 'idle' },
+    results: { EXTRACT: 'extracting', RESET: 'idle' },
+    empty: { EXTRACT: 'extracting', RESET: 'idle' },
+    error: { EXTRACT: 'extracting', RESET: 'idle' }
+  }
+});
+
+let extractRunId = 0;
+
+export function resetAiExtractModalState(): void {
+  extractRunId++;
+  aiExtractMachine.send('RESET');
+}
 
 export function initAiExtractModal() {
   const extractModal = document.getElementById('modal-ai-extract');
@@ -21,6 +43,7 @@ export function initAiExtractModal() {
   });
 
   function closeExtractModal() {
+    resetAiExtractModalState();
     closeModalEl('modal-ai-extract', extractModal);
   }
   registerOverlayCloseHandler('modal-ai-extract', closeExtractModal);
@@ -78,6 +101,8 @@ export function initAiExtractModal() {
       popupActions.showToast('Please paste an announcement text first.');
       return;
     }
+    if (!aiExtractMachine.send('EXTRACT')) return;
+    const runId = ++extractRunId;
 
     if (btnRun) (btnRun as HTMLButtonElement).disabled = true;
     if (btnIcon) btnIcon.innerHTML = getSvgIcon('refresh');
@@ -103,7 +128,9 @@ export function initAiExtractModal() {
         scannedAt: new Date().toISOString(),
       };
       const extracted = extractDeadlinesLocally(extractAnnouncement);
+      if (runId !== extractRunId) return;
       if (!extracted || extracted.length === 0) {
+        aiExtractMachine.send('EMPTY');
         if (statusBox) {
           statusBox.innerHTML = `
             <div class="extract-status-pill error">
@@ -115,6 +142,7 @@ export function initAiExtractModal() {
         return;
       }
 
+      aiExtractMachine.send('FOUND');
       if (statusBox) {
         statusBox.innerHTML = `
           <div class="extract-status-pill success">
@@ -183,6 +211,9 @@ export function initAiExtractModal() {
         });
       });
     } catch (err: any) {
+      if (runId === extractRunId) {
+        aiExtractMachine.send('FAIL');
+      }
       if (statusBox) {
         statusBox.innerHTML = `
           <div class="extract-status-pill error">

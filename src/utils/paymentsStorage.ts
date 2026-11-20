@@ -1,21 +1,14 @@
 import type { PaymentItem } from '../types';
 import { sanitizePayments, mergeCloudPayments } from '../core/payments';
+import { isExtensionContextValid, safeGetLocalStorage, safeSetLocalStorage } from './storage/env';
 import { TombstoneMap } from './taskMerge';
 
 export const PAYMENTS_STORAGE_KEY = 'bbs_payments';
 export const PAYMENTS_UPDATED_AT_KEY = 'bbs_payments_updated_at';
 
-function hasChromeStorage(): boolean {
-  try {
-    return typeof chrome !== 'undefined' && !!chrome.runtime?.id && !!chrome.storage?.local;
-  } catch {
-    return false;
-  }
-}
-
 function readLocalStorage<T>(key: string): T | null {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = safeGetLocalStorage(key);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -23,9 +16,7 @@ function readLocalStorage<T>(key: string): T | null {
 }
 
 function writeLocalStorage(key: string, val: unknown): void {
-  try {
-    localStorage.setItem(key, typeof val === 'string' ? val : JSON.stringify(val));
-  } catch {}
+  safeSetLocalStorage(key, typeof val === 'string' ? val : JSON.stringify(val));
 }
 
 /** Synchronous cached read for instant initial render. */
@@ -35,7 +26,7 @@ export function getCachedPaymentsSync(): PaymentItem[] {
 
 /** Reads stored payment deadlines from extension storage or localStorage. */
 export async function getStoredPayments(): Promise<PaymentItem[]> {
-  if (hasChromeStorage()) {
+  if (isExtensionContextValid()) {
     try {
       const res = await chrome.storage.local.get([PAYMENTS_STORAGE_KEY]);
       if (Array.isArray(res?.[PAYMENTS_STORAGE_KEY])) {
@@ -50,7 +41,7 @@ export async function getStoredPayments(): Promise<PaymentItem[]> {
 
 /** Reads the last update timestamp for payment deadlines. */
 export async function getStoredPaymentsUpdatedAt(): Promise<string | null> {
-  if (hasChromeStorage()) {
+  if (isExtensionContextValid()) {
     try {
       const res = await chrome.storage.local.get([PAYMENTS_UPDATED_AT_KEY]);
       if (typeof res?.[PAYMENTS_UPDATED_AT_KEY] === 'string') {
@@ -58,11 +49,7 @@ export async function getStoredPaymentsUpdatedAt(): Promise<string | null> {
       }
     } catch {}
   }
-  try {
-    return localStorage.getItem(PAYMENTS_UPDATED_AT_KEY);
-  } catch {
-    return null;
-  }
+  return safeGetLocalStorage(PAYMENTS_UPDATED_AT_KEY);
 }
 
 /** Saves payment deadlines across chrome.storage.local and localStorage. */
@@ -73,7 +60,7 @@ export async function saveStoredPayments(
   const clean = sanitizePayments(payments);
   const stamp = updatedAt || new Date().toISOString();
 
-  if (hasChromeStorage()) {
+  if (isExtensionContextValid()) {
     try {
       await chrome.storage.local.set({
         [PAYMENTS_STORAGE_KEY]: clean,
