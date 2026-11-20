@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.20] - 2026-11-20
+
+### Restored
+
+- **Swiss Tactile 3D Button Offset Animation (`src/popup/styles/11-design-marks.css`, `src/mobile/styles/09-onboarding-design.css`):** Restored the Swiss 3D hard-offset hover/press animation (`translate(-1.5px, -1.5px)` with crisp `2px 2px 0 var(--text-subtle)` offset shadow, snapping flush on `:active` and guarded by `@media (hover: hover)` and `prefers-reduced-motion: reduce)`) across action buttons in both the extension and web companion while keeping the dark-mode contrast fixes intact.
+
+---
+
 ## [1.8.19] - 2026-11-20
 
 ### Fixed

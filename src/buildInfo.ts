@@ -13,16 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.19",
-  "build": "95f9d4364423",
-  "commit": "5e392dd4ad01378190d078f2cb31f2574c88033f",
-  "shortCommit": "5e392dd",
-  "timestamp": "2026-11-20T14:53:54.327Z",
-  "message": "v1.8.18: fix(widget): v1.8.18 self-updater lock resilience, responsive layout, and cached live preview",
+  "version": "1.8.20",
+  "build": "a34109e33c0c",
+  "commit": "609c64ce743f25c4bb1ed609267d209031f05b21",
+  "shortCommit": "609c64c",
+  "timestamp": "2026-11-20T15:12:57.800Z",
+  "message": "v1.8.19: fix(popup,payments,state): v1.8.19 dark-mode hover contrast, payment modal submit, and explicit state machines",
   "changelog": [
-    "Extension & Companion Button Hover Contrast (src/popup/styles/, src/mobile/styles/): Fixed hardcoded light-mode hover fills (#f1f5f9, #fff, #f4f4f5, #cbd5e1) on .task-card-footer .btn-card-action:hover, .btn-card-delete, .btn-danger:hover, .selected-day-item:hover, .btn-drawer-close:hover, and mobile .btn-card-action:hover / .filter-chip:hover that overrode dark-mode tokens and painted white text on a white background when hovering Share, Edit, or Delete buttons. Removed the 3D button offset transform from inside the compact extension popup and companion app while keeping it on the landing page.",
-    "Payment & Fee Deadline Modal Submission (src/popup/modules/paymentsView.ts, src/popup/index.html, src/mobile/app/17-payments.js, mobile-web/companion/index.html): Fixed openPaymentModal formatting YYYY-MM-DD instead of YYYY-MM-DDTHH:mm for <input type=\"datetime-local\" id=\"payment-due-date\"> and fixed form-payment submit appending a duplicate T23:59:00 suffix onto datetime-local values (which threw RangeError: Invalid time value and prevented saving financial deadlines). Normalized bare portal domains (banner.sharjah.ac.ae -> https://banner.sharjah.ac.ae) so optional portal URLs never block submission.",
-    "Explicit State Machines & Storage Helper Reuse (src/popup/modules/, src/mobile/app/, src/utils/): Added explicit finite state machines (createStateMachine) for extension update actions (updateActionMachine in settingsUpdates.ts), syllabus/schedule course importing (courseImportMachine in courseImporter.ts), AI announcement extraction (aiExtractMachine in aiExtractModal.ts), mobile QR camera scanning (qrScanner.machine in 00-state.js), cloud scan request polling (cloudScanMachine in 12-settings.js), and Web Companion self-updates (webUpdateMachine in 03-boot-sw.js), while removing the duplicate Escape key listener in 13-modals-init.js that closed the underlying Day Sheet when dismissing a nested modal. Refactored paymentsStorage.ts and semestersStorage.ts to reuse src/utils/storage/env.ts helpers behind the src/utils/storage.ts barrel."
+    "Swiss Tactile 3D Button Offset Animation (src/popup/styles/11-design-marks.css, src/mobile/styles/09-onboarding-design.css): Restored the Swiss 3D hard-offset hover/press animation (translate(-1.5px, -1.5px) with crisp 2px 2px 0 var(--text-subtle) offset shadow, snapping flush on :active and guarded by @media (hover: hover) and prefers-reduced-motion: reduce)) across action buttons in both the extension and web companion while keeping the dark-mode contrast fixes intact."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
