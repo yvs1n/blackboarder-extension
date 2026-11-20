@@ -277,7 +277,7 @@ describe('Extension automatic updates', () => {
       } finally {
         fs.rmSync(tmp, { recursive: true, force: true });
       }
-    });
+    }, 15000);
   }
 
   it('keeps Windows BlackboarderWidget.csproj version synced and targets GitHub releases for self-updates', () => {

@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +13,7 @@ internal static class Program
     private const string MutexName = "BlackboarderWidget-SingleInstance-Mutex-Global";
     private static Mutex? _instanceMutex;
     private static bool _mutexOwned;
+    private static int _mutexThreadId;
 
     public static void ReleaseInstanceMutex()
     {
@@ -18,13 +21,21 @@ internal static class Program
         {
             if (_instanceMutex != null && _mutexOwned)
             {
+                if (_mutexThreadId != 0 && Environment.CurrentManagedThreadId != _mutexThreadId)
+                {
+                    Log($"ReleaseInstanceMutex called off-thread ({Environment.CurrentManagedThreadId} != {_mutexThreadId}); skipping release.");
+                    return;
+                }
                 _mutexOwned = false;
                 _instanceMutex.ReleaseMutex();
                 _instanceMutex.Dispose();
                 _instanceMutex = null;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log($"ReleaseInstanceMutex warning: {ex.Message}");
+        }
     }
 
     private static string AppDataDir => Path.Combine(
@@ -32,7 +43,7 @@ internal static class Program
         "Blackboarder"
     );
 
-    private static void Log(string msg)
+    internal static void Log(string msg)
     {
         try
         {
@@ -47,7 +58,7 @@ internal static class Program
         catch { }
     }
 
-    private static void RecordCrash(string source, Exception? ex)
+    internal static void RecordCrash(string source, Exception? ex)
     {
         if (ex == null) return;
         try
@@ -55,9 +66,22 @@ internal static class Program
             Directory.CreateDirectory(AppDataDir);
             string errPath = Path.Combine(AppDataDir, "crash.log");
             File.AppendAllText(errPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{source}] {ex}{Environment.NewLine}{Environment.NewLine}");
-            Log($"Crash [{source}]: {ex.Message}");
+            Log($"Crash [{source}]: {ex.GetType().Name}: {ex.Message}");
         }
         catch { }
+    }
+
+    private static int ParseWaitPid(string[] args)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (string.Equals(args[i], "--wait-pid", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(args[i + 1], out int pid) && pid > 0)
+            {
+                return pid;
+            }
+        }
+        return 0;
     }
 
     [STAThread]
@@ -83,15 +107,28 @@ internal static class Program
             return;
         }
 
+        int waitPid = ParseWaitPid(args);
+        if (waitPid > 0)
+        {
+            Log($"Waiting for previous instance PID {waitPid} to exit...");
+            try
+            {
+                using var prevProc = Process.GetProcessById(waitPid);
+                await Task.Run(() => prevProc.WaitForExit(15000));
+            }
+            catch { }
+        }
+
         // 2. Single-instance enforcement for the background daemon
         bool justUpdated = args.Contains("--updated", StringComparer.OrdinalIgnoreCase);
         bool isNewInstance = false;
         _instanceMutex = new Mutex(true, MutexName, out isNewInstance);
         _mutexOwned = isNewInstance;
+        if (isNewInstance) _mutexThreadId = Environment.CurrentManagedThreadId;
 
         if (!isNewInstance && justUpdated)
         {
-            for (int i = 0; i < 15 && !isNewInstance; i++)
+            for (int i = 0; i < 40 && !isNewInstance; i++)
             {
                 await Task.Delay(250);
                 try
@@ -100,12 +137,14 @@ internal static class Program
                     {
                         isNewInstance = true;
                         _mutexOwned = true;
+                        _mutexThreadId = Environment.CurrentManagedThreadId;
                     }
                 }
                 catch (AbandonedMutexException)
                 {
                     isNewInstance = true;
                     _mutexOwned = true;
+                    _mutexThreadId = Environment.CurrentManagedThreadId;
                 }
             }
         }

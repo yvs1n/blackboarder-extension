@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.16-blue?logo=github&logoColor=white" alt="Version v1.8.16" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.17-blue?logo=github&logoColor=white" alt="Version v1.8.17" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
@@ -43,18 +43,19 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 - **Marks tab and academic tracking.** Dedicated Marks tab with student profile badge, semester bar with switcher and archiving tools, Dual-Column GPA Overview (Term SGPA, Cumulative CGPA, discrete combination rounding explanation, and Projected CGPA), Current Term Grades course cards with left color accent borders and mark breakdowns, collapsible Target Grade Breakdown accordion with momentum trends and interactive chips, and Syllabus Progress breakdown.
 - **Target GPA and scholarship predictor.** Calculates required semester Term SGPA to achieve or retain university scholarship thresholds based on prior completed credits and starting GPA, with trajectory progress bars and achievable score ranges on remaining exams.
 - **Multi-semester tracking and cumulative CGPA.** Snapshot and archive past terms, auto-partition legacy Blackboard courses by term codes (`_2510`, `_2610`), and track degree credit completion progress.
+- **Payments and financial deadlines.** Dedicated **Payments** view from the header tracks tuition installments, verified UOS Banner/Tahseel portal links, and unpaid dues across the calendar, Deadlines strip, `.ics` feeds, and emoji-free reminders without skewing academic GPA. Can also import open Banner finance tables when scanning signed-in finance pages.
 - **Courses tab.** One place for each course: name, code, colour, credit hours, class times and rooms, and the mark breakdown. The extension and the phone app have the same tab, and edits sync both ways.
 - **Import your syllabus or schedule.** Courses > Import File reads a PDF, Word or text file (or pasted text) on your device and fills in courses, class times, rooms and assessment weights. You check each course before it is saved. With an AI set up, it reads the file first.
 - **Class reminders.** A reminder a set time before each class (Settings > Alerts), and each day's classes on the calendar (turn off **Show My Classes** in Settings > Calendar to hide them).
 - **Course schedule matching.** When an announcement does not name a room or time, Blackboarder fills it in from your weekly class schedule.
 - **Same layout everywhere.** The extension and the phone app have the same tabs (Calendar, Deadlines, Marks, Courses) and the same Settings sections in the same order (General, Sync, Calendar, Alerts, Data, Updates), so a button is where you expect it on both.
 - **Grade weights.** Shows how much each deliverable counts (for example *Midterm 25%*) on cards and in the calendar.
-- **Marks from the Blackboard gradebook.** Every scan reads your gradebook and puts each mark on its deadline. Submitted items without a released grade stay marked as Submitted without false marks.
+- **Marks from the Blackboard gradebook & bonus marks.** Every scan reads your gradebook and puts each mark on its deadline. Submitted items without a released grade stay marked as Submitted without false marks, and students can add bonus marks or quick scores (`+ Score`) with category targeting (**Bonus On What**).
 - **Grades and GPA calculations.** Shows your projected Term SGPA and Cumulative CGPA on your university's grading scale (editable in Settings > General) with every mark under its course, newest first, and the share of the grade each one earned. GPA is weighted by credit hours, set per course. When a syllabus counts only the best items (for example best 2 of 3 quizzes), only the best ones count.
 - **Syllabus progress.** In the Marks tab: for each course, how much of the syllabus weight is done, pending, or not announced yet.
 - **Add deadlines quickly.** The course field lists your courses and narrows as you type. Closing the popup while adding or editing a deadline, in the Courses tab or in Settings, reopens right there.
 - **Quick links.** Your own one-tap links to marks, attendance, your study plan or anything else, synced to the phone. A new install starts with none, since every student's links are different; UOS students get the UOS links filled in when the university is set.
-- **Reminders before deadlines.** The phone app reminds you a set time before each deadline, again shortly before, and when it is due (timings in Settings > Alerts).
+- **Purposeful reminders before deadlines.** Emoji-free desktop and mobile alerts show exact time remaining (`Due in 1h 30m`), course, syllabus weight, schedule (`During class` vs specific time), and room or submission location.
 - **Privacy tools.** Delete everything stored online under your sync key from Settings > Data, download a recovery file for your key, and see a banner when your Blackboard session has ended.
 - **Zero-Knowledge Cloud Vault & Private Sync.** Synced tasks, courses, student profile, semesters, marks, and tombstones are sealed inside an authenticated, encrypted AES-256-GCM vault envelope (`v1:iv:ciphertext`) derived from your secret sync key via HKDF-SHA256 before storage in Firebase Realtime Database. Cloud administrators and database servers see zero plaintext academic records, while calendar feeds and push reminders continue working through memory-only decryption in the Cloudflare Worker. The sync key input is strictly read-only to prevent typing collisions. Generating a new key opens a confirmation modal with an instant Export JSON Backup button so you can save your data before resetting. If a phone connects to an old sync key whose data was deleted, it unpairs cleanly and returns to the pairing screen.
 - **Mobile post-pairing setup.** Pairing your phone via QR code or sync key opens an onboarding setup sheet with immediate toggles for class visibility, push alerts, Apple and Google Calendar subscription links, and widget setup instructions.
@@ -143,10 +144,8 @@ No API key? The built-in parser reads announcements automatically, so everything
 Updates are configured directly inside **Settings > Updates**:
 
 - **Background checks:** The extension checks this repository every 15 minutes using lightweight HTTP without running background processes.
-- **Automatic Updates toggle:** Enabled by default so new builds download automatically into the extension folder (with old leftover files purged cleanly) or pull via `git pull --ff-only` in a git clone on `main`, and restart when idle or when you click **Restart now**. Turning this toggle off pauses auto-installation on the banner until you click **Update Now** or **Download Latest Extension (.zip)**.
+- **In-place upgrades:** Clones on a clean `main` branch and unpacked installs that registered the local helper once (`update.bat` on Windows or `./update.sh` on macOS/Linux) replace updated files cleanly in place and reload immediately when you click **Update now** (or auto-restart when idle when **Automatic Updates** is on). Otherwise download and extract the latest ZIP while keeping all tasks, courses, and settings intact.
 - **What's New changelog:** Toggle **Show Changelog After Update** in **Settings > Updates**, or expand the changelog section there anytime. All your tasks, courses, profile, and settings are 100% kept.
-
-> Optional folder helper: on unpacked Chromium installs, registering the local helper under `updater/` once (`update.bat` on Windows or `./update.sh` on macOS/Linux) allows Chrome to write updated files directly to disk without re-downloading the ZIP.
 
 Each build is identified by a hash of its files, so a change that does not touch the extension does not update it.
 

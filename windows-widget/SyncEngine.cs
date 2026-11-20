@@ -35,6 +35,8 @@ public class RenderState
     public string Summary { get; set; } = string.Empty;
     public string UpdatedAt { get; set; } = string.Empty;
     public List<string> TopTasks { get; set; } = new();
+    public string LastLockscreenPath { get; set; } = string.Empty;
+    public string LastDesktopPath { get; set; } = string.Empty;
 }
 
 public class SyncEngine : IDisposable
@@ -46,7 +48,7 @@ public class SyncEngine : IDisposable
 
     public AppConfig Config { get; private set; }
     private System.Threading.Timer? _pollTimer;
-    private bool _isSyncing;
+    private readonly SemaphoreSlim _syncGate = new(1, 1);
     private bool _isDisposed;
 
     public event Action<SyncResult>? SyncCompleted;
@@ -123,29 +125,42 @@ public class SyncEngine : IDisposable
 
     private async Task SafeUpdateAsync(bool force)
     {
-        if (_isSyncing) return;
-        _isSyncing = true;
+        if (!await _syncGate.WaitAsync(0).ConfigureAwait(false)) return;
         try
         {
-            var res = await UpdateWidgetAsync(force);
+            var res = await UpdateWidgetInternalAsync(force, throwOnApplyError: false).ConfigureAwait(false);
             SyncCompleted?.Invoke(res);
         }
         catch (Exception ex)
         {
+            Program.Log($"SafeUpdateAsync error: {ex.GetType().Name}: {ex.Message}");
             SyncCompleted?.Invoke(new SyncResult
             {
                 Success = false,
-                Message = ex.Message,
+                Message = !string.IsNullOrWhiteSpace(ex.Message) ? ex.Message : ex.GetType().Name,
                 DidReRender = false
             });
         }
         finally
         {
-            _isSyncing = false;
+            _syncGate.Release();
         }
     }
 
     public async Task<SyncResult> UpdateWidgetAsync(bool force = false)
+    {
+        await _syncGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            return await UpdateWidgetInternalAsync(force, throwOnApplyError: force).ConfigureAwait(false);
+        }
+        finally
+        {
+            _syncGate.Release();
+        }
+    }
+
+    private async Task<SyncResult> UpdateWidgetInternalAsync(bool force, bool throwOnApplyError)
     {
         var result = new SyncResult();
         var fetched = await FetchTasksAsync(Config.SyncKey).ConfigureAwait(false);
@@ -162,7 +177,7 @@ public class SyncEngine : IDisposable
             if (string.Equals(t.Status, "dismissed", StringComparison.OrdinalIgnoreCase)) continue;
             if (t.IsCompleted()) continue;
             var dueUtc = t.GetDueDateTimeUtc();
-            if (dueUtc.HasValue && dueUtc.Value < nowUtc) continue;
+            if (dueUtc.HasValue && dueUtc.Value < nowUtc.AddHours(-1)) continue;
             activePending.Add(t);
         }
 
@@ -184,11 +199,32 @@ public class SyncEngine : IDisposable
         result.ActiveCount = activePending.Count;
         result.Summary = summaryText;
 
-        // Change detection signature
+        string wallpaper = Config.WallpaperPath;
+        if (string.IsNullOrWhiteSpace(wallpaper) || !File.Exists(wallpaper))
+        {
+            wallpaper = WallpaperManager.GetCurrentDesktopWallpaper();
+        }
+        WallpaperManager.EnsureOriginalWallpaperBackup(wallpaper);
+
+        long wallpaperTicks = 0;
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(wallpaper) && File.Exists(wallpaper))
+            {
+                wallpaperTicks = File.GetLastWriteTimeUtc(wallpaper).Ticks;
+            }
+        }
+        catch { }
+
+        var screen = Screen.PrimaryScreen ?? (Screen.AllScreens.Length > 0 ? Screen.AllScreens[0] : null);
+        int w = screen != null && screen.Bounds.Width > 0 ? screen.Bounds.Width : 1920;
+        int h = screen != null && screen.Bounds.Height > 0 ? screen.Bounds.Height : 1080;
+
+        // Change detection signature (includes date boundary, wallpaper mtime, screen size, and task details)
         var sigParts = new List<string>();
         foreach (var t in displayTasks)
         {
-            sigParts.Add($"{t.Id}|{t.DueDate}|{t.IsDone}|{t.Status}");
+            sigParts.Add($"{t.Id}|{t.Title}|{t.CourseName}|{t.CourseColor}|{t.Room}|{t.DueDate}|{t.IsDone}|{t.Status}");
         }
         string studentId = profile != null
             ? (!string.IsNullOrWhiteSpace(profile.StudentId) ? profile.StudentId : profile.Id)
@@ -199,50 +235,46 @@ public class SyncEngine : IDisposable
             : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(styleSig)))[..12];
         string currentSig = string.Join("##", sigParts)
             + "::" + summaryText
+            + $"::Day={DateTime.Today:yyyy-MM-dd}::Scr={w}x{h}::Wp={wallpaper}@{wallpaperTicks}"
             + $"::Stu={studentId}::Style={styleHash}::Pos={Config.Position}::Tasks={Config.MaxTasks}::Lock={Config.SetLockScreen}::Desk={Config.SetDesktop}::Blur={Config.BlurRadius}::Trans={Config.GlassTransparency}";
 
-        bool hasChanged = force;
-        if (!hasChanged && File.Exists(AppConfig.LastStatePath))
+        RenderState? lastState = null;
+        if (File.Exists(AppConfig.LastStatePath))
         {
             try
             {
                 string stateJson = File.ReadAllText(AppConfig.LastStatePath);
-                var lastState = JsonSerializer.Deserialize<RenderState>(stateJson);
-                if (lastState != null && lastState.Fingerprint != currentSig)
-                {
-                    hasChanged = true;
-                }
+                lastState = JsonSerializer.Deserialize<RenderState>(stateJson);
             }
-            catch
-            {
-                hasChanged = true;
-            }
+            catch { }
         }
-        else if (!File.Exists(AppConfig.LastStatePath))
+
+        string nextLockPath = string.Equals(lastState?.LastLockscreenPath, AppConfig.LockscreenImagePathA, StringComparison.OrdinalIgnoreCase)
+            ? AppConfig.LockscreenImagePathB
+            : AppConfig.LockscreenImagePathA;
+        string nextDeskPath = string.Equals(lastState?.LastDesktopPath, AppConfig.DesktopImagePathA, StringComparison.OrdinalIgnoreCase)
+            ? AppConfig.DesktopImagePathB
+            : AppConfig.DesktopImagePathA;
+
+        bool hasChanged = force || lastState == null || lastState.Fingerprint != currentSig;
+        if (!hasChanged && Config.SetLockScreen)
         {
-            hasChanged = true;
+            string prevLock = lastState?.LastLockscreenPath ?? AppConfig.LockscreenImagePathA;
+            if (!File.Exists(prevLock)) hasChanged = true;
         }
-
-        string wallpaper = Config.WallpaperPath;
-        if (string.IsNullOrWhiteSpace(wallpaper) || !File.Exists(wallpaper))
+        if (!hasChanged && Config.SetDesktop)
         {
-            wallpaper = WallpaperManager.GetCurrentDesktopWallpaper();
+            string prevDesk = lastState?.LastDesktopPath ?? AppConfig.DesktopImagePathA;
+            if (!File.Exists(prevDesk)) hasChanged = true;
         }
 
-        WallpaperManager.EnsureOriginalWallpaperBackup(wallpaper);
-
-        if (!hasChanged && File.Exists(AppConfig.LockscreenImagePath))
+        if (!hasChanged)
         {
             result.Success = true;
             result.DidReRender = false;
-            result.Message = "Deadlines unchanged. Lock screen up to date.";
+            result.Message = "Deadlines unchanged. Widget up to date.";
             return result;
         }
-
-        // Render widget
-        var screen = Screen.PrimaryScreen ?? (Screen.AllScreens.Length > 0 ? Screen.AllScreens[0] : null);
-        int w = screen != null && screen.Bounds.Width > 0 ? screen.Bounds.Width : 1920;
-        int h = screen != null && screen.Bounds.Height > 0 ? screen.Bounds.Height : 1080;
 
         using var bitmap = LiquidGlassRenderer.RenderWidget(
             wallpaper,
@@ -256,9 +288,56 @@ public class SyncEngine : IDisposable
             widgetConfig
         );
 
-        bitmap.Save(AppConfig.LockscreenImagePath, System.Drawing.Imaging.ImageFormat.Png);
+        var applyErrors = new List<string>();
+        string appliedLockPath = lastState?.LastLockscreenPath ?? string.Empty;
+        string appliedDeskPath = lastState?.LastDesktopPath ?? string.Empty;
 
-        // Record render state
+        if (Config.SetLockScreen)
+        {
+            try
+            {
+                SaveBitmapAtomic(bitmap, nextLockPath);
+                await WallpaperManager.SetLockScreenAsync(nextLockPath).ConfigureAwait(false);
+                appliedLockPath = nextLockPath;
+            }
+            catch (Exception ex)
+            {
+                string err = FormatExceptionDetail("Lock screen", ex);
+                Program.Log(err);
+                applyErrors.Add(err);
+            }
+        }
+
+        if (Config.SetDesktop)
+        {
+            try
+            {
+                SaveBitmapAtomic(bitmap, nextDeskPath);
+                WallpaperManager.SetDesktopWallpaper(nextDeskPath);
+                appliedDeskPath = nextDeskPath;
+            }
+            catch (Exception ex)
+            {
+                string err = FormatExceptionDetail("Desktop wallpaper", ex);
+                Program.Log(err);
+                applyErrors.Add(err);
+            }
+        }
+
+        if (applyErrors.Count > 0)
+        {
+            string combinedErr = string.Join(" | ", applyErrors);
+            if (throwOnApplyError)
+            {
+                throw new InvalidOperationException(combinedErr);
+            }
+            result.Success = false;
+            result.DidReRender = false;
+            result.Message = combinedErr;
+            return result;
+        }
+
+        // Only record render state AFTER wallpaper/lockscreen applied cleanly
         try
         {
             var topTitles = new List<string>();
@@ -268,43 +347,37 @@ public class SyncEngine : IDisposable
                 Fingerprint = currentSig,
                 Summary = summaryText,
                 UpdatedAt = DateTime.UtcNow.ToString("o"),
-                TopTasks = topTitles
+                TopTasks = topTitles,
+                LastLockscreenPath = appliedLockPath,
+                LastDesktopPath = appliedDeskPath
             };
             File.WriteAllText(AppConfig.LastStatePath, JsonSerializer.Serialize(state));
         }
         catch { }
 
-        // Apply lockscreen
-        if (Config.SetLockScreen)
-        {
-            try
-            {
-                await WallpaperManager.SetLockScreenAsync(AppConfig.LockscreenImagePath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Lock screen set error: {ex.Message}");
-            }
-        }
-
-        // Apply desktop
-        if (Config.SetDesktop)
-        {
-            try
-            {
-                bitmap.Save(AppConfig.DesktopImagePath, System.Drawing.Imaging.ImageFormat.Png);
-                WallpaperManager.SetDesktopWallpaper(AppConfig.DesktopImagePath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Desktop wallpaper set error: {ex.Message}");
-            }
-        }
-
         result.Success = true;
         result.DidReRender = true;
         result.Message = $"Updated successfully! {activePending.Count} active deadlines.";
         return result;
+    }
+
+    private static void SaveBitmapAtomic(System.Drawing.Bitmap bitmap, string targetPath)
+    {
+        string? dir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrWhiteSpace(dir)) Directory.CreateDirectory(dir);
+        string tmp = targetPath + ".tmp";
+        bitmap.Save(tmp, System.Drawing.Imaging.ImageFormat.Png);
+        File.Move(tmp, targetPath, overwrite: true);
+    }
+
+    private static string FormatExceptionDetail(string scope, Exception ex)
+    {
+        string msg = !string.IsNullOrWhiteSpace(ex.Message) ? ex.Message.Trim() : ex.GetType().Name;
+        if (ex.InnerException != null && !string.IsNullOrWhiteSpace(ex.InnerException.Message))
+        {
+            msg += $" ({ex.InnerException.Message.Trim()})";
+        }
+        return $"{scope}: {msg}";
     }
 
     public static async Task<FetchTasksResult> FetchTasksAsync(string syncKey)
@@ -376,6 +449,7 @@ public class SyncEngine : IDisposable
         if (_isDisposed) return;
         _isDisposed = true;
         _pollTimer?.Dispose();
+        _syncGate.Dispose();
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;

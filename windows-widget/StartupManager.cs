@@ -34,6 +34,10 @@ public static class StartupManager
             if (enable)
             {
                 string exePath = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "BlackboarderWidget.exe");
+                if (exePath.EndsWith(".old", StringComparison.OrdinalIgnoreCase))
+                {
+                    exePath = exePath[..^4];
+                }
                 key.SetValue(AppName, $"\"{exePath}\" --minimized");
             }
             else

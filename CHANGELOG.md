@@ -7,27 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.8.16] - 2026-11-19
-
-### Changed
-
-- **Original Swiss Architectural Landing Page & Horizontal Mobile Stage (`mobile-web/index.html`, `mobile-web/landing-motion.js`):** Kept the hero side-by-side Blackboarder stage horizontal across mobile viewports via proportional `ResizeObserver` viewport scaling (with an external full-size scene toolbar above it), replaced the hollow traffic-light squares with real padlock and Blackboarder SVG icons, removed the standalone pricing card section in favor of integrating the free MIT guarantee directly into the FAQ aside, added speckled graphite micro-texture and subtle architectural crosshairs over dark-first (`#121215`) and light (`#f8fafc`) surfaces, and introduced an asymmetric Capabilities Workbench pairing the live announcement extractor with an interactive SGPA / Target Exam Score simulator alongside pure-black frosted widget and phone companion previews.
-
----
-
-## [1.8.15] - 2026-11-19
+## [1.8.17] - 2026-11-20
 
 ### Fixed
 
-- **Landing Page Mobile Viewport Layout (`mobile-web/index.html`):** Fixed mobile CSS Grid intrinsic width expansion (`grid-template-columns: minmax(0, 1fr)` on `.stage-canvas` and `repeat(7, minmax(0, 1fr))` on `.mock-cal-grid` with `min-width: 0` across stage panes, weekday cells, status labels, and vault key boxes) so all 7 calendar columns and interactive stage tabs (`Scan Flow`, `Marks & GPA`, `Phone & Vault`) fit within narrow phone viewports (`375px` / `390px`) without right-edge clipping or column distortion, simplified the mobile sticky header to a single clean row with full `Install ->` CTA, and tuned mobile typography, 2x2 step/utility grids, and card padding.
-
----
-
-## [1.8.14] - 2026-11-19
+- **Windows Widget Background Sync, Self-Update Exit & Error Reporting (`windows-widget/`):** Fixed `TrayApplicationContext.BackgroundAutoUpdateCheckAsync` calling `BeginInvoke` on an uncreated `_contextMenu` handle and releasing the single-instance mutex off-thread (which stranded `v1.8.7` in the tray while relaunched binaries exited as duplicates), added an eager UI-thread marshaler control (`_uiInvoker`), `--wait-pid` handoff, and a UI-thread shutdown watchdog so updates always cleanly restart into the new build. Replaced in-place lockscreen image overwrites and stale render fingerprints with atomic alternating output paths, midnight date-boundary tracking, wallpaper mtime change detection, `MemoryStream` base wallpaper reads, descriptive error formatting (eliminating blank `"Error applying widget:"` dialogs), and a visible error state on the Live Real-Time Preview box.
 
 ### Changed
 
-- **Editorial Landing Page & Interactive Stage Redesign (`mobile-web/index.html`, `mobile-web/landing-motion.js`):** Rebuilt the landing page using Convert's centered editorial rhythm, spacious display pacing, 2x2 capability card showcase with tilted Swiss pairs, `$0` pricing centerpiece, closing atmospheric banner, and centered footer while strictly preserving Blackboarder's Swiss Grid `0px` square geometry, `Inter Tight` + `Inter` typography, and two-tone dark-first (`#121215`) / light (`#f8fafc`) design tokens. Added subtle drifting radial studio lighting with fine SVG film grain, an interactive animated hero demo stage showing Blackboard Ultra announcements being scanned and synced into the extension/companion UI (`Calendar`, `Deadlines`, `Marks & GPA`, `Vault`), and an interactive sample extractor sandbox (`Midterm`, `Arabic Quiz`, `Exam Table`, `Tuition Fee`).
+- **Extension & Companion Swiss Linearity (`src/popup/styles/11-design-marks.css`, `src/mobile/styles/09-onboarding-design.css`):** Aligned selection inversion, tabular figures (`tabular-nums`), display title tracking, and tactile Swiss 3D hard-offset hover/press states across primary action buttons in both the extension and companion web app while respecting `prefers-reduced-motion`.
+- **Worker Static Caching & Archive Routing (`src/worker/05-router.js`):** Added no-cache HTML rules for `/old/` and clean caching/content-type handling for `/llms.txt` and `/og-preview.png`.
 
 ---
 

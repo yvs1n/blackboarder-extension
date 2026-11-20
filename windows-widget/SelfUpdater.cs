@@ -115,7 +115,11 @@ public static class SelfUpdater
         try
         {
             using var resp = await Http.GetAsync(LatestReleaseApi).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+            {
+                Program.Log($"Updater check HTTP {(int)resp.StatusCode}");
+                return null;
+            }
 
             string json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
@@ -143,10 +147,14 @@ public static class SelfUpdater
                     return null;
                 }
 
+                Program.Log($"Updater found remote release {tagName} ({size} bytes)");
                 return new ReleaseUpdateInfo(remoteVer, tagName, dlUrl, size);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Program.Log($"Updater check failed: {ex.Message}");
+        }
 
         return null;
     }
@@ -154,7 +162,7 @@ public static class SelfUpdater
     public static async Task<UpdateApplyResult> DownloadAndApplyUpdateAsync(
         ReleaseUpdateInfo release,
         bool relaunchMinimized,
-        Action? releaseMutexBeforeRelaunch = null)
+        Action? beforeRelaunchOnUiThread = null)
     {
         if (!CanSelfUpdate(out string blockReason))
         {
@@ -178,6 +186,7 @@ public static class SelfUpdater
 
         try
         {
+            Program.Log($"Updater downloading {release.TagName} to {tmpPath}");
             using var dlClient = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
             dlClient.DefaultRequestHeaders.UserAgent.ParseAdd($"BlackboarderWidget/{CurrentVersionString}");
 
@@ -216,6 +225,7 @@ public static class SelfUpdater
             }
 
             // Swap running executable safely on NTFS (rename in-use exe -> .old, move .tmp -> exe)
+            Program.Log($"Updater swapping binary for {release.TagName}");
             TryDelete(oldPath);
             File.Move(exePath, oldPath, overwrite: true);
 
@@ -230,9 +240,12 @@ public static class SelfUpdater
                 throw;
             }
 
-            releaseMutexBeforeRelaunch?.Invoke();
+            // Invoke only UI-safe preparation when provided on UI thread (mutex itself must be freed on UI thread)
+            beforeRelaunchOnUiThread?.Invoke();
 
-            string relaunchArgs = relaunchMinimized ? "--minimized --updated" : "--updated";
+            string modeFlag = relaunchMinimized ? "--minimized --updated" : "--updated";
+            string relaunchArgs = $"{modeFlag} --wait-pid {Environment.ProcessId}";
+            Program.Log($"Updater launching new binary with args: {relaunchArgs}");
             Process.Start(new ProcessStartInfo
             {
                 FileName = exePath,
@@ -244,6 +257,7 @@ public static class SelfUpdater
         }
         catch (Exception ex)
         {
+            Program.Log($"Updater error: {ex}");
             TryDelete(tmpPath);
             return new UpdateApplyResult(false, false, $"Update failed: {ex.Message}");
         }

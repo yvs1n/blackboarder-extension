@@ -36,13 +36,21 @@ public static class WallpaperManager
         void Enable(bool enable);
     }
 
+    internal static bool IsGeneratedWidgetImage(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        string name = Path.GetFileName(path);
+        return name.StartsWith("lockscreen_widget", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("desktop_widget", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static string GetCurrentDesktopWallpaper()
     {
         try
         {
             var desktop = (IDesktopWallpaper)new CDesktopWallpaper();
             string path = desktop.GetWallpaper(null);
-            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+            if (!string.IsNullOrWhiteSpace(path) && !IsGeneratedWidgetImage(path) && File.Exists(path))
             {
                 return path;
             }
@@ -55,13 +63,18 @@ public static class WallpaperManager
             if (key != null)
             {
                 var val = key.GetValue("WallPaper") as string;
-                if (!string.IsNullOrWhiteSpace(val) && File.Exists(val))
+                if (!string.IsNullOrWhiteSpace(val) && !IsGeneratedWidgetImage(val) && File.Exists(val))
                 {
                     return val;
                 }
             }
         }
         catch { }
+
+        if (File.Exists(AppConfig.OriginalWallpaperBackup))
+        {
+            return AppConfig.OriginalWallpaperBackup;
+        }
 
         string transcoded = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -80,13 +93,13 @@ public static class WallpaperManager
         try
         {
             if (string.IsNullOrWhiteSpace(currentWallpaper) || !File.Exists(currentWallpaper)) return;
-
-            string backup = AppConfig.OriginalWallpaperBackup;
-            if (currentWallpaper == AppConfig.LockscreenImagePath || currentWallpaper == AppConfig.DesktopImagePath)
+            if (IsGeneratedWidgetImage(currentWallpaper)) return;
+            if (string.Equals(Path.GetFullPath(currentWallpaper), Path.GetFullPath(AppConfig.OriginalWallpaperBackup), StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
+            string backup = AppConfig.OriginalWallpaperBackup;
             if (!File.Exists(backup))
             {
                 File.Copy(currentWallpaper, backup, overwrite: true);

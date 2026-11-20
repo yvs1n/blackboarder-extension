@@ -699,3 +699,63 @@ h1, h2, h3 {
 .student-profile-uni { font-size: 10.5px; color: var(--text-muted); margin-top: 1px; }
 .student-identity-banner { display: flex; align-items: center; justify-content: space-between; }
 
+/* Landing-page editorial linearity: selection invert, tabular figures, display tracking & tactile button offset */
+::selection {
+  background: var(--text-main);
+  color: var(--bg);
+}
+
+body {
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.brand-title,
+.modal-title,
+.section-title,
+.payments-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+@media (hover: hover) {
+  .btn-scan-main,
+  .btn-primary,
+  .btn-primary-action,
+  .btn-save-action {
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-scan-main:hover,
+  .btn-primary:hover,
+  .btn-primary-action:hover,
+  .btn-save-action:hover {
+    transform: translate(-1.5px, -1.5px);
+    box-shadow: 2px 2px 0 var(--text-subtle);
+  }
+  .btn-scan-main:active,
+  .btn-primary:active,
+  .btn-primary-action:active,
+  .btn-save-action:active {
+    transform: translate(0, 0);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-scan-main,
+  .btn-primary,
+  .btn-primary-action,
+  .btn-save-action {
+    transition: none;
+  }
+  .btn-scan-main:hover,
+  .btn-primary:hover,
+  .btn-primary-action:hover,
+  .btn-save-action:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+

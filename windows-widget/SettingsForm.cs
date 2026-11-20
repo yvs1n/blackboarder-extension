@@ -70,11 +70,15 @@ public class SettingsForm : Form
 
     private readonly string _uiFont = LiquidGlassRenderer.ResolvePreferredFont("Inter", "Segoe UI");
     private readonly string _displayFont = LiquidGlassRenderer.ResolvePreferredFont("Inter Tight", "Segoe UI");
+    private Font _fontStatusRegular = null!;
+    private Font _fontStatusBold = null!;
 
     public SettingsForm(AppConfig config, SyncEngine syncEngine)
     {
         _config = config;
         _syncEngine = syncEngine;
+        _fontStatusRegular = new Font(_uiFont, 8.25f, FontStyle.Regular);
+        _fontStatusBold = new Font(_uiFont, 8.25f, FontStyle.Bold);
 
         InitializeComponent();
         ApplyDarkTitleBar();
@@ -680,7 +684,31 @@ public class SettingsForm : Form
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Preview render error: {ex.Message}");
+            Program.Log($"Preview render error: {ex}");
+            try
+            {
+                if (!this.IsDisposed && !_previewBox.IsDisposed)
+                {
+                    int boxW = Math.Max(200, _previewBox.Width);
+                    int boxH = Math.Max(120, _previewBox.Height);
+                    string detail = !string.IsNullOrWhiteSpace(ex.Message) ? ex.Message : ex.GetType().Name;
+                    var fallbackBmp = new Bitmap(boxW, boxH);
+                    using (var g = Graphics.FromImage(fallbackBmp))
+                    {
+                        g.Clear(BgColor);
+                        using var pen = new Pen(BorderStrong, 1);
+                        g.DrawRectangle(pen, 12, 12, boxW - 25, boxH - 25);
+                        using var titleBrush = new SolidBrush(TextMain);
+                        using var bodyBrush = new SolidBrush(TextMuted);
+                        g.DrawString("PREVIEW ERROR", _fontStatusBold, titleBrush, 24, 24);
+                        g.DrawString(detail, _fontStatusRegular, bodyBrush, new RectangleF(24, 48, boxW - 48, boxH - 72));
+                    }
+                    var oldImg = _previewBox.Image;
+                    _previewBox.Image = fallbackBmp;
+                    oldImg?.Dispose();
+                }
+            }
+            catch { }
         }
     }
 
@@ -691,13 +719,13 @@ public class SettingsForm : Form
         {
             _lblConnectionStatus.Text = "REQUIRED: Enter a valid sync key first.";
             _lblConnectionStatus.ForeColor = TextMain;
-            _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+            _lblConnectionStatus.Font = _fontStatusBold;
             return;
         }
 
         _lblConnectionStatus.Text = "Connecting to Blackboarder...";
         _lblConnectionStatus.ForeColor = TextMuted;
-        _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Regular);
+        _lblConnectionStatus.Font = _fontStatusRegular;
         _btnTestConnection.Enabled = false;
 
         try
@@ -716,28 +744,29 @@ public class SettingsForm : Form
             {
                 _lblConnectionStatus.Text = $"CONNECTED: Found {taskCount} deadlines across {courseCount} courses.";
                 _lblConnectionStatus.ForeColor = TextMain;
-                _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblConnectionStatus.Font = _fontStatusBold;
             }
             else if (!fetched.IsOffline)
             {
                 _lblConnectionStatus.Text = "CONNECTED: All caught up (no pending deadlines).";
                 _lblConnectionStatus.ForeColor = TextMain;
-                _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblConnectionStatus.Font = _fontStatusBold;
             }
             else
             {
                 _lblConnectionStatus.Text = "OFFLINE: Using locally cached deadlines.";
                 _lblConnectionStatus.ForeColor = TextMuted;
-                _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblConnectionStatus.Font = _fontStatusBold;
             }
 
             TriggerPreviewUpdate();
         }
         catch (Exception ex)
         {
-            _lblConnectionStatus.Text = $"ERROR: Connection failed - {ex.Message}";
+            string detail = !string.IsNullOrWhiteSpace(ex.Message) ? ex.Message : ex.GetType().Name;
+            _lblConnectionStatus.Text = $"ERROR: Connection failed - {detail}";
             _lblConnectionStatus.ForeColor = TextMain;
-            _lblConnectionStatus.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+            _lblConnectionStatus.Font = _fontStatusBold;
         }
         finally
         {
@@ -819,7 +848,13 @@ public class SettingsForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error applying widget: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Program.Log($"Save & Apply failed: {ex}");
+            string detail = !string.IsNullOrWhiteSpace(ex.Message) ? ex.Message.Trim() : ex.GetType().Name;
+            if (ex.InnerException != null && !string.IsNullOrWhiteSpace(ex.InnerException.Message))
+            {
+                detail += $" ({ex.InnerException.Message.Trim()})";
+            }
+            MessageBox.Show($"Error applying widget: {detail}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -833,7 +868,7 @@ public class SettingsForm : Form
         _btnCheckUpdates.Enabled = false;
         _lblVersionInfo.Text = "Checking GitHub Releases...";
         _lblVersionInfo.ForeColor = TextMuted;
-        _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Regular);
+        _lblVersionInfo.Font = _fontStatusRegular;
 
         try
         {
@@ -842,7 +877,7 @@ public class SettingsForm : Form
             {
                 _lblVersionInfo.Text = $"UP TO DATE: v{SelfUpdater.CurrentVersionString}";
                 _lblVersionInfo.ForeColor = TextMain;
-                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblVersionInfo.Font = _fontStatusBold;
                 return;
             }
 
@@ -850,7 +885,7 @@ public class SettingsForm : Form
             {
                 _lblVersionInfo.Text = $"UPDATE READY: {release.TagName} on GitHub";
                 _lblVersionInfo.ForeColor = TextMain;
-                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblVersionInfo.Font = _fontStatusBold;
                 MessageBox.Show(
                     $"Blackboarder {release.TagName} is available (installed: v{SelfUpdater.CurrentVersionString}).\n\n{reason}",
                     "Update Available",
@@ -870,7 +905,7 @@ public class SettingsForm : Form
             {
                 _lblVersionInfo.Text = $"AVAILABLE: {release.TagName} ready";
                 _lblVersionInfo.ForeColor = TextMain;
-                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblVersionInfo.Font = _fontStatusBold;
                 return;
             }
 
@@ -880,25 +915,32 @@ public class SettingsForm : Form
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,
                 relaunchMinimized: false,
-                Program.ReleaseInstanceMutex
+                beforeRelaunchOnUiThread: null
             );
 
             if (applied.Relaunching)
             {
+                Program.ReleaseInstanceMutex();
                 Application.Exit();
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(3000);
+                    Environment.Exit(0);
+                });
             }
             else
             {
                 _lblVersionInfo.Text = $"ERROR: {applied.Message}";
                 _lblVersionInfo.ForeColor = TextMain;
-                _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+                _lblVersionInfo.Font = _fontStatusBold;
             }
         }
         catch (Exception ex)
         {
-            _lblVersionInfo.Text = $"ERROR: Check failed - {ex.Message}";
+            string detail = !string.IsNullOrWhiteSpace(ex.Message) ? ex.Message : ex.GetType().Name;
+            _lblVersionInfo.Text = $"ERROR: Check failed - {detail}";
             _lblVersionInfo.ForeColor = TextMain;
-            _lblVersionInfo.Font = new Font(_uiFont, 8.25f, FontStyle.Bold);
+            _lblVersionInfo.Font = _fontStatusBold;
         }
         finally
         {
@@ -912,6 +954,8 @@ public class SettingsForm : Form
         {
             _previewDebounceTimer?.Dispose();
             _previewBox?.Image?.Dispose();
+            _fontStatusRegular?.Dispose();
+            _fontStatusBold?.Dispose();
         }
         base.Dispose(disposing);
     }

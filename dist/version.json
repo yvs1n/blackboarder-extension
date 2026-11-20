@@ -1,18 +1,20 @@
 {
-  "version": "1.8.16",
-  "build": "31c6f6289703",
-  "commit": "52bdc6784619b02773c7f740d4ba635a4718eaa2",
-  "shortCommit": "52bdc67",
-  "timestamp": "2026-11-19T16:34:33.768Z",
-  "message": "v1.8.15: fix(landing): overhaul mobile viewport layout and stage grid width constraints (v1.8.15)",
+  "version": "1.8.17",
+  "build": "2e09cb317f98",
+  "commit": "c41b0084435bb7b2842d81b29bed6b32092cfd00",
+  "shortCommit": "c41b008",
+  "timestamp": "2026-11-20T13:39:07.148Z",
+  "message": "v1.8.16: feat(landing): horizontal scaled mobile preview and original Swiss Capabilities Workbench (v1.8.16)",
   "changelog": [
-    "Original Swiss Architectural Landing Page & Horizontal Mobile Stage (mobile-web/index.html, mobile-web/landing-motion.js): Kept the hero side-by-side Blackboarder stage horizontal across mobile viewports via proportional ResizeObserver viewport scaling (with an external full-size scene toolbar above it), replaced the hollow traffic-light squares with real padlock and Blackboarder SVG icons, removed the standalone pricing card section in favor of integrating the free MIT guarantee directly into the FAQ aside, added speckled graphite micro-texture and subtle architectural crosshairs over dark-first (#121215) and light (#f8fafc) surfaces, and introduced an asymmetric Capabilities Workbench pairing the live announcement extractor with an interactive SGPA / Target Exam Score simulator alongside pure-black frosted widget and phone companion previews."
+    "Windows Widget Background Sync, Self-Update Exit & Error Reporting (windows-widget/): Fixed TrayApplicationContext.BackgroundAutoUpdateCheckAsync calling BeginInvoke on an uncreated _contextMenu handle and releasing the single-instance mutex off-thread (which stranded v1.8.7 in the tray while relaunched binaries exited as duplicates), added an eager UI-thread marshaler control (_uiInvoker), --wait-pid handoff, and a UI-thread shutdown watchdog so updates always cleanly restart into the new build. Replaced in-place lockscreen image overwrites and stale render fingerprints with atomic alternating output paths, midnight date-boundary tracking, wallpaper mtime change detection, MemoryStream base wallpaper reads, descriptive error formatting (eliminating blank \"Error applying widget:\" dialogs), and a visible error state on the Live Real-Time Preview box.",
+    "Extension & Companion Swiss Linearity (src/popup/styles/11-design-marks.css, src/mobile/styles/09-onboarding-design.css): Aligned selection inversion, tabular figures (tabular-nums), display title tracking, and tactile Swiss 3D hard-offset hover/press states across primary action buttons in both the extension and companion web app while respecting prefers-reduced-motion.",
+    "Worker Static Caching & Archive Routing (src/worker/05-router.js): Added no-cache HTML rules for /old/ and clean caching/content-type handling for /llms.txt and /og-preview.png."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-C6Z_yT7f.js",
-    "assets/popup-DlZTlo49.css",
+    "assets/popup-Bat467Gg.js",
+    "assets/popup-D0XRltse.css",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

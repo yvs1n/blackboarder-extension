@@ -67,13 +67,13 @@ Your deadlines, courses, custom syllabus weights, and Personal Sync Key are **pe
 
 ### Managing updates in Settings > Updates
 1. Open the Blackboarder extension and click the **Settings** gear icon, then select **Updates**.
-2. Keep **Automatic Updates** turned **ON** (enabled by default) so Blackboarder checks GitHub every 15 minutes over HTTP, downloads new builds cleanly (purging old leftover files), and restarts itself once the popup closes.
-3. Keep **Show Changelog After Update** turned **ON** to view a **What's New** summary the first time you open Blackboarder after an update, or expand the latest changelog inside **Settings > Updates** anytime.
-4. You can also click **Check for Updates**, **Update Now**, **Reload Extension**, or **Download Latest Extension (.zip)** at any time.
+2. Blackboarder checks GitHub every 15 minutes over lightweight HTTP and shows a banner whenever a newer build is available.
+3. Keep **Automatic Updates** turned **ON** (enabled by default): on git clones on clean `main` or unpacked Chromium folders where the optional helper below is registered, new builds replace files cleanly on disk and reload immediately when you click **Update Now** (or automatically once idle).
+4. Keep **Show Changelog After Update** turned **ON** to view a **What's New** summary the first time you open Blackboarder after an update, or expand the latest changelog inside **Settings > Updates** anytime.
 
-### Manual ZIP or optional folder helper
-- **Manual ZIP refresh:** Download the latest `blackboarder-extension.zip`, extract it over your existing extension folder, and click **Reload** on your browser extensions page.
-- **Unattended unpacked helper (optional):** On Chromium browsers loaded via **Load unpacked**, running `update.bat` (Windows) or `./update.sh` (Mac/Linux) once registers the native helper in `updater/` so the extension can replace files on disk automatically without downloading the ZIP by hand.
+### Manual ZIP or optional in-place helper
+- **Manual ZIP refresh:** Download `blackboarder-extension.zip` from **Settings > Updates** or GitHub Releases, extract it over your existing extension folder, and click **Reload** on your browser extensions page.
+- **One-time in-place helper (optional):** On unpacked Chromium installs (Chrome, Edge, Brave, Opera, Vivaldi), run `update.bat` (Windows) or `./update.sh` (Mac/Linux) once to register the lightweight helper in `updater/` so clicking **Update Now** (or Automatic Updates) updates files cleanly on disk and reloads the extension immediately without re-downloading the ZIP by hand.
 
 > If you loaded the extension from a `git clone`, the helper updates it with `git pull --ff-only`, and only when the clone is on `main` with no uncommitted changes. Otherwise it leaves your work alone and **Settings > Updates** shows why.
 

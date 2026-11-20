@@ -15,7 +15,11 @@ public class AppConfig
     public static readonly string ConfigFilePath = Path.Combine(AppDataFolder, "config.json");
     public static readonly string TasksCachePath = Path.Combine(AppDataFolder, "tasks_cache.json");
     public static readonly string LockscreenImagePath = Path.Combine(AppDataFolder, "lockscreen_widget.png");
+    public static readonly string LockscreenImagePathA = Path.Combine(AppDataFolder, "lockscreen_widget_a.png");
+    public static readonly string LockscreenImagePathB = Path.Combine(AppDataFolder, "lockscreen_widget_b.png");
     public static readonly string DesktopImagePath = Path.Combine(AppDataFolder, "desktop_widget.png");
+    public static readonly string DesktopImagePathA = Path.Combine(AppDataFolder, "desktop_widget_a.png");
+    public static readonly string DesktopImagePathB = Path.Combine(AppDataFolder, "desktop_widget_b.png");
     public static readonly string OriginalWallpaperBackup = Path.Combine(AppDataFolder, "original_wallpaper.jpg");
     public static readonly string LastStatePath = Path.Combine(AppDataFolder, "last_render_state.json");
 

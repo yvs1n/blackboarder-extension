@@ -145,13 +145,15 @@ public static class LiquidGlassRenderer
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
 
-        // 1. Draw base wallpaper image
+        // 1. Draw base wallpaper image (read bytes into memory so the file on disk is never locked)
         bool baseDrawn = false;
         if (!string.IsNullOrWhiteSpace(wallpaperPath) && File.Exists(wallpaperPath))
         {
             try
             {
-                using var baseImg = Image.FromFile(wallpaperPath);
+                byte[] imgBytes = File.ReadAllBytes(wallpaperPath);
+                using var ms = new MemoryStream(imgBytes, writable: false);
+                using var baseImg = Image.FromStream(ms, useEmbeddedColorManagement: true, validateImageData: false);
                 float scale = Math.Max((float)screenWidth / baseImg.Width, (float)screenHeight / baseImg.Height);
                 int drawW = (int)(baseImg.Width * scale);
                 int drawH = (int)(baseImg.Height * scale);
@@ -160,7 +162,10 @@ public static class LiquidGlassRenderer
                 g.DrawImage(baseImg, drawX, drawY, drawW, drawH);
                 baseDrawn = true;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Program.Log($"Base wallpaper load warning ({wallpaperPath}): {ex.GetType().Name}: {ex.Message}");
+            }
         }
 
         if (!baseDrawn)
@@ -275,7 +280,14 @@ public static class LiquidGlassRenderer
             using var cropped = bmp.Clone(new Rectangle(cropX, cropY, cropW, cropH), PixelFormat.Format32bppArgb);
             if (config.BlurRadius >= 1)
             {
-                FastBlurEngine.ApplyGaussian(cropped, config.BlurRadius);
+                try
+                {
+                    FastBlurEngine.ApplyGaussian(cropped, config.BlurRadius);
+                }
+                catch (Exception ex)
+                {
+                    Program.Log($"Blur fallback warning: {ex.GetType().Name}: {ex.Message}");
+                }
             }
 
             var state = g.Save();
@@ -483,7 +495,9 @@ public static class LiquidGlassRenderer
             using var installed = new InstalledFontCollection();
             foreach (var fam in installed.Families)
             {
-                if (string.Equals(fam.Name, primary, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(fam.Name, primary, StringComparison.OrdinalIgnoreCase) &&
+                    fam.IsStyleAvailable(FontStyle.Regular) &&
+                    fam.IsStyleAvailable(FontStyle.Bold))
                 {
                     return fam.Name;
                 }

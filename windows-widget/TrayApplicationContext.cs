@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -46,12 +47,16 @@ internal sealed class SwissGridToolStripRenderer : ToolStripProfessionalRenderer
 
 public class TrayApplicationContext : ApplicationContext
 {
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
     private static readonly Color TextMain = Color.FromArgb(244, 244, 246);  // #F4F4F6
     private static readonly Color TextMuted = Color.FromArgb(161, 161, 170); // #A1A1AA
 
     private readonly NotifyIcon _trayIcon;
     private readonly ContextMenuStrip _contextMenu;
     private readonly ToolStripMenuItem _itemStatus;
+    private readonly Control _uiInvoker;
     private readonly AppConfig _config;
     private readonly SyncEngine _syncEngine;
     private System.Threading.Timer? _updateTimer;
@@ -61,6 +66,10 @@ public class TrayApplicationContext : ApplicationContext
     {
         _config = config;
         _syncEngine = syncEngine;
+
+        // Hidden control with eagerly created Win32 handle so background threads can always marshal cleanly to the UI thread
+        _uiInvoker = new Control();
+        _ = _uiInvoker.Handle;
 
         // Create Custom Square Two-Tone Icon
         Icon appIcon = CreateAppIcon();
@@ -189,17 +198,25 @@ public class TrayApplicationContext : ApplicationContext
             g.FillRectangle(darkBrush, 9, 23, 12, 2);
         }
         IntPtr hIcon = bmp.GetHicon();
-        return Icon.FromHandle(hIcon);
+        try
+        {
+            using var tmpIcon = Icon.FromHandle(hIcon);
+            return (Icon)tmpIcon.Clone();
+        }
+        finally
+        {
+            DestroyIcon(hIcon);
+        }
     }
 
     private void OnSyncCompleted(SyncResult res)
     {
         try
         {
-            if (_contextMenu.IsDisposed) return;
-            if (_contextMenu.InvokeRequired)
+            if (_uiInvoker.IsDisposed || _contextMenu.IsDisposed) return;
+            if (_uiInvoker.InvokeRequired)
             {
-                _contextMenu.BeginInvoke(() => OnSyncCompleted(res));
+                _uiInvoker.BeginInvoke(() => OnSyncCompleted(res));
                 return;
             }
 
@@ -212,7 +229,7 @@ public class TrayApplicationContext : ApplicationContext
             }
             else
             {
-                _itemStatus.Text = $"Sync paused (offline) • {time}";
+                _itemStatus.Text = $"Sync paused (issue) • {time}";
                 _itemStatus.ForeColor = TextMuted;
             }
         }
@@ -291,18 +308,28 @@ public class TrayApplicationContext : ApplicationContext
             // Avoid interrupting while the user has the Settings window open
             if (_settingsForm != null && !_settingsForm.IsDisposed) return;
 
+            Program.Log($"Background auto-update starting for {release.TagName}");
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,
                 relaunchMinimized: true,
-                Program.ReleaseInstanceMutex
+                beforeRelaunchOnUiThread: null
             ).ConfigureAwait(false);
 
-            if (applied.Relaunching && !_contextMenu.IsDisposed)
+            Program.Log($"Background auto-update result: success={applied.Success} relaunching={applied.Relaunching} msg={applied.Message}");
+            if (applied.Relaunching)
             {
-                _contextMenu.BeginInvoke(ExitApplication);
+                if (_uiInvoker.IsDisposed)
+                {
+                    Environment.Exit(0);
+                    return;
+                }
+                _uiInvoker.BeginInvoke(() => ExitApplication(forceTerminateFallback: true));
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Program.Log($"Background auto-update error: {ex.Message}");
+        }
     }
 
     private async Task OnCheckUpdatesClicked()
@@ -346,12 +373,12 @@ public class TrayApplicationContext : ApplicationContext
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,
                 relaunchMinimized: false,
-                Program.ReleaseInstanceMutex
+                beforeRelaunchOnUiThread: null
             );
 
             if (applied.Relaunching)
             {
-                ExitApplication();
+                ExitApplication(forceTerminateFallback: true);
             }
             else
             {
@@ -364,12 +391,31 @@ public class TrayApplicationContext : ApplicationContext
         }
     }
 
-    private void ExitApplication()
+    private void ExitApplication() => ExitApplication(forceTerminateFallback: false);
+
+    private void ExitApplication(bool forceTerminateFallback)
     {
-        _updateTimer?.Dispose();
-        _trayIcon.Visible = false;
-        _trayIcon.Dispose();
-        _syncEngine.Dispose();
+        try
+        {
+            _updateTimer?.Dispose();
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+            _syncEngine.Dispose();
+            _uiInvoker.Dispose();
+        }
+        catch { }
+
+        // Must run on the UI thread that owns the mutex
+        Program.ReleaseInstanceMutex();
         Application.Exit();
+
+        if (forceTerminateFallback)
+        {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(3000);
+                Environment.Exit(0);
+            });
+        }
     }
 }
