@@ -1,18 +1,18 @@
 {
-  "version": "1.8.20",
-  "build": "a34109e33c0c",
-  "commit": "609c64ce743f25c4bb1ed609267d209031f05b21",
-  "shortCommit": "609c64c",
-  "timestamp": "2026-11-20T15:12:57.800Z",
-  "message": "v1.8.19: fix(popup,payments,state): v1.8.19 dark-mode hover contrast, payment modal submit, and explicit state machines",
+  "version": "1.8.21",
+  "build": "0efa2cd51456",
+  "commit": "11f62cedc2ee7e2e8cbfda29664bca5877496f60",
+  "shortCommit": "11f62ce",
+  "timestamp": "2026-11-20T15:20:07.993Z",
+  "message": "v1.8.20: style(popup,companion): v1.8.20 restore tactile 3D button hover animation while preserving dark-mode contrast",
   "changelog": [
-    "Swiss Tactile 3D Button Offset Animation (src/popup/styles/11-design-marks.css, src/mobile/styles/09-onboarding-design.css): Restored the Swiss 3D hard-offset hover/press animation (translate(-1.5px, -1.5px) with crisp 2px 2px 0 var(--text-subtle) offset shadow, snapping flush on :active and guarded by @media (hover: hover) and prefers-reduced-motion: reduce)) across action buttons in both the extension and web companion while keeping the dark-mode contrast fixes intact."
+    "CTA-Only 3D Button Offset Animation (src/popup/styles/11-design-marks.css, src/mobile/styles/09-onboarding-design.css): Scoped the Swiss tactile 3D offset hover/press animation exclusively to primary CTA buttons (.btn-scan-main, .btn-primary, .btn-primary-action, .btn-save-action) with crisp 0.12s response, keeping secondary, card-row, and icon buttons flat and instant in both the extension and companion while leaving the landing page unchanged."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-Buk_OX-v.js",
-    "assets/popup-CYTLqsmd.css",
+    "assets/popup-BJVmlFFX.js",
+    "assets/popup-ljZ7McrB.css",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

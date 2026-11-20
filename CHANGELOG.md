@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.21] - 2026-11-20
+
+### Changed
+
+- **CTA-Only 3D Button Offset Animation (`src/popup/styles/11-design-marks.css`, `src/mobile/styles/09-onboarding-design.css`):** Scoped the Swiss tactile 3D offset hover/press animation exclusively to primary CTA buttons (`.btn-scan-main`, `.btn-primary`, `.btn-primary-action`, `.btn-save-action`) with crisp `0.12s` response, keeping secondary, card-row, and icon buttons flat and instant in both the extension and companion while leaving the landing page unchanged.
+
+---
+
 ## [1.8.20] - 2026-11-20
 
 ### Restored

@@ -724,32 +724,20 @@ body {
   .btn-scan-main,
   .btn-primary,
   .btn-primary-action,
-  .btn-save-action,
-  .btn-secondary,
-  .btn-outline-action,
-  .icon-btn,
-  .btn-card-action {
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  .btn-save-action {
+    transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
   }
   .btn-scan-main:not(:disabled):hover,
   .btn-primary:not(:disabled):hover,
   .btn-primary-action:not(:disabled):hover,
-  .btn-save-action:not(:disabled):hover,
-  .btn-secondary:not(:disabled):hover,
-  .btn-outline-action:not(:disabled):hover,
-  .icon-btn:not(:disabled):hover,
-  .btn-card-action:not(:disabled):hover {
+  .btn-save-action:not(:disabled):hover {
     transform: translate(-1.5px, -1.5px);
     box-shadow: 2px 2px 0 var(--text-subtle);
   }
   .btn-scan-main:not(:disabled):active,
   .btn-primary:not(:disabled):active,
   .btn-primary-action:not(:disabled):active,
-  .btn-save-action:not(:disabled):active,
-  .btn-secondary:not(:disabled):active,
-  .btn-outline-action:not(:disabled):active,
-  .icon-btn:not(:disabled):active,
-  .btn-card-action:not(:disabled):active {
+  .btn-save-action:not(:disabled):active {
     transform: translate(0, 0);
     box-shadow: none;
   }
@@ -759,21 +747,13 @@ body {
   .btn-scan-main,
   .btn-primary,
   .btn-primary-action,
-  .btn-save-action,
-  .btn-secondary,
-  .btn-outline-action,
-  .icon-btn,
-  .btn-card-action {
+  .btn-save-action {
     transition: none;
   }
   .btn-scan-main:hover,
   .btn-primary:hover,
   .btn-primary-action:hover,
-  .btn-save-action:hover,
-  .btn-secondary:hover,
-  .btn-outline-action:hover,
-  .icon-btn:hover,
-  .btn-card-action:hover {
+  .btn-save-action:hover {
     transform: none;
     box-shadow: none;
   }
