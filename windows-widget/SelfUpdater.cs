@@ -52,10 +52,23 @@ public static class SelfUpdater
 
     public static string CurrentVersionString => $"{CurrentVersion.Major}.{CurrentVersion.Minor}.{Math.Max(0, CurrentVersion.Build)}";
 
-    public static bool CanSelfUpdate(out string reason)
+    public static string GetCanonicalExePath()
     {
         string? exePath = Environment.ProcessPath;
-        if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+        if (string.IsNullOrWhiteSpace(exePath)) return string.Empty;
+
+        int oldIdx = exePath.IndexOf(".exe.old", StringComparison.OrdinalIgnoreCase);
+        if (oldIdx > 0)
+        {
+            return exePath[..(oldIdx + 4)];
+        }
+        return exePath;
+    }
+
+    public static bool CanSelfUpdate(out string reason)
+    {
+        string exePath = GetCanonicalExePath();
+        if (string.IsNullOrWhiteSpace(exePath) || (!File.Exists(exePath) && !File.Exists(Environment.ProcessPath)))
         {
             reason = "Executable path is unavailable.";
             return false;
@@ -85,26 +98,28 @@ public static class SelfUpdater
     {
         try
         {
-            string? exePath = Environment.ProcessPath;
+            string exePath = GetCanonicalExePath();
             if (string.IsNullOrWhiteSpace(exePath)) return;
+            string? dir = Path.GetDirectoryName(exePath);
+            string baseName = Path.GetFileName(exePath);
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir)) return;
 
-            foreach (string suffix in new[] { ".old", ".update.tmp" })
+            string? currentProcPath = Environment.ProcessPath;
+            foreach (string file in Directory.GetFiles(dir, baseName + "*"))
             {
-                string target = exePath + suffix;
-                if (!File.Exists(target)) continue;
-
-                for (int i = 0; i < 6; i++)
+                if (string.Equals(file, exePath, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrWhiteSpace(currentProcPath) &&
+                    string.Equals(file, currentProcPath, StringComparison.OrdinalIgnoreCase))
                 {
-                    try
-                    {
-                        File.Delete(target);
-                        break;
-                    }
-                    catch
-                    {
-                        Thread.Sleep(250);
-                    }
+                    continue;
                 }
+
+                string fileName = Path.GetFileName(file);
+                bool isStale = fileName.Contains(".old", StringComparison.OrdinalIgnoreCase) ||
+                               fileName.Contains(".update.tmp", StringComparison.OrdinalIgnoreCase);
+                if (!isStale) continue;
+
+                TryDelete(file);
             }
         }
         catch { }
@@ -162,7 +177,8 @@ public static class SelfUpdater
     public static async Task<UpdateApplyResult> DownloadAndApplyUpdateAsync(
         ReleaseUpdateInfo release,
         bool relaunchMinimized,
-        Action? beforeRelaunchOnUiThread = null)
+        Action? beforeRelaunchOnUiThread = null,
+        IProgress<string>? progress = null)
     {
         if (!CanSelfUpdate(out string blockReason))
         {
@@ -174,19 +190,27 @@ public static class SelfUpdater
             return new UpdateApplyResult(false, false, "An update is already in progress.");
         }
 
-        string? exePath = Environment.ProcessPath;
+        string exePath = GetCanonicalExePath();
         if (string.IsNullOrWhiteSpace(exePath))
         {
             UpdateLock.Release();
             return new UpdateApplyResult(false, false, "Executable path missing.");
         }
 
-        string tmpPath = exePath + ".update.tmp";
-        string oldPath = exePath + ".old";
+        // Stage download in LocalApplicationData\Blackboarder\updates so Controlled Folder Access or locked Desktop files never block the download
+        string stagingDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Blackboarder",
+            "updates"
+        );
+        Directory.CreateDirectory(stagingDir);
+        string tmpPath = Path.Combine(stagingDir, $"BlackboarderWidget_{Environment.ProcessId}.update.tmp");
 
         try
         {
             Program.Log($"Updater downloading {release.TagName} to {tmpPath}");
+            progress?.Report($"Downloading {release.TagName}...");
+
             using var dlClient = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
             dlClient.DefaultRequestHeaders.UserAgent.ParseAdd($"BlackboarderWidget/{CurrentVersionString}");
 
@@ -196,9 +220,28 @@ public static class SelfUpdater
                 return new UpdateApplyResult(false, false, $"Download failed (HTTP {(int)resp.StatusCode}).");
             }
 
-            await using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            long totalBytes = resp.Content.Headers.ContentLength ?? release.ExpectedSize;
+            await using (var netStream = await resp.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            await using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
             {
-                await resp.Content.CopyToAsync(fs).ConfigureAwait(false);
+                byte[] buffer = new byte[81920];
+                long readTotal = 0;
+                int lastReportedPct = -1;
+                int read;
+                while ((read = await netStream.ReadAsync(buffer.AsMemory(0, buffer.Length)).ConfigureAwait(false)) > 0)
+                {
+                    await fs.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                    readTotal += read;
+                    if (totalBytes > 0)
+                    {
+                        int pct = (int)Math.Clamp((readTotal * 100L) / totalBytes, 0, 100);
+                        if (pct != lastReportedPct && (pct % 5 == 0 || pct == 100))
+                        {
+                            lastReportedPct = pct;
+                            progress?.Report($"Downloading {release.TagName}... {pct}%");
+                        }
+                    }
+                }
             }
 
             var fi = new FileInfo(tmpPath);
@@ -224,34 +267,56 @@ public static class SelfUpdater
                 }
             }
 
-            // Swap running executable safely on NTFS (rename in-use exe -> .old, move .tmp -> exe)
-            Program.Log($"Updater swapping binary for {release.TagName}");
-            TryDelete(oldPath);
-            File.Move(exePath, oldPath, overwrite: true);
+            progress?.Report($"Installing {release.TagName}...");
+            Program.Log($"Updater swapping binary for {release.TagName} into {exePath}");
 
-            try
-            {
-                File.Move(tmpPath, exePath, overwrite: true);
-            }
-            catch
-            {
-                // Roll back if moving new binary into place failed
-                try { File.Move(oldPath, exePath, overwrite: true); } catch { }
-                throw;
-            }
-
-            // Invoke only UI-safe preparation when provided on UI thread (mutex itself must be freed on UI thread)
-            beforeRelaunchOnUiThread?.Invoke();
+            // Terminate any other stray BlackboarderWidget instances that might lock exePath or .old
+            TerminateOtherWidgetProcesses();
+            CleanupStaleUpdateFiles();
 
             string modeFlag = relaunchMinimized ? "--minimized --updated" : "--updated";
             string relaunchArgs = $"{modeFlag} --wait-pid {Environment.ProcessId}";
-            Program.Log($"Updater launching new binary with args: {relaunchArgs}");
-            Process.Start(new ProcessStartInfo
+
+            // Try fast in-place NTFS rename first using a guaranteed unlocked .old backup slot
+            bool swappedInPlace = false;
+            string oldBackupPath = GetAvailableOldBackupPath(exePath);
+            try
             {
-                FileName = exePath,
-                Arguments = relaunchArgs,
-                UseShellExecute = true
-            });
+                if (File.Exists(exePath))
+                {
+                    File.Move(exePath, oldBackupPath, overwrite: true);
+                }
+                File.Copy(tmpPath, exePath, overwrite: true);
+                TryDelete(tmpPath);
+                swappedInPlace = true;
+            }
+            catch (Exception swapEx)
+            {
+                Program.Log($"In-place swap fallback ({swapEx.GetType().Name}: {swapEx.Message}); using post-exit helper script.");
+                // Restore exePath if it was moved before File.Copy failed
+                if (!File.Exists(exePath) && File.Exists(oldBackupPath))
+                {
+                    try { File.Move(oldBackupPath, exePath, overwrite: true); } catch { }
+                }
+            }
+
+            beforeRelaunchOnUiThread?.Invoke();
+
+            if (swappedInPlace)
+            {
+                Program.Log($"Updater launching new binary directly: {exePath} {relaunchArgs}");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exePath,
+                    Arguments = relaunchArgs,
+                    UseShellExecute = true
+                });
+            }
+            else
+            {
+                // Out-of-process post-exit swapper handles locked files after this PID exits
+                LaunchPostExitSwapHelper(tmpPath, exePath, relaunchArgs, stagingDir);
+            }
 
             return new UpdateApplyResult(true, true, $"Updated to {release.TagName}.");
         }
@@ -265,6 +330,79 @@ public static class SelfUpdater
         {
             UpdateLock.Release();
         }
+    }
+
+    private static string GetAvailableOldBackupPath(string exePath)
+    {
+        string primaryOld = exePath + ".old";
+        TryDelete(primaryOld);
+        if (!File.Exists(primaryOld)) return primaryOld;
+
+        for (int i = 1; i <= 50; i++)
+        {
+            string candidate = $"{exePath}.old.{i}";
+            TryDelete(candidate);
+            if (!File.Exists(candidate)) return candidate;
+        }
+
+        return $"{exePath}.old.{Environment.ProcessId}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+    }
+
+    private static void TerminateOtherWidgetProcesses()
+    {
+        int currentPid = Environment.ProcessId;
+        try
+        {
+            foreach (var proc in Process.GetProcessesByName("BlackboarderWidget"))
+            {
+                using (proc)
+                {
+                    if (proc.Id == currentPid) continue;
+                    try
+                    {
+                        Program.Log($"Terminating stale BlackboarderWidget process PID {proc.Id}");
+                        proc.Kill();
+                        proc.WaitForExit(2000);
+                    }
+                    catch { }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private static void LaunchPostExitSwapHelper(string stagedTmpPath, string targetExePath, string relaunchArgs, string stagingDir)
+    {
+        string scriptPath = Path.Combine(stagingDir, "apply_update.cmd");
+        int pid = Environment.ProcessId;
+        string script =
+            "@echo off\r\n" +
+            "for /L %%i in (1,1,30) do (\r\n" +
+            $"  tasklist /FI \"PID eq {pid}\" 2>NUL | find /I \"{pid}\" >NUL\r\n" +
+            "  if errorlevel 1 goto :copy\r\n" +
+            "  timeout /t 1 /nobreak >NUL\r\n" +
+            ")\r\n" +
+            ":copy\r\n" +
+            $"del /F /Q \"{targetExePath}.old\" >NUL 2>&1\r\n" +
+            $"move /Y \"{targetExePath}\" \"{targetExePath}.old\" >NUL 2>&1\r\n" +
+            $"for /L %%r in (1,1,10) do (\r\n" +
+            $"  copy /Y /B \"{stagedTmpPath}\" \"{targetExePath}\" >NUL 2>&1 && goto :launch\r\n" +
+            "  timeout /t 1 /nobreak >NUL\r\n" +
+            ")\r\n" +
+            ":launch\r\n" +
+            $"del /F /Q \"{stagedTmpPath}\" >NUL 2>&1\r\n" +
+            $"start \"\" \"{targetExePath}\" {relaunchArgs}\r\n";
+
+        File.WriteAllText(scriptPath, script);
+        Program.Log($"Launching post-exit helper script: {scriptPath}");
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = $"/C \"\"{scriptPath}\"\"",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            WindowStyle = ProcessWindowStyle.Hidden
+        });
     }
 
     private static Version? ParseVersion(string raw)

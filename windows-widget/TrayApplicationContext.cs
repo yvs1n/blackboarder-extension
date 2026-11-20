@@ -370,10 +370,19 @@ public class TrayApplicationContext : ApplicationContext
             _itemStatus.Text = $"Downloading {release.TagName}...";
             _itemStatus.ForeColor = TextMain;
 
+            var progress = new Progress<string>(status =>
+            {
+                if (!_contextMenu.IsDisposed)
+                {
+                    _itemStatus.Text = status;
+                }
+            });
+
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,
                 relaunchMinimized: false,
-                beforeRelaunchOnUiThread: null
+                beforeRelaunchOnUiThread: null,
+                progress: progress
             );
 
             if (applied.Relaunching)

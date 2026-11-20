@@ -13,6 +13,59 @@ public static class LiquidGlassRenderer
     private const char BulletChar = '\u2022';
     private const char CheckChar = '\u2713';
 
+    private static readonly object WallpaperCacheLock = new();
+    private static string? _cachedWallpaperKey;
+    private static Bitmap? _cachedWallpaperBitmap;
+    private static readonly Dictionary<string, string> ResolvedFontCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static Bitmap? TryCloneCachedBaseWallpaper(string? wallpaperPath, int screenWidth, int screenHeight)
+    {
+        if (string.IsNullOrWhiteSpace(wallpaperPath) || !File.Exists(wallpaperPath)) return null;
+
+        try
+        {
+            long writeTicks = File.GetLastWriteTimeUtc(wallpaperPath).Ticks;
+            string cacheKey = $"{wallpaperPath}|{writeTicks}|{screenWidth}x{screenHeight}";
+
+            lock (WallpaperCacheLock)
+            {
+                if (_cachedWallpaperBitmap != null && string.Equals(_cachedWallpaperKey, cacheKey, StringComparison.Ordinal))
+                {
+                    return (Bitmap)_cachedWallpaperBitmap.Clone();
+                }
+            }
+
+            byte[] imgBytes = File.ReadAllBytes(wallpaperPath);
+            using var ms = new MemoryStream(imgBytes, writable: false);
+            using var baseImg = Image.FromStream(ms, useEmbeddedColorManagement: true, validateImageData: false);
+
+            var scaledBase = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb);
+            using (var sg = Graphics.FromImage(scaledBase))
+            {
+                sg.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                float scale = Math.Max((float)screenWidth / baseImg.Width, (float)screenHeight / baseImg.Height);
+                int drawW = (int)(baseImg.Width * scale);
+                int drawH = (int)(baseImg.Height * scale);
+                int drawX = (screenWidth - drawW) / 2;
+                int drawY = (screenHeight - drawH) / 2;
+                sg.DrawImage(baseImg, drawX, drawY, drawW, drawH);
+            }
+
+            lock (WallpaperCacheLock)
+            {
+                _cachedWallpaperBitmap?.Dispose();
+                _cachedWallpaperBitmap = scaledBase;
+                _cachedWallpaperKey = cacheKey;
+                return (Bitmap)_cachedWallpaperBitmap.Clone();
+            }
+        }
+        catch (Exception ex)
+        {
+            Program.Log($"Base wallpaper load warning ({wallpaperPath}): {ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
     public static GraphicsPath GetRoundedRectanglePath(RectangleF rect, float radius)
     {
         var path = new GraphicsPath();
@@ -139,34 +192,15 @@ public static class LiquidGlassRenderer
         screenHeight = Math.Max(320, screenHeight);
         var theme = styleConfig?.Theme;
 
-        var bmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb);
+        // 1. Clone pre-scaled base wallpaper image from memory cache (or decode once on first render / wallpaper change)
+        Bitmap? bmp = TryCloneCachedBaseWallpaper(wallpaperPath, screenWidth, screenHeight);
+        bool baseDrawn = bmp != null;
+        bmp ??= new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb);
+
         using var g = Graphics.FromImage(bmp);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
         g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-
-        // 1. Draw base wallpaper image (read bytes into memory so the file on disk is never locked)
-        bool baseDrawn = false;
-        if (!string.IsNullOrWhiteSpace(wallpaperPath) && File.Exists(wallpaperPath))
-        {
-            try
-            {
-                byte[] imgBytes = File.ReadAllBytes(wallpaperPath);
-                using var ms = new MemoryStream(imgBytes, writable: false);
-                using var baseImg = Image.FromStream(ms, useEmbeddedColorManagement: true, validateImageData: false);
-                float scale = Math.Max((float)screenWidth / baseImg.Width, (float)screenHeight / baseImg.Height);
-                int drawW = (int)(baseImg.Width * scale);
-                int drawH = (int)(baseImg.Height * scale);
-                int drawX = (screenWidth - drawW) / 2;
-                int drawY = (screenHeight - drawH) / 2;
-                g.DrawImage(baseImg, drawX, drawY, drawW, drawH);
-                baseDrawn = true;
-            }
-            catch (Exception ex)
-            {
-                Program.Log($"Base wallpaper load warning ({wallpaperPath}): {ex.GetType().Name}: {ex.Message}");
-            }
-        }
 
         if (!baseDrawn)
         {
@@ -490,6 +524,16 @@ public static class LiquidGlassRenderer
 
     internal static string ResolvePreferredFont(string primary, string fallback)
     {
+        string cacheKey = $"{primary}||{fallback}";
+        lock (ResolvedFontCache)
+        {
+            if (ResolvedFontCache.TryGetValue(cacheKey, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        string resolved = fallback;
         try
         {
             using var installed = new InstalledFontCollection();
@@ -499,11 +543,17 @@ public static class LiquidGlassRenderer
                     fam.IsStyleAvailable(FontStyle.Regular) &&
                     fam.IsStyleAvailable(FontStyle.Bold))
                 {
-                    return fam.Name;
+                    resolved = fam.Name;
+                    break;
                 }
             }
         }
         catch { }
-        return fallback;
+
+        lock (ResolvedFontCache)
+        {
+            ResolvedFontCache[cacheKey] = resolved;
+        }
+        return resolved;
     }
 }

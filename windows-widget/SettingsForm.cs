@@ -9,6 +9,22 @@ using System.Windows.Forms;
 
 namespace BlackboarderWidget;
 
+internal sealed class BufferedCardPanel : Panel
+{
+    public BufferedCardPanel()
+    {
+        this.DoubleBuffered = true;
+        this.ResizeRedraw = true;
+        this.SetStyle(
+            ControlStyles.AllPaintingInWmPaint |
+            ControlStyles.UserPaint |
+            ControlStyles.OptimizedDoubleBuffer |
+            ControlStyles.ResizeRedraw,
+            true
+        );
+    }
+}
+
 public class SettingsForm : Form
 {
     [DllImport("dwmapi.dll")]
@@ -16,6 +32,20 @@ public class SettingsForm : Form
 
     private readonly AppConfig _config;
     private readonly SyncEngine _syncEngine;
+
+    // Layout Containers for Responsive Resizing
+    private Panel _leftScroll = null!;
+    private FlowLayoutPanel _leftStack = null!;
+    private Panel _grpConnection = null!;
+    private Panel _grpTargets = null!;
+    private Panel _grpStyle = null!;
+    private Panel _grpWallpaper = null!;
+    private Panel _grpStartup = null!;
+    private Panel _pnlActions = null!;
+    private Label _lblTasksHeader = null!;
+    private Panel _grpPreview = null!;
+    private Panel _previewFrame = null!;
+    private Label _lblPreviewTip = null!;
 
     // UI Controls
     private TextBox _txtSyncKey = null!;
@@ -77,13 +107,19 @@ public class SettingsForm : Form
     {
         _config = config;
         _syncEngine = syncEngine;
+        this.DoubleBuffered = true;
         _fontStatusRegular = new Font(_uiFont, 8.25f, FontStyle.Regular);
         _fontStatusBold = new Font(_uiFont, 8.25f, FontStyle.Bold);
 
         InitializeComponent();
         ApplyDarkTitleBar();
         LoadValues();
-        TriggerPreviewUpdate();
+        UpdateResponsiveLayout();
+        this.Shown += (s, e) =>
+        {
+            UpdateResponsiveLayout();
+            TriggerPreviewUpdate();
+        };
     }
 
     private void ApplyDarkTitleBar()
@@ -106,15 +142,15 @@ public class SettingsForm : Form
     {
         this.Text = "Blackboarder - Windows Widget Settings";
         this.Icon = TrayApplicationContext.CreateAppIcon();
-        this.Size = new Size(1060, 720);
-        this.MinimumSize = new Size(980, 650);
+        this.Size = new Size(1080, 760);
+        this.MinimumSize = new Size(880, 580);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.BackColor = BgColor;
         this.ForeColor = TextMain;
         this.Font = new Font(_uiFont, 9.25f, FontStyle.Regular);
 
         // Top Swiss Grid Header Strip (0px square, hairline 1px separation)
-        var topBar = new Panel
+        var topBar = new BufferedCardPanel
         {
             Dock = DockStyle.Top,
             Height = 46,
@@ -172,31 +208,32 @@ public class SettingsForm : Form
         this.Controls.Add(topBar);
 
         // --- LEFT PANEL (Settings Controls) ---
-        var leftScroll = new Panel
+        _leftScroll = new Panel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            Padding = new Padding(0, 0, 12, 0),
+            Padding = new Padding(0, 0, 8, 0),
             BackColor = BgColor
         };
-        mainTable.Controls.Add(leftScroll, 0, 0);
+        mainTable.Controls.Add(_leftScroll, 0, 0);
 
-        var leftStack = new FlowLayoutPanel
+        _leftStack = new FlowLayoutPanel
         {
-            Dock = DockStyle.Top,
+            Location = new Point(0, 0),
             AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            Width = 470,
+            Width = 460,
             BackColor = BgColor
         };
-        leftScroll.Controls.Add(leftStack);
+        _leftScroll.Controls.Add(_leftStack);
 
         // 1. Connection Group
-        var grpConnection = CreateCardGroup("ACCOUNT & SYNC PAIRING", 124);
+        _grpConnection = CreateCardGroup("ACCOUNT & SYNC PAIRING", 126);
         var lblSyncKey = new Label { Text = "Pairing Sync Key:", Location = new Point(14, 36), AutoSize = true, ForeColor = TextMuted };
-        _txtSyncKey = CreateBorderedTextBox(grpConnection, 14, 58, 314);
-        _txtSyncKey.TextChanged += (s, e) => { TriggerPreviewUpdate(); };
+        _txtSyncKey = CreateBorderedTextBox(_grpConnection, 14, 58, 314);
+        _txtSyncKey.TextChanged += (s, e) => { _hasFetchedPreviewData = false; TriggerPreviewUpdate(); };
 
         _btnTestConnection = CreateButton("Test Connection", new Point(336, 56), 110, 28, isAccent: false);
         _btnTestConnection.Click += async (s, e) => await OnTestConnectionClicked();
@@ -207,13 +244,13 @@ public class SettingsForm : Form
             Location = new Point(14, 92),
             AutoSize = true,
             ForeColor = TextMuted,
-            Font = new Font(_uiFont, 8.25f)
+            Font = _fontStatusRegular
         };
-        grpConnection.Controls.AddRange(new Control[] { lblSyncKey, _btnTestConnection, _lblConnectionStatus });
-        leftStack.Controls.Add(grpConnection);
+        _grpConnection.Controls.AddRange(new Control[] { lblSyncKey, _btnTestConnection, _lblConnectionStatus });
+        _leftStack.Controls.Add(_grpConnection);
 
         // 2. Display Targets Group
-        var grpTargets = CreateCardGroup("DISPLAY TARGETS", 98);
+        _grpTargets = CreateCardGroup("DISPLAY TARGETS", 98);
         _chkLockScreen = new CheckBox
         {
             Text = "Update Windows Lock Screen",
@@ -234,11 +271,11 @@ public class SettingsForm : Form
         };
         _chkDesktop.CheckedChanged += (s, e) => TriggerPreviewUpdate();
 
-        grpTargets.Controls.AddRange(new Control[] { _chkLockScreen, _chkDesktop });
-        leftStack.Controls.Add(grpTargets);
+        _grpTargets.Controls.AddRange(new Control[] { _chkLockScreen, _chkDesktop });
+        _leftStack.Controls.Add(_grpTargets);
 
         // 3. Card Customization Group
-        var grpStyle = CreateCardGroup("WIDGET CUSTOMIZATION", 220);
+        _grpStyle = CreateCardGroup("WIDGET CUSTOMIZATION", 220);
 
         var lblPos = new Label { Text = "Screen Position:", Location = new Point(14, 38), AutoSize = true, ForeColor = TextMuted };
         _cboPosition = new ComboBox
@@ -253,7 +290,7 @@ public class SettingsForm : Form
         _cboPosition.Items.AddRange(new object[] { "BottomCenter", "BottomRight", "BottomLeft", "TopCenter", "TopRight", "TopLeft" });
         _cboPosition.SelectedIndexChanged += (s, e) => TriggerPreviewUpdate();
 
-        var lblTasks = new Label { Text = "Max Deadlines:", Location = new Point(236, 38), AutoSize = true, ForeColor = TextMuted };
+        _lblTasksHeader = new Label { Text = "Max Deadlines:", Location = new Point(236, 38), AutoSize = true, ForeColor = TextMuted };
         _cboMaxTasks = new ComboBox
         {
             Location = new Point(236, 58),
@@ -304,16 +341,16 @@ public class SettingsForm : Form
             TriggerPreviewUpdate();
         };
 
-        grpStyle.Controls.AddRange(new Control[]
+        _grpStyle.Controls.AddRange(new Control[]
         {
-            lblPos, _cboPosition, lblTasks, _cboMaxTasks,
+            lblPos, _cboPosition, _lblTasksHeader, _cboMaxTasks,
             lblBlur, _lblBlurValue, _trackBlur,
             lblTrans, _lblTransparencyValue, _trackTransparency
         });
-        leftStack.Controls.Add(grpStyle);
+        _leftStack.Controls.Add(_grpStyle);
 
         // 4. Wallpaper Source Group
-        var grpWallpaper = CreateCardGroup("WALLPAPER SOURCE", 136);
+        _grpWallpaper = CreateCardGroup("WALLPAPER SOURCE", 136);
         _rbDefaultWallpaper = new RadioButton
         {
             Text = "Use current Windows Wallpaper (auto-detects changes)",
@@ -337,7 +374,7 @@ public class SettingsForm : Form
             ForeColor = TextMain
         };
 
-        _txtCustomWallpaper = CreateBorderedTextBox(grpWallpaper, 34, 93, 294);
+        _txtCustomWallpaper = CreateBorderedTextBox(_grpWallpaper, 34, 93, 294);
         _txtCustomWallpaper.Enabled = false;
         _txtCustomWallpaper.TextChanged += (s, e) => TriggerPreviewUpdate();
 
@@ -345,11 +382,11 @@ public class SettingsForm : Form
         _btnBrowseWallpaper.Enabled = false;
         _btnBrowseWallpaper.Click += (s, e) => OnBrowseWallpaperClicked();
 
-        grpWallpaper.Controls.AddRange(new Control[] { _rbDefaultWallpaper, _rbCustomWallpaper, _btnBrowseWallpaper });
-        leftStack.Controls.Add(grpWallpaper);
+        _grpWallpaper.Controls.AddRange(new Control[] { _rbDefaultWallpaper, _rbCustomWallpaper, _btnBrowseWallpaper });
+        _leftStack.Controls.Add(_grpWallpaper);
 
         // 5. Startup & Frequency Group
-        var grpStartup = CreateCardGroup("SYSTEM INTEGRATION", 170);
+        _grpStartup = CreateCardGroup("SYSTEM INTEGRATION", 174);
         _chkStartup = new CheckBox
         {
             Text = "Start automatically when Windows boots (runs in system tray)",
@@ -386,25 +423,25 @@ public class SettingsForm : Form
         _lblVersionInfo = new Label
         {
             Text = $"Installed: v{SelfUpdater.CurrentVersionString}",
-            Location = new Point(185, 134),
+            Location = new Point(185, 130),
             AutoSize = true,
             ForeColor = TextMuted,
-            Font = new Font(_uiFont, 8.25f)
+            Font = _fontStatusRegular
         };
 
-        grpStartup.Controls.AddRange(new Control[]
+        _grpStartup.Controls.AddRange(new Control[]
         {
             _chkStartup, lblInterval, _cboInterval,
             _chkAutoUpdate, _btnCheckUpdates, _lblVersionInfo
         });
-        leftStack.Controls.Add(grpStartup);
+        _leftStack.Controls.Add(_grpStartup);
 
         // 6. Action Buttons Bar (One primary solid button per screen; secondary outlined)
-        var pnlActions = new Panel
+        _pnlActions = new Panel
         {
             Width = 460,
             Height = 56,
-            Margin = new Padding(0, 8, 0, 0),
+            Margin = new Padding(0, 4, 0, 8),
             BackColor = BgColor
         };
         _btnRestore = CreateButton("Restore Original Wallpaper", new Point(0, 8), 204, 38, isAccent: false);
@@ -413,8 +450,8 @@ public class SettingsForm : Form
         _btnSaveApply = CreateButton("Save & Apply Now", new Point(216, 8), 244, 38, isAccent: true);
         _btnSaveApply.Click += async (s, e) => await OnSaveApplyClicked();
 
-        pnlActions.Controls.AddRange(new Control[] { _btnRestore, _btnSaveApply });
-        leftStack.Controls.Add(pnlActions);
+        _pnlActions.Controls.AddRange(new Control[] { _btnRestore, _btnSaveApply });
+        _leftStack.Controls.Add(_pnlActions);
 
         // --- RIGHT PANEL (Interactive Live Real-Time Preview) ---
         var rightPanel = new Panel
@@ -425,11 +462,11 @@ public class SettingsForm : Form
         };
         mainTable.Controls.Add(rightPanel, 1, 0);
 
-        var grpPreview = CreateCardGroup("LIVE REAL-TIME PREVIEW", 580);
-        grpPreview.Dock = DockStyle.Fill;
-        rightPanel.Controls.Add(grpPreview);
+        _grpPreview = CreateCardGroup("LIVE REAL-TIME PREVIEW", 580);
+        _grpPreview.Dock = DockStyle.Fill;
+        rightPanel.Controls.Add(_grpPreview);
 
-        var previewFrame = new Panel
+        _previewFrame = new Panel
         {
             Location = new Point(14, 42),
             Size = new Size(472, 266),
@@ -443,21 +480,26 @@ public class SettingsForm : Form
             BackColor = Color.Black,
             BorderStyle = BorderStyle.None
         };
-        previewFrame.Controls.Add(_previewBox);
+        _previewFrame.Controls.Add(_previewBox);
 
-        var lblPreviewTip = new Label
+        _lblPreviewTip = new Label
         {
             Text = "Shows the exact 0px Swiss Grid glass card rendered onto your wallpaper.",
             Location = new Point(14, 318),
             AutoSize = true,
             ForeColor = TextMuted,
-            Font = new Font(_uiFont, 8.25f)
+            Font = _fontStatusRegular
         };
 
-        grpPreview.Controls.AddRange(new Control[] { previewFrame, lblPreviewTip });
+        _grpPreview.Controls.AddRange(new Control[] { _previewFrame, _lblPreviewTip });
 
-        // Debounce timer for smooth real-time preview re-rendering
-        _previewDebounceTimer = new System.Windows.Forms.Timer { Interval = 120 };
+        // Responsive layout hooks on resize / scrollbar visibility changes
+        _leftScroll.ClientSizeChanged += (s, e) => UpdateResponsiveLayout();
+        _grpPreview.ClientSizeChanged += (s, e) => UpdateResponsiveLayout();
+        this.Resize += (s, e) => UpdateResponsiveLayout();
+
+        // Fast 45ms debounce timer for smooth 60fps real-time slider re-rendering
+        _previewDebounceTimer = new System.Windows.Forms.Timer { Interval = 45 };
         _previewDebounceTimer.Tick += (s, e) =>
         {
             _previewDebounceTimer.Stop();
@@ -465,9 +507,99 @@ public class SettingsForm : Form
         };
     }
 
+    private void UpdateResponsiveLayout()
+    {
+        if (this.IsDisposed || _leftScroll == null || _grpPreview == null) return;
+
+        try
+        {
+            _leftScroll.SuspendLayout();
+            _leftStack.SuspendLayout();
+
+            int availLeftW = _leftScroll.ClientSize.Width - _leftScroll.Padding.Horizontal;
+            int cardW = Math.Max(360, availLeftW - 4);
+
+            if (_leftStack.Width != cardW)
+            {
+                _leftStack.Width = cardW;
+                foreach (var card in new[] { _grpConnection, _grpTargets, _grpStyle, _grpWallpaper, _grpStartup, _pnlActions })
+                {
+                    card.Width = cardW;
+                    card.Invalidate();
+                }
+
+                // 1. Connection Card
+                _btnTestConnection.Left = cardW - 14 - _btnTestConnection.Width;
+                if (_txtSyncKey.Parent != null)
+                {
+                    _txtSyncKey.Parent.Width = Math.Max(140, _btnTestConnection.Left - 22);
+                    _txtSyncKey.Parent.Invalidate();
+                }
+                _lblConnectionStatus.MaximumSize = new Size(cardW - 28, 0);
+
+                // 3. Customization Card
+                int halfW = Math.Max(130, (cardW - 42) / 2);
+                _cboPosition.Width = halfW;
+                _lblTasksHeader.Left = 28 + halfW;
+                _cboMaxTasks.Left = 28 + halfW;
+                _cboMaxTasks.Width = Math.Max(130, cardW - 14 - _cboMaxTasks.Left);
+                _trackBlur.Width = Math.Max(180, cardW - 28);
+                _trackTransparency.Width = Math.Max(180, cardW - 28);
+
+                // 4. Wallpaper Card
+                _btnBrowseWallpaper.Left = cardW - 14 - _btnBrowseWallpaper.Width;
+                if (_txtCustomWallpaper.Parent != null)
+                {
+                    _txtCustomWallpaper.Parent.Width = Math.Max(120, _btnBrowseWallpaper.Left - 42);
+                    _txtCustomWallpaper.Parent.Invalidate();
+                }
+
+                // 5. Startup & Updates Card
+                _cboInterval.Width = Math.Clamp(cardW - 199, 140, 220);
+                _lblVersionInfo.MaximumSize = new Size(Math.Max(140, cardW - 199), 38);
+
+                // 6. Action Buttons
+                int restoreW = (cardW - 12) * 45 / 100;
+                _btnRestore.Width = restoreW;
+                _btnSaveApply.Left = restoreW + 12;
+                _btnSaveApply.Width = cardW - restoreW - 12;
+            }
+        }
+        finally
+        {
+            _leftStack.ResumeLayout(true);
+            _leftScroll.ResumeLayout(true);
+        }
+
+        // Right Preview Panel: keep crisp 16:9 preview scaled to available panel space
+        int previewAvailW = Math.Max(260, _grpPreview.ClientSize.Width - 28);
+        int previewAvailH = Math.Max(160, _grpPreview.ClientSize.Height - 86);
+        int targetW = previewAvailW;
+        int targetH = targetW * 9 / 16;
+        if (targetH > previewAvailH)
+        {
+            targetH = previewAvailH;
+            targetW = targetH * 16 / 9;
+        }
+        int frameX = Math.Max(14, (_grpPreview.ClientSize.Width - targetW) / 2);
+        var newRect = new Rectangle(frameX, 42, targetW, targetH);
+        if (_previewFrame.Bounds != newRect)
+        {
+            bool sizeChanged = _previewFrame.Size != newRect.Size;
+            _previewFrame.Bounds = newRect;
+            _lblPreviewTip.Location = new Point(14, newRect.Bottom + 10);
+            _lblPreviewTip.MaximumSize = new Size(previewAvailW, 0);
+            _grpPreview.Invalidate();
+            if (sizeChanged && this.Visible)
+            {
+                TriggerPreviewUpdate();
+            }
+        }
+    }
+
     private Panel CreateCardGroup(string title, int height)
     {
-        var panel = new Panel
+        var panel = new BufferedCardPanel
         {
             Width = 460,
             Height = height,
@@ -912,10 +1044,19 @@ public class SettingsForm : Form
             _lblVersionInfo.Text = $"Downloading {release.TagName}...";
             _lblVersionInfo.ForeColor = TextMain;
 
+            var progress = new Progress<string>(status =>
+            {
+                if (!this.IsDisposed && !_lblVersionInfo.IsDisposed)
+                {
+                    _lblVersionInfo.Text = status;
+                }
+            });
+
             var applied = await SelfUpdater.DownloadAndApplyUpdateAsync(
                 release,
                 relaunchMinimized: false,
-                beforeRelaunchOnUiThread: null
+                beforeRelaunchOnUiThread: null,
+                progress: progress
             );
 
             if (applied.Relaunching)

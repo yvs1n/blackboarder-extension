@@ -13,16 +13,15 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.17",
-  "build": "2e09cb317f98",
-  "commit": "c41b0084435bb7b2842d81b29bed6b32092cfd00",
-  "shortCommit": "c41b008",
-  "timestamp": "2026-11-20T13:39:07.148Z",
-  "message": "v1.8.16: feat(landing): horizontal scaled mobile preview and original Swiss Capabilities Workbench (v1.8.16)",
+  "version": "1.8.18",
+  "build": "4bae58aac503",
+  "commit": "a366599b4e27cfd13af015807d2fcd5d4cd3c0e5",
+  "shortCommit": "a366599",
+  "timestamp": "2026-11-20T14:15:25.743Z",
+  "message": "v1.8.17: fix(widget,landing): v1.8.17 Windows widget update & sync fixes, landing polish, OG preview, and /old archive",
   "changelog": [
-    "Windows Widget Background Sync, Self-Update Exit & Error Reporting (windows-widget/): Fixed TrayApplicationContext.BackgroundAutoUpdateCheckAsync calling BeginInvoke on an uncreated _contextMenu handle and releasing the single-instance mutex off-thread (which stranded v1.8.7 in the tray while relaunched binaries exited as duplicates), added an eager UI-thread marshaler control (_uiInvoker), --wait-pid handoff, and a UI-thread shutdown watchdog so updates always cleanly restart into the new build. Replaced in-place lockscreen image overwrites and stale render fingerprints with atomic alternating output paths, midnight date-boundary tracking, wallpaper mtime change detection, MemoryStream base wallpaper reads, descriptive error formatting (eliminating blank \"Error applying widget:\" dialogs), and a visible error state on the Live Real-Time Preview box.",
-    "Extension & Companion Swiss Linearity (src/popup/styles/11-design-marks.css, src/mobile/styles/09-onboarding-design.css): Aligned selection inversion, tabular figures (tabular-nums), display title tracking, and tactile Swiss 3D hard-offset hover/press states across primary action buttons in both the extension and companion web app while respecting prefers-reduced-motion.",
-    "Worker Static Caching & Archive Routing (src/worker/05-router.js): Added no-cache HTML rules for /old/ and clean caching/content-type handling for /llms.txt and /og-preview.png."
+    "Windows Widget Self-Updater File Lock Resilience (windows-widget/SelfUpdater.cs): Fixed Access to the path is denied. during in-app updates when an older process is still running from a locked .exe.old image or when the executable folder restricts temporary file writes. Downloads now stream into %LOCALAPPDATA%\\Blackboarder\\updates with live percentage progress (IProgress<string>), normalize .exe.old* process paths back to canonical BlackboarderWidget.exe, terminate stale duplicate widget processes before swapping, dynamically pick an unlocked .old.N backup slot, and fall back to a detached post-exit cmd.exe swap helper if an in-place move is ever blocked.",
+    "Windows Widget Responsive Layout & 60fps Live Preview (windows-widget/SettingsForm.cs, windows-widget/LiquidGlassRenderer.cs, windows-widget/TrayApplicationContext.cs): Added UpdateResponsiveLayout() so all left-column cards, inputs, trackbars, and wrapped status labels dynamically adapt to the available scroll client width on window resize, maximize, and DPI scaling without vertical scrollbar overlap, while scaling the right Live Real-Time Preview frame proportionally in 16:9. Added thread-safe in-memory pre-scaled wallpaper bitmap caching and font resolution caching in LiquidGlassRenderer, double-buffered ResizeRedraw card panels (BufferedCardPanel), and a 45ms preview debounce for instant slider interaction."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.18] - 2026-11-20
+
+### Fixed
+
+- **Windows Widget Self-Updater File Lock Resilience (`windows-widget/SelfUpdater.cs`):** Fixed `Access to the path is denied.` during in-app updates when an older process is still running from a locked `.exe.old` image or when the executable folder restricts temporary file writes. Downloads now stream into `%LOCALAPPDATA%\Blackboarder\updates` with live percentage progress (`IProgress<string>`), normalize `.exe.old*` process paths back to canonical `BlackboarderWidget.exe`, terminate stale duplicate widget processes before swapping, dynamically pick an unlocked `.old.N` backup slot, and fall back to a detached post-exit `cmd.exe` swap helper if an in-place move is ever blocked.
+
+### Changed
+
+- **Windows Widget Responsive Layout & 60fps Live Preview (`windows-widget/SettingsForm.cs`, `windows-widget/LiquidGlassRenderer.cs`, `windows-widget/TrayApplicationContext.cs`):** Added `UpdateResponsiveLayout()` so all left-column cards, inputs, trackbars, and wrapped status labels dynamically adapt to the available scroll client width on window resize, maximize, and DPI scaling without vertical scrollbar overlap, while scaling the right Live Real-Time Preview frame proportionally in 16:9. Added thread-safe in-memory pre-scaled wallpaper bitmap caching and font resolution caching in `LiquidGlassRenderer`, double-buffered `ResizeRedraw` card panels (`BufferedCardPanel`), and a 45ms preview debounce for instant slider interaction.
+
+---
+
 ## [1.8.17] - 2026-11-20
 
 ### Fixed
