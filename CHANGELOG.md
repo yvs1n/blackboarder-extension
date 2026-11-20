@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.22] - 2026-11-20
+
+### Added
+
+- **Android Mobile Extension Support (`public/manifest.json`, `scripts/build.js`, `scripts/package.js`, `src/popup/styles/`):** Added `gecko_android` (`>= 120.0`) and `data_collection_permissions` metadata, dedicated `dist-firefox/` and `release/blackboarder-android-firefox.zip` builds stripping Chromium-only `sidePanel` / `nativeMessaging` permissions, and `@media (max-width: 479px)` responsive popup sizing for Firefox for Android, Edge Android, and Quetta.
+- **iPhone & iPad Standalone Safari Userscript (`src/userscript/`, `mobile-web/blackboarder.user.js`):** Built a free open-source Userscript bundle (zero Apple Developer account required) reusing Blackboarder's DOM/REST scanner, dark mode, course color painter, activity filter, and AES-256-GCM encrypted Firebase Vault sync so iPhone and iPad Safari users can scan Blackboard directly on mobile and sync live into the Companion PWA.
+- **Device-Adaptive Install Section on Landing Page (`mobile-web/index.html`, `mobile-web/landing-motion.js`):** `#install` now auto-detects Desktop, Android, and iPhone/iPad visitors (with a manual 3-platform switcher locked to constant height for zero layout shift) and dynamically adapts both the hero CTA and install steps to guide users cleanly into their platform's scanner and the Companion PWA.
+
+---
+
 ## [1.8.21] - 2026-11-20
 
 ### Changed

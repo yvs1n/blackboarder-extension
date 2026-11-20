@@ -42,14 +42,27 @@ body {
   contain: layout style;
 }
 
+/* Mobile browser extensions (Firefox for Android, Edge Android, Quetta) open popups in < 480px viewports */
+@media (max-width: 479px) {
+  html,
+  body {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    min-height: 480px !important;
+    max-height: 100dvh !important;
+  }
+}
+
 /* Standalone browser window or side panel view when explicitly opened in a wide tab or panel */
 html.is-standalone,
 body.is-standalone {
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
   max-height: none !important;
 }
 

@@ -107,6 +107,13 @@ async function runPackaging() {
     zipDirectory(STORE_SRC_DIR, path.join(RELEASE_DIR, 'blackboarder-extension-store.zip'));
   }
 
+  // Firefox & Firefox for Android build (no Chromium-only sidePanel or nativeMessaging permissions)
+  const FIREFOX_SRC_DIR = path.join(ROOT_DIR, 'dist-firefox');
+  if (fs.existsSync(FIREFOX_SRC_DIR)) {
+    console.log('  -> Compressing blackboarder-android-firefox.zip...');
+    zipDirectory(FIREFOX_SRC_DIR, path.join(RELEASE_DIR, 'blackboarder-android-firefox.zip'));
+  }
+
   if (HAS_WEB) {
   console.log('  -> Compressing blackboarder-website.zip...');
   zipDirectory(RELEASE_WEB_DIR, WEB_ZIP);

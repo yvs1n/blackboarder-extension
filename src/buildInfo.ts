@@ -13,14 +13,16 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.21",
-  "build": "0efa2cd51456",
-  "commit": "11f62cedc2ee7e2e8cbfda29664bca5877496f60",
-  "shortCommit": "11f62ce",
-  "timestamp": "2026-11-20T15:20:07.993Z",
-  "message": "v1.8.20: style(popup,companion): v1.8.20 restore tactile 3D button hover animation while preserving dark-mode contrast",
+  "version": "1.8.22",
+  "build": "b9a339d6b0fd",
+  "commit": "54e7fcacbe392b55d1b65cfe36b6f5211058b22d",
+  "shortCommit": "54e7fca",
+  "timestamp": "2026-11-20T15:52:25.296Z",
+  "message": "style(popup,companion): v1.8.21 restrict 3D hover lift animation to primary CTA buttons",
   "changelog": [
-    "CTA-Only 3D Button Offset Animation (src/popup/styles/11-design-marks.css, src/mobile/styles/09-onboarding-design.css): Scoped the Swiss tactile 3D offset hover/press animation exclusively to primary CTA buttons (.btn-scan-main, .btn-primary, .btn-primary-action, .btn-save-action) with crisp 0.12s response, keeping secondary, card-row, and icon buttons flat and instant in both the extension and companion while leaving the landing page unchanged."
+    "Android Mobile Extension Support (public/manifest.json, scripts/build.js, scripts/package.js, src/popup/styles/): Added gecko_android (>= 120.0) and data_collection_permissions metadata, dedicated dist-firefox/ and release/blackboarder-android-firefox.zip builds stripping Chromium-only sidePanel / nativeMessaging permissions, and @media (max-width: 479px) responsive popup sizing for Firefox for Android, Edge Android, and Quetta.",
+    "iPhone & iPad Standalone Safari Userscript (src/userscript/, mobile-web/blackboarder.user.js): Built a free open-source Userscript bundle (zero Apple Developer account required) reusing Blackboarder's DOM/REST scanner, dark mode, course color painter, activity filter, and AES-256-GCM encrypted Firebase Vault sync so iPhone and iPad Safari users can scan Blackboard directly on mobile and sync live into the Companion PWA.",
+    "Device-Adaptive Install Section on Landing Page (mobile-web/index.html, mobile-web/landing-motion.js): #install now auto-detects Desktop, Android, and iPhone/iPad visitors (with a manual 3-platform switcher locked to constant height for zero layout shift) and dynamically adapts both the hero CTA and install steps to guide users cleanly into their platform's scanner and the Companion PWA."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

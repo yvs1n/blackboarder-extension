@@ -204,6 +204,13 @@
   display: none !important;
 }
 
+@media (max-width: 420px) {
+  .settings-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px;
+  }
+}
+
 /* Toggle Switches */
 .toggle-control-row {
   display: flex;

@@ -77,3 +77,21 @@ Your deadlines, courses, custom syllabus weights, and Personal Sync Key are **pe
 
 > If you loaded the extension from a `git clone`, the helper updates it with `git pull --ff-only`, and only when the clone is on `main` with no uncommitted changes. Otherwise it leaves your work alone and **Settings > Updates** shows why.
 
+---
+
+## Standalone Setup on Mobile & Tablet (No Laptop Needed)
+
+### Android (Firefox for Android, Edge, Quetta)
+Google Chrome for Android does not allow extensions, so open Blackboard in **Firefox for Android**, **Microsoft Edge**, or **Quetta**:
+1. Download `blackboarder-android-firefox.zip` (Firefox for Android) or `blackboarder-extension.zip` (Chromium browsers like Quetta/Lemur) and load it in your browser's Add-ons/Extensions manager.
+2. Sign into Blackboard in that browser and tap **Scan Blackboard** in the Blackboarder popup or floating lightning button.
+3. Open **Companion App** (`/companion`) and paste your **Sync Key** to check deadlines, push alerts, calendar feeds, and Android widgets anywhere.
+
+### iPhone & iPad (Free Safari Userscript + Companion PWA)
+Apple requires a paid Developer account for native iOS Safari App Store extensions, so iPhone and iPad run the 100% free open-source **Userscripts** route instead:
+1. Install **Userscripts** (free on the App Store) and enable it under **Settings > Apps > Safari > Extensions** for your Blackboard domain.
+2. Open `https://blackboarder.pages.dev/blackboarder.user.js` in Safari and tap the banner to install the script.
+3. Visit Blackboard in Safari, tap the floating **Blackboarder** button, and tap **Scan Blackboard & Sync**.
+4. Tap **Open Companion App** right inside the scanner drawer (your Sync Key links automatically), then tap **Share > Add to Home Screen** on the Companion PWA.
+
+

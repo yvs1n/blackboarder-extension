@@ -231,6 +231,63 @@ async function buildQrScanner(viteDefines) {
   });
 }
 
+async function buildUserscript(version, viteDefines) {
+  console.log('Bundling iOS/iPadOS Safari Userscript (mobile-web/blackboarder.user.js)...');
+  const header = [
+    '// ==UserScript==',
+    '// @name         Blackboarder - Blackboard Scanner & Dark Mode',
+    '// @namespace    https://blackboarder.pages.dev/',
+    `// @version      ${version}`,
+    '// @description  Extract deadlines, exam rooms, and marks directly from Blackboard into your Companion PWA Vault on iPhone, iPad & Safari.',
+    '// @author       Blackboarder',
+    '// @match        https://elearning.sharjah.ac.ae/*',
+    '// @match        https://blackboard.sharjah.ac.ae/*',
+    '// @match        https://mylearn.sharjah.ac.ae/*',
+    '// @match        https://*.blackboard.com/*',
+    '// @match        https://*.sharjah.ac.ae/*',
+    '// @match        https://*.uaeu.ac.ae/*',
+    '// @match        https://*.adu.ac.ae/*',
+    '// @match        https://*.zu.ac.ae/*',
+    '// @match        https://*.aud.edu/*',
+    '// @match        https://*.aus.edu/*',
+    '// @match        https://bb.aurak.ac.ae/*',
+    '// @match        https://*.aurak.ac.ae/*',
+    '// @match        https://*/*/ultra/*',
+    '// @match        https://*/*/webapps/*',
+    '// @grant        GM_getValue',
+    '// @grant        GM_setValue',
+    '// @grant        GM_xmlhttpRequest',
+    '// @connect      blackboard-sidekick-default-rtdb.asia-southeast1.firebasedatabase.app',
+    '// @downloadURL  https://blackboarder.pages.dev/blackboarder.user.js',
+    '// @updateURL    https://blackboarder.pages.dev/blackboarder.user.js',
+    '// @run-at       document-start',
+    '// ==/UserScript=='
+  ].join('\n');
+
+  await build({
+    root: ROOT,
+    configFile: false,
+    publicDir: false,
+    logLevel: 'warn',
+    build: {
+      outDir: 'mobile-web',
+      emptyOutDir: false,
+      minify: true,
+      lib: {
+        entry: r('src/userscript/main.ts'),
+        name: 'BlackboarderUserscript',
+        formats: ['iife'],
+        fileName: () => 'blackboarder.user.js'
+      }
+    },
+    define: viteDefines
+  });
+
+  const outPath = path.join(ROOT, 'mobile-web', 'blackboarder.user.js');
+  const compiledBody = readText(outPath).replace(/^(?:\/\/[^\n]*\n)*/, '');
+  writeIfChanged(outPath, `${header}\n${compiledBody}`);
+}
+
 /**
  * pdf.js (Mozilla, Apache-2.0) for reading syllabus PDFs, copied as-is from node_modules into
  * <dir>/vendor/pdfjs. Both apps load it only when a student imports a PDF.
@@ -282,7 +339,7 @@ function stampWebApp(git) {
 function extensionSourceFiles() {
   const files = [];
   for (const rel of listFiles(r('src'))) {
-    if (rel === 'buildInfo.ts' || rel.startsWith('mobile/')) continue;
+    if (rel === 'buildInfo.ts' || rel.startsWith('mobile/') || rel.startsWith('userscript/') || rel.startsWith('worker/')) continue;
     files.push(`src/${rel}`);
   }
   for (const rel of listFiles(r('public'))) files.push(`public/${rel}`);
@@ -330,7 +387,16 @@ function storeManifestText(text) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-async function buildExtension(info, viteDefines, { outDir = 'dist', store = false } = {}) {
+/** The manifest for Firefox & Firefox for Android: strips Chromium-only sidePanel & nativeMessaging permissions. */
+function firefoxManifestText(text) {
+  const manifest = JSON.parse(text);
+  manifest.permissions = (manifest.permissions || []).filter(p => p !== 'nativeMessaging' && p !== 'sidePanel');
+  manifest.host_permissions = (manifest.host_permissions || []).filter(h => !/github/i.test(h));
+  delete manifest.side_panel;
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
+
+async function buildExtension(info, viteDefines, { outDir = 'dist', store = false, firefox = false } = {}) {
   const distDir = r(outDir);
 
   console.log('Building popup...');
@@ -393,7 +459,8 @@ async function buildExtension(info, viteDefines, { outDir = 'dist', store = fals
 
   // manifest.json and icons (also copied by Vite from public/, done here so the lib builds cannot skip them)
   const manifestText = readText(r('public/manifest.json'));
-  fs.writeFileSync(path.join(distDir, 'manifest.json'), store ? storeManifestText(manifestText) : manifestText, 'utf8');
+  const finalManifest = firefox ? firefoxManifestText(manifestText) : (store ? storeManifestText(manifestText) : manifestText);
+  fs.writeFileSync(path.join(distDir, 'manifest.json'), finalManifest, 'utf8');
   copyPdfJs(distDir);
   fs.mkdirSync(path.join(distDir, 'icons'), { recursive: true });
   for (const icon of listFiles(r('public/icons'))) {
@@ -585,6 +652,7 @@ async function main() {
     assembleCompanionAssets();
     await buildWebCore(viteDefines);
     await buildQrScanner(viteDefines);
+    await buildUserscript(currentVersion, viteDefines);
     copyWidget();
     copyPdfJs(WEB_DIR);
     const webInfo = stampWebApp(git);
@@ -594,6 +662,8 @@ async function main() {
   const versionJson = await buildExtension(extInfo, viteDefines);
   // The same extension without the self-updater, for the Chrome Web Store and Edge Add-ons
   await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-store', store: true });
+  // Firefox Desktop & Firefox for Android build (no Chromium-only sidePanel or nativeMessaging)
+  await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-firefox', store: true, firefox: true });
   // The root copy is what extensions installed before the dist/version.json check still read
   writeIfChanged(r('version.json'), versionJson);
 

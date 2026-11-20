@@ -1,7 +1,7 @@
 import type { StudentProfile } from '../types';
 import { sanitizeProfile } from '../core/studentProfile';
 import { findUniversityByHost, swapUniversityQuickLinks } from '../core/universities';
-import { getQuickLinks, saveQuickLinks } from './storage';
+import { getQuickLinks, saveQuickLinks, safeGetLocalStorage, safeSetLocalStorage } from './storage';
 
 export const PROFILE_KEY = 'bbs_profile';
 
@@ -14,10 +14,17 @@ function hasChromeStorage(): boolean {
 }
 
 export async function getProfile(): Promise<StudentProfile | null> {
-  if (!hasChromeStorage()) return null;
+  if (hasChromeStorage()) {
+    try {
+      const res = await chrome.storage.local.get([PROFILE_KEY]);
+      return sanitizeProfile(res?.[PROFILE_KEY]);
+    } catch {
+      return null;
+    }
+  }
   try {
-    const res = await chrome.storage.local.get([PROFILE_KEY]);
-    return sanitizeProfile(res?.[PROFILE_KEY]);
+    const raw = safeGetLocalStorage(PROFILE_KEY);
+    return raw ? sanitizeProfile(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -26,11 +33,17 @@ export async function getProfile(): Promise<StudentProfile | null> {
 /** Saves the profile, stamping updatedAt unless one is given (a cloud copy keeps its own). */
 export async function saveProfile(profile: Omit<StudentProfile, 'updatedAt'> & { updatedAt?: string }): Promise<StudentProfile | null> {
   const clean = sanitizeProfile({ ...profile, updatedAt: profile.updatedAt || new Date().toISOString() });
-  if (!clean || !hasChromeStorage()) return clean;
+  if (!clean) return null;
   const before = profile.updatedAt ? null : await getProfile();
-  try {
-    await chrome.storage.local.set({ [PROFILE_KEY]: clean });
-  } catch {}
+  if (hasChromeStorage()) {
+    try {
+      await chrome.storage.local.set({ [PROFILE_KEY]: clean });
+    } catch {}
+  } else {
+    try {
+      safeSetLocalStorage(PROFILE_KEY, JSON.stringify(clean));
+    } catch {}
+  }
   // A change made on this device (a cloud copy brings its own links through sync)
   if (!profile.updatedAt) await swapQuickLinksForUniversity(before?.universityId || 'other', clean.universityId);
   return clean;
