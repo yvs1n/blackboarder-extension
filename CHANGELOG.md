@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.23] - 2026-11-20
+
+### Changed
+
+- **Unified Swiss Grid Design System (`docs/DESIGN_SYSTEM.md`, `mobile-web/index.html`, `src/popup/styles/`, `src/mobile/styles/`, `src/userscript/overlayUi.ts`, `src/content/content.css`):** Updated `DESIGN_SYSTEM.md` from the landing page tokens and unified light/dark surfaces (`--bg`, `--bg-alt`, `--surface`, `--surface-elevated`, `--surface-hover`), borders (`#e2e8f0` / `#cbd5e1` light, `#2c2c36` / `#3f3f4c` dark), typography stacks (`Inter Tight`, `Inter`, `--font-mono`), and primary accent tokens (`#18181b` / `#f4f4f6`) across Landing Page, Extension, Companion PWA, Blackboard floating pill, and Safari Userscript overlay.
+- **Landing Page Scroll Reveal Animations (`mobile-web/index.html`, `mobile-web/landing-motion.js`):** Added `IntersectionObserver` scroll-reveal choreography (`bb-reveal` / `is-in`) with subtle staggered entrances for feature grids, workbench panels, device preview cards, adaptive install steps, FAQs, and closing panels while respecting `prefers-reduced-motion`.
+
+---
+
 ## [1.8.22] - 2026-11-20
 
 ### Added

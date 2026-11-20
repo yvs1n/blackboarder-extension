@@ -2,15 +2,17 @@
   --primary: #18181b;
   --primary-hover: #27272a;
   --primary-light: #f4f4f5;
-  --primary-border: #e4e4e7;
+  --primary-border: #e2e8f0;
   --bg: #f8fafc;
+  --bg-alt: #f1f5f9;
   --surface: #ffffff;
+  --surface-elevated: #ffffff;
   --surface-hover: #f4f4f5;
-  --surface-border: #e4e4e7;
-  --surface-border-strong: #d4d4d8;
+  --surface-border: #e2e8f0;
+  --surface-border-strong: #cbd5e1;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-subtle: #94a3b8;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
   --danger: #18181b;
   --danger-light: #f4f4f5;
   --warning: #71717a;
@@ -20,7 +22,7 @@
   --stat-week: #f59e0b;
   --success: #18181b;
   --success-light: #f4f4f5;
-  --success-border: #e4e4e7;
+  --success-border: #e2e8f0;
   --radius-sm: 0px;
   --radius-md: 0px;
   --radius-lg: 0px;
@@ -29,13 +31,14 @@
   --shadow-md: 0 0 0 0 transparent;
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.12);
   --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Inter Tight", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --accent: #18181b;
   --accent-hover: #27272a;
   --on-accent: #ffffff;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 32px;
-  --font-display: "Inter Tight", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 [data-theme="dark"] {
@@ -45,7 +48,9 @@
   --primary-border: rgba(255, 255, 255, 0.16);
 
   --bg: #121215;
+  --bg-alt: #17171c;
   --surface: #1a1a1f;
+  --surface-elevated: #212128;
   --surface-hover: #24242b;
   --surface-border: #2c2c36;
   --surface-border-strong: #3f3f4c;

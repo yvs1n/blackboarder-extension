@@ -1,17 +1,22 @@
-/* Blackboarder Floating Widget Styles */
+/* Blackboarder Floating Widget Styles (Unified Swiss Grid Design System) */
 #bbs-floating-root {
   position: fixed;
   bottom: 24px;
   right: 24px;
   z-index: 99999999;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color: #1e293b;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  color: #0f172a;
   font-size: 14px;
   box-sizing: border-box;
 }
 
-#bbs-floating-root * {
+#bbs-floating-root *,
+#bbs-floating-root *::before,
+#bbs-floating-root *::after {
   box-sizing: border-box;
+  border-radius: 0 !important;
 }
 
 .bbs-pill-btn {
@@ -21,25 +26,28 @@
   gap: 7px;
   min-width: 40px;
   height: 40px;
-  background: rgba(24, 24, 28, 0.95);
+  background: #1a1a1f;
   color: #f4f4f6;
-  padding: 0 10px;
+  padding: 0 12px;
   border-radius: 0px;
   cursor: pointer;
-  font-weight: 600;
+  font-family: "Inter Tight", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.15s ease;
+  border: 1px solid #3f3f4c;
+  transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease;
   user-select: none;
-  opacity: 0.9;
+  opacity: 0.96;
 }
 
 .bbs-pill-btn:hover {
   opacity: 1;
-  background: #000000;
-  border-color: rgba(255, 255, 255, 0.4);
+  background: #121215;
+  border-color: #f4f4f6;
+  transform: translate(-1.5px, -1.5px);
+  box-shadow: 2px 2px 0 #71717a;
 }
 
 .bbs-pill-btn:active {

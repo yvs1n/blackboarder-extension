@@ -1,20 +1,19 @@
 {
-  "version": "1.8.22",
-  "build": "b9a339d6b0fd",
-  "commit": "54e7fcacbe392b55d1b65cfe36b6f5211058b22d",
-  "shortCommit": "54e7fca",
-  "timestamp": "2026-11-20T15:52:25.296Z",
-  "message": "style(popup,companion): v1.8.21 restrict 3D hover lift animation to primary CTA buttons",
+  "version": "1.8.23",
+  "build": "b9f95cef4010",
+  "commit": "56406a86c074bc3e93dce687871de94d2c4ec628",
+  "shortCommit": "56406a8",
+  "timestamp": "2026-11-20T16:20:37.890Z",
+  "message": "Add Android extension build, iOS Safari userscript scanner, and adaptive install guide (v1.8.22)",
   "changelog": [
-    "Android Mobile Extension Support (public/manifest.json, scripts/build.js, scripts/package.js, src/popup/styles/): Added gecko_android (>= 120.0) and data_collection_permissions metadata, dedicated dist-firefox/ and release/blackboarder-android-firefox.zip builds stripping Chromium-only sidePanel / nativeMessaging permissions, and @media (max-width: 479px) responsive popup sizing for Firefox for Android, Edge Android, and Quetta.",
-    "iPhone & iPad Standalone Safari Userscript (src/userscript/, mobile-web/blackboarder.user.js): Built a free open-source Userscript bundle (zero Apple Developer account required) reusing Blackboarder's DOM/REST scanner, dark mode, course color painter, activity filter, and AES-256-GCM encrypted Firebase Vault sync so iPhone and iPad Safari users can scan Blackboard directly on mobile and sync live into the Companion PWA.",
-    "Device-Adaptive Install Section on Landing Page (mobile-web/index.html, mobile-web/landing-motion.js): #install now auto-detects Desktop, Android, and iPhone/iPad visitors (with a manual 3-platform switcher locked to constant height for zero layout shift) and dynamically adapts both the hero CTA and install steps to guide users cleanly into their platform's scanner and the Companion PWA."
+    "Unified Swiss Grid Design System (docs/DESIGN_SYSTEM.md, mobile-web/index.html, src/popup/styles/, src/mobile/styles/, src/userscript/overlayUi.ts, src/content/content.css): Updated DESIGN_SYSTEM.md from the landing page tokens and unified light/dark surfaces (--bg, --bg-alt, --surface, --surface-elevated, --surface-hover), borders (#e2e8f0 / #cbd5e1 light, #2c2c36 / #3f3f4c dark), typography stacks (Inter Tight, Inter, --font-mono), and primary accent tokens (#18181b / #f4f4f6) across Landing Page, Extension, Companion PWA, Blackboard floating pill, and Safari Userscript overlay.",
+    "Landing Page Scroll Reveal Animations (mobile-web/index.html, mobile-web/landing-motion.js): Added IntersectionObserver scroll-reveal choreography (bb-reveal / is-in) with subtle staggered entrances for feature grids, workbench panels, device preview cards, adaptive install steps, FAQs, and closing panels while respecting prefers-reduced-motion."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-CZeps8q0.css",
-    "assets/popup-HW4Rx-uH.js",
+    "assets/popup-DEy9DkrH.js",
+    "assets/popup-s9JH-VwH.css",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",
