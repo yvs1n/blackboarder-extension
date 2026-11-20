@@ -207,6 +207,7 @@ export interface DeadlineTask {
   gradeSourceId?: string; // Gradebook column the mark came from ("gb:_123_1"); only that column updates it
   gradeSourcesBefore?: string[]; // Gradebook columns already graded before this task's date (a practice run), never applied to it
   dismissedGradeSources?: string[]; // Gradebook columns whose marks the student deleted explicitly
+  ignoreMark?: boolean; // Excluded from GPA & course calculations while keeping the gradebook row visible
   isBonus?: boolean; // Bonus mark / extra credit (adds to earned course points without increasing required weight)
   bonusUnit?: 'points' | 'percent'; // Whether bonus value is pure points ('points') or percentage ('percent')
   bonusTarget?: string; // 'total' (pure extra credit on final %) or 'comp:<id>' / 'type:<taskType>'

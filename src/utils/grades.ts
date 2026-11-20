@@ -24,11 +24,18 @@ export function gradesBadgeText(gpa: GpaSummary, marks: MarksSummary, cumulative
   return parts.length ? parts.join(' · ') : 'No marks yet';
 }
 
+const EYE_ICON = '<svg class="ui-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+const EYE_OFF_ICON = '<svg class="ui-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+
 function markRowsHtml(course: CourseMarks | undefined): string {
   if (!course || !course.marks.length) {
     return '<div class="marks-empty" style="font-size: 11px; color: var(--text-muted); padding: 4px 0; font-style: italic;">No individual marks recorded in gradebook yet.</div>';
   }
   return course.marks.map(m => {
+    const isIgnored = Boolean(m.ignoreMark);
+    const ignoreBtn = `<button type="button" class="btn-toggle-ignore-mark ${isIgnored ? 'is-ignored' : ''}" data-mark-id="${esc(m.id)}" data-mark-title="${esc(m.title)}" title="${isIgnored ? 'Include mark in course grade & GPA' : 'Ignore mark (exclude from course grade & GPA)'}" aria-label="${isIgnored ? 'Include' : 'Ignore'} ${esc(m.title)}">${isIgnored ? EYE_OFF_ICON : EYE_ICON}</button>`;
+    const ignoredPill = isIgnored ? '<span class="marks-ignored-pill">Ignored</span>' : '';
+
     // Every manual bonus mark row in Marks can be deleted cleanly (whether standalone or created earlier);
     // normal Blackboard gradebook marks are exact and never show delete buttons.
     const delBtn = m.isBonus
@@ -47,7 +54,7 @@ function markRowsHtml(course: CourseMarks | undefined): string {
         const waitDesc = waitVal
           ? `worth +${waitVal}${isPct ? '%' : ' pts'} bonus${targetSuffix}`
           : `bonus mark${targetSuffix}`;
-        return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--text-muted);">${waitDesc}</span><span class="marks-right"><span class="marks-awaiting waiting">Waiting</span><button type="button" class="btn-enter-mark-score" data-mark-id="${esc(m.id)}" title="Enter your mark manually (or leave Waiting for Blackboard)" aria-label="Enter score for ${esc(m.title)}">+ Score</button>${delBtn}</span></div>`;
+        return `<div class="marks-row marks-row-bonus ${isIgnored ? 'marks-row--ignored' : ''}" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span>${ignoredPill}</span><span class="marks-weight" style="color: var(--text-muted);">${waitDesc}</span><span class="marks-right"><span class="marks-awaiting waiting">Waiting</span><button type="button" class="btn-enter-mark-score" data-mark-id="${esc(m.id)}" title="Enter your mark manually (or leave Waiting for Blackboard)" aria-label="Enter score for ${esc(m.title)}">+ Score</button>${ignoreBtn}${delBtn}</span></div>`;
       }
       const rightLabel = (typeof m.score === 'number' && typeof m.maxScore === 'number' && m.score !== m.maxScore)
         ? `<span class="marks-score" style="color: var(--success, #22c55e); font-weight: 700;">+${bonusScore}</span><span class="marks-pct" style="color: var(--success, #22c55e);">(${esc(formatScore(m.score, m.maxScore))})</span>`
@@ -55,7 +62,7 @@ function markRowsHtml(course: CourseMarks | undefined): string {
       const weightDesc = isPct
         ? `+${rawVal}%${rawVal !== bonusScore ? ` (= +${bonusScore} course pts)` : ' extra credit'}${targetSuffix}`
         : `+${bonusScore} pts extra credit${targetSuffix}`;
-      return `<div class="marks-row marks-row-bonus" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span></span><span class="marks-weight" style="color: var(--success, #22c55e);">${weightDesc}</span><span class="marks-right">${rightLabel}${delBtn}</span></div>`;
+      return `<div class="marks-row marks-row-bonus ${isIgnored ? 'marks-row--ignored' : ''}" style="background: rgba(34, 197, 94, 0.05);"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">★ ${esc(m.title)} <span class="settings-pill pill-green" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">Bonus</span>${ignoredPill}</span><span class="marks-weight" style="color: var(--success, #22c55e);">${weightDesc}</span><span class="marks-right">${rightLabel}${ignoreBtn}${delBtn}</span></div>`;
     }
     const scoreActionBtn = m.status === 'waiting'
       ? `<button type="button" class="btn-enter-mark-score" data-mark-id="${esc(m.id)}" title="Enter your mark manually (or leave Waiting for Blackboard)" aria-label="Enter score for ${esc(m.title)}">+ Score</button>`
@@ -68,7 +75,7 @@ function markRowsHtml(course: CourseMarks | undefined): string {
     const sub = m.weight
       ? `<span class="marks-weight">${m.earned !== undefined ? `${m.earned} of ${m.weight}% weight` : `worth ${m.weight}%`}</span>`
       : '';
-    return `<div class="marks-row"><span class="marks-title">${esc(m.title)}</span>${sub}<span class="marks-right">${right}${delBtn}</span></div>`;
+    return `<div class="marks-row ${isIgnored ? 'marks-row--ignored' : ''}"><span class="marks-title" style="display: inline-flex; align-items: center; gap: 5px;">${esc(m.title)}${ignoredPill}</span>${sub}<span class="marks-right">${right}${ignoreBtn}${delBtn}</span></div>`;
   }).join('');
 }
 

@@ -133,7 +133,7 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
     !/orientation/i.test(t.courseCode || '') &&
     !/orientation|توجيه|تهيئة/i.test(t.title || '')
   );
-  const graded = cleanTasks.filter(t => t && isGraded(t));
+  const graded = cleanTasks.filter(t => t && !t.ignoreMark && isGraded(t));
   const courses: CourseGrade[] = [];
 
   for (const syl of syllabi || []) {

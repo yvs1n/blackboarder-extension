@@ -36,7 +36,7 @@ function isDeleted(task: DeadlineTask, tombstones: TombstoneMap): boolean {
 // omission is deliberate (the user cleared it or a bogus mark was dropped) and must propagate.
 const OPTIONAL_FIELDS = [
   'room', 'notes', 'weight', 'weightDisplay', 'syllabusNote',
-  'isBonus', 'bonusUnit', 'bonusTarget', 'bonusTargetLabel', 'dismissedGradeSources',
+  'isBonus', 'bonusUnit', 'bonusTarget', 'bonusTargetLabel', 'dismissedGradeSources', 'ignoreMark',
   'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId', 'markProvisional',
   'submittedAt', 'submissionReceipt'
 ] as const;
@@ -641,6 +641,7 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     weight,
     weightDisplay,
     syllabusNote,
+    ...(existing.ignoreMark || incoming.ignoreMark ? { ignoreMark: true } : {}),
     userEdited: isUserEdited,
     updatedAt: new Date(Math.max(
       new Date(existing.updatedAt || existing.createdAt || 0).getTime(),

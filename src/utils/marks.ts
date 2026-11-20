@@ -43,6 +43,8 @@ export interface MarkRow {
   isStandalone?: boolean;
   /** True when the mark originated from a Blackboard gradebook column rather than a scheduled task. */
   isGradebook?: boolean;
+  /** True when the student hid/ignored this mark from GPA & course totals. */
+  ignoreMark?: boolean;
 }
 
 export interface CourseMarks {
@@ -188,6 +190,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       t.sourceSnippet === 'gradebook' ||
       (t.extractedBy as string) === 'gradebook'
     );
+    const isIgnored = Boolean(t.ignoreMark);
     const row: MarkRow = {
       id: t.id,
       title: t.title,
@@ -204,7 +207,8 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       bonusTarget: isBonus ? t.bonusTarget : undefined,
       bonusTargetLabel: isBonus ? t.bonusTargetLabel : undefined,
       isStandalone: isStandaloneMarkTask(t),
-      isGradebook: isGradebook || undefined
+      isGradebook: isGradebook || undefined,
+      ignoreMark: isIgnored || undefined
     };
     if (graded) {
       if (isBonus) {
@@ -222,9 +226,10 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       }
     }
 
-    // Deduplicate marks within course (never merge a bonus item into a non-bonus item)
+    // Deduplicate marks within course (never merge bonus or ignored rows into normal items)
     const existingIndex = course.marks.findIndex(m => {
       if (Boolean(m.isBonus) !== isBonus) return false;
+      if (Boolean(m.ignoreMark) !== isIgnored) return false;
       if (t.gradeSourceId && (m as any).gradeSourceId && t.gradeSourceId === (m as any).gradeSourceId) return true;
       const numT = extractAssessmentNumber(t.title);
       const numM = extractAssessmentNumber(m.title);
@@ -285,16 +290,20 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
         if (effWeight) {
           existingRow.weight = effWeight;
           existingRow.earned = isBonus ? round1(effWeight) : round1((t.score! / t.maxScore!) * effWeight);
-          if (isBonus) {
-            course.earnedWeight += (existingRow.earned || 0);
-            course.bonusWeight = (course.bonusWeight || 0) + (existingRow.earned || 0);
-          } else {
-            course.gradedWeight += effWeight;
-            course.earnedWeight += (t.score! / t.maxScore!) * effWeight;
+          if (!isIgnored) {
+            if (isBonus) {
+              course.earnedWeight += (existingRow.earned || 0);
+              course.bonusWeight = (course.bonusWeight || 0) + (existingRow.earned || 0);
+            } else {
+              course.gradedWeight += effWeight;
+              course.earnedWeight += (t.score! / t.maxScore!) * effWeight;
+            }
           }
         }
-        gradedCount++;
-        if (wasAwaiting) submittedCount--;
+        if (!isIgnored) {
+          gradedCount++;
+          if (wasAwaiting) submittedCount--;
+        }
       } else if (!graded && row.status === 'submitted' && existingRow.status === 'waiting') {
         existingRow.status = 'submitted';
         if (weight && !existingRow.weight) existingRow.weight = weight;
@@ -303,28 +312,32 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       } else if (weight && !existingRow.weight && typeof existingRow.score === 'number' && existingRow.maxScore) {
         existingRow.weight = weight;
         existingRow.earned = round1((existingRow.score / existingRow.maxScore) * weight);
-        if (isBonus) {
-          course.earnedWeight += (existingRow.earned || 0);
-          course.bonusWeight = (course.bonusWeight || 0) + (existingRow.earned || 0);
-        } else {
-          course.gradedWeight += weight;
-          course.earnedWeight += (existingRow.score / existingRow.maxScore) * weight;
+        if (!isIgnored) {
+          if (isBonus) {
+            course.earnedWeight += (existingRow.earned || 0);
+            course.bonusWeight = (course.bonusWeight || 0) + (existingRow.earned || 0);
+          } else {
+            course.gradedWeight += weight;
+            course.earnedWeight += (existingRow.score / existingRow.maxScore) * weight;
+          }
         }
       }
       continue;
     }
 
-    if (graded) {
-      gradedCount++;
-      if (isBonus) {
-        course.earnedWeight += (row.earned || 0);
-        course.bonusWeight = (course.bonusWeight || 0) + (row.earned || 0);
-      } else if (weight) {
-        course.gradedWeight += weight;
-        course.earnedWeight += (t.score! / t.maxScore!) * weight;
+    if (!isIgnored) {
+      if (graded) {
+        gradedCount++;
+        if (isBonus) {
+          course.earnedWeight += (row.earned || 0);
+          course.bonusWeight = (course.bonusWeight || 0) + (row.earned || 0);
+        } else if (weight) {
+          course.gradedWeight += weight;
+          course.earnedWeight += (t.score! / t.maxScore!) * weight;
+        }
+      } else {
+        submittedCount++;
       }
-    } else {
-      submittedCount++;
     }
     (row as any).gradeSourceId = t.gradeSourceId;
     course.marks.push(row);
@@ -335,7 +348,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     c.gradedWeight = round1(c.gradedWeight);
     c.earnedWeight = round1(c.earnedWeight);
     if (c.bonusWeight) c.bonusWeight = round1(c.bonusWeight);
-    const pcts = c.marks.filter(m => m.percent !== undefined).map(m => m.percent!);
+    const pcts = c.marks.filter(m => !m.ignoreMark && m.percent !== undefined).map(m => m.percent!);
     if (pcts.length) c.averagePercent = round1(pcts.reduce((a, b) => a + b, 0) / pcts.length);
     // Ranked from newest to oldest by posting, due, or completion date (NOT by when the mark was released); oldest at the bottom
     const time = (m: MarkRow) => {
@@ -360,6 +373,9 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       return -Infinity;
     };
     c.marks.sort((a, b) => {
+      if (Boolean(a.ignoreMark) !== Boolean(b.ignoreMark)) {
+        return a.ignoreMark ? 1 : -1;
+      }
       const timeA = time(a);
       const timeB = time(b);
       if (timeA !== timeB) return timeB - timeA;
@@ -438,6 +454,36 @@ export function deleteMarkFromTasks(tasks: DeadlineTask[], markId: string): Dele
     tasks: list.map(t => (t.id === markId ? nextTask : t)),
     action: 'cleared',
     previousTask,
+    title: target.title
+  };
+}
+
+/**
+ * Toggles whether a mark is excluded (`ignoreMark`) from GPA and course totals
+ * while keeping the item listed in Marks so future scans do not re-create duplicates.
+ */
+export function toggleMarkIgnoredInTasks(
+  tasks: DeadlineTask[],
+  markId: string
+): { tasks: DeadlineTask[]; ignored?: boolean; title?: string; previousIgnored?: boolean } {
+  const list = Array.isArray(tasks) ? tasks : [];
+  const target = list.find(t => t && t.id === markId);
+  if (!target) return { tasks: list };
+
+  const previousIgnored = Boolean(target.ignoreMark);
+  const nextIgnored = !previousIgnored;
+  const nextTask: DeadlineTask = {
+    ...target,
+    userEdited: true,
+    updatedAt: new Date().toISOString()
+  };
+  if (nextIgnored) nextTask.ignoreMark = true;
+  else delete nextTask.ignoreMark;
+
+  return {
+    tasks: list.map(t => (t.id === markId ? nextTask : t)),
+    ignored: nextIgnored,
+    previousIgnored,
     title: target.title
   };
 }

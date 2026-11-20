@@ -9,7 +9,7 @@ import {
 import { calculateTrajectoryTargetPlan } from '../core/targetGpa';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
 import { buildGpaSummary } from '../utils/gpa';
-import { buildMarksSummary, deleteMarkFromTasks } from '../utils/marks';
+import { buildMarksSummary, deleteMarkFromTasks, toggleMarkIgnoredInTasks } from '../utils/marks';
 import { recordLocalTombstone, removeLocalTombstone } from '../utils/tombstones';
 import { gradesBadgeText, gradesHtml, archivedSemesterHtml } from '../utils/grades';
 import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
@@ -278,6 +278,34 @@ export function initMarksViewController(hooks: MarksControllerHooks): void {
     const bonusTriggerBtn = (e.target as HTMLElement).closest('.btn-add-bonus-trigger') as HTMLElement | null;
     if (bonusTriggerBtn) {
       openBonusModal();
+      return;
+    }
+
+    const ignoreMarkBtn = (e.target as HTMLElement).closest('.btn-toggle-ignore-mark') as HTMLElement | null;
+    if (ignoreMarkBtn) {
+      const markId = ignoreMarkBtn.getAttribute('data-mark-id') || '';
+      if (!markId) return;
+      const res = toggleMarkIgnoredInTasks(hooks.getTasks(), markId);
+      if (res.ignored === undefined) return;
+      const saved = await hooks.saveTasks(res.tasks);
+      renderGradeTracker(saved, hooks);
+      hooks.renderTasks();
+      hooks.refreshAllViews();
+      hooks.syncCloud(saved, res.ignored ? 'Ignored Mark' : 'Included Mark');
+
+      const label = (res.title || 'Mark').slice(0, 24);
+      hooks.showToast(
+        res.ignored ? `Ignored "${label}" from GPA` : `Included "${label}" in GPA`,
+        'Undo',
+        async () => {
+          const undone = toggleMarkIgnoredInTasks(hooks.getTasks(), markId);
+          const savedUndo = await hooks.saveTasks(undone.tasks);
+          renderGradeTracker(savedUndo, hooks);
+          hooks.renderTasks();
+          hooks.refreshAllViews();
+          hooks.syncCloud(savedUndo, 'Restored Mark Inclusion');
+        }
+      );
       return;
     }
 

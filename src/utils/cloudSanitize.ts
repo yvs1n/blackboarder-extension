@@ -143,6 +143,9 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       delete clean.bonusTarget;
       delete clean.bonusTargetLabel;
     }
+    if (t.ignoreMark === true) clean.ignoreMark = true;
+    else delete clean.ignoreMark;
+
     out.push(clean as DeadlineTask);
   }
   return out;

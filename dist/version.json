@@ -1,19 +1,18 @@
 {
-  "version": "1.8.24",
-  "build": "3f7a8b5873cb",
-  "commit": "bbefbb06d7951842c796718575607d57355ff048",
-  "shortCommit": "bbefbb0",
-  "timestamp": "2026-11-20T16:35:06.441Z",
-  "message": "Align Swiss Grid design system across all surfaces and add scroll reveals (v1.8.23)",
+  "version": "1.8.26",
+  "build": "905306d3bed8",
+  "commit": "1b077fbf4f53b40550253bf34904f52786ff494c",
+  "shortCommit": "1b077fb",
+  "timestamp": "2026-11-20T17:09:34.654Z",
+  "message": "Lock desktop popup 480x600 size across all tabs and persist payment add/edit drafts (v1.8.24)",
   "changelog": [
-    "Locked Desktop Extension Popup Dimensions Across All Menus (src/popup/styles/02-base.css, src/popup/styles/05-modals-weights.css): Scoped < 480px mobile popup responsiveness strictly to touch screens ((max-width: 479px) and (pointer: coarse)), locked html min/max height to 600px, and gave .popup-views-scroll and .view-panel explicit width: 100% so desktop popups never shrink horizontally or vertically when switching to Finance/Payments or any other tab.",
-    "Persistent Drafts When Adding or Editing Financial Deadlines (src/popup/popupDraft.ts, src/popup/modules/paymentsView.ts, src/popup/modules/navigation.ts): Closing the extension while adding or editing an item inside #modal-payment now preserves the open modal, edit target ID, and all unsaved form fields across reopens identically to academic deadlines."
+    "Ignore / Include Mark Toggle in Marks Tab (src/types.ts, src/utils/marks.ts, src/utils/gpa.ts, src/utils/grades.ts, src/popup/marksViewController.ts, src/mobile/app/10-marks-tracker.js): Every mark row (including Blackboard gradebook columns and bonus rows) now has an Ignore button (eye icon) to exclude duplicate or aggregate columns (such as \"Out of 55\" or \"CourseWork without Bonus\") from GPA, course percentage, target grade planning, and syllabus progress calculations while keeping the row visible with an Ignored pill and Undo toast across extension, Companion PWA, cloud Vault sync, and future gradebook scans."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-CDnYKRMK.js",
-    "assets/popup-DMEWlarC.css",
+    "assets/popup-B3giqiMO.css",
+    "assets/popup-CC8FUrUP.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.26] - 2026-11-20
+
+### Added
+
+- **Ignore / Include Mark Toggle in Marks Tab (`src/types.ts`, `src/utils/marks.ts`, `src/utils/gpa.ts`, `src/utils/grades.ts`, `src/popup/marksViewController.ts`, `src/mobile/app/10-marks-tracker.js`):** Every mark row (including Blackboard gradebook columns and bonus rows) now has an Ignore button (eye icon) to exclude duplicate or aggregate columns (such as "Out of 55" or "CourseWork without Bonus") from GPA, course percentage, target grade planning, and syllabus progress calculations while keeping the row visible with an `Ignored` pill and Undo toast across extension, Companion PWA, cloud Vault sync, and future gradebook scans.
+
+---
+
+## [1.8.25] - 2026-11-20
+
+### Changed
+
+- **Instant Hover on Non-CTA Controls (`src/popup/styles/11-design-marks.css`, `src/mobile/styles/09-onboarding-design.css`):** Removed hover color/border transition delays from all secondary buttons, tabs, icon buttons, calendar tiles, task cards, filter/course/quick-link chips, and accordion headers so hover states respond instantaneously, reserving smooth hover transitions strictly for the primary CTA buttons with the 3D offset lift.
+
+---
+
 ## [1.8.24] - 2026-11-20
 
 ### Fixed
