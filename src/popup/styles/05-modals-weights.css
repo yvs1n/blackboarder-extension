@@ -9,24 +9,6 @@
 
 .view-panel.active {
   display: block;
-  animation: panelFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes panelFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .view-panel.active {
-    animation: none !important;
-  }
 }
 
 #view-settings {
@@ -167,20 +149,6 @@
   box-shadow: var(--shadow-lg);
   padding: 16px;
   border: 1px solid var(--surface-border);
-  animation: modalFadeIn 0.18s ease-out;
-  transform: translate3d(0, 0, 0);
-  will-change: transform, opacity;
-}
-
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 
 .modal-header {

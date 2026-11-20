@@ -13,15 +13,14 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.28",
-  "build": "6435b5b96a69",
-  "commit": "00880eb80f24703fc73a3af23de3c2ebe53da537",
-  "shortCommit": "00880eb",
-  "timestamp": "2026-11-20T21:17:47.487Z",
-  "message": "Add active header button highlights for Settings and Add Deadline (v1.8.27)",
+  "version": "1.8.29",
+  "build": "de1824281c13",
+  "commit": "95fefcf0dd12c1a46e5ab0f77762340644796c7d",
+  "shortCommit": "95fefcf",
+  "timestamp": "2026-11-20T21:26:02.263Z",
+  "message": "v1.8.28: Convert Add Custom Deadline into modal and align unpaid fees banner",
   "changelog": [
-    "Add Custom Deadline Modal in Extension (src/popup/index.html, src/popup/modules/navigation.ts, src/popup/modules/overlayController.ts, src/popup/popupDraft.ts): Converted #view-add into a floating #modal-add-task dialog matching Companion PWA, opening over the currently active tab (Calendar, Deadlines, Marks, Courses, Payments, or Settings), keeping #btn-add-modal highlighted while open, supporting Escape/backdrop dismissal, and preserving typed draft fields plus underlying tab state across popup closes.",
-    "Unpaid Fees Banner Width & Wrapping (src/popup/styles/12-payments.css, src/mobile/styles/11-payments.css): Aligned #deadlines-payments-strip to the 14px horizontal inset of .controls-bar and task cards in the extension Deadlines tab, and switched .payments-strip-text to flex: 1 1 auto; min-width: 0; display: block; so fee summary text wraps cleanly alongside the Payments button."
+    "Instant View & Modal Switching (src/popup/styles/05-modals-weights.css, src/mobile/styles/01-header-layout.css, src/mobile/styles/06-drawers-modals.css): Removed panelFadeIn, sectionFadeIn, modalFadeIn, and modalIn entry animations so switched sections and opened modals render on the exact same frame as the button .active highlight with zero delay."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

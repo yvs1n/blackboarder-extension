@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.29] - 2026-11-21
+
+### Changed
+
+- **Instant View & Modal Switching (`src/popup/styles/05-modals-weights.css`, `src/mobile/styles/01-header-layout.css`, `src/mobile/styles/06-drawers-modals.css`):** Removed `panelFadeIn`, `sectionFadeIn`, `modalFadeIn`, and `modalIn` entry animations so switched sections and opened modals render on the exact same frame as the button `.active` highlight with zero delay.
+
+---
+
 ## [1.8.28] - 2026-11-21
 
 ### Changed
