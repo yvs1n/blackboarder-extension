@@ -253,6 +253,43 @@ Assessments and Grading Policy:
     expect(r.courses[0].syllabus[1]).toMatchObject({ totalWeight: 15, count: 3, unitWeight: 5 });
   });
 
+  it('reads comma-separated inline weights, points tables, prose note columns, UK credits and title-only modules', () => {
+    const inlineDoc = `Module Code: RES691_SEP26
+Module Title: Qualitative Research Methods and Paradigms
+Module Credits: 20
+Scheme of Assessment
+Midterm 30%, Quizzes 20%, Research Paper 20%, Final Exam 30%`;
+    const rInline = analyzeCourseDocument(inlineDoc);
+    expect(rInline.kind).toBe('syllabus');
+    expect(rInline.courses[0].courseCode).toBe('RES 691');
+    expect(rInline.courses[0].courseName).toBe('Qualitative Research Methods and Paradigms');
+    expect(rInline.courses[0].creditHours).toBe(20);
+    expect(rInline.courses[0].syllabus.map(s => [s.name, s.totalWeight])).toEqual([
+      ['Midterm', 30],
+      ['Quizzes', 20],
+      ['Research Paper', 20],
+      ['Final Exam', 30]
+    ]);
+
+    const pointsDoc = `Course Syllabus: Quantitative Analysis
+Credit Hours: 0
+Grade Breakdown
+Component\tPoints\tNotes
+Homework\t40\tStudents will submit weekly via Turnitin
+Midterm Exam\t60\tClosed book exam
+Final Project\t100\tWill be presented in week 14
+Total\t200`;
+    const rPoints = analyzeCourseDocument(pointsDoc);
+    expect(rPoints.kind).toBe('syllabus');
+    expect(rPoints.courses[0].courseName).toBe('Quantitative Analysis');
+    expect(rPoints.courses[0].creditHours).toBe(0);
+    expect(rPoints.courses[0].syllabus.map(s => [s.name, s.totalWeight])).toEqual([
+      ['Homework', 20],
+      ['Midterm Exam', 30],
+      ['Final Project', 50]
+    ]);
+  });
+
   it('finds nothing in a document that is neither', () => {
     expect(analyzeCourseDocument('Dear students, the library opens at 9.').kind).toBe('none');
     expect(analyzeCourseDocument('')).toEqual({ kind: 'none', courses: [] });

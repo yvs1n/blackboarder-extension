@@ -7,6 +7,9 @@
  */
 import type { CustomScheduleSlot, CustomSyllabusComponent, UserCourseConfig, Weekday } from '../types';
 import { parseBannerScheduleText, makeSyllabusComponent, mergeImportedCourses } from './courseImporter';
+import { parseAssessmentTable, assessmentFromLine, syllabusWeights } from './syllabusTableParser';
+
+export { parseAssessmentTable, assessmentFromLine };
 
 export interface CourseDraft {
   courseCode: string;
@@ -134,7 +137,7 @@ const CODE_STOP = new Set([
 /** Course codes in a line, as "CSC 201" (letters, a space, the number) or UOS's seven digits. */
 export function courseCodesIn(text: string, allowDigits = false): { code: string; index: number; length: number }[] {
   const out: { code: string; index: number; length: number }[] = [];
-  const re = /\b([A-Z]{2,5})[ -]?(\d{3,4}[A-Z]?)\b/g;
+  const re = /\b([A-Z]{2,6})[ -]?(\d{3,4}[A-Z]?)(?=[_\s\-:|,.)]|$)/g;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     if (CODE_STOP.has(m[1])) continue;
     out.push({ code: `${m[1]} ${m[2]}`, index: m.index, length: m[0].length });
@@ -156,7 +159,7 @@ function normalizeCode(code: string): string {
 
 /** The course name written after its code ("CSC 201 - 01 Data Structures MW 9:30"). */
 function nameAfterCode(line: string, codeEnd: number): string {
-  let rest = line.slice(codeEnd);
+  let rest = line.slice(codeEnd).replace(/^(?:_[A-Z]{2,5}\d{2,4})+/, '');
   const time = timeRangeIn(rest);
   if (time) rest = rest.slice(0, time.index);
   rest = rest.split('\t').find(cell => /[A-Za-z؀-ۿ]{3}/.test(cell)) || '';
@@ -164,8 +167,8 @@ function nameAfterCode(line: string, codeEnd: number): string {
     .replace(/^[\s\-:|,.]*(?:(?:sec(?:tion)?|lec(?:ture)?|lab|grp|group)\.?\s*)?\d{0,3}[A-Z]?(?=[\s\-:|,.]|$)[\s\-:|,.]*/i, '')
     .replace(/\s+\b(?:[UMTWRFS]{2,5}|(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)[a-z]*)\b.*$/, '')
     .replace(/\s+(?:room|rm\.?|hall|location|venue|bldg\.?|building)\b.*$/i, '')
-    .replace(/\s*\(?\d(?:\.\d)?\s*(?:credit\s*hours?|credits?|cr\.?|ch)\)?.*$/i, '')
-    .replace(/\b(?:course\s+)?(?:syllabus|outline|specification)\b.*$/i, '')
+    .replace(/\s*\(?\d{1,2}(?:\.\d)?\s*(?:credit\s*hours?|credits?|cr\.?|ch|cats)\)?.*$/i, '')
+    .replace(/\b(?:course|module)\s+(?:syllabus|outline|specification)\b.*$/i, '')
     .replace(/[\s\-:|,.]+$/, '')
     .trim();
   return rest.length >= 3 && rest.length <= 90 ? rest : '';
@@ -226,16 +229,16 @@ function parseTimetable(lines: string[]): CourseDraft[] {
 }
 
 function credits(text: string): number | undefined {
-  const m = text.match(/credit\s*(?:hours?|hrs?\.?|units?)\s*[:-]?\s*\(?(\d(?:\.\d)?)\b/i)
-    || text.match(/\b(\d(?:\.\d)?)\s*(?:credit\s*(?:hours?|hrs?\.?|units?)|credits?\b|cr\.?\s*hrs?\b|sch\b)/i)
-    || text.match(/(?:عدد\s*)?الساعات\s*(?:المعتمدة)?\s*[:-]?\s*(\d)/)
-    || text.match(/(\d)\s*ساعات\s*معتمدة/);
+  const m = text.match(/(?:credit\s*(?:hours?|hrs?\.?|units?|weight)|module\s*credits?|cats(?:\s*credits?)?)\s*[:-]?\s*\(?(0|[1-5]?\d(?:\.\d)?|60)\b/i)
+    || text.match(/\b(0|[1-5]?\d(?:\.\d)?|60)\s*(?:credit\s*(?:hours?|hrs?\.?|units?)|credits?\b|cr\.?\s*hrs?\b|sch\b|cats\b)/i)
+    || text.match(/(?:عدد\s*)?الساعات\s*(?:المعتمدة)?\s*[:-]?\s*(\d{1,2})/)
+    || text.match(/(\d{1,2})\s*ساعات\s*معتمدة/);
   const n = m ? parseFloat(m[1]) : NaN;
-  return n >= 0.5 && n <= 6 ? n : undefined;
+  return !isNaN(n) && n >= 0 && n <= 60 ? n : undefined;
 }
 
 function instructorIn(text: string): string | undefined {
-  const m = text.match(/(?:\binstructor|\blecturer|\bprofessor|\bcourse\s+(?:coordinator|leader)|\bfaculty\s+member|\btaught\s+by|\bteacher|مدرس\s*المساق|أستاذ\s*المساق)(?:'s)?(?:\s*name)?\s*[:-]\s*([^\n\t,;|]{3,80})/i);
+  const m = text.match(/(?:\binstructor|\blecturer|\bprofessor|\bmodule\s+(?:leader|coordinator)|\bcourse\s+(?:coordinator|leader)|\bfaculty\s+member|\btaught\s+by|\bteacher|مدرس\s*المساق|أستاذ\s*المساق)(?:'s)?(?:\s*name)?\s*[:-]\s*([^\n\t,;|]{3,80})/i);
   if (!m) return undefined;
   const name = m[1].split(/\s{2,}|\b(?:e-?mail|office|phone|tel|ext)\b|@/i)[0].replace(/[\s\-:,.]+$/, '').trim();
   return name.length >= 3 && name.length <= 60 ? name : undefined;
@@ -243,10 +246,12 @@ function instructorIn(text: string): string | undefined {
 
 function courseIdentity(lines: string[]): { code: string; name: string } {
   const text = lines.join('\n');
-  const label = text.match(/course\s*(?:code|number|no\.?|#|id)(?:\s*(?:and|&|\/)\s*(?:title|name))?\s*[:-]?\s*([A-Z]{2,5}[ -]?\d{3,4}[A-Z]?|\d{4}\s?\d{3})\b/i);
-  const nameLabel = text.match(/course\s*(?:title|name)\s*[:-]\s*([^\n\t]{3,90})/i);
+  const label = text.match(/(?:course|module|subject)\s*(?:code|number|no\.?|#|id)(?:\s*(?:and|&|\/)\s*(?:title|name))?\s*[:-]?\s*([A-Z]{2,6}[ -]?\d{3,4}[A-Z]?(?:_[A-Z]{2,5}\d{2,4})?|\d{4}\s?\d{3})/i)
+    || text.match(/رمز\s*(?:المساق|المقرر)\s*[:-]?\s*([A-Z]{2,6}[ -]?\d{3,4}[A-Z]?|\d{4}\s?\d{3})/i);
+  const nameLabel = text.match(/(?:course|module|subject)\s*(?:title|name)\s*[:-]\s*([^\n\t]{3,90})/i)
+    || text.match(/اسم\s*(?:المساق|المقرر)\s*[:-]\s*([^\n\t]{3,90})/i);
   let code = label ? (courseCodesIn(label[1].toUpperCase(), true)[0]?.code || '') : '';
-  let name = nameLabel ? nameLabel[1].replace(/\s*\(?\d(?:\.\d)?\s*(?:credit\s*hours?|credits?)\)?.*$/i, '').replace(/[\s\-:|,.]+$/, '').trim() : '';
+  let name = nameLabel ? nameLabel[1].replace(/\s*\(?\d{1,2}(?:\.\d)?\s*(?:credit\s*hours?|credits?|cats)\)?.*$/i, '').replace(/[\s\-:|,.]+$/, '').trim() : '';
   if (!code || !name) {
     // Otherwise the first code near the top, and the name next to it
     for (const line of lines.slice(0, 60)) {
@@ -255,343 +260,22 @@ function courseIdentity(lines: string[]): { code: string; name: string } {
       if (!code) code = found.code;
       if (!name && normalizeCode(found.code) === normalizeCode(code)) name = nameAfterCode(line, found.index + found.length);
       if (!name) {
-        const before = line.slice(0, found.index).replace(/[\s\-:|,.(]+$/, '').replace(/^.*(?:course|syllabus|outline)\s*[:-]?\s*/i, '').trim();
+        const before = line.slice(0, found.index).replace(/[\s\-:|,.(]+$/, '').replace(/^.*(?:course|module|syllabus|outline)\s*[:-]?\s*/i, '').trim();
         if (before.length >= 3 && before.length <= 90 && /[A-Za-z]{3}/.test(before)) name = before;
       }
       if (code && name) break;
     }
   }
+  if (!name) {
+    for (const line of lines.slice(0, 8)) {
+      const cleaned = line.replace(/^(?:course|module)\s+(?:syllabus|outline|specification|profile|guide)\s*[:\-–|]?\s*/i, '').trim();
+      if (cleaned.length >= 5 && cleaned.length <= 90 && /[A-Za-z؀-ۿ]{4}/.test(cleaned) && !/^(?:university|college|faculty|department|semester|term|academic|syllabus|course outline)\b/i.test(cleaned)) {
+        name = cleaned;
+        break;
+      }
+    }
+  }
   return { code, name };
-}
-
-const ASSESSMENT_HEADER = /^(?:\d+(?:\.\d+)*[.)]?\s*)?(?:course\s+)?(?:(?:assessments?|grading|evaluation|grade\s+distribution|marks?\s+distribution|distribution\s+of\s+(?:marks|grades)|weighting|assessment\s+(?:methods?|plan|strategy|tools)|course\s+grade|grading\s+(?:policy|scheme|criteria|system)|methods?\s+of\s+assessment)\b|توزيع\s*(?:الدرجات|العلامات)|التقييم|طرق\s*التقييم)/i;
-const PROSE = /\b(?:will|must|should|shall|more than|less than|at least|up to|exceed|deduct|penalt|plagiar|similarity|turnitin|absen|late\b|warning|receive|obtain|minimum|maximum)/i;
-const GRADE_ROW = /^\s*(?:[A-F][+-]?\s*[:=\t ]\s*\(?\d|\b\d{2,3}(?:\.\d+)?\s*(?:-|to)\s*\d{2,3}(?:\.\d+)?\s*(?:%|[:=\t ]\s*[A-F][+-]?))/i;
-
-const TABLE_HEADER_NAME = /\b(?:assessments?|components?|tasks?|activities|activity|evaluations?|methods?|tools?|descriptions?|titles?|names?|types?|items?|instruments?|work)\b|التقييم|الاختبار|المهمة|البند|طريقة التقييم|نوع التقييم|النشاط|الأداة|العنصر/i;
-const TABLE_HEADER_WEIGHT = /\b(?:weights?|weightings?|percentages?|%|marks?|grades?|points?|scores?|share|distributions?)\b|النسبة|الدرجة|العلامة|الوزن/i;
-const TABLE_HEADER_DATE = /\b(?:dates?|due|weeks?|timing|deadlines?|schedule)\b|التاريخ|الأسبوع|موعد|أسبوع/i;
-const TABLE_HEADER_NOTES = /\b(?:notes?|remarks?|details?|comments?|clos?|plos?|topics?|coverage)\b|ملاحظات|تفاصيل/i;
-
-function splitLineCells(line: string): string[] {
-  const trimmed = line.trim();
-  if (trimmed.includes('\t')) return trimmed.split('\t').map(c => c.trim()).filter(Boolean);
-  if (trimmed.includes('|')) return trimmed.split('|').map(c => c.trim()).filter(Boolean);
-  if (/\s{2,}/.test(trimmed)) return trimmed.split(/\s{2,}/).map(c => c.trim()).filter(Boolean);
-  return [trimmed];
-}
-
-/** Resolves nested parent category totals (e.g. Theory 70% with sub-items Midterm 30%, Quizzes 15%, Final 25%). */
-function resolveNestedCategories(components: CustomSyllabusComponent[]): CustomSyllabusComponent[] {
-  const sum = sumOf(components);
-  if (Math.abs(sum - 100) <= 5) return components;
-
-  const toRemove = new Set<number>();
-  for (let i = 0; i < components.length; i++) {
-    const parentWeight = components[i].totalWeight;
-    let subSum = 0;
-    const subIdxs: number[] = [];
-    for (let j = i + 1; j < components.length; j++) {
-      subSum += components[j].totalWeight;
-      subIdxs.push(j);
-      if (Math.abs(subSum - parentWeight) <= 0.5 && subIdxs.length >= 2) {
-        toRemove.add(i);
-        break;
-      }
-      if (subSum > parentWeight + 1) break;
-    }
-  }
-
-  if (toRemove.size > 0) {
-    const filtered = components.filter((_, idx) => !toRemove.has(idx));
-    if (Math.abs(sumOf(filtered) - 100) <= 5) return filtered;
-  }
-  return components;
-}
-
-/** Parses a table row when table header column positions are known. */
-function parseTableRowWithHeader(
-  cells: string[],
-  map: { nameCol: number; weightCol: number; dateCol: number; notesCol: number },
-  idx: number,
-  rawLine: string
-): CustomSyllabusComponent | null {
-  if (cells.length < 2) return null;
-  const lineText = cells.join(' ');
-  if (/^total\b|\btotal\s*[:=]?\s*100|المجموع|الإجمالي/i.test(lineText)) return null;
-  if (GRADE_ROW.test(lineText) || PROSE.test(lineText)) return null;
-
-  let weight: number | undefined;
-  const weightCell = cells[map.weightCol] || '';
-  const weightMatch = weightCell.match(/(\d{1,3}(?:\.\d+)?)\s*%?/) || lineText.match(/(\d{1,3}(?:\.\d+)?)\s*%/);
-  if (weightMatch) {
-    const val = parseFloat(weightMatch[1]);
-    if (val > 0 && val <= 100) weight = val;
-  }
-  if (weight === undefined) {
-    for (let i = 0; i < cells.length; i++) {
-      if (i === map.nameCol) continue;
-      const m = cells[i].match(/^(\d{1,3}(?:\.\d+)?)$/);
-      if (m) {
-        const val = parseFloat(m[1]);
-        if (val > 0 && val <= 100) { weight = val; break; }
-      }
-    }
-  }
-  if (weight === undefined) return null;
-
-  let name = (cells[map.nameCol] || '')
-    .replace(/^[\s\-•*●▪◦·]+/, '')
-    .replace(/^\d{1,2}[.)]\s+/, '')
-    .replace(/\s*\([^)]*\d[^)]*\)\s*$/, '')
-    .replace(/[\s:=\-–(|,]+$/, '')
-    .trim();
-
-  if (!name || !/[A-Za-z؀-ۿ]{2}/.test(name)) {
-    for (let i = 0; i < cells.length; i++) {
-      if (i === map.weightCol) continue;
-      const candidate = cells[i].replace(/^[\s\-•*●▪◦·]+/, '').trim();
-      if (/[A-Za-z؀-ۿ]{2}/.test(candidate) && !/^\d+$/.test(candidate) && !/^(?:week|date|due|tbd|day|room)\b/i.test(candidate)) {
-        name = candidate;
-        break;
-      }
-    }
-  }
-  if (!name || !/[A-Za-z؀-ۿ]{2}/.test(name) || name.length > 70) return null;
-
-  const notesText = (map.notesCol >= 0 ? cells[map.notesCol] + ' ' : '') + lineText;
-  const countMatch = notesText.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
-    || notesText.match(/أفضل\s+(\d{1,2})\s+من\s+(\d{1,2})/)
-    || notesText.match(/\((\d{1,2})\)/)
-    || notesText.match(/\b(\d{1,2})\s*[x×]\s*\d/)
-    || notesText.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
-    || notesText.match(/\b(\d{1,2})\s+(?:(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments)\b|كويزات|واجبات|اختبارات)/i);
-
-  const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
-  const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;
-
-  return makeSyllabusComponent(name, weight, count && count > 0 ? count : undefined, idx, rawLine, outOf);
-}
-
-/** LLM-grade table parser for multi-column syllabus assessment tables. */
-export function parseAssessmentTable(lines: string[]): CustomSyllabusComponent[] {
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const cells = splitLineCells(line);
-    if (cells.length < 2) continue;
-
-    let nameCol = -1;
-    let weightCol = -1;
-    let dateCol = -1;
-    let notesCol = -1;
-
-    cells.forEach((cell, idx) => {
-      if (TABLE_HEADER_NAME.test(cell) && nameCol < 0) nameCol = idx;
-      else if (TABLE_HEADER_WEIGHT.test(cell) && weightCol < 0) weightCol = idx;
-      else if (TABLE_HEADER_DATE.test(cell) && dateCol < 0) dateCol = idx;
-      else if (TABLE_HEADER_NOTES.test(cell) && notesCol < 0) notesCol = idx;
-    });
-
-    if (weightCol >= 0) {
-      if (nameCol < 0) nameCol = cells.findIndex((_, idx) => idx !== weightCol);
-      if (nameCol >= 0) {
-        const map = { nameCol, weightCol, dateCol, notesCol };
-        const components: CustomSyllabusComponent[] = [];
-        const seenNames = new Set<string>();
-        let emptyCount = 0;
-
-        for (let j = i + 1; j < Math.min(lines.length, i + 50); j++) {
-          const rowLine = lines[j].trim();
-          if (!rowLine) {
-            emptyCount++;
-            if (emptyCount >= 3) break;
-            continue;
-          }
-          emptyCount = 0;
-          if (/^total\b|\btotal\s*[:=]?\s*100|المجموع|الإجمالي/i.test(rowLine)) break;
-          if (/^(?:course\s+policies|attendance|grading\s+scale|academic\s+integrity|schedule|weekly|lecture)/i.test(rowLine)) break;
-
-          const rowCells = splitLineCells(rowLine);
-          const comp = parseTableRowWithHeader(rowCells, map, components.length, rowLine);
-          if (comp) {
-            const key = comp.name.toLowerCase();
-            if (!seenNames.has(key)) {
-              seenNames.add(key);
-              components.push(comp);
-            }
-          } else if (components.length > 0) {
-            const dropMatch = rowLine.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
-              || rowLine.match(/أفضل\s+(\d{1,2})\s+من\s+(\d{1,2})/);
-            if (dropMatch) {
-              const lastComp = components[components.length - 1];
-              lastComp.count = parseInt(dropMatch[1], 10);
-              if (dropMatch[2]) lastComp.outOf = parseInt(dropMatch[2], 10);
-            }
-          }
-        }
-
-        const resolved = resolveNestedCategories(components);
-        const totalWeight = sumOf(resolved);
-        if (resolved.length >= 2 && Math.abs(totalWeight - 100) <= 5) {
-          return resolved;
-        }
-      }
-    }
-  }
-  return [];
-}
-
-/** One weighted assessment from a line ("Midterm Exam 30%", "Quizzes (4) 20%", "Labs 4 x 5%"), or null. */
-export function assessmentFromLine(line: string, inSection: boolean, idx: number): CustomSyllabusComponent | null {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.length > 180 || /^total\b|\btotal\s*[:=]?\s*100|المجموع|الإجمالي/i.test(trimmed)) return null;
-  if (PROSE.test(trimmed) || GRADE_ROW.test(trimmed)) return null;
-
-  // First, check if the line has delimited table cells (tabs, pipes, multi-space)
-  const cells = splitLineCells(line);
-  if (cells.length >= 2) {
-    let weightCellIdx = -1;
-    let weightVal: number | undefined;
-
-    for (let c = cells.length - 1; c >= 0; c--) {
-      const pm = cells[c].match(/(\d{1,3}(?:\.\d+)?)\s*%/);
-      if (pm) {
-        const val = parseFloat(pm[1]);
-        if (val > 0 && val <= 100) { weightCellIdx = c; weightVal = val; break; }
-      }
-    }
-    if (weightVal === undefined && inSection) {
-      for (let c = cells.length - 1; c >= 0; c--) {
-        const nm = cells[c].match(/^(\d{1,3}(?:\.\d+)?)$/);
-        if (nm) {
-          const val = parseFloat(nm[1]);
-          if (val > 0 && val <= 100) { weightCellIdx = c; weightVal = val; break; }
-        }
-      }
-    }
-
-    if (weightVal !== undefined && weightCellIdx >= 0) {
-      let nameCellIdx = -1;
-      for (let c = 0; c < cells.length; c++) {
-        if (c === weightCellIdx) continue;
-        const candidate = cells[c].replace(/^[\s\-•*●▪◦·]+/, '').trim();
-        if (/[A-Za-z؀-ۿ]{2}/.test(candidate) && !/^(?:week|date|due|tbd|day|room)\b/i.test(candidate)) {
-          nameCellIdx = c;
-          break;
-        }
-      }
-      if (nameCellIdx >= 0) {
-        let name = cells[nameCellIdx]
-          .replace(/^[\s\-•*●▪◦·]+/, '')
-          .replace(/^\d{1,2}[.)]\s+/, '')
-          .replace(/\s*\([^)]*\d[^)]*\)\s*$/, '')
-          .replace(/[\s:=\-–(|,]+$/, '')
-          .trim();
-
-        const restText = cells.join(' ');
-        const countMatch = restText.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
-          || restText.match(/أفضل\s+(\d{1,2})\s+من\s+(\d{1,2})/)
-          || restText.match(/\((\d{1,2})\)/)
-          || restText.match(/\b(\d{1,2})\s*[x×]\s*\d/)
-          || restText.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
-          || restText.match(/\b(\d{1,2})\s+(?:(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments)\b|كويزات|واجبات|اختبارات)/i);
-
-        const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
-        const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;
-
-        if (name && /[A-Za-z؀-ۿ]{2}/.test(name) && name.length <= 70) {
-          return makeSyllabusComponent(name, weightVal, count && count > 0 ? count : undefined, idx, line, outOf);
-        }
-      }
-    }
-  }
-
-  const text = line.replace(/\s+/g, ' ').trim();
-  const pcts: { value: number; index: number; each: boolean; length: number }[] = [];
-  const re = /(\d{1,3}(?:\.\d+)?)\s*%/g;
-  for (let m = re.exec(text); m; m = re.exec(text)) {
-    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 12);
-    const before = text.slice(Math.max(0, m.index - 4), m.index);
-    pcts.push({ value: parseFloat(m[1]), index: m.index, length: m[0].length, each: /^\s*(?:each|per\b|\/\s*each|for each|apiece)/i.test(after) || /[x×*]\s*$/.test(before) });
-  }
-  let total: number | undefined;
-  let unit: number | undefined;
-  let numberAt = -1;
-  for (const p of pcts) {
-    if (p.each && unit === undefined) { unit = p.value; if (numberAt < 0) numberAt = p.index; }
-    if (!p.each && total === undefined) { total = p.value; if (numberAt < 0 || p.index < numberAt) numberAt = p.index; }
-  }
-  if (!pcts.length && inSection) {
-    // A table cell with the weight and no % sign: "Midterm Exam<tab>30"
-    const cells = line.split('\t').map(c => c.trim()).filter(Boolean);
-    const last = cells[cells.length - 1];
-    if (cells.length >= 2 && /^\d{1,3}(?:\.\d+)?$/.test(last) && /[A-Za-z؀-ۿ]{3}/.test(cells[0])) {
-      total = parseFloat(last);
-      numberAt = text.lastIndexOf(last);
-    }
-  }
-  const countMatch = text.match(/best\s+(\d{1,2})\s+(?:out\s+)?of\s+(?:the\s+)?(\d{1,2})/i)
-    || text.match(/\((\d{1,2})\)/)
-    || text.match(/\b(\d{1,2})\s*[x×]\s*\d/)
-    || text.match(/[x×]\s*(\d{1,2})\b(?!\s*%)/)
-    || text.match(/\b(\d{1,2})\s+(?:quizzes|quiz|exams|tests|assignments|homeworks?|reports|labs|projects|presentations|activities|tasks|experiments)\b/i);
-  const count = countMatch ? parseInt(countMatch[1], 10) : undefined;
-  const outOf = countMatch && countMatch[2] ? parseInt(countMatch[2], 10) : undefined;
-  if (total === undefined && unit !== undefined && count) total = Number((unit * count).toFixed(2));
-  if (total === undefined || !(total > 0 && total <= 100) || numberAt < 0) return null;
-
-  let name = text.slice(0, numberAt)
-    .replace(/\s*\([^)]*\d[^)]*\)\s*$/, '')
-    .replace(/\b\d{1,2}\s*[x×]\s*$/, '')
-    .replace(/^[\s\-•*●▪◦·]+/, '')
-    .replace(/^\d{1,2}[.)]\s+/, '')
-    .replace(/[\s:=\-–(|,]+$/, '')
-    .trim();
-  if (!/[A-Za-z؀-ۿ]{2}/.test(name)) {
-    name = text.slice(numberAt).replace(/^\d{1,3}(?:\.\d+)?\s*%?\s*(?:each\s*)?[\-:–]?\s*/, '').replace(/\(.*$/, '').trim();
-  }
-  if (!/[A-Za-z؀-ۿ]{2}/.test(name) || name.length > 60) return null;
-  return makeSyllabusComponent(name, total, count && count > 0 ? count : undefined, idx, text, outOf);
-}
-
-function weightsFrom(lines: string[], inSection: boolean): CustomSyllabusComponent[] {
-  const out: CustomSyllabusComponent[] = [];
-  const names = new Set<string>();
-  let sum = 0;
-  for (const line of lines) {
-    const comp = assessmentFromLine(line, inSection, out.length);
-    if (!comp) continue;
-    const key = comp.name.toLowerCase();
-    if (names.has(key)) continue;
-    names.add(key);
-    out.push(comp);
-    sum += comp.totalWeight;
-    if (inSection && sum >= 99.5) break;
-  }
-  return out;
-}
-
-const sumOf = (comps: CustomSyllabusComponent[]) => comps.reduce((s, c) => s + c.totalWeight, 0);
-
-/** The assessment weights: from the grading section closest to 100%, else from anywhere if they add up. */
-function syllabusWeights(lines: string[]): CustomSyllabusComponent[] {
-  // 1. LLM-grade structured table parser first
-  const tableResult = parseAssessmentTable(lines);
-  if (tableResult.length >= 2 && Math.abs(sumOf(tableResult) - 100) <= 5) {
-    return tableResult;
-  }
-
-  // 2. Section-based and line-by-line fallback
-  let best: CustomSyllabusComponent[] = [];
-  lines.forEach((line, i) => {
-    if (line.length > 90 || !ASSESSMENT_HEADER.test(line.trim())) return;
-    const found = weightsFrom(lines.slice(i + 1, i + 60), true);
-    if (Math.abs(sumOf(found) - 100) < Math.abs(sumOf(best) - 100) || (!best.length && found.length)) best = found;
-  });
-  if (best.length >= 2 && Math.abs(sumOf(best) - 100) <= 5) return best;
-  const anywhere = weightsFrom(lines, false);
-  if (anywhere.length >= 2 && Math.abs(sumOf(anywhere) - 100) <= 5) return anywhere;
-  return best.length >= 2 ? best : [];
 }
 
 /** Meeting times in a syllabus ("Lectures: Sun/Tue 11:00-12:15, Room A8-103"), not office hours or exams. */
@@ -641,7 +325,7 @@ export function analyzeCourseDocument(rawText: string): DocumentAnalysis {
   }
   const creditHours = credits(text);
   const instructor = instructorIn(text);
-  if (syllabus.length || (identity.code && (slots.length || creditHours))) {
+  if (syllabus.length || ((identity.code || identity.name) && (slots.length || creditHours !== undefined))) {
     if (instructor) slots.forEach(s => { if (!s.instructor) s.instructor = instructor; });
     return {
       kind: 'syllabus',
@@ -736,12 +420,12 @@ export function applyCourseImport(existing: UserCourseConfig[], picks: CourseImp
         const alias = draft.courseName.toLowerCase();
         if (!merged.aliases.includes(alias)) merged.aliases.push(alias);
       }
-      if (merged && draft.creditHours) merged.creditHours = draft.creditHours;
+      if (merged && draft.creditHours !== undefined) merged.creditHours = draft.creditHours;
     } else {
       const before = new Set(result.map(c => c.id));
       result = mergeImportedCourses(result, [incoming]);
       const added = result.find(c => !before.has(c.id)) || result.find(c => normalizeCode(c.courseCode) === normalizeCode(draft.courseCode));
-      if (added && draft.creditHours) added.creditHours = draft.creditHours;
+      if (added && draft.creditHours !== undefined) added.creditHours = draft.creditHours;
     }
   }
   return result;

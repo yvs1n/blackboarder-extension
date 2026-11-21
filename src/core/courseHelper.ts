@@ -174,7 +174,7 @@ export function parseCourseDetails(rawText: string): CourseInfo {
   // Match Blackboard external course prefix:
   // e.g. "1430116_10708_FALL2026-2027 Physics 1 Lab..." or "CS101_01_FALL2026 Introduction..."
   let code = 'UOS';
-  const bbPrefix = clean.match(/^(\d{7}|[A-Za-z]{2,4}\s*\d{3,4})[_\s]+[A-Za-z0-9_\-]*\s+/i);
+  const bbPrefix = clean.match(/^(\d{7}|[A-Za-z]{2,4}\s*\d{3,4})(?:[_\-]+[A-Za-z0-9_\-]+|\s+(?=[A-Za-z0-9_\-]*\d)[A-Za-z0-9_\-]+)+\s+/i);
   if (bbPrefix) {
     code = bbPrefix[1].replace(/\s+/g, '').toUpperCase();
     clean = clean.slice(bbPrefix[0].length).trim();

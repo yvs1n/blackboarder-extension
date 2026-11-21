@@ -6,7 +6,7 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-BRKRnbdh.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-CL1G7i2X.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-Ba_D6yZo.css">
 </head>
 <body>
@@ -303,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.33</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.34</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -570,7 +570,7 @@
         </div>
 
         <p class="settings-card-desc">
-          Deadlines take their weight and room from here. Import File reads your syllabus or class schedule.
+          Deadlines take their weight and room from here. Import File reads a document, or Scan Syllabi finds them on Blackboard (requires an AI key).
         </p>
 
         <!-- Course Manager Action Toolbar -->
@@ -582,6 +582,10 @@
           <button type="button" class="btn-secondary" id="btn-import-courses" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;" title="Read a syllabus or class schedule file, pasted text or a JSON backup">
             <svg class="ui-icon"><use href="#icon-upload"></use></svg>
             <span>Import File</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-scan-syllabi" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;" title="Automatically scan Blackboard courses for syllabus files (requires an AI key)">
+            <svg class="ui-icon"><use href="#icon-sparkles"></use></svg>
+            <span>Scan Syllabi</span>
           </button>
           <button type="button" class="btn-outline-action" id="btn-export-courses" style="font-size: 11px; padding: 5px 9px; width: auto; min-height: 28px; display: inline-flex; align-items: center; gap: 4px;" title="Download JSON course configuration backup">
             <svg class="ui-icon"><use href="#icon-download"></use></svg>
@@ -1131,7 +1135,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.33</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.34</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -2264,6 +2268,11 @@
         <div class="wt-step-line"></div>
         <button type="button" class="walkthrough-step-btn" data-step="2">
           <span class="wt-step-num">2</span>
+          <span>AI &amp; Sync</span>
+        </button>
+        <div class="wt-step-line"></div>
+        <button type="button" class="walkthrough-step-btn" data-step="3">
+          <span class="wt-step-num">3</span>
           <span>Scan</span>
         </button>
       </div>
@@ -2277,18 +2286,18 @@
             </div>
             <div>
               <h4 class="walkthrough-hero-title">1. Choose Your University</h4>
-              <p class="walkthrough-hero-desc">Sets the grading scale for your GPA and your university quick links. You can edit this anytime in Settings.</p>
+              <p class="walkthrough-hero-desc">Sets your GPA grading scale and university links.</p>
             </div>
           </div>
 
           <div class="walkthrough-sync-card">
             <label for="wt-university" style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your University</label>
             <select id="wt-university" class="form-select" style="margin-top: 4px;"></select>
-            <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-muted);">Not listed? Choose Other for standard 4.0, or scanning any Blackboard page will detect it from the address.</span>
+            <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-muted);">Choose Other if yours isn't listed; scanning Blackboard detects your site automatically.</span>
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
               <div>
                 <span style="display: block; font-size: 11.5px; font-weight: 600; color: var(--text-main);">Postgraduate Studies</span>
-                <span style="display: block; font-size: 10.5px; color: var(--text-muted);">Use Master's / PhD grading scale &amp; pass threshold</span>
+                <span style="display: block; font-size: 10.5px; color: var(--text-muted);">Master's / PhD grading scale &amp; pass threshold</span>
               </div>
               <label class="switch">
                 <input type="checkbox" id="wt-postgraduate" aria-label="Postgraduate Studies">
@@ -2298,15 +2307,42 @@
           </div>
         </div>
 
-        <!-- Step 2: Ready to Scan -->
+        <!-- Step 2: Optional AI & Auto Syllabi -->
         <div class="walkthrough-pane" id="walkthrough-pane-2">
+          <div class="walkthrough-hero">
+            <div class="walkthrough-hero-icon">
+              <svg class="ui-icon"><use href="#icon-sparkles"></use></svg>
+            </div>
+            <div>
+              <h4 class="walkthrough-hero-title">2. Auto-Read Syllabi with AI (Optional)</h4>
+              <p class="walkthrough-hero-desc">Add an AI model key in Settings &gt; Scanning so your first Blackboard scan automatically extracts syllabus weights and asks you to confirm.</p>
+            </div>
+          </div>
+
+          <div class="walkthrough-sync-card" style="display: flex; flex-direction: column; gap: 8px;">
+            <button type="button" class="btn-secondary" id="btn-wt-setup-ai" style="width: 100%; justify-content: center; padding: 7px 12px; font-size: 11.5px; font-weight: 600;">
+              <svg class="ui-icon mr-1"><use href="#icon-sparkles"></use></svg>
+              <span>Add AI Key in Settings &gt; Scanning</span>
+            </button>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 6px; border-top: 1px solid var(--surface-border);">
+              <span style="font-size: 11px; color: var(--text-muted);">Using the phone companion too?</span>
+              <button type="button" class="btn-secondary" id="btn-wt-copy-pairing-link" style="font-size: 10.5px; padding: 3px 8px;">
+                <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
+                <span>Pair Phone</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Scan Blackboard -->
+        <div class="walkthrough-pane" id="walkthrough-pane-3">
           <div class="walkthrough-hero">
             <div class="walkthrough-hero-icon">
               <svg class="ui-icon"><use href="#icon-bolt"></use></svg>
             </div>
             <div>
-              <h4 class="walkthrough-hero-title">2. Scan Blackboard</h4>
-              <p class="walkthrough-hero-desc">Click Scan Blackboard at the bottom right of the page, or press Alt+B to find your quizzes, assignments and exams automatically.</p>
+              <h4 class="walkthrough-hero-title">3. Scan Blackboard</h4>
+              <p class="walkthrough-hero-desc">Click Scan Blackboard at the bottom right of any Blackboard page, or press Alt+B to pull in deadlines, marks, and courses.</p>
             </div>
           </div>
 
@@ -2315,18 +2351,7 @@
               <svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>
               <span>Open Blackboard &amp; Scan</span>
             </button>
-            <span style="display: block; margin-top: 8px; font-size: 11px; color: var(--text-muted);">Open your courses page, then click Scan to pull in all deadlines and marks.</span>
-          </div>
-
-          <div class="walkthrough-sync-card" style="margin-top: 8px;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 11px; font-weight: 600;">Phone App &amp; AI Model</span>
-              <button type="button" class="btn-secondary" id="btn-wt-copy-pairing-link" style="font-size: 10px; padding: 3px 8px;">
-                <svg class="ui-icon mr-1"><use href="#icon-link"></use></svg>
-                <span>Pair Phone</span>
-              </button>
-            </div>
-            <span style="display: block; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); line-height: 1.35;">Sync to your phone in Settings &gt; Sync. Optional AI model setup is in Settings &gt; Scanning.</span>
+            <span style="display: block; margin-top: 8px; font-size: 11px; color: var(--text-muted);">Sign in to Blackboard, then hit Scan. You can re-scan syllabi anytime from Courses &gt; Scan Syllabi.</span>
           </div>
         </div>
       </div>

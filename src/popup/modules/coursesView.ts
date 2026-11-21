@@ -27,6 +27,7 @@ import {
   handleResetCourses,
   openCourseImporter,
   closeCourseImporter,
+  runBlackboardSyllabusScan,
   switchImporterTab,
 } from './courseImporter';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
@@ -521,6 +522,7 @@ export async function handleCoursesUpdated(courses: UserCourseConfig[]) {
 export function setupCourseEvents() {
   document.getElementById('btn-add-course')?.addEventListener('click', () => openCourseEditor());
   document.getElementById('btn-import-courses')?.addEventListener('click', () => void openCourseImporter());
+  document.getElementById('btn-scan-syllabi')?.addEventListener('click', () => void runBlackboardSyllabusScan());
   document.getElementById('btn-export-courses')?.addEventListener('click', exportCoursesJson);
   document.getElementById('btn-reset-courses')?.addEventListener('click', () => void handleResetCourses());
 

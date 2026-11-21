@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.34] - 2026-11-21
+
+### Added
+
+- **AI-Gated Automatic Blackboard Syllabus Discovery & Review (`src/scan/syllabusScanner.ts`, `src/popup/modules/courseImporter.ts`, `src/popup/modules/coursesView.ts`, `src/popup/modules/scanBanner.ts`, `src/popup/index.html`):** On the first successful Blackboard scan when an AI API key is configured (or manually anytime from **Courses > Scan Syllabi**), Blackboarder inspects enrolled course contents and attachments for syllabus files and inline outline documents (`syllabus`, `course outline`, `specification`, Arabic equivalents), extracts their text (PDF via `pdfjs`, Word `.docx`, text, HTML), parses weights/schedules through AI, and opens the shared confirmation review modal (`#modal-course-import`) before saving anything into existing courses. Crawling is strictly disabled unless an AI API key is present.
+- **Built-In Syllabus Extractor Upgrades (`src/core/courseDocument.ts`):** Improved non-AI local extraction to match AI handling across comma/semicolon inline weight lists (`Midterm 30%, Quizzes 20%, Final 50%`), points-based grading tables with explicit `Total` normalization, tabular assessment rows with prose notes in separate columns, expanded assessment headers, `0-60` credit hour ranges (including `Module Credits` / `CATS` and `0`-credit workshops), alphanumeric/term-suffixed course codes (`RES691_SEP26`), and title-only modules.
+
+### Improved & Fixed
+
+- **Linear 3-Step First-Time Walkthrough (`src/popup/index.html`, `src/popup/modules/settingsWalkthrough.ts`):** Streamlined onboarding into three sequential steps (1. University & Postgraduate -> 2. AI Key & Phone Sync -> 3. Scan Blackboard) with completed-step progress indicators and a one-click jump to **Settings > Scanning** for optional AI setup.
+- **Enrolled Course Name Preservation (`src/core/courseHelper.ts`):** Fixed `parseCourseDetails()` so subject prefixes with spaces (such as `RES691 Qualitative Research Methods and Paradigms`) no longer strip the first course title word when extracting clean names.
+
+---
+
 ## [1.8.33] - 2026-11-21
 
 ### Fixed

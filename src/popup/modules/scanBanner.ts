@@ -3,6 +3,7 @@ import { isFinancePortalPage } from '../../core/financePageParser';
 import { isBuiltInBlackboardHost, isLikelyBlackboardUrl, originPattern } from '../../utils/blackboardSites';
 import { getScanStatus, setScanStatus, SCAN_STALE_MS, type ScanStatus } from '../../utils/storage';
 import { getSvgIcon } from '../../utils/uiCommon';
+import { maybeAutoScanBlackboardSyllabi } from './courseImporter';
 import { dom, popupActions, popupState } from './state';
 
 export type ScanUiPhase = 'idle' | 'scanning' | 'cancelling' | 'succeeded' | 'failed';
@@ -259,6 +260,9 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
         hideScanBanner();
       }
       await refreshDataInBackground();
+      if (!status || status.state === 'done') {
+        void maybeAutoScanBlackboardSyllabi(true);
+      }
     });
   };
 
@@ -287,6 +291,9 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
           hideScanBanner();
         }
         await refreshDataInBackground();
+        if (res?.ok || status?.state === 'done') {
+          void maybeAutoScanBlackboardSyllabi(true);
+        }
       });
     };
 
@@ -363,6 +370,9 @@ export function watchScanEnd(startedAt: number, refreshDataInBackground: () => P
       if (status && status.state !== 'running' && new Date(status.updatedAt).getTime() >= startedAt) {
         renderScanStatus(status);
         await refreshDataInBackground();
+        if (status.state === 'done') {
+          void maybeAutoScanBlackboardSyllabi(true);
+        }
         return;
       }
       resetScanButton();

@@ -35,11 +35,17 @@ export async function initWalkthroughModal() {
   const panes = modal.querySelectorAll<HTMLDivElement>('.walkthrough-pane');
 
   let currentStep = 1;
-  const totalSteps = 2;
+  const totalSteps = 3;
 
   document.getElementById('btn-wt-open-bb')?.addEventListener('click', () => {
     closeModal(true);
     void openConfiguredBlackboard();
+  });
+
+  document.getElementById('btn-wt-setup-ai')?.addEventListener('click', () => {
+    closeModal(true);
+    popupActions.switchView('settings');
+    popupActions.showSettingsPage('scanning');
   });
 
   const settings = await getSettings();
@@ -50,6 +56,7 @@ export async function initWalkthroughModal() {
     stepButtons.forEach(btn => {
       const s = parseInt(btn.getAttribute('data-step') || '1', 10);
       btn.classList.toggle('active', s === currentStep);
+      btn.classList.toggle('completed', s < currentStep);
     });
     panes.forEach(pane => pane.classList.remove('active'));
     document.getElementById(`walkthrough-pane-${currentStep}`)?.classList.add('active');

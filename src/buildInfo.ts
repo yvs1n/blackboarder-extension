@@ -13,15 +13,17 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.33",
-  "build": "f00dd4279e2b",
-  "commit": "c05250fb655204615bf10cf778794c71e05579bd",
-  "shortCommit": "c05250f",
-  "timestamp": "2026-11-21T11:56:33.158Z",
-  "message": "v1.8.32: Fix release ZIP manifest-missing download and harden Windows auto-updater",
+  "version": "1.8.34",
+  "build": "739d193d5525",
+  "commit": "cd2c0c9248afa63c95b06e5eba6b1d4491e458d8",
+  "shortCommit": "cd2c0c9",
+  "timestamp": "2026-11-21T12:24:04.863Z",
+  "message": "v1.8.33: Auto-register all enrolled courses beyond UOS codes and support 0-60 postgraduate credit hours",
   "changelog": [
-    "Enrolled Course Auto-Registration Beyond UOS 7-Digit Codes (src/core/blackboardColors.ts, src/scan/blackboardApi.ts, src/content/courseColorPainter.ts, src/utils/storage/coursesStorage.ts, src/content/activityFilter.ts): parseMemberships() now extracts alphanumeric subject codes (such as RES691 from RES691_SEP26 and DTC001) alongside 7-digit UOS catalogue numbers, discoveredCoursesWithColors() and autoRegisterDiscoveredCourses() keep all real enrolled Blackboard memberships (even without an undergraduate catalogue number) so every enrolled course registers instead of stopping at 1 Course, isOrientationOrSandboxCourse() filters Library Essentials guides, and activityCourseLabel() strips external-ID prefixes (RES691_SEP26 - ...) so courses do not create duplicate stream filter chips.",
-    "Flexible Postgraduate & Non-Credit Hour Weighting (src/utils/gpa.ts, src/core/userCourses.ts, src/core/semesters.ts, src/core/targetGpa.ts, src/core/courseDocument.ts, src/core/courseImportView.ts, src/popup/index.html, mobile-web/companion/index.html, src/popup/modules/coursesView.ts, src/mobile/app/11-courses-editor.js): Supported 0 to 60 credit hours (0.5 steps) across Course Editor, syllabus import, GPA/CGPA, and Target Grade calculations, preserving explicit 0-credit non-GPA courses (e.g. Doctoral Training Centre or workshops) instead of silently defaulting them to 3 credit hours."
+    "AI-Gated Automatic Blackboard Syllabus Discovery & Review (src/scan/syllabusScanner.ts, src/popup/modules/courseImporter.ts, src/popup/modules/coursesView.ts, src/popup/modules/scanBanner.ts, src/popup/index.html): On the first successful Blackboard scan when an AI API key is configured (or manually anytime from Courses > Scan Syllabi), Blackboarder inspects enrolled course contents and attachments for syllabus files and inline outline documents (syllabus, course outline, specification, Arabic equivalents), extracts their text (PDF via pdfjs, Word .docx, text, HTML), parses weights/schedules through AI, and opens the shared confirmation review modal (#modal-course-import) before saving anything into existing courses. Crawling is strictly disabled unless an AI API key is present.",
+    "Built-In Syllabus Extractor Upgrades (src/core/courseDocument.ts): Improved non-AI local extraction to match AI handling across comma/semicolon inline weight lists (Midterm 30%, Quizzes 20%, Final 50%), points-based grading tables with explicit Total normalization, tabular assessment rows with prose notes in separate columns, expanded assessment headers, 0-60 credit hour ranges (including Module Credits / CATS and 0-credit workshops), alphanumeric/term-suffixed course codes (RES691_SEP26), and title-only modules.",
+    "Linear 3-Step First-Time Walkthrough (src/popup/index.html, src/popup/modules/settingsWalkthrough.ts): Streamlined onboarding into three sequential steps (1. University & Postgraduate -> 2. AI Key & Phone Sync -> 3. Scan Blackboard) with completed-step progress indicators and a one-click jump to Settings > Scanning for optional AI setup.",
+    "Enrolled Course Name Preservation (src/core/courseHelper.ts): Fixed parseCourseDetails() so subject prefixes with spaces (such as RES691 Qualitative Research Methods and Paradigms) no longer strip the first course title word when extracting clean names."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
