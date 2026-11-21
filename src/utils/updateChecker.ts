@@ -12,6 +12,10 @@ export interface RemoteVersionInfo {
 
 export const GITHUB_REPO_URL = 'https://github.com/yvs1n/blackboarder-extension';
 export const GITHUB_ZIP_URL = 'https://github.com/yvs1n/blackboarder-extension/releases/latest/download/blackboarder-extension.zip';
+export const CHROME_WEB_STORE_URL = 'https://chromewebstore.google.com/detail/kciflchaejgedgjookkmnkgjhbhhabjb';
+export const PRIVACY_POLICY_URL = 'https://blackboarder.pages.dev/privacy.html';
+export const TERMS_OF_SERVICE_URL = 'https://blackboarder.pages.dev/terms.html';
+export const FEEDBACK_URL = 'https://github.com/yvs1n/blackboarder-extension/issues/new';
 const RAW_BASE_URL = 'https://raw.githubusercontent.com/yvs1n/blackboarder-extension/main/';
 // dist/version.json describes the extension; the root copy is the same file for older layouts
 const REMOTE_VERSION_PATHS = ['dist/version.json', 'version.json'];

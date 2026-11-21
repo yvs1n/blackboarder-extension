@@ -10,7 +10,14 @@ import { BUILD_INFO } from '../../buildInfo';
 import { createStateMachine } from '../../core/stateMachine';
 import { IS_STORE_BUILD } from '../../utils/storeBuild';
 import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/updateBanner';
-import { GITHUB_REPO_URL, GITHUB_ZIP_URL } from '../../utils/updateChecker';
+import {
+  CHROME_WEB_STORE_URL,
+  FEEDBACK_URL,
+  GITHUB_REPO_URL,
+  GITHUB_ZIP_URL,
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL
+} from '../../utils/updateChecker';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions } from './state';
 
@@ -153,22 +160,59 @@ export function initExtensionUpdateSystem() {
   const statusPill = document.getElementById('ext-update-status-pill');
   const statusDesc = document.getElementById('ext-update-status-desc');
   const autoUpdateInput = document.getElementById('setting-auto-update') as HTMLInputElement | null;
+  const migrationBanner = document.getElementById('cws-migration-banner');
+  const migrationCard = document.getElementById('card-cws-migration');
+
+  const openUrl = (url: string) => {
+    try { if (chrome.tabs?.create) { chrome.tabs.create({ url }); return; } } catch {}
+    window.open(url, '_blank');
+  };
+
+  document.getElementById('btn-open-feedback')?.addEventListener('click', () => openUrl(FEEDBACK_URL));
+  document.getElementById('btn-open-privacy')?.addEventListener('click', () => openUrl(PRIVACY_POLICY_URL));
+  document.getElementById('btn-open-terms')?.addEventListener('click', () => openUrl(TERMS_OF_SERVICE_URL));
 
   if (versionBadge) versionBadge.textContent = 'v' + BUILD_INFO.version;
   initChangelogUiAndModal();
   if (IS_STORE_BUILD) {
     const card = document.getElementById('card-extension-updates');
     const subtitle = card?.querySelector('.settings-card-subtitle');
-    if (subtitle) subtitle.textContent = 'Your browser updates Blackboarder automatically through its extension store.';
-    if (statusPill) statusPill.textContent = 'Managed by the store';
-    if (statusDesc) statusDesc.textContent = 'Installed version: v' + BUILD_INFO.version + '. New versions arrive on their own, usually within a day of being published.';
+    if (subtitle) subtitle.textContent = 'Updates install automatically via Chrome Web Store / browser store.';
+    if (statusPill) {
+      statusPill.textContent = 'Chrome Web Store';
+      statusPill.className = 'settings-pill pill-green';
+    }
+    if (statusDesc) statusDesc.textContent = 'Installed version: v' + BUILD_INFO.version + '. Updates are delivered automatically by Chrome Web Store, Edge Add-ons, or Firefox Add-ons.';
     autoUpdateInput?.closest('.toggle-control-row')?.remove();
+    migrationBanner?.remove();
+    migrationCard?.remove();
+    updateBanner?.remove();
     [btnCheckManual, btnReloadSettings, btnDownloadSettings, btnOpenGithub, btnApplyUpdateSettings].forEach(b => {
       const holder = b?.closest('div[style*="display: flex; flex-direction: column"]');
       if (holder) holder.remove();
     });
     return;
   }
+
+  // Unpacked GitHub build: guide existing users to migrate smoothly to the Chrome Web Store without data loss
+  const MIGRATION_DISMISSED_KEY = 'bbs_dismissed_cws_migration';
+  if (migrationCard) migrationCard.style.display = 'block';
+  const triggerBackup = () => document.getElementById('btn-backup-json')?.click();
+  document.getElementById('btn-cws-migration-backup')?.addEventListener('click', triggerBackup);
+  document.getElementById('btn-cws-banner-backup')?.addEventListener('click', triggerBackup);
+  document.getElementById('btn-cws-migration-store')?.addEventListener('click', () => openUrl(CHROME_WEB_STORE_URL));
+  document.getElementById('btn-cws-banner-store')?.addEventListener('click', () => openUrl(CHROME_WEB_STORE_URL));
+  const dismissMigrationBanner = () => {
+    if (migrationBanner) migrationBanner.style.display = 'none';
+    try { localStorage.setItem(MIGRATION_DISMISSED_KEY, BUILD_INFO.version || '1.8.35'); } catch {}
+  };
+  document.getElementById('btn-cws-banner-dismiss')?.addEventListener('click', dismissMigrationBanner);
+  document.getElementById('btn-cws-banner-later')?.addEventListener('click', dismissMigrationBanner);
+  try {
+    if (migrationBanner && localStorage.getItem(MIGRATION_DISMISSED_KEY) !== (BUILD_INFO.version || '1.8.35')) {
+      migrationBanner.style.display = 'flex';
+    }
+  } catch {}
   if (localCommitEl) localCommitEl.textContent = BUILD_INFO.shortCommit;
   if (localDateEl) {
     const d = new Date(BUILD_INFO.timestamp);
@@ -181,11 +225,6 @@ export function initExtensionUpdateSystem() {
   const ENABLE_HINT = ENABLE_UPDATES_HINT;
   let shownStatus: AutoUpdateStatus | null = null;
   let autoUpdatePref = true;
-
-  const openUrl = (url: string) => {
-    try { if (chrome.tabs?.create) { chrome.tabs.create({ url }); return; } } catch {}
-    window.open(url, '_blank');
-  };
   const downloadUpdatePackage = () => openUrl(GITHUB_ZIP_URL);
   const setLabel = (btn: HTMLElement | null, text: string) => {
     const span = btn?.querySelector('span');

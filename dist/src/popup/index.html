@@ -6,7 +6,7 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-CvcAIFlS.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-1kehi9t6.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-Ba_D6yZo.css">
 </head>
 <body>
@@ -298,12 +298,40 @@
     <button type="button" class="btn-primary session-banner-action" id="btn-session-open-bb">Open Blackboard</button>
   </aside>
 
+  <!-- Unpacked-only Chrome Web Store Migration Banner -->
+  <aside id="cws-migration-banner" class="ext-update-banner" style="display: none;" role="status" aria-live="polite">
+    <div class="eub-top-row">
+      <div class="eub-badge-group">
+        <span class="eub-pill">Chrome Web Store</span>
+        <span class="eub-commit">Migrate cleanly</span>
+      </div>
+      <button type="button" class="eub-close-btn" id="btn-cws-banner-dismiss" aria-label="Dismiss migration notice">&times;</button>
+    </div>
+    <div class="eub-content">
+      <h4 class="eub-title">Blackboarder is now on the Chrome Web Store</h4>
+      <p class="eub-desc">Switch for automatic Chrome updates: 1) Export Backup or copy your Sync Key, 2) Add from Chrome Web Store, 3) Restore data &amp; remove this old unpacked copy.</p>
+    </div>
+    <div class="eub-actions">
+      <button type="button" class="btn-eub-primary" id="btn-cws-banner-store">
+        <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
+        <span>Get on Chrome Web Store</span>
+      </button>
+      <button type="button" class="btn-eub-secondary" id="btn-cws-banner-backup">
+        <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+        <span>Export Backup</span>
+      </button>
+      <button type="button" class="btn-eub-ghost" id="btn-cws-banner-later">
+        <span>Later</span>
+      </button>
+    </div>
+  </aside>
+
   <!-- Extension GitHub Update Prompt Banner -->
   <aside id="ext-update-banner" class="ext-update-banner" style="display: none;" role="status" aria-live="polite">
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.34</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.35</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -1135,7 +1163,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.34</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.35</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -1203,9 +1231,52 @@
             </div>
           </details>
 
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--surface-border);">
+            <button type="button" class="btn-outline-action" id="btn-open-feedback">
+              <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
+              <span>Send Feedback / Report Issue</span>
+            </button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button type="button" class="btn-outline-action" id="btn-open-privacy" style="justify-content: center;">
+                <span>Privacy Policy</span>
+              </button>
+              <button type="button" class="btn-outline-action" id="btn-open-terms" style="justify-content: center;">
+                <span>Terms of Service</span>
+              </button>
+            </div>
+          </div>
+
           <p class="settings-card-desc" style="margin-top: 10px; font-size: 11px;">
             Built by <a href="https://yassinr.me" target="_blank" rel="noopener noreferrer" style="color: var(--text-main); text-decoration: underline;">Yassin Ragab</a>, a freshman at UOS.
           </p>
+        </div>
+
+        <!-- Migration guide shown only on legacy unpacked GitHub installs -->
+        <div class="settings-card" id="card-cws-migration" style="display: none; margin-top: 10px;">
+          <div class="settings-card-header">
+            <div class="settings-icon-title">
+              <span class="card-icon"><svg class="ui-icon"><use href="#icon-bolt"></use></svg></span>
+              <div>
+                <h3 class="settings-card-title">Switch to Chrome Web Store</h3>
+                <p class="settings-card-subtitle">Automatic updates with zero manual scripts</p>
+              </div>
+            </div>
+          </div>
+          <p class="settings-card-desc">
+            1. Click <strong>Export Backup</strong> below (or verify your <strong>Sync Key</strong> in Settings &gt; Sync).<br>
+            2. Install Blackboarder from the Chrome Web Store.<br>
+            3. Import the backup or Sync Key in the new extension, then remove this old unpacked version in <code style="font-size: 10.5px;">chrome://extensions</code>.
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+            <button type="button" class="btn-secondary" id="btn-cws-migration-backup" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-download"></use></svg>
+              <span>Export Backup</span>
+            </button>
+            <button type="button" class="btn-primary" id="btn-cws-migration-store" style="font-size: 11.5px; padding: 7px 10px; justify-content: center;">
+              <svg class="ui-icon mr-1"><use href="#icon-external-link"></use></svg>
+              <span>Chrome Web Store</span>
+            </button>
+          </div>
         </div>
       </div>
 

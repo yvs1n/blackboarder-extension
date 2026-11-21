@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.35] - 2026-11-21
+
+### Added
+
+- **Chrome Web Store Launch & Zero-Data-Loss Migration (`src/popup/index.html`, `src/popup/modules/settingsUpdates.ts`, `mobile-web/index.html`, `mobile-web/landing-motion.js`):** Updated Desktop landing page install steps, Hero CTA, and FAQ to link directly to Blackboarder on the Chrome Web Store (`kciflchaejgedgjookkmnkgjhbhhabjb`) with store-managed automatic updates, and added an interactive **Chrome Web Store Migration** banner and card on legacy unpacked installs so existing users can export a JSON backup / Sync Key, switch to the store version, and restore without losing data.
+- **Contact, Feedback, Privacy Policy & Terms Links Across All Surfaces (`src/popup/index.html`, `src/popup/modules/settingsUpdates.ts`, `mobile-web/companion/index.html`, `mobile-web/index.html`):** Added **05 // Contact & Feedback** (`#contact`) to the landing page and direct **Send Feedback / Report Issue**, **Privacy Policy**, and **Terms of Service** links inside **Settings > Updates** across both the browser extension and the phone Companion Web App.
+
+---
+
 ## [1.8.34] - 2026-11-21
 
 ### Added

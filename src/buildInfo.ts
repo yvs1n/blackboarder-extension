@@ -13,17 +13,15 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.34",
-  "build": "7bdb063020f3",
-  "commit": "0940ef1fb64d45c9ce494a6a260c94ec8edf07be",
-  "shortCommit": "0940ef1",
-  "timestamp": "2026-11-21T12:46:09.860Z",
-  "message": "fix(package): write POSIX forward-slash entry paths in ZIP archives on Windows",
+  "version": "1.8.35",
+  "build": "0a478dcffb53",
+  "commit": "cdcd1d96c5fcc1d4c9dadbb80913eb1dffccf66d",
+  "shortCommit": "cdcd1d9",
+  "timestamp": "2026-11-21T18:51:41.016Z",
+  "message": "docs(legal): Swiss Grid Privacy Policy and Terms pages plus worker timing-safe & security header hardening",
   "changelog": [
-    "AI-Gated Automatic Blackboard Syllabus Discovery & Review (src/scan/syllabusScanner.ts, src/popup/modules/courseImporter.ts, src/popup/modules/coursesView.ts, src/popup/modules/scanBanner.ts, src/popup/index.html): On the first successful Blackboard scan when an AI API key is configured (or manually anytime from Courses > Scan Syllabi), Blackboarder inspects enrolled course contents and attachments for syllabus files and inline outline documents (syllabus, course outline, specification, Arabic equivalents), extracts their text (PDF via pdfjs, Word .docx, text, HTML), parses weights/schedules through AI, and opens the shared confirmation review modal (#modal-course-import) before saving anything into existing courses. Crawling is strictly disabled unless an AI API key is present.",
-    "Built-In Syllabus Extractor Upgrades (src/core/courseDocument.ts): Improved non-AI local extraction to match AI handling across comma/semicolon inline weight lists (Midterm 30%, Quizzes 20%, Final 50%), points-based grading tables with explicit Total normalization, tabular assessment rows with prose notes in separate columns, expanded assessment headers, 0-60 credit hour ranges (including Module Credits / CATS and 0-credit workshops), alphanumeric/term-suffixed course codes (RES691_SEP26), and title-only modules.",
-    "Linear 3-Step First-Time Walkthrough (src/popup/index.html, src/popup/modules/settingsWalkthrough.ts): Streamlined onboarding into three sequential steps (1. University & Postgraduate -> 2. AI Key & Phone Sync -> 3. Scan Blackboard) with completed-step progress indicators and a one-click jump to Settings > Scanning for optional AI setup.",
-    "Enrolled Course Name Preservation (src/core/courseHelper.ts): Fixed parseCourseDetails() so subject prefixes with spaces (such as RES691 Qualitative Research Methods and Paradigms) no longer strip the first course title word when extracting clean names."
+    "Chrome Web Store Launch & Zero-Data-Loss Migration (src/popup/index.html, src/popup/modules/settingsUpdates.ts, mobile-web/index.html, mobile-web/landing-motion.js): Updated Desktop landing page install steps, Hero CTA, and FAQ to link directly to Blackboarder on the Chrome Web Store (kciflchaejgedgjookkmnkgjhbhhabjb) with store-managed automatic updates, and added an interactive Chrome Web Store Migration banner and card on legacy unpacked installs so existing users can export a JSON backup / Sync Key, switch to the store version, and restore without losing data.",
+    "Contact, Feedback, Privacy Policy & Terms Links Across All Surfaces (src/popup/index.html, src/popup/modules/settingsUpdates.ts, mobile-web/companion/index.html, mobile-web/index.html): Added 05 // Contact & Feedback (#contact) to the landing page and direct Send Feedback / Report Issue, Privacy Policy, and Terms of Service links inside Settings > Updates across both the browser extension and the phone Companion Web App."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
