@@ -59,7 +59,10 @@ export function isActivityPage(path = location.pathname): boolean {
  * "Student Hands-On Orientation" stays whole.
  */
 export function activityCourseLabel(blackboardName: string): string {
-  return (blackboardName || '').split(/\s*-\s+|\s+-\s*/)[0].trim();
+  const clean = (blackboardName || '')
+    .replace(/^(?:\d{4}\s*\d{3}|[A-Za-z]{2,6}\s*[-_]?\s*\d{3,5}[A-Za-z]?)(?:_[A-Za-z0-9_-]+)?\s*[-–:]\s+(?=[A-Za-z\u0600-\u06FF])/i, '')
+    .trim();
+  return clean.split(/\s*-\s+|\s+-\s*/)[0].trim();
 }
 
 /** One chip per course name, so a course's lecture and "ALL" shells share a chip. */

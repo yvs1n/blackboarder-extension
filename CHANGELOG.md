@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.33] - 2026-11-21
+
+### Fixed
+
+- **Enrolled Course Auto-Registration Beyond UOS 7-Digit Codes (`src/core/blackboardColors.ts`, `src/scan/blackboardApi.ts`, `src/content/courseColorPainter.ts`, `src/utils/storage/coursesStorage.ts`, `src/content/activityFilter.ts`):** `parseMemberships()` now extracts alphanumeric subject codes (such as `RES691` from `RES691_SEP26` and `DTC001`) alongside 7-digit UOS catalogue numbers, `discoveredCoursesWithColors()` and `autoRegisterDiscoveredCourses()` keep all real enrolled Blackboard memberships (even without an undergraduate catalogue number) so every enrolled course registers instead of stopping at `1 Course`, `isOrientationOrSandboxCourse()` filters `Library Essentials` guides, and `activityCourseLabel()` strips external-ID prefixes (`RES691_SEP26 - ...`) so courses do not create duplicate stream filter chips.
+
+### Added
+
+- **Flexible Postgraduate & Non-Credit Hour Weighting (`src/utils/gpa.ts`, `src/core/userCourses.ts`, `src/core/semesters.ts`, `src/core/targetGpa.ts`, `src/core/courseDocument.ts`, `src/core/courseImportView.ts`, `src/popup/index.html`, `mobile-web/companion/index.html`, `src/popup/modules/coursesView.ts`, `src/mobile/app/11-courses-editor.js`):** Supported `0` to `60` credit hours (`0.5` steps) across Course Editor, syllabus import, GPA/CGPA, and Target Grade calculations, preserving explicit `0`-credit non-GPA courses (e.g. Doctoral Training Centre or workshops) instead of silently defaulting them to `3` credit hours.
+
+---
+
 ## [1.8.32] - 2026-11-21
 
 ### Fixed

@@ -144,7 +144,7 @@ export async function saveUserCourses(courses: UserCourseConfig[], updatedAt?: s
  * if they do not already match any existing configured course, assigning vibrant unique palette colors.
  */
 export async function autoRegisterDiscoveredCourses(
-  tasksOrCourses: (DeadlineTask | { courseName?: string; courseCode?: string; colorHex?: string })[]
+  tasksOrCourses: (DeadlineTask | { courseName?: string; courseCode?: string; colorHex?: string; fromMembership?: boolean })[]
 ): Promise<UserCourseConfig[]> {
   const currentCourses = await getUserCourses();
   const palette = [
@@ -168,7 +168,9 @@ export async function autoRegisterDiscoveredCourses(
     if (rawName.toLowerCase() === 'general course') continue;
     if (!rawName && !rawCode) continue;
 
-    if (!hasValidAcademicCourseCode(rawCode)) continue;
+    const fromMembership = Boolean((item as { fromMembership?: boolean }).fromMembership);
+    if (!fromMembership && !hasValidAcademicCourseCode(rawCode)) continue;
+    if (fromMembership && !rawName && !hasValidAcademicCourseCode(rawCode)) continue;
 
     const normTargetCode = rawCode.replace(/[\s_-]+/g, '').toLowerCase();
     const tName = rawName.toLowerCase();

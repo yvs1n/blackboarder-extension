@@ -7,7 +7,7 @@ import type {
   UserCourseConfig
 } from '../types';
 import { GradeRow } from './universities';
-import { buildGpaSummary, GpaSummary, DEFAULT_CREDIT_HOURS } from '../utils/gpa';
+import { buildGpaSummary, GpaSummary, DEFAULT_CREDIT_HOURS, resolveCreditHours } from '../utils/gpa';
 import { userCoursesToSyllabi } from './userCourses';
 import { round1, round2 } from '../utils/uiCommon';
 
@@ -37,7 +37,7 @@ export function sanitizeSemesters(raw: unknown): ArchivedSemester[] {
       const code = typeof cr.code === 'string' ? cr.code.trim() : '';
       const cName = typeof cr.name === 'string' ? cr.name.trim() : '';
       if (!code && !cName) continue;
-      const creditHours = typeof cr.creditHours === 'number' && cr.creditHours > 0 ? cr.creditHours : DEFAULT_CREDIT_HOURS;
+      const creditHours = resolveCreditHours(cr.creditHours, DEFAULT_CREDIT_HOURS);
       const grade = typeof cr.grade === 'string' ? cr.grade.trim() : undefined;
       const points = typeof cr.points === 'number' && !isNaN(cr.points) ? round2(cr.points) : undefined;
       const percent = typeof cr.percent === 'number' && !isNaN(cr.percent) ? round1(cr.percent) : undefined;
@@ -129,7 +129,7 @@ export function calculateCgpa(
   // 1. Active Term Graded Courses (most recent)
   const termGraded = (activeGpa.courses || []).filter(c => typeof c.points === 'number');
   for (const c of termGraded) {
-    const credits = c.creditHours > 0 ? c.creditHours : DEFAULT_CREDIT_HOURS;
+    const credits = resolveCreditHours(c.creditHours, DEFAULT_CREDIT_HOURS);
     totalWeightedPoints += c.points! * credits;
     totalGradedCredits += credits;
     if (c.points! > 0 || (c.letter && !/^(F|WF|U)$/i.test(c.letter))) {
@@ -149,7 +149,7 @@ export function calculateCgpa(
       if (codeKey && codeKey.length >= 3) {
         seenCourseCodes.add(codeKey);
       }
-      const credits = c.creditHours > 0 ? c.creditHours : DEFAULT_CREDIT_HOURS;
+      const credits = resolveCreditHours(c.creditHours, DEFAULT_CREDIT_HOURS);
       if (typeof c.points === 'number' && !isNaN(c.points)) {
         totalWeightedPoints += c.points * credits;
         totalGradedCredits += credits;
@@ -209,7 +209,7 @@ export function archiveActiveSemester(params: {
     return {
       code: c.courseCode || c.crn || '',
       name: c.courseName,
-      creditHours: c.creditHours || DEFAULT_CREDIT_HOURS,
+      creditHours: resolveCreditHours(c.creditHours, DEFAULT_CREDIT_HOURS),
       grade: found?.letter,
       points: found?.points,
       percent: found?.percent,

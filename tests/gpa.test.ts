@@ -159,4 +159,51 @@ describe('projected GPA', () => {
     expect(phy.percent).toBeGreaterThan(0);
     expect(phy.components.length).toBeGreaterThan(0);
   });
+
+  it('weights mixed postgraduate credit hours (e.g. 20 cr module, 10 cr module, 0 cr non-credit training) accurately', () => {
+    const pgCourses = userCoursesToSyllabi([
+      {
+        id: 'pg_20',
+        courseCode: 'RES691',
+        courseName: 'Qualitative Research',
+        creditHours: 20,
+        colorHex: '#2563eb',
+        aliases: [],
+        scheduleSlots: [],
+        syllabus: [{ id: 'c1', name: 'Coursework', type: 'assignment', totalWeight: 100 }]
+      },
+      {
+        id: 'pg_10',
+        courseCode: 'EDU602',
+        courseName: 'Education Theory',
+        creditHours: 10,
+        colorHex: '#059669',
+        aliases: [],
+        scheduleSlots: [],
+        syllabus: [{ id: 'c2', name: 'Coursework', type: 'assignment', totalWeight: 100 }]
+      },
+      {
+        id: 'pg_0',
+        courseCode: 'DTC001',
+        courseName: 'Doctoral Training Centre',
+        creditHours: 0,
+        colorHex: '#7c3aed',
+        aliases: [],
+        scheduleSlots: [],
+        syllabus: [{ id: 'c3', name: 'Workshop', type: 'assignment', totalWeight: 100 }]
+      }
+    ]);
+    expect(pgCourses.find(c => c.courseId === 'pg_0')?.creditHours).toBe(0);
+    expect(pgCourses.find(c => c.courseId === 'pg_20')?.creditHours).toBe(20);
+
+    const tasks = [
+      mark('Qualitative Research', 'Assignment 1', 'assignment', 90, 100), // A = 4.0 * 20 cr
+      mark('Education Theory', 'Assignment 1', 'assignment', 80, 100),     // B = 3.0 * 10 cr
+      mark('Doctoral Training Centre', 'Workshop 1', 'assignment', 60, 100) // 0 cr -> ignored in GPA
+    ];
+    const s = buildGpaSummary(tasks, pgCourses);
+    expect(s.gradedCredits).toBe(30);
+    // (4.0 * 20 + 3.0 * 10) / 30 = 110 / 30 = 3.67
+    expect(s.gpa).toBe(3.67);
+  });
 });

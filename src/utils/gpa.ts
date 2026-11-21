@@ -23,6 +23,12 @@ export const UOS_GRADE_SCALE: ReadonlyArray<{ letter: string; min: number; point
 /** Credit hours used when a course does not say (most UOS courses are 3). */
 export const DEFAULT_CREDIT_HOURS = 3;
 
+/** Parses non-negative credit hours, keeping explicit 0 (non-credit/training courses) distinct from unset. */
+export function resolveCreditHours(raw: unknown, fallback = DEFAULT_CREDIT_HOURS): number {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
 export function gradeForPercent(percent: number, scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): { letter: string; points: number } {
   const rows = scale.length ? scale : UOS_GRADE_SCALE;
   const row = rows.find(g => percent >= g.min) || rows[rows.length - 1];
@@ -137,7 +143,7 @@ export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], s
   const courses: CourseGrade[] = [];
 
   for (const syl of syllabi || []) {
-    const creditHours = Number(syl.creditHours) > 0 ? Number(syl.creditHours) : DEFAULT_CREDIT_HOURS;
+    const creditHours = resolveCreditHours(syl.creditHours);
     const totalWeight = syl.totalWeight || 100;
     const mine = graded.filter(t =>
       syl.courseCodePattern.test(t.courseName || '') || syl.courseCodePattern.test(t.courseCode || '')

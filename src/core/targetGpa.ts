@@ -1,6 +1,6 @@
 import type { DeadlineTask } from '../types';
 import { GradeRow } from './universities';
-import { CourseGrade, GpaSummary, UOS_GRADE_SCALE } from '../utils/gpa';
+import { CourseGrade, GpaSummary, resolveCreditHours, UOS_GRADE_SCALE } from '../utils/gpa';
 import { round1, round2 } from '../utils/uiCommon';
 
 export interface UpcomingTaskRequirement {
@@ -165,7 +165,7 @@ export function calculateCourseTargetAnalysis(
 
   return {
     courseName: courseGrade.courseName,
-    creditHours: courseGrade.creditHours || 3,
+    creditHours: resolveCreditHours(courseGrade.creditHours, 3),
     gradedWeight,
     earnedWeight,
     remainingWeight,
@@ -186,13 +186,13 @@ export function calculateTermTargetPlan(
 ): TermTargetPlan {
   const activeScale = scale.length ? scale : UOS_GRADE_SCALE;
   const sortedScale = [...activeScale].sort((a, b) => b.points - a.points);
-  const totalCredits = gpaSummary.totalCredits || (gpaSummary.courses.length * 3) || 3;
+  const totalCredits = gpaSummary.totalCredits > 0 ? gpaSummary.totalCredits : 0;
   const requiredTotalPoints = round2(targetGpa * totalCredits);
 
   // Determine max possible grade points for each course
   let maxPossibleTotalPoints = 0;
   const courseCapacities = gpaSummary.courses.map(c => {
-    const credits = c.creditHours || 3;
+    const credits = resolveCreditHours(c.creditHours, 3);
     const gradedWeight = Math.min(100, Math.max(0, c.gradedWeight || 0));
     const earnedWeight = Math.max(0, c.earnedWeight || 0);
     const remainingWeight = Math.max(0, 100 - gradedWeight);
@@ -212,7 +212,7 @@ export function calculateTermTargetPlan(
     };
   });
 
-  const maxPossibleGpa = round2(maxPossibleTotalPoints / totalCredits);
+  const maxPossibleGpa = totalCredits > 0 ? round2(maxPossibleTotalPoints / totalCredits) : 0;
   const possible = requiredTotalPoints <= maxPossibleTotalPoints;
 
   // Allocate target grades greedily starting from courses that can reach higher points
@@ -405,7 +405,7 @@ export function calculateTrajectoryTargetPlan(
   }
 
   const courseAnalyses: CourseAnalysisInternal[] = gpaSummary.courses.map(c => {
-    const credits = c.creditHours || 3;
+    const credits = resolveCreditHours(c.creditHours, 3);
     const gradedWeight = Math.min(100, Math.max(0, c.gradedWeight || 0));
     const earnedWeight = Math.max(0, c.earnedWeight || 0);
     const remainingWeight = Math.max(0, 100 - gradedWeight);

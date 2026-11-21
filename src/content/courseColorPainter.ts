@@ -12,8 +12,8 @@ import {
   slotColorMap
 } from '../core/blackboardColors';
 import { findConfiguredCourseHex } from '../core/courseColors';
-import { parseCourseDetails } from '../core/courseHelper';
-import { isOrientationOrSandboxCourse } from '../scan/blackboardApi';
+import { isBlackboardSystemNoise, parseCourseDetails } from '../core/courseHelper';
+import { courseMetaFromBlackboard, isOrientationOrSandboxCourse } from '../scan/blackboardApi';
 
 type GetJson = (path: string) => Promise<any>;
 
@@ -45,13 +45,14 @@ export function getBlackboardMemberships(getJson: GetJson): Promise<BlackboardMe
 }
 
 /** Courses for auto-registration, each with Blackboard's colour. */
-export async function discoveredCoursesWithColors(getJson: GetJson): Promise<{ courseName: string; courseCode: string; colorHex?: string }[]> {
-  const out: { courseName: string; courseCode: string; colorHex?: string }[] = [];
+export async function discoveredCoursesWithColors(getJson: GetJson): Promise<{ courseName: string; courseCode: string; colorHex?: string; fromMembership?: boolean }[]> {
+  const out: { courseName: string; courseCode: string; colorHex?: string; fromMembership?: boolean }[] = [];
   for (const m of await getBlackboardMemberships(getJson)) {
-    if (!m.code) continue;
-    const { name } = parseCourseDetails(m.name);
-    if (!name || name === 'General Course' || isOrientationOrSandboxCourse(name, m.code)) continue;
-    out.push({ courseName: name, courseCode: m.code, colorHex: m.hex || undefined });
+    if (!m.name || isOrientationOrSandboxCourse(m.name, m.code)) continue;
+    const meta = courseMetaFromBlackboard(m.name, m.code);
+    const cleanName = meta.name || parseCourseDetails(m.name).name;
+    if (!cleanName || cleanName === 'General Course' || isBlackboardSystemNoise(cleanName)) continue;
+    out.push({ courseName: cleanName, courseCode: meta.code || m.code || '', colorHex: m.hex || undefined, fromMembership: true });
   }
   return out;
 }

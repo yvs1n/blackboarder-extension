@@ -56,6 +56,17 @@ describe("Blackboard's course colours", () => {
     expect(list[0]).toMatchObject({ code: '1440133', slot: 10, hex: '#157afb' });
     expect(list[3].code).toBe('');
     expect(parseMemberships(null)).toEqual([]);
+
+    const buidList = parseMemberships({
+      results: [
+        { courseId: '_20001_1', courseCardColorIndex: 3, course: { courseId: 'RES691_SEP26', name: 'RES691_SEP26 - Qualitative Research Methods and Paradigms' } },
+        { courseId: '_20002_1', courseCardColorIndex: 4, course: { courseId: 'DTC001', name: 'DTC001: Doctoral Training Centre' } },
+        { courseId: '_20003_1', courseCardColorIndex: 5, course: { courseId: 'DISSERTATION', name: 'PhD Dissertation Research' } }
+      ]
+    });
+    expect(buidList[0].code).toBe('RES691');
+    expect(buidList[1].code).toBe('DTC001');
+    expect(buidList[2].code).toBe('');
   });
 
   it('a colour slot is only painted when every course using it agrees', () => {

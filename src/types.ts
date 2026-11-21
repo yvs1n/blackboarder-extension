@@ -38,7 +38,7 @@ export interface UserCourseConfig {
   courseCode: string;
   courseName: string;
   crn?: string;
-  creditHours?: number; // for the GPA; 3 when missing
+  creditHours?: number; // for the GPA; 0 for non-credit/training courses, 3 when missing
   colorHex: string;
   aliases: string[];
   scheduleSlots: CustomScheduleSlot[];

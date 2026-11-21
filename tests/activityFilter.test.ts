@@ -84,12 +84,14 @@ describe('Activity filter: course chips & background preloader', () => {
     expect(activityCourseLabel('Physics 1- ALL - الفيزياء-1')).toBe('Physics 1');
     expect(activityCourseLabel('Physics 1- 02 - الفيزياء-1')).toBe('Physics 1');
     expect(activityCourseLabel('Calculus I for Engineering- 02 - حسبان 1 للمهندسين')).toBe('Calculus I for Engineering');
+    expect(activityCourseLabel('RES691_SEP26 - Qualitative Research Methods and Paradigms')).toBe('Qualitative Research Methods and Paradigms');
     expect(activityCourseLabel('Student Hands-On Orientation')).toBe('Student Hands-On Orientation');
     expect(courseKeyFor('Physics 1')).toBe(courseKeyFor('physics  1'));
   });
 
   it('excludes Student Hands-On Orientation, University, and sandbox shells while keeping real academic courses', () => {
     expect(isExcludedActivityCourse('Student Hands-On Orientation')).toBe(true);
+    expect(isExcludedActivityCourse('Library Essentials: Your Complete Student Guide')).toBe(true);
     expect(isExcludedActivityCourse('University')).toBe(true);
     expect(isExcludedActivityCourse('university')).toBe(true);
     expect(isExcludedActivityCourse('Orientation_2026', 'ORIENT_101')).toBe(true);

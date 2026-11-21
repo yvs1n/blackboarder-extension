@@ -273,7 +273,7 @@ export function initMarksModals({ hooks, renderGradeTracker, updateSemesterSelec
           const gradeBadge = cg && typeof cg.percent === 'number'
             ? `<span style="font-weight: 700; color: var(--text-main);">${cg.letter || ''} (${Math.round(cg.percent)}%)</span>`
             : `<span style="color: var(--text-muted); font-size: 11px;">No grade yet</span>`;
-          return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-light); font-size: 12px;"><span><b>${escapeHtml(c.courseName)}</b> <span style="color: var(--text-muted);">(${c.creditHours || 3} cr)</span></span><span>${gradeBadge}</span></div>`;
+          return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-light); font-size: 12px;"><span><b>${escapeHtml(c.courseName)}</b> <span style="color: var(--text-muted);">(${c.creditHours ?? 3} cr)</span></span><span>${gradeBadge}</span></div>`;
         }).join('');
       }
     }

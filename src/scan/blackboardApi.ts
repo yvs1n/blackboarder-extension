@@ -45,14 +45,14 @@ export function isOrientationOrSandboxCourse(name?: string, externalId?: string)
   const n = String(name || '');
   const ext = String(externalId || '');
   return /orientation|sandbox|mock[_\s-]*exam/i.test(ext) ||
-    /orientation|توجيه|تهيئة/i.test(n);
+    /orientation|library\s+essentials|your\s+complete\s+student\s+guide|توجيه|تهيئة/i.test(n);
 }
 
 export function extractCodeFromExternalId(externalId?: string): string {
   const s = String(externalId || '').trim();
-  const m = s.match(/^(\d{4})\s*(\d{3})(?:[_\s-]|$)/) || s.match(/^([A-Za-z]{2,4}[-\s]?\d{3})(?:[_\s-]|$)/);
+  const m = s.match(/^(\d{4})\s*(\d{3})(?:[_\s-]|$)/) || s.match(/^([A-Za-z]{2,6}[-\s_]?\d{3,5}[A-Za-z]?)(?:[_\s-]|$)/);
   if (!m) return '';
-  return m[2] ? `${m[1]} ${m[2]}` : m[1].toUpperCase();
+  return m[2] ? `${m[1]} ${m[2]}` : m[1].replace(/[\s_-]+/g, '').toUpperCase();
 }
 
 /** Announcement HTML to text without a DOM (the service worker has none, and the tab never parses Blackboard HTML into its page). */

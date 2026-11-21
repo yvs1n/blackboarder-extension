@@ -52,7 +52,7 @@ export function courseImportReviewHtml(
       <label class="ci-keep-row"><input type="checkbox" class="ci-keep" checked> <span>${esc(draft.courseName || draft.courseCode || 'Course')}</span></label>
       <div class="ci-grid">
         <label class="ci-field"><span>Code</span><input type="text" class="${esc(classes.input)} ci-code" maxlength="20" value="${esc(draft.courseCode)}"></label>
-        <label class="ci-field"><span>Credit hours</span><input type="number" class="${esc(classes.input)} ci-credits" min="0" max="6" step="0.5" value="${draft.creditHours ?? ''}"></label>
+        <label class="ci-field"><span>Credit hours</span><input type="number" class="${esc(classes.input)} ci-credits" min="0" max="60" step="0.5" value="${draft.creditHours ?? ''}"></label>
         <label class="ci-field ci-field-wide"><span>Name</span><input type="text" class="${esc(classes.input)} ci-name" maxlength="90" value="${esc(draft.courseName)}"></label>
         <label class="ci-field ci-field-wide"><span>Save into</span><select class="${esc(classes.select)} ci-target">${options}</select></label>
       </div>
@@ -74,7 +74,7 @@ export function readCourseImportReview(root: ParentNode, drafts: CourseDraft[]):
         ...draft,
         courseCode: value('.ci-code').slice(0, 20),
         courseName: value('.ci-name').slice(0, 90),
-        creditHours: credits > 0 && credits <= 6 ? credits : undefined
+        creditHours: !isNaN(credits) && credits >= 0 && credits <= 60 ? credits : undefined
       },
       targetId: value('.ci-target') || 'new'
     });

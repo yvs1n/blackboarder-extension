@@ -114,11 +114,19 @@ export function renderUserCoursesManager() {
       weightStatusBadge = `<span class="settings-pill pill-red" style="font-size: 10px; color: var(--danger);">Total Weight: ${totalWeight}% (Exceeds 100%)</span>`;
     }
 
-    const credits = Number(course.creditHours) > 0 ? Number(course.creditHours) : null;
+    const rawCredits = course.creditHours;
+    const credits = (rawCredits !== undefined && rawCredits !== null && Number.isFinite(Number(rawCredits)) && Number(rawCredits) >= 0)
+      ? Number(rawCredits)
+      : null;
+    const creditLabel = credits === null
+      ? ''
+      : credits === 0
+        ? '0 credits (Non-credit)'
+        : `${credits} credit hour${credits === 1 ? '' : 's'}`;
     const metaParts = [
       course.courseCode ? `<span class="ucc-code">${escapeHtml(course.courseCode)}</span>` : '',
       course.crn ? `<span title="CRN">CRN ${escapeHtml(course.crn)}</span>` : '',
-      credits !== null ? `<span>${credits} credit hour${credits === 1 ? '' : 's'}</span>` : '',
+      creditLabel ? `<span>${creditLabel}</span>` : '',
     ].filter(Boolean).join('<span aria-hidden="true">·</span>');
 
     card.innerHTML = `
@@ -187,7 +195,7 @@ export function openCourseEditor(courseId?: string) {
     if (codeInput) codeInput.value = course.courseCode || '';
     if (nameInput) nameInput.value = course.courseName || '';
     if (crnInput) crnInput.value = course.crn || '';
-    if (creditsInput) creditsInput.value = course.creditHours ? String(course.creditHours) : '';
+    if (creditsInput) creditsInput.value = course.creditHours !== undefined && course.creditHours !== null && Number.isFinite(Number(course.creditHours)) ? String(course.creditHours) : '';
     const color = course.colorHex || '#2563eb';
     if (colorPicker) colorPicker.value = color;
     if (colorHexInput) colorHexInput.value = color;
@@ -459,7 +467,7 @@ export async function handleSaveCourse(e: Event) {
     courseCode: code,
     courseName: name,
     crn: crn || undefined,
-    ...(credits > 0 ? { creditHours: credits } : {}),
+    ...(!isNaN(credits) && credits >= 0 ? { creditHours: credits } : {}),
     colorHex: hex,
     aliases,
     scheduleSlots: slots,

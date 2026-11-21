@@ -1,6 +1,7 @@
 import type { UserCourseConfig, CustomSyllabusComponent, Weekday } from '../types';
 import type { CourseScheduleEntry } from './courseSchedule';
 import type { CourseSyllabus, SyllabusComponent } from './syllabusWeights';
+import { resolveCreditHours } from '../utils/gpa';
 import { format12Hour } from '../utils/uiCommon';
 
 function escapeRegex(str: string): string {
@@ -247,8 +248,8 @@ export function userCoursesToSyllabi(courses: UserCourseConfig[]): CourseSyllabu
       courseCodePattern,
       sourcePdf: `${course.id}.pdf`,
       totalWeight,
-      // Courses saved without credit hours count as the usual 3
-      creditHours: Number(course.creditHours) > 0 ? Number(course.creditHours) : 3,
+      // Keep explicit 0 for non-credit courses; default unset courses to 3
+      creditHours: resolveCreditHours(course.creditHours, 3),
       components
     };
   });

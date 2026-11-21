@@ -63,7 +63,9 @@ export function parseMemberships(json: any): BlackboardMembership[] {
     if (!/^_\d+_\d+$/.test(courseId)) continue;
     const name = typeof m?.course?.name === 'string' ? m.course.name.trim() : '';
     const external = typeof m?.course?.courseId === 'string' ? m.course.courseId : '';
-    const code = (external.match(/^(\d{7})(?:_|$)/) || [])[1] || '';
+    const sevenDigit = external.match(/^(\d{7})(?:_|$)/);
+    const alphaNum = !sevenDigit && external.match(/^([A-Za-z]{2,6}\s*[-_]?\s*\d{3,5}[A-Za-z]?)(?:[_\s-]|$)/);
+    const code = sevenDigit ? sevenDigit[1] : (alphaNum ? alphaNum[1].replace(/[\s_-]+/g, '').toUpperCase() : '');
     out.push({
       courseId,
       name,

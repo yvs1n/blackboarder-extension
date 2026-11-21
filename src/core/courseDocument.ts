@@ -685,7 +685,7 @@ export function sanitizeCourseDrafts(raw: unknown): CourseDraft[] {
     const ch = Number(item.creditHours);
     const instructor = str(item.instructor, 60) || undefined;
     if (instructor) slots.forEach(s => { if (!s.instructor) s.instructor = instructor; });
-    out.push({ courseCode, courseName, creditHours: ch >= 0.5 && ch <= 6 ? ch : undefined, instructor, scheduleSlots: slots, syllabus });
+    out.push({ courseCode, courseName, creditHours: Number.isFinite(ch) && ch >= 0 && ch <= 60 ? ch : undefined, instructor, scheduleSlots: slots, syllabus });
   }
   return out;
 }

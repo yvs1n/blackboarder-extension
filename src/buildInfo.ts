@@ -13,15 +13,15 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.32",
-  "build": "206f4af68a4c",
-  "commit": "bc5698cc5fd46c913f549409c7bf9e3f4ad45506",
-  "shortCommit": "bc5698c",
-  "timestamp": "2026-11-21T11:34:08.266Z",
-  "message": "v1.8.31: Add Postgraduate Studies toggle and grading scales across extension & Companion",
+  "version": "1.8.33",
+  "build": "f00dd4279e2b",
+  "commit": "c05250fb655204615bf10cf778794c71e05579bd",
+  "shortCommit": "c05250f",
+  "timestamp": "2026-11-21T11:56:33.158Z",
+  "message": "v1.8.32: Fix release ZIP manifest-missing download and harden Windows auto-updater",
   "changelog": [
-    "Extension Release ZIP URL & Missing Manifest Prevention (src/utils/updateChecker.ts, updater/blackboarder-updater.ps1): Switched GITHUB_ZIP_URL from GitHub's source repository archive (archive/refs/heads/main.zip, where manifest.json sits inside dist/) to the packaged release asset (releases/latest/download/blackboarder-extension.zip) so downloading/extracting the extension ZIP always puts manifest.json at the folder root, and hardened Remove-StaleExtensionFiles to never run without manifest.json present.",
-    "Windows Auto-Update Host Registration & Error Visibility (updater/blackboarder-updater.ps1, src/background/autoUpdate.ts, src/utils/updateBanner.ts, mobile-web/index.html, mobile-web/landing-motion.js, docs/INSTALL_EXTENSION.md): Resolved canonical NTFS segment casing when computing unpacked extension IDs, added Chrome Beta/Dev/Vivaldi/Opera registry and profile lookup, surfaced helper update failures directly instead of falling back to ZIP download prompts, and made Step 03 explicit about running update.bat / update.sh once for unattended updates."
+    "Enrolled Course Auto-Registration Beyond UOS 7-Digit Codes (src/core/blackboardColors.ts, src/scan/blackboardApi.ts, src/content/courseColorPainter.ts, src/utils/storage/coursesStorage.ts, src/content/activityFilter.ts): parseMemberships() now extracts alphanumeric subject codes (such as RES691 from RES691_SEP26 and DTC001) alongside 7-digit UOS catalogue numbers, discoveredCoursesWithColors() and autoRegisterDiscoveredCourses() keep all real enrolled Blackboard memberships (even without an undergraduate catalogue number) so every enrolled course registers instead of stopping at 1 Course, isOrientationOrSandboxCourse() filters Library Essentials guides, and activityCourseLabel() strips external-ID prefixes (RES691_SEP26 - ...) so courses do not create duplicate stream filter chips.",
+    "Flexible Postgraduate & Non-Credit Hour Weighting (src/utils/gpa.ts, src/core/userCourses.ts, src/core/semesters.ts, src/core/targetGpa.ts, src/core/courseDocument.ts, src/core/courseImportView.ts, src/popup/index.html, mobile-web/companion/index.html, src/popup/modules/coursesView.ts, src/mobile/app/11-courses-editor.js): Supported 0 to 60 credit hours (0.5 steps) across Course Editor, syllabus import, GPA/CGPA, and Target Grade calculations, preserving explicit 0-credit non-GPA courses (e.g. Doctoral Training Centre or workshops) instead of silently defaulting them to 3 credit hours."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"
