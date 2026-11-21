@@ -179,6 +179,9 @@ async function checkAndInstall(): Promise<AutoUpdateStatus> {
     if (reply?.code === 'dev-checkout') {
       return saveStatus({ ...base, ...remoteFields, state: 'dev-checkout', helperInstalled: true, error: reply.error });
     }
+    if (reply && !reply.ok) {
+      return saveStatus({ ...base, ...remoteFields, state: 'error', helperInstalled: true, error: reply.error || 'Could not update extension files.' });
+    }
   }
 
   // Automatic updates are off or helper is not set up: present the available update for manual action

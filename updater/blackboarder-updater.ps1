@@ -74,8 +74,10 @@ function Update-GitCheckout {
 function Remove-StaleExtensionFiles([string]$TargetDir, $KeepFiles) {
   $isRepoCheckout = (Test-Path -LiteralPath (Join-Path $TargetDir '.git')) -or (Test-Path -LiteralPath (Join-Path $TargetDir 'package.json'))
   if ($isRepoCheckout -or (-not $KeepFiles)) { return }
+  if (-not (Test-Path -LiteralPath (Join-Path $TargetDir 'manifest.json'))) { return }
   $keep = @{}
   $keep['version.json'] = $true
+  $keep['manifest.json'] = $true
   foreach ($f in $KeepFiles) {
     $norm = ([string]$f -replace '\\', '/').TrimStart('/').ToLowerInvariant()
     if ($norm) { $keep[$norm] = $true }
@@ -209,11 +211,30 @@ function Invoke-NativeHost {
 # Registration (-Install)
 # ---------------------------------------------------------------------------
 
+# Resolve canonical NTFS segment casing & short 8.3 names so the computed extension ID matches Chromium.
+function Get-CanonicalPath([string]$dir) {
+  try {
+    $item = Get-Item -LiteralPath ([IO.Path]::GetFullPath($dir).TrimEnd('\')) -ErrorAction Stop
+    $parts = New-Object System.Collections.Generic.List[string]
+    $cur = $item
+    while ($cur -and $cur.Parent) {
+      $parts.Add($cur.Name)
+      $cur = $cur.Parent
+    }
+    $root = if ($cur) { $cur.FullName.ToUpperInvariant() } else { '' }
+    $parts.Reverse()
+    return ($root + ($parts -join '\')).TrimEnd('\')
+  } catch {
+    $p = [IO.Path]::GetFullPath($dir).TrimEnd('\')
+    if ($p -match '^[a-z]:') { $p = $p.Substring(0, 1).ToUpperInvariant() + $p.Substring(1) }
+    return $p
+  }
+}
+
 # Chromium names an unpacked extension after its folder: SHA-256 of the path (UTF-16, drive letter
 # upper-cased), first 16 bytes, each hex digit mapped to a-p.
 function Get-UnpackedExtensionId([string]$dir) {
-  $path = [IO.Path]::GetFullPath($dir).TrimEnd('\')
-  if ($path -match '^[a-z]:') { $path = $path.Substring(0, 1).ToUpperInvariant() + $path.Substring(1) }
+  $path = Get-CanonicalPath $dir
   $sha = [Security.Cryptography.SHA256]::Create()
   $hash = $sha.ComputeHash([Text.Encoding]::Unicode.GetBytes($path))
   $hex = -join ($hash[0..15] | ForEach-Object { $_.ToString('x2') })
@@ -223,12 +244,17 @@ function Get-UnpackedExtensionId([string]$dir) {
 # Also look the folder up in each browser profile, in case the browser stored the path differently
 function Find-ExtensionIdsInProfiles([string]$dir) {
   $ids = @()
-  $target = [IO.Path]::GetFullPath($dir).TrimEnd('\')
+  $target = (Get-CanonicalPath $dir).TrimEnd('\')
   $roots = @(
     "$env:LOCALAPPDATA\Google\Chrome\User Data",
+    "$env:LOCALAPPDATA\Google\Chrome Beta\User Data",
+    "$env:LOCALAPPDATA\Google\Chrome Dev\User Data",
     "$env:LOCALAPPDATA\Chromium\User Data",
     "$env:LOCALAPPDATA\Microsoft\Edge\User Data",
-    "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data"
+    "$env:LOCALAPPDATA\BraveSoftware\Brave-Browser\User Data",
+    "$env:LOCALAPPDATA\Vivaldi\User Data",
+    "$env:APPDATA\Opera Software\Opera Stable",
+    "$env:APPDATA\Opera Software\Opera GX Stable"
   )
   try { Add-Type -AssemblyName System.Web.Extensions } catch { return $ids }
   $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
@@ -241,7 +267,7 @@ function Find-ExtensionIdsInProfiles([string]$dir) {
         $settings = $data['extensions']['settings']
         foreach ($id in $settings.Keys) {
           $entryPath = [string]$settings[$id]['path']
-          if ($entryPath -and [string]::Equals($entryPath.TrimEnd('\'), $target, [StringComparison]::OrdinalIgnoreCase)) { $ids += $id }
+          if ($entryPath -and ([string]::Equals($entryPath.TrimEnd('\'), $target, [StringComparison]::OrdinalIgnoreCase) -or [string]::Equals($entryPath.TrimEnd('\'), ([IO.Path]::GetFullPath($dir).TrimEnd('\')), [StringComparison]::OrdinalIgnoreCase))) { $ids += $id }
         }
       } catch {}
     }
@@ -250,7 +276,13 @@ function Find-ExtensionIdsInProfiles([string]$dir) {
 }
 
 function Register-NativeHost {
-  $ids = @(Get-UnpackedExtensionId $ExtDir) + @(Find-ExtensionIdsInProfiles $ExtDir) | Select-Object -Unique
+  $rawId = Get-UnpackedExtensionId $ExtDir
+  $rawPathUpper = ([IO.Path]::GetFullPath($ExtDir).TrimEnd('\'))
+  if ($rawPathUpper -match '^[a-z]:') { $rawPathUpper = $rawPathUpper.Substring(0, 1).ToUpperInvariant() + $rawPathUpper.Substring(1) }
+  $fallbackHash = [Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::Unicode.GetBytes($rawPathUpper))
+  $fallbackHex = -join ($fallbackHash[0..15] | ForEach-Object { $_.ToString('x2') })
+  $fallbackId = -join ($fallbackHex.ToCharArray() | ForEach-Object { [char](97 + [Convert]::ToInt32([string]$_, 16)) })
+  $ids = @($rawId, $fallbackId) + @(Find-ExtensionIdsInProfiles $ExtDir) | Select-Object -Unique
   $manifestDir = Join-Path $env:LOCALAPPDATA 'Blackboarder'
   New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
   $manifestPath = Join-Path $manifestDir "$HostName.json"
@@ -263,7 +295,7 @@ function Register-NativeHost {
   }
   [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
 
-  foreach ($browserKey in @('Google\Chrome', 'Chromium', 'Microsoft\Edge', 'BraveSoftware\Brave-Browser')) {
+  foreach ($browserKey in @('Google\Chrome', 'Google\Chrome Beta', 'Google\Chrome Dev', 'Chromium', 'Microsoft\Edge', 'BraveSoftware\Brave-Browser', 'Vivaldi', 'Opera Software\Opera Stable', 'Opera Software\Opera GX Stable')) {
     $key = "HKCU:\Software\$browserKey\NativeMessagingHosts\$HostName"
     New-Item -Path $key -Force | Out-Null
     Set-Item -Path $key -Value $manifestPath

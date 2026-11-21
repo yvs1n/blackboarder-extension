@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.32] - 2026-11-21
+
+### Fixed
+
+- **Extension Release ZIP URL & Missing Manifest Prevention (`src/utils/updateChecker.ts`, `updater/blackboarder-updater.ps1`):** Switched `GITHUB_ZIP_URL` from GitHub's source repository archive (`archive/refs/heads/main.zip`, where `manifest.json` sits inside `dist/`) to the packaged release asset (`releases/latest/download/blackboarder-extension.zip`) so downloading/extracting the extension ZIP always puts `manifest.json` at the folder root, and hardened `Remove-StaleExtensionFiles` to never run without `manifest.json` present.
+- **Windows Auto-Update Host Registration & Error Visibility (`updater/blackboarder-updater.ps1`, `src/background/autoUpdate.ts`, `src/utils/updateBanner.ts`, `mobile-web/index.html`, `mobile-web/landing-motion.js`, `docs/INSTALL_EXTENSION.md`):** Resolved canonical NTFS segment casing when computing unpacked extension IDs, added Chrome Beta/Dev/Vivaldi/Opera registry and profile lookup, surfaced helper update failures directly instead of falling back to ZIP download prompts, and made Step 03 explicit about running `update.bat` / `update.sh` once for unattended updates.
+
+---
+
 ## [1.8.31] - 2026-11-21
 
 ### Added

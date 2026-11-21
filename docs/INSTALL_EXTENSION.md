@@ -38,6 +38,7 @@ In Chromium browsers (Chrome, Edge, Brave, Opera, Vivaldi), look in the top-righ
 
 ### Step 4: Load the Extension
 - **Chrome, Edge, Brave, Opera, Vivaldi:** Click the **"Load unpacked"** button in the top toolbar, select the extracted folder (the folder containing `manifest.json`), and click **Select Folder**.
+- **Turn on automatic updates (recommended, once):** Double-click `update.bat` (Windows) or run `sh update.sh` (Mac/Linux) inside that folder once, then click the **Reload** arrow on Blackboarder so future updates download and install on their own without re-downloading ZIPs.
 - **Firefox:** Click **"Load Temporary Add-on..."** and select `manifest.json` inside the extracted folder.
 
 ---

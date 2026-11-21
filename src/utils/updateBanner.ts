@@ -45,7 +45,7 @@ export function describeUpdateBanner(status: AutoUpdateStatus | null | undefined
           }
         : {
             title: 'New version on GitHub',
-            desc: `To update now and turn on one-click updates, ${ENABLE_UPDATES_HINT}. Your data stays intact.`,
+            desc: `To turn on unattended auto-updates (so you never download a ZIP again), ${ENABLE_UPDATES_HINT}, then reload once.`,
             primary: 'download',
             dismissible: true
           };

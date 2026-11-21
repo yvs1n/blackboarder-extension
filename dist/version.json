@@ -1,18 +1,19 @@
 {
-  "version": "1.8.31",
-  "build": "043b94701302",
-  "commit": "5ac3cab0f571b35c955fc84ed724a1fd29f82c7c",
-  "shortCommit": "5ac3cab",
-  "timestamp": "2026-11-21T11:18:44.972Z",
-  "message": "v1.8.30: Add BUiD university preset and fix Other university session/origin fallback",
+  "version": "1.8.32",
+  "build": "206f4af68a4c",
+  "commit": "bc5698cc5fd46c913f549409c7bf9e3f4ad45506",
+  "shortCommit": "bc5698c",
+  "timestamp": "2026-11-21T11:34:08.266Z",
+  "message": "v1.8.31: Add Postgraduate Studies toggle and grading scales across extension & Companion",
   "changelog": [
-    "Postgraduate Studies Toggle (src/types.ts, src/core/universities.ts, src/core/studentProfile.ts, src/popup/index.html, mobile-web/companion/index.html, src/popup/universitySettings.ts, src/mobile/app/09-profile-semesters.js): Added a Postgraduate Studies switch under Settings > General > Your University (and Quick Tour onboarding) synced across extension, Companion PWA, and Cloudflare sync worker (studyLevel), automatically switching built-in and other university grading scales and minimum pass thresholds to postgraduate standards (e.g. BUiD M-Level 70%/60%/50% pass, UOS C+ 75% pass)."
+    "Extension Release ZIP URL & Missing Manifest Prevention (src/utils/updateChecker.ts, updater/blackboarder-updater.ps1): Switched GITHUB_ZIP_URL from GitHub's source repository archive (archive/refs/heads/main.zip, where manifest.json sits inside dist/) to the packaged release asset (releases/latest/download/blackboarder-extension.zip) so downloading/extracting the extension ZIP always puts manifest.json at the folder root, and hardened Remove-StaleExtensionFiles to never run without manifest.json present.",
+    "Windows Auto-Update Host Registration & Error Visibility (updater/blackboarder-updater.ps1, src/background/autoUpdate.ts, src/utils/updateBanner.ts, mobile-web/index.html, mobile-web/landing-motion.js, docs/INSTALL_EXTENSION.md): Resolved canonical NTFS segment casing when computing unpacked extension IDs, added Chrome Beta/Dev/Vivaldi/Opera registry and profile lookup, surfaced helper update failures directly instead of falling back to ZIP download prompts, and made Step 03 explicit about running update.bat / update.sh once for unattended updates."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-5IIXxqnu.js",
     "assets/popup-Ba_D6yZo.css",
+    "assets/popup-BcrrYSX7.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

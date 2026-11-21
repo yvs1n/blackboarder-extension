@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { isRemoteNewer } from '../src/utils/updateChecker';
+import { GITHUB_ZIP_URL, isRemoteNewer } from '../src/utils/updateChecker';
 import {
   AUTO_UPDATE_ENABLED_KEY,
   JUST_UPDATED_KEY,
@@ -43,6 +43,8 @@ describe('Extension automatic updates', () => {
     expect(manifest.key).toBeUndefined();
     expect(manifest.permissions).toContain('nativeMessaging');
     expect(manifest.host_permissions).toContain('https://raw.githubusercontent.com/*');
+    // Browser ZIP downloads must point to the prebuilt release archive (manifest.json at root), not source main.zip
+    expect(GITHUB_ZIP_URL).toContain('/releases/latest/download/blackboarder-extension.zip');
   });
 
   it('ships the updater with the built extension and embeds changelog in BUILD_INFO', () => {
