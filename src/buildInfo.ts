@@ -13,15 +13,15 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.35",
-  "build": "0a478dcffb53",
-  "commit": "cdcd1d96c5fcc1d4c9dadbb80913eb1dffccf66d",
-  "shortCommit": "cdcd1d9",
-  "timestamp": "2026-11-21T18:51:41.016Z",
-  "message": "docs(legal): Swiss Grid Privacy Policy and Terms pages plus worker timing-safe & security header hardening",
+  "version": "1.8.36",
+  "build": "261017e4029f",
+  "commit": "4bc9042bac22b7daa599d88723bfdbe50e59a49e",
+  "shortCommit": "4bc9042",
+  "timestamp": "2026-11-21T19:05:35.112Z",
+  "message": "release(v1.8.35): Chrome Web Store launch, unpacked migration update, Contact/Feedback sections, Privacy & Terms links",
   "changelog": [
-    "Chrome Web Store Launch & Zero-Data-Loss Migration (src/popup/index.html, src/popup/modules/settingsUpdates.ts, mobile-web/index.html, mobile-web/landing-motion.js): Updated Desktop landing page install steps, Hero CTA, and FAQ to link directly to Blackboarder on the Chrome Web Store (kciflchaejgedgjookkmnkgjhbhhabjb) with store-managed automatic updates, and added an interactive Chrome Web Store Migration banner and card on legacy unpacked installs so existing users can export a JSON backup / Sync Key, switch to the store version, and restore without losing data.",
-    "Contact, Feedback, Privacy Policy & Terms Links Across All Surfaces (src/popup/index.html, src/popup/modules/settingsUpdates.ts, mobile-web/companion/index.html, mobile-web/index.html): Added 05 // Contact & Feedback (#contact) to the landing page and direct Send Feedback / Report Issue, Privacy Policy, and Terms of Service links inside Settings > Updates across both the browser extension and the phone Companion Web App."
+    "Connect Existing Sync Key (src/popup/index.html, src/popup/modules/settingsSync.ts): Added a Use Existing button and input panel right under Settings > Sync > Personal Sync Key so students switching to the Chrome Web Store build (or a new browser) can paste their BBS-... Sync Key or full pairing link and immediately pull their cloud vault without overwriting it.",
+    "Complete Backup Export & Restore (src/popup/modules/settingsSync.ts): Export JSON and Restore JSON now include payments, semesters (archived terms/CGPA), tombstones, and extraSites alongside tasks, courses, quickLinks, profile, and settings."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

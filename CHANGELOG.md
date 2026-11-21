@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.36] - 2026-11-21
+
+### Added
+
+- **Connect Existing Sync Key (`src/popup/index.html`, `src/popup/modules/settingsSync.ts`):** Added a **Use Existing** button and input panel right under **Settings > Sync > Personal Sync Key** so students switching to the Chrome Web Store build (or a new browser) can paste their `BBS-...` Sync Key or full pairing link and immediately pull their cloud vault without overwriting it.
+- **Complete Backup Export & Restore (`src/popup/modules/settingsSync.ts`):** `Export JSON` and `Restore JSON` now include `payments`, `semesters` (archived terms/CGPA), `tombstones`, and `extraSites` alongside `tasks`, `courses`, `quickLinks`, `profile`, and `settings`.
+
+---
+
 ## [1.8.35] - 2026-11-21
 
 ### Added

@@ -6,7 +6,7 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-1kehi9t6.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-CHyqPru5.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-Ba_D6yZo.css">
 </head>
 <body>
@@ -331,7 +331,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.35</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.36</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -928,15 +928,27 @@
             <div style="position: relative; width: 100%;">
               <input type="text" id="setting-sync-key" class="form-input" placeholder="e.g. BBS-9A2K..." maxlength="64" autocomplete="off" spellcheck="false" readonly style="font-family: monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; width: 100%; box-sizing: border-box; cursor: default; padding: 7px 10px; font-size: 11.5px;">
             </div>
-            <div class="sync-key-btn-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
-              <button type="button" id="btn-copy-sync-key" class="btn-secondary" style="font-size: 11.5px; padding: 7px 10px; justify-content: center; display: inline-flex; align-items: center; gap: 5px; width: 100%; box-sizing: border-box;" title="Copy sync key">
+            <div class="sync-key-btn-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px;">
+              <button type="button" id="btn-copy-sync-key" class="btn-secondary" style="font-size: 11px; padding: 7px 6px; justify-content: center; display: inline-flex; align-items: center; gap: 4px; width: 100%; box-sizing: border-box;" title="Copy sync key">
                 <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-copy"></use></svg>
                 <span>Copy Key</span>
               </button>
-              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="font-size: 11.5px; padding: 7px 10px; justify-content: center; display: inline-flex; align-items: center; gap: 5px; width: 100%; box-sizing: border-box;" title="Generate new random key">
+              <button type="button" id="btn-use-existing-sync-key" class="btn-secondary" style="font-size: 11px; padding: 7px 6px; justify-content: center; display: inline-flex; align-items: center; gap: 4px; width: 100%; box-sizing: border-box;" title="Connect an existing Sync Key from another browser or phone">
+                <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-link"></use></svg>
+                <span>Use Existing</span>
+              </button>
+              <button type="button" id="btn-regen-sync-key" class="btn-secondary" style="font-size: 11px; padding: 7px 6px; justify-content: center; display: inline-flex; align-items: center; gap: 4px; width: 100%; box-sizing: border-box;" title="Generate new random key">
                 <svg class="ui-icon" style="width: 12px; height: 12px;"><use href="#icon-refresh"></use></svg>
                 <span>New Key</span>
               </button>
+            </div>
+            <div id="connect-existing-key-panel" hidden style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
+              <label class="form-label" for="input-existing-sync-key" style="font-size: 11px; font-weight: 600; margin-bottom: 4px; display: block;">Paste Existing Sync Key or Pairing Link</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="input-existing-sync-key" class="form-input" placeholder="BBS-..." maxlength="512" autocomplete="off" spellcheck="false" style="flex: 1; font-family: monospace; font-size: 11.5px; padding: 6px 8px;">
+                <button type="button" id="btn-connect-existing-key" class="btn-primary" style="font-size: 11px; padding: 6px 10px; white-space: nowrap;">Connect</button>
+              </div>
+              <span id="connect-existing-key-status" style="display: block; font-size: 10.5px; color: var(--text-muted); margin-top: 4px;"></span>
             </div>
             <span style="font-size: 10.5px; color: var(--text-muted); display: block; margin-top: 6px; line-height: 1.4;">Keeps your deadlines private and isolated in the cloud so multiple students never overwrite each other.</span>
           </div>
@@ -1163,7 +1175,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.35</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.36</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

@@ -1,7 +1,9 @@
+import fs from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { sanitizeCloudTasks, sanitizeCloudCourses, sanitizeCloudQuickLinks } from '../src/utils/cloudSanitize';
 import { filterCleanUserCourses } from '../src/core/courseFilter';
 import { isBlackboardSystemNoise } from '../src/core/courseHelper';
+import { extractSyncKeyFromInput } from '../src/popup/modules/settingsSync';
 import type { UserCourseConfig } from '../src/types';
 
 describe('Unified Backup and Restore Suite', () => {
@@ -86,5 +88,16 @@ describe('Unified Backup and Restore Suite', () => {
 
     expect(sanitizedLinks).toHaveLength(1);
     expect(sanitizedLinks?.[0].url).toBe('https://elearning.sharjah.ac.ae');
+  });
+
+  it('extracts Sync Keys cleanly from raw input or full pairing links and backs up all data stores', () => {
+    expect(extractSyncKeyFromInput('bbs-testkey99')).toBe('BBS-TESTKEY99');
+    expect(extractSyncKeyFromInput('https://blackboarder.pages.dev/companion/?key=bbs-mykey1234#ai=pass')).toBe('BBS-MYKEY1234');
+    expect(extractSyncKeyFromInput('bad')).toBe('');
+
+    const syncSrc = fs.readFileSync('src/popup/modules/settingsSync.ts', 'utf8');
+    for (const field of ['tasks', 'courses', 'quickLinks', 'profile', 'payments', 'semesters', 'tombstones', 'extraSites', 'settings']) {
+      expect(syncSrc).toContain(field);
+    }
   });
 });

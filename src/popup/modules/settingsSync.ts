@@ -7,7 +7,10 @@ import { createArmedAction } from '../../core/stateMachine';
 import { ensureAiPass, pairingLink } from '../../utils/aiKeyLock';
 import { compareTasksByTime } from '../../utils/calendar';
 import { sanitizeCloudCourses, sanitizeCloudQuickLinks, sanitizeCloudTasks } from '../../utils/cloudSanitize';
+import { getExtraSites, saveExtraSites } from '../../utils/blackboardSites';
 import { deleteSyncDataFromFirebase, fetchTasksFromFirebase, pushTasksToFirebase } from '../../utils/firebaseSync';
+import { sanitizePayments } from '../../core/payments';
+import { sanitizeSemesters } from '../../core/semesters';
 import { getProfile, saveProfile } from '../../utils/profile';
 import { qrSvg } from '../../utils/qrCode';
 import {
@@ -16,15 +19,19 @@ import {
   getQuickLinks,
   getQuickLinksUpdatedAt,
   getSettings,
+  getStoredPayments,
+  getStoredSemesters,
   getTasks,
   getUserCourses,
   safeSetLocalStorage,
   saveQuickLinks,
   saveSettings,
+  saveStoredPayments,
+  saveStoredSemesters,
   saveTasks,
   saveUserCourses,
 } from '../../utils/storage';
-import { getLocalTombstones } from '../../utils/tombstones';
+import { getLocalTombstones, setStorageTombstones } from '../../utils/tombstones';
 import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
@@ -33,11 +40,31 @@ import { refreshAiKeyLock } from './settingsView';
 export const SITE_URL = 'https://blackboarder.pages.dev';
 export const COMPANION_URL = `${SITE_URL}/companion/`;
 
+export function extractSyncKeyFromInput(raw: string): string {
+  let trimmed = String(raw || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed) || /[?&]key=/i.test(trimmed)) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://blackboarder.pages.dev/${trimmed.replace(/^\/+/, '')}`);
+      const qKey = url.searchParams.get('key') || url.searchParams.get('sync') || '';
+      if (qKey) trimmed = qKey.trim();
+    } catch {}
+  }
+  const normalized = trimmed.toUpperCase();
+  return /^[A-Za-z0-9_-]{8,64}$/.test(normalized) ? normalized : '';
+}
+
 export async function exportJsonBackup() {
-  const settings = await getSettings();
-  const courses = await getUserCourses();
-  const quickLinks = await getQuickLinks();
-  const profile = await getProfile().catch(() => null);
+  const [settings, courses, quickLinks, profile, payments, semesters, extraSites, tombstones] = await Promise.all([
+    getSettings(),
+    getUserCourses(),
+    getQuickLinks(),
+    getProfile().catch(() => null),
+    getStoredPayments().catch(() => []),
+    getStoredSemesters().catch(() => []),
+    getExtraSites().catch(() => []),
+    Promise.resolve(getLocalTombstones())
+  ]);
   const backupData = {
     version: BUILD_INFO.version,
     exportedAt: new Date().toISOString(),
@@ -45,6 +72,10 @@ export async function exportJsonBackup() {
     courses,
     quickLinks,
     profile,
+    payments,
+    semesters,
+    tombstones,
+    extraSites,
     settings
   };
 
@@ -57,7 +88,7 @@ export async function exportJsonBackup() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  popupActions.showToast('Downloaded full backup with courses, syllabi and deadlines!');
+  popupActions.showToast('Downloaded complete backup (deadlines, courses, grades, payments, semesters & settings)!');
 }
 
 export async function handleRestoreJson(file: File) {
@@ -106,14 +137,42 @@ export async function handleRestoreJson(file: File) {
       }
     }
 
+    if (data.payments && Array.isArray(data.payments)) {
+      const cleanPayments = sanitizePayments(data.payments);
+      await saveStoredPayments(cleanPayments);
+      popupState.currentPayments = cleanPayments;
+    }
+
+    if (data.semesters && Array.isArray(data.semesters)) {
+      const cleanSemesters = sanitizeSemesters(data.semesters);
+      await saveStoredSemesters(cleanSemesters);
+    }
+
+    if (data.tombstones && typeof data.tombstones === 'object' && !Array.isArray(data.tombstones)) {
+      const mergedTombstones = { ...getLocalTombstones(), ...data.tombstones };
+      await setStorageTombstones(mergedTombstones);
+    }
+
+    if (data.extraSites && Array.isArray(data.extraSites)) {
+      await saveExtraSites(data.extraSites).catch(() => {});
+    }
+
     if (data.profile && typeof data.profile === 'object') {
       await saveProfile(data.profile).catch(() => {});
     }
 
     if (data.settings && typeof data.settings === 'object') {
       await saveSettings(data.settings);
+      if (typeof data.settings.syncKey === 'string' && data.settings.syncKey.trim()) {
+        const cleanKey = data.settings.syncKey.trim().toUpperCase();
+        safeSetLocalStorage('bbs_persistent_sync_key', cleanKey);
+        safeSetLocalStorage('bbs_sync_key', cleanKey);
+      }
     }
 
+    const latestSettings = await getSettings();
+    loadSyncStatus(latestSettings);
+    await popupActions.loadSettingsForm();
     popupActions.refreshAllViews();
     popupActions.syncTasksToCloud(popupState.currentTasks, 'Restored Backup', true);
     const msg = restoredCourseCount > 0
@@ -264,6 +323,62 @@ export function setupSyncSettingsEvents(): void {
       } catch {
         prompt('Your Sync Key:', input.value.trim());
       }
+    }
+  });
+
+  const btnUseExistingKey = document.getElementById('btn-use-existing-sync-key');
+  const connectKeyPanel = document.getElementById('connect-existing-key-panel');
+  const inputExistingKey = document.getElementById('input-existing-sync-key') as HTMLInputElement | null;
+  const btnConnectExistingKey = document.getElementById('btn-connect-existing-key') as HTMLButtonElement | null;
+  const connectKeyStatus = document.getElementById('connect-existing-key-status');
+
+  btnUseExistingKey?.addEventListener('click', () => {
+    if (!connectKeyPanel) return;
+    connectKeyPanel.hidden = !connectKeyPanel.hidden;
+    if (!connectKeyPanel.hidden) {
+      if (connectKeyStatus) connectKeyStatus.textContent = '';
+      requestAnimationFrame(() => inputExistingKey?.focus());
+    }
+  });
+
+  btnConnectExistingKey?.addEventListener('click', async () => {
+    const parsedKey = extractSyncKeyFromInput(inputExistingKey?.value || '');
+    if (!parsedKey) {
+      if (connectKeyStatus) connectKeyStatus.textContent = 'Enter a valid Sync Key (e.g. BBS-XXXX...) or phone pairing link.';
+      return;
+    }
+    btnConnectExistingKey.disabled = true;
+    btnConnectExistingKey.textContent = 'Checking...';
+    if (connectKeyStatus) connectKeyStatus.textContent = 'Checking cloud vault for your Sync Key...';
+    try {
+      const check = await fetchTasksFromFirebase(parsedKey);
+      if (!check.success || check.deleted) {
+        if (connectKeyStatus) {
+          connectKeyStatus.textContent = check.deleted
+            ? 'No active vault found for that key. Double-check the key or use Restore JSON.'
+            : (check.error || 'Could not verify that key right now.');
+        }
+        return;
+      }
+      await saveSettings({ syncKey: parsedKey });
+      safeSetLocalStorage('bbs_persistent_sync_key', parsedKey);
+      safeSetLocalStorage('bbs_sync_key', parsedKey);
+      const settingInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+      if (settingInput) settingInput.value = parsedKey;
+
+      await popupActions.pullTasksFromFirebaseIfNewer();
+      const refreshedSettings = await getSettings();
+      loadSyncStatus(refreshedSettings);
+      await popupActions.loadSettingsForm();
+      void refreshAiKeyLock(true);
+      popupActions.refreshAllViews();
+
+      if (inputExistingKey) inputExistingKey.value = '';
+      if (connectKeyPanel) connectKeyPanel.hidden = true;
+      popupActions.showToast(`Connected Sync Key ${parsedKey} & restored your cloud data!`);
+    } finally {
+      btnConnectExistingKey.disabled = false;
+      btnConnectExistingKey.textContent = 'Connect';
     }
   });
 
