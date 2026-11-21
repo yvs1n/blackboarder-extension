@@ -1,6 +1,6 @@
 import { ScanGate, ScanRun } from '../content/scanGate';
 import { runHttpBlackboardScan, resolveBlackboardOrigin, HttpScanOptions, ScanResult } from './httpScanner';
-import { getExtraSites } from '../utils/blackboardSites';
+import { getExtraSites, isLikelyBlackboardUrl } from '../utils/blackboardSites';
 import { getScanStatus, setScanStatus, ScanStatus } from '../utils/storage';
 import { SIGN_IN_MESSAGE, UNREACHABLE_MESSAGE } from '../scan/scanFallback';
 import { stampScanStarted } from '../scan/autoScan';
@@ -23,6 +23,8 @@ export interface ScanRequest {
   auto?: boolean;
   /** The Blackboard tab that asked; the fallback runs there and nowhere else. */
   senderTabId?: number;
+  /** URL of the tab that asked, used to infer origin for unlisted universities. */
+  senderTabUrl?: string;
   onSync?: () => Promise<any>;
 }
 
@@ -30,7 +32,7 @@ type Tab = { id?: number; url?: string; status?: string; discarded?: boolean };
 
 export interface OrchestratorDeps {
   runHttp: (options: HttpScanOptions) => Promise<ScanResult>;
-  resolveOrigin: () => Promise<string>;
+  resolveOrigin: (preferredOrigin?: string) => Promise<string>;
   getExtraSites: () => Promise<string[]>;
   tabs: {
     query: (q: { url: string[] }) => Promise<Tab[]>;
@@ -105,7 +107,7 @@ async function pingOrInject(deps: OrchestratorDeps, tabId: number): Promise<{ ok
 /** An open Blackboard tab (university origin or an added site) with a live scanner, or null. */
 export async function findOpenBlackboardTab(deps: OrchestratorDeps, origin: string): Promise<number | null> {
   const extra = await deps.getExtraSites().catch(() => [] as string[]);
-  const origins = new Set([origin, ...extra.map(originOf).filter(Boolean)]);
+  const origins = new Set([origin, ...extra.map(originOf).filter(Boolean)].filter(Boolean));
   let tabs: Tab[] = [];
   try {
     tabs = await deps.tabs.query({ url: [...deps.contentScriptMatches(), ...extra.map(o => `${o}/*`)] });
@@ -113,7 +115,9 @@ export async function findOpenBlackboardTab(deps: OrchestratorDeps, origin: stri
     return null;
   }
   for (const tab of tabs) {
-    if (typeof tab.id !== 'number' || tab.discarded || !origins.has(originOf(tab.url))) continue;
+    const tabOrigin = originOf(tab.url);
+    if (typeof tab.id !== 'number' || tab.discarded) continue;
+    if (origins.size > 0 ? !origins.has(tabOrigin) : !isLikelyBlackboardUrl(tab.url)) continue;
     const res = await ping(deps, tab.id);
     if (res && !res.loginPage) return tab.id;
   }
@@ -178,12 +182,13 @@ export async function runTabFallback(
   onScanningTab?: (tabId: number | null) => void
 ): Promise<TabOutcome> {
   const startedAt = deps.now();
-  const origin = await deps.resolveOrigin();
+  const preferredOrigin = isLikelyBlackboardUrl(req.senderTabUrl) ? originOf(req.senderTabUrl) : undefined;
+  const origin = await deps.resolveOrigin(preferredOrigin);
 
   if (run.signal?.aborted) return { kind: 'failed', error: 'Scan cancelled.' };
 
   if (typeof req.senderTabId === 'number') {
-    const res = await ping(deps, req.senderTabId);
+    const res = await pingOrInject(deps, req.senderTabId);
     if (!res) return { kind: 'failed', error: 'This Blackboard tab is not connected. Refresh it and try again.' };
     if (res.loginPage) return { kind: 'expired' };
     onScanningTab?.(req.senderTabId);
@@ -202,6 +207,9 @@ export async function runTabFallback(
     } finally {
       onScanningTab?.(null);
     }
+  }
+  if (!origin) {
+    return { kind: 'failed', error: 'Add your Blackboard address in Settings > General, or open your Blackboard tab and click Scan.' };
   }
   if (req.auto) return { kind: 'failed', error: 'No Blackboard tab is open.' };
 
@@ -255,7 +263,15 @@ export function createScanOrchestrator(deps: OrchestratorDeps): ScanOrchestrator
   const scan = async (run: ScanRun): Promise<void> => {
     const req = current;
     await deps.stampScanStarted();
-    const http = await deps.runHttp({ fullRescan: run.fullRescan, refreshExam: !req.auto, run, onSync: req.onSync, signal: run.signal });
+    const preferredOrigin = isLikelyBlackboardUrl(req.senderTabUrl) ? originOf(req.senderTabUrl) : undefined;
+    const http = await deps.runHttp({
+      fullRescan: run.fullRescan,
+      refreshExam: !req.auto,
+      origin: preferredOrigin,
+      run,
+      onSync: req.onSync,
+      signal: run.signal
+    });
     if (run.signal?.aborted) {
       lastResult = { ok: false, message: 'Scan cancelled.', via: 'http' };
       return;

@@ -4,23 +4,56 @@ import { discoveredCoursesWithColors } from '../content/courseColorPainter';
 import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
 import { getProfile, saveProfile, detectUniversityFromHost } from '../utils/profile';
 import { profileUniversity } from '../core/studentProfile';
-import { getExtraSites } from '../utils/blackboardSites';
+import { getExtraSites, isLikelyBlackboardUrl } from '../utils/blackboardSites';
 import { refreshExamSchedule, examRefreshNote } from './examRefresh';
 import { BbFetch, ScanSourceOutcomes, readBlackboardApi, isGenericPlaceholderName } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
 import { decideFallback, FallbackReason, SIGN_IN_MESSAGE, UNREACHABLE_MESSAGE } from '../scan/scanFallback';
 import { needsXsrf, readBlackboardXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
 
-export async function resolveBlackboardOrigin(): Promise<string> {
+async function findOpenBlackboardOrigin(extra: string[]): Promise<string | null> {
   try {
+    if (typeof chrome === 'undefined' || !chrome.tabs?.query) return null;
+    const tabs = await chrome.tabs.query({}).catch(() => []);
+    for (const tab of tabs) {
+      if (!tab.url || !isLikelyBlackboardUrl(tab.url)) continue;
+      return new URL(tab.url).origin;
+    }
+  } catch {}
+  return extra[0] ? new URL(extra[0]).origin : null;
+}
+
+export async function resolveBlackboardOrigin(preferredOrigin?: string): Promise<string> {
+  try {
+    const cleanPreferred = preferredOrigin && isLikelyBlackboardUrl(preferredOrigin)
+      ? new URL(preferredOrigin).origin
+      : '';
     const profile = await getProfile().catch(() => null);
     const uni = profileUniversity(profile);
-    if (uni.blackboardUrl) {
+    const extra: string[] = await getExtraSites().catch(() => [] as string[]);
+
+    if (cleanPreferred && (!profile || uni.id === 'other' || extra.includes(cleanPreferred) || uni.domains.some(d => {
+      const host = new URL(cleanPreferred).hostname.toLowerCase();
+      return host === d || host.endsWith(`.${d}`);
+    }))) {
+      return cleanPreferred;
+    }
+    if (profile && uni.blackboardUrl) {
       return new URL(uni.blackboardUrl).origin;
     }
-    const extra = await getExtraSites().catch(() => []);
     if (extra.length > 0) {
       return new URL(extra[0]).origin;
+    }
+    const openOrigin = await findOpenBlackboardOrigin(extra);
+    if (openOrigin) {
+      return openOrigin;
+    }
+    // Never default "Other university" to University of Sharjah when no site is configured or open.
+    if (profile?.universityId === 'other') {
+      return '';
+    }
+    if (uni.blackboardUrl) {
+      return new URL(uni.blackboardUrl).origin;
     }
   } catch {}
   return 'https://elearning.sharjah.ac.ae';
@@ -82,6 +115,8 @@ export interface HttpScanOptions {
   fullRescan?: boolean;
   /** Read the exam schedule afterwards. Never for automatic scans. */
   refreshExam?: boolean;
+  /** Preferred Blackboard origin from an active or asking tab. */
+  origin?: string;
   run?: ScanRunState;
   onSync?: () => Promise<any>;
   signal?: AbortSignal;
@@ -118,7 +153,15 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
     });
 
     await getUserCourses().catch(() => {});
-    const origin = await resolveBlackboardOrigin();
+    const origin = await resolveBlackboardOrigin(options.origin);
+    if (!origin) {
+      await chrome.storage.local.set({
+        [SESSION_STATUS_KEY]: { expired: false, checkedAt: new Date().toISOString() }
+      }).catch(() => {});
+      const msg = 'Add your Blackboard address in Settings > General, or open your Blackboard tab and click Scan.';
+      await status({ state: 'error', message: msg });
+      return { ok: false, needsFallback: false, message: msg, via: 'http' };
+    }
     const httpFetch = serviceWorkerFetch(origin, readBlackboardXsrf, options.signal);
     const getJson = async (path: string) => {
       const res = await httpFetch(path);
@@ -174,7 +217,7 @@ export async function runHttpBlackboardScan(options: HttpScanOptions = {}): Prom
             });
           }
         } else {
-          const uniId = (await detectUniversityFromHost(new URL(origin).hostname)) || 'uos';
+          const uniId = (await detectUniversityFromHost(new URL(origin).hostname)) || 'other';
           await saveProfile({
             universityId: uniId,
             studentName: (api.userProfile.studentName && !isGenericPlaceholderName(api.userProfile.studentName))

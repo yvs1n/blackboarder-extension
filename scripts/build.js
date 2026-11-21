@@ -252,6 +252,8 @@ async function buildUserscript(version, viteDefines) {
     '// @match        https://*.aus.edu/*',
     '// @match        https://bb.aurak.ac.ae/*',
     '// @match        https://*.aurak.ac.ae/*',
+    '// @match        https://blackboard.buid.ac.ae/*',
+    '// @match        https://*.buid.ac.ae/*',
     '// @match        https://*/*/ultra/*',
     '// @match        https://*/*/webapps/*',
     '// @grant        GM_getValue',

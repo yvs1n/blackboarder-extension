@@ -13,14 +13,15 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.29",
-  "build": "de1824281c13",
-  "commit": "95fefcf0dd12c1a46e5ab0f77762340644796c7d",
-  "shortCommit": "95fefcf",
-  "timestamp": "2026-11-20T21:26:02.263Z",
-  "message": "v1.8.28: Convert Add Custom Deadline into modal and align unpaid fees banner",
+  "version": "1.8.30",
+  "build": "6c3b8364ebcc",
+  "commit": "29a33fa32f91e1435b086785867d9ae418b0c72c",
+  "shortCommit": "29a33fa",
+  "timestamp": "2026-11-21T11:09:59.364Z",
+  "message": "v1.8.29: Remove view/modal entry delay so sections match instant button highlight",
   "changelog": [
-    "Instant View & Modal Switching (src/popup/styles/05-modals-weights.css, src/mobile/styles/01-header-layout.css, src/mobile/styles/06-drawers-modals.css): Removed panelFadeIn, sectionFadeIn, modalFadeIn, and modalIn entry animations so switched sections and opened modals render on the exact same frame as the button .active highlight with zero delay."
+    "British University in Dubai (buid) Preset (src/core/universities.ts, public/manifest.json, scripts/build.js, src/utils/blackboardSites.ts): Added built-in support for BUiD (blackboard.buid.ac.ae, *.buid.ac.ae) across manifest permissions, dark mode, page/HTTP scanning, Safari Userscript matching, and GPA mapping.",
+    "\"Other university\" (other) Session Detection & University of Sharjah Login Fallback (src/background/httpScanner.ts, src/background/scanOrchestrator.ts, src/popup/modules/scanBanner.ts, src/popup/modules/settingsWalkthrough.ts, src/popup/modules/dayDrawer.ts, src/popup/universitySettings.ts): Fixed resolveBlackboardOrigin() and UI Open Blackboard actions so choosing \"Other university\" never falls back to elearning.sharjah.ac.ae or triggers UOS session-expired errors. Scanning now infers the active/open Blackboard tab origin (including direct activeTab injection for custom LMS domains), opens custom Blackboard URL settings when none is configured yet, clears stale session warnings on university switches, and records unknown hosts as 'other' rather than 'uos'."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

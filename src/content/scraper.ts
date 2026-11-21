@@ -410,7 +410,7 @@ function isBlackboardSite(): boolean {
   if (isExamSchedulePage(window.location, document)) return true;
   if (isFinancePortalPage(window.location, document)) return true;
   const host = window.location.hostname.toLowerCase();
-  if (host.includes('blackboard') || host.startsWith('learn.') || host.startsWith('ilearn.') || host.startsWith('elearning.')) {
+  if ((!host.includes('blackboarder') && host.includes('blackboard')) || host.startsWith('learn.') || host.startsWith('ilearn.') || host.startsWith('elearning.') || host.startsWith('bb.')) {
     return true;
   }
   if (/^\/(?:ultra|webapps)(?:\/|$)/i.test(window.location.pathname)) return true;

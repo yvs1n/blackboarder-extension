@@ -1,5 +1,6 @@
 import { createStateMachine } from '../../core/stateMachine';
 import { isFinancePortalPage } from '../../core/financePageParser';
+import { isBuiltInBlackboardHost, isLikelyBlackboardUrl, originPattern } from '../../utils/blackboardSites';
 import { getScanStatus, setScanStatus, SCAN_STALE_MS, type ScanStatus } from '../../utils/storage';
 import { getSvgIcon } from '../../utils/uiCommon';
 import { dom, popupActions, popupState } from './state';
@@ -231,8 +232,15 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
 
   const startedAt = Date.now();
 
+  let activeBbTab: { id: number; url: string } | undefined;
+
   const runNormalHttpScan = () => {
-    chrome.runtime.sendMessage({ type: 'RUN_HTTP_SCAN', fullRescan }, async res => {
+    chrome.runtime.sendMessage({
+      type: 'RUN_HTTP_SCAN',
+      fullRescan,
+      senderTabId: activeBbTab?.id,
+      senderTabUrl: activeBbTab?.url
+    }, async res => {
       void chrome.runtime.lastError;
       if (popupState.scanCancelledByUser || res?.message === 'Scan cancelled.') {
         resetScanButton();
@@ -254,6 +262,52 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
     });
   };
 
+  const runDirectTabScan = (tabId: number, bannerText: string, defaultDoneMsg: string) => {
+    showScanBanner(bannerText, 'active');
+    const sendTabScan = () => {
+      chrome.tabs.sendMessage(tabId, { type: 'RUN_TAB_SCAN', fullRescan, interactive: true }, async res => {
+        void chrome.runtime.lastError;
+        if (popupState.scanCancelledByUser || res?.message === 'Scan cancelled.') {
+          resetScanButton();
+          hideScanBanner();
+          return;
+        }
+        const status = await getScanStatus().catch(() => null);
+        if (status && new Date(status.updatedAt).getTime() >= startedAt) {
+          renderScanStatus(status);
+        } else if (res?.ok) {
+          clearWatchTimer();
+          scanUiMachine.send('SUCCEED');
+          btnScanTab.disabled = false;
+          btnScanTab.innerHTML = `${getSvgIcon('check', 'mr-1')}<span>Done</span>`;
+          showScanBanner(res.message || defaultDoneMsg, 'success', 4000);
+          scheduleScanButtonReset(3500);
+        } else {
+          resetScanButton();
+          hideScanBanner();
+        }
+        await refreshDataInBackground();
+      });
+    };
+
+    chrome.tabs.sendMessage(tabId, { type: 'PING_SCANNER' }, async pingRes => {
+      if (chrome.runtime.lastError || !pingRes?.ok) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId, allFrames: true },
+            files: ['content.js']
+          });
+          setTimeout(sendTabScan, 300);
+        } catch {
+          runNormalHttpScan();
+        }
+      } else {
+        sendTabScan();
+      }
+    });
+    watchScanEnd(startedAt, refreshDataInBackground);
+  };
+
   try {
     const tabs = await chrome.tabs?.query?.({ active: true, currentWindow: true }).catch(() => []) || [];
     const activeTab = tabs[0];
@@ -263,50 +317,29 @@ export async function scanActiveTab(fullRescan: boolean = false, refreshDataInBa
     const isFinanceTab = Boolean(activeTab?.url && isFinancePortalPage({ href: activeTab.url }));
 
     if ((isExamTab || isFinanceTab) && activeTab?.id) {
-      showScanBanner(isFinanceTab ? 'Reading payment deadlines from this page...' : 'Reading exam schedule from this page...', 'active');
-      const sendTabScan = () => {
-        chrome.tabs.sendMessage(activeTab.id!, { type: 'RUN_TAB_SCAN', fullRescan, interactive: true }, async res => {
-          void chrome.runtime.lastError;
-          if (popupState.scanCancelledByUser || res?.message === 'Scan cancelled.') {
-            resetScanButton();
-            hideScanBanner();
-            return;
-          }
-          const status = await getScanStatus().catch(() => null);
-          if (status && new Date(status.updatedAt).getTime() >= startedAt) {
-            renderScanStatus(status);
-          } else if (res?.ok) {
-            clearWatchTimer();
-            scanUiMachine.send('SUCCEED');
-            btnScanTab.disabled = false;
-            btnScanTab.innerHTML = `${getSvgIcon('check', 'mr-1')}<span>Done</span>`;
-            showScanBanner(res.message || 'Exam schedule scanned.', 'success', 4000);
-            scheduleScanButtonReset(3500);
-          } else {
-            resetScanButton();
-            hideScanBanner();
-          }
-          await refreshDataInBackground();
-        });
-      };
-
-      chrome.tabs.sendMessage(activeTab.id, { type: 'PING_SCANNER' }, async pingRes => {
-        if (chrome.runtime.lastError || !pingRes?.ok) {
-          try {
-            await chrome.scripting.executeScript({
-              target: { tabId: activeTab.id!, allFrames: true },
-              files: ['content.js']
-            });
-            setTimeout(sendTabScan, 300);
-          } catch {
-            runNormalHttpScan();
-          }
-        } else {
-          sendTabScan();
-        }
-      });
-      watchScanEnd(startedAt, refreshDataInBackground);
+      runDirectTabScan(
+        activeTab.id,
+        isFinanceTab ? 'Reading payment deadlines from this page...' : 'Reading exam schedule from this page...',
+        'Exam schedule scanned.'
+      );
       return;
+    }
+
+    if (activeTab?.id && activeTab?.url && isLikelyBlackboardUrl(activeTab.url)) {
+      activeBbTab = { id: activeTab.id, url: activeTab.url };
+      const parsed = new URL(activeTab.url);
+      if (!isBuiltInBlackboardHost(parsed.hostname)) {
+        const hasPerm = await chrome.permissions?.contains?.({ origins: [originPattern(parsed.origin)] }).catch(() => false);
+        if (!hasPerm) {
+          // Scan an un-added custom Blackboard tab immediately via activeTab access
+          runDirectTabScan(
+            activeTab.id,
+            'Scanning Blackboard page for deadlines...',
+            'Scan complete.'
+          );
+          return;
+        }
+      }
     }
   } catch {}
 

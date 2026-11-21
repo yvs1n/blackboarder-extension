@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Blackboarder: Academic Calendar & Deadline Companion",
-  "version": "1.8.29",
+  "version": "1.8.30",
   "description": "Extracts assignments, quizzes, and course deadlines from Blackboard Learn with calendar sync, syllabus weighting, and quick links.",
   "icons": {
     "16": "icons/icon16.png",
@@ -56,7 +56,8 @@
         "https://*.aud.edu/*",
         "https://*.aus.edu/*",
         "*://bb.aurak.ac.ae/*",
-        "https://*.aurak.ac.ae/*"
+        "https://*.aurak.ac.ae/*",
+        "https://*.buid.ac.ae/*"
       ],
       "all_frames": true,
       "match_about_blank": true,
@@ -79,7 +80,8 @@
         "https://*.aud.edu/*",
         "https://*.aus.edu/*",
         "*://bb.aurak.ac.ae/*",
-        "https://*.aurak.ac.ae/*"
+        "https://*.aurak.ac.ae/*",
+        "https://*.buid.ac.ae/*"
       ],
       "all_frames": true,
       "js": [
@@ -114,6 +116,7 @@
     "https://*.aus.edu/*",
     "*://bb.aurak.ac.ae/*",
     "https://*.aurak.ac.ae/*",
+    "https://*.buid.ac.ae/*",
     "https://raw.githubusercontent.com/*",
     "https://github.com/*",
     "https://openrouter.ai/*",

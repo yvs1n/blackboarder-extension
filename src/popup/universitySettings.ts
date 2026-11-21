@@ -10,6 +10,7 @@ import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { getProfile, saveProfile, PROFILE_KEY } from '../utils/profile';
 import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
 import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/blackboardSites';
+import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
 import { esc } from '../utils/uiCommon';
 
 export interface UniversitySettingsHooks {
@@ -111,6 +112,7 @@ async function addSite(input: string, hooks: UniversitySettingsHooks) {
     granted = await chrome.permissions.request({ origins: [originPattern(origin)] });
   } catch {}
   await saveExtraSites([...(await getExtraSites()), origin]);
+  try { await chrome.storage?.local?.remove?.(SESSION_STATUS_KEY); } catch {}
   await renderSites();
   hooks.toast(granted
     ? 'Added. Reload your Blackboard tab and Blackboarder will scan it.'
@@ -134,6 +136,12 @@ function refresh() {
   }
   renderStudentIdentity(cached);
   renderAcademicBaseline(cached);
+  if (profileUniversity(cached).id === 'other') {
+    getExtraSites().then(sites => {
+      const details = document.getElementById('details-custom-blackboard') as HTMLDetailsElement | null;
+      if (details && sites.length === 0) details.open = true;
+    }).catch(() => {});
+  }
 }
 
 async function renderArchivedSemestersManager() {
@@ -214,6 +222,9 @@ export function renderStudentIdentity(profile: StudentProfile | null): void {
 async function update(hooks: UniversitySettingsHooks, next: Omit<StudentProfile, 'updatedAt'>) {
   const before = profileUniversity(cached).id;
   cached = await saveProfile(next);
+  if (before !== profileUniversity(cached).id) {
+    try { await chrome.storage?.local?.remove?.(SESSION_STATUS_KEY); } catch {}
+  }
   refresh();
   hooks.onProfileChanged(cached, true, before);
 }

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.30] - 2026-11-21
+
+### Added
+
+- **British University in Dubai (`buid`) Preset (`src/core/universities.ts`, `public/manifest.json`, `scripts/build.js`, `src/utils/blackboardSites.ts`):** Added built-in support for BUiD (`blackboard.buid.ac.ae`, `*.buid.ac.ae`) across manifest permissions, dark mode, page/HTTP scanning, Safari Userscript matching, and GPA mapping.
+
+### Fixed
+
+- **"Other university" (`other`) Session Detection & University of Sharjah Login Fallback (`src/background/httpScanner.ts`, `src/background/scanOrchestrator.ts`, `src/popup/modules/scanBanner.ts`, `src/popup/modules/settingsWalkthrough.ts`, `src/popup/modules/dayDrawer.ts`, `src/popup/universitySettings.ts`):** Fixed `resolveBlackboardOrigin()` and UI **Open Blackboard** actions so choosing "Other university" never falls back to `elearning.sharjah.ac.ae` or triggers UOS session-expired errors. Scanning now infers the active/open Blackboard tab origin (including direct `activeTab` injection for custom LMS domains), opens custom Blackboard URL settings when none is configured yet, clears stale session warnings on university switches, and records unknown hosts as `'other'` rather than `'uos'`.
+
+---
+
 ## [1.8.29] - 2026-11-21
 
 ### Changed

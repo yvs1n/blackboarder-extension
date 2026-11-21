@@ -1,7 +1,7 @@
 import type { DeadlineTask, TaskStatus } from '../../types';
 import { classesOnDay, todaysClassesHtml } from '../../core/classSchedule';
 import { getCourseColorTheme, getCourseHex } from '../../core/courseColors';
-import { profileGradeScale, profileUniversity } from '../../core/studentProfile';
+import { profileGradeScale } from '../../core/studentProfile';
 import { getAllSyllabi } from '../../core/syllabusWeights';
 import { calculateTrajectoryTargetPlan, type TrajectoryTargetPlan } from '../../core/targetGpa';
 import { buildGpaSummary } from '../../utils/gpa';
@@ -15,6 +15,7 @@ import { isCalendarDeadline } from './calendarView';
 import { closeDayDrawerShell, openDayDrawerShell, registerOverlayCloseHandler } from './overlayController';
 import { promptCompletionScoreIfNeeded } from './marksView';
 import { deletePaymentItem, getCombinedCalendarTasks, openPaymentModal, togglePaymentPaid } from './paymentsView';
+import { openConfiguredBlackboard } from './settingsWalkthrough';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function selectDay(dateKey: string, openDrawer: boolean = true) {
@@ -418,14 +419,7 @@ export function renderSelectedDay() {
       if (openBbBtn && !openBbBtn.getAttribute('data-wired')) {
         openBbBtn.setAttribute('data-wired', 'true');
         openBbBtn.addEventListener('click', () => {
-          const cached = getCachedProfile();
-          const uni = profileUniversity(cached);
-          const bbUrl = uni.blackboardUrl || 'https://elearning.sharjah.ac.ae/ultra/stream';
-          try {
-            chrome.tabs.create({ url: bbUrl });
-          } catch {
-            window.open(bbUrl, '_blank', 'noopener');
-          }
+          void openConfiguredBlackboard();
         });
       }
       return;

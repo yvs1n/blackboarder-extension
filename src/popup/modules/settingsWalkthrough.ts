@@ -1,9 +1,25 @@
-import { profileUniversity } from '../../core/studentProfile';
+import { resolveBlackboardLaunchUrl } from '../../utils/blackboardSites';
 import { describeSessionBanner, SESSION_STATUS_KEY, type SessionStatus } from '../../utils/sessionStatus';
 import { getSettings } from '../../utils/storage';
 import { getCachedProfile } from '../universitySettings';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions } from './state';
+
+/** Opens the active university's Blackboard tab, or guides "Other university" users to add their LMS address. */
+export async function openConfiguredBlackboard(): Promise<void> {
+  const url = await resolveBlackboardLaunchUrl(getCachedProfile());
+  if (url) {
+    try { chrome.tabs.create({ url }); } catch { window.open(url, '_blank', 'noopener'); }
+    return;
+  }
+  popupActions.switchView('settings');
+  popupActions.showSettingsPage('general');
+  const details = document.getElementById('details-custom-blackboard') as HTMLDetailsElement | null;
+  if (details) details.open = true;
+  const input = document.getElementById('setting-blackboard-url') as HTMLInputElement | null;
+  requestAnimationFrame(() => input?.focus());
+  popupActions.showToast('Enter your Blackboard web address to connect.');
+}
 
 export async function initWalkthroughModal() {
   const modal = document.getElementById('modal-walkthrough');
@@ -23,10 +39,7 @@ export async function initWalkthroughModal() {
 
   document.getElementById('btn-wt-open-bb')?.addEventListener('click', () => {
     closeModal(true);
-    const cached = getCachedProfile();
-    const uni = profileUniversity(cached);
-    const bbUrl = uni.blackboardUrl || 'https://elearning.sharjah.ac.ae/ultra/stream';
-    try { chrome.tabs.create({ url: bbUrl }); } catch { window.open(bbUrl, '_blank', 'noopener'); }
+    void openConfiguredBlackboard();
   });
 
   const settings = await getSettings();
@@ -106,7 +119,6 @@ export function initSessionBanner() {
     });
   } catch {}
   open?.addEventListener('click', () => {
-    const bbUrl = profileUniversity(getCachedProfile()).blackboardUrl || 'https://elearning.sharjah.ac.ae/ultra/stream';
-    try { chrome.tabs.create({ url: bbUrl }); } catch { window.open(bbUrl, '_blank', 'noopener'); }
+    void openConfiguredBlackboard();
   });
 }

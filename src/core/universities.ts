@@ -11,6 +11,7 @@
  * - AUD: undergraduate grading system policy (points only; instructors set the percentages).
  * - AUS: academic information page (points only; instructors set the percentages).
  * - AURAK: catalog 2023-2024, Grading System (page 63).
+ * - BUiD: student handbooks (70%+ Distinction/A = 4.0, 50%+ PG / 40%+ UG pass).
  */
 
 export interface GradeRow {
@@ -88,6 +89,22 @@ const AURAK_SCALE: GradeRow[] = [
   { letter: 'C-', min: 70, points: 1.7 },
   { letter: 'D+', min: 66, points: 1.3 },
   { letter: 'D', min: 60, points: 1.0 },
+  { letter: 'F', min: 0, points: 0 }
+];
+
+/**
+ * BUiD marking scheme mapped to the 4.0 GPA scale (70%+ Distinction/A = 4.0,
+ * 50%+ postgraduate pass / C = 2.0, 40%+ undergraduate module pass / D = 1.0, <40% Fail).
+ */
+const BUID_SCALE: GradeRow[] = [
+  { letter: 'A', min: 70, points: 4.0 },
+  { letter: 'A-', min: 67, points: 3.7 },
+  { letter: 'B+', min: 64, points: 3.3 },
+  { letter: 'B', min: 60, points: 3.0 },
+  { letter: 'B-', min: 57, points: 2.7 },
+  { letter: 'C+', min: 54, points: 2.3 },
+  { letter: 'C', min: 50, points: 2.0 },
+  { letter: 'D', min: 40, points: 1.0 },
   { letter: 'F', min: 0, points: 0 }
 ];
 
@@ -173,6 +190,17 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     gradeScale: AURAK_SCALE,
     lowestPass: 'D',
     blackboardUrl: 'https://bb.aurak.ac.ae/ultra/course',
+    timeZone: 'Asia/Dubai'
+  },
+  {
+    id: 'buid',
+    name: 'British University in Dubai',
+    shortName: 'BUiD',
+    domains: ['buid.ac.ae'],
+    gradeScale: BUID_SCALE,
+    cutoffsFromSyllabus: true,
+    lowestPass: 'D',
+    blackboardUrl: 'https://blackboard.buid.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
   {

@@ -3,7 +3,9 @@ import {
   UNIVERSITY_PRESETS, getUniversity, findUniversityByHost, normalizeGradeScale, describeGradeScale, swapUniversityQuickLinks
 } from '../src/core/universities';
 import { sanitizeProfile, newerProfile, profileUniversity, profileGradeScale } from '../src/core/studentProfile';
-import { normalizeBlackboardOrigin, isBuiltInBlackboardHost } from '../src/utils/blackboardSites';
+import { normalizeBlackboardOrigin, isBuiltInBlackboardHost, isLikelyBlackboardUrl, resolveBlackboardLaunchUrl, EXTRA_SITES_KEY } from '../src/utils/blackboardSites';
+import { resolveBlackboardOrigin } from '../src/background/httpScanner';
+import { PROFILE_KEY } from '../src/utils/profile';
 import { buildGpaSummary, gradeForPercent, UOS_GRADE_SCALE } from '../src/utils/gpa';
 import { buildMarksSummary } from '../src/utils/marks';
 import { gradesHtml } from '../src/utils/grades';
@@ -35,6 +37,14 @@ describe('university presets', () => {
     expect(aurak.find(g => g.letter === 'B+')).toEqual({ letter: 'B+', min: 86, points: 3.3 });
     expect(aurak.find(g => g.letter === 'D')?.min).toBe(60);
     expect(findUniversityByHost('lms.aurak.ac.ae')?.id).toBe('aurak');
+
+    const buid = getUniversity('buid');
+    expect(buid.id).toBe('buid');
+    expect(buid.shortName).toBe('BUiD');
+    expect(buid.blackboardUrl).toBe('https://blackboard.buid.ac.ae/ultra/course');
+    expect(buid.gradeScale.find(g => g.letter === 'A')?.min).toBe(70);
+    expect(buid.gradeScale.find(g => g.letter === 'D')?.min).toBe(40);
+    expect(findUniversityByHost('blackboard.buid.ac.ae')?.id).toBe('buid');
   });
 
   it('finds the university from its Blackboard address', () => {
@@ -150,9 +160,46 @@ describe('Blackboard addresses', () => {
 
   it('knows which addresses already work', () => {
     expect(isBuiltInBlackboardHost('elearning.sharjah.ac.ae')).toBe(true);
+    expect(isBuiltInBlackboardHost('blackboard.buid.ac.ae')).toBe(true);
     expect(isBuiltInBlackboardHost('zu.blackboard.com')).toBe(true);
     expect(isBuiltInBlackboardHost('learn.uaeu.ac.ae')).toBe(true);
     expect(isBuiltInBlackboardHost('ilearn.aus.edu')).toBe(true);
     expect(isBuiltInBlackboardHost('lms.example.edu')).toBe(false);
+  });
+
+  it('recognizes Blackboard portal URLs without matching blackboarder.pages.dev or Banner', () => {
+    expect(isLikelyBlackboardUrl('https://blackboard.buid.ac.ae/ultra/course')).toBe(true);
+    expect(isLikelyBlackboardUrl('https://lms.custom.edu/ultra/stream')).toBe(true);
+    expect(isLikelyBlackboardUrl('https://blackboarder.pages.dev/companion/')).toBe(false);
+    expect(isLikelyBlackboardUrl('https://banner.sharjah.ac.ae/StudentExamPage')).toBe(false);
+  });
+
+  it('never falls back to University of Sharjah when Other university is chosen without a custom URL', async () => {
+    const store: Record<string, any> = {
+      [PROFILE_KEY]: { universityId: 'other', source: 'picked', updatedAt: '2026-11-21T00:00:00Z' }
+    };
+    (globalThis as any).chrome = {
+      runtime: { id: 'ext-test' },
+      storage: {
+        local: {
+          get: async (keys: string[]) => {
+            const out: Record<string, any> = {};
+            for (const k of keys) out[k] = store[k];
+            return out;
+          }
+        }
+      }
+    };
+
+    expect(await resolveBlackboardOrigin()).toBe('');
+    expect(await resolveBlackboardOrigin('https://bb.custom.edu/ultra/stream')).toBe('https://bb.custom.edu');
+    expect(await resolveBlackboardLaunchUrl(store[PROFILE_KEY])).toBeNull();
+
+    store[EXTRA_SITES_KEY] = ['https://bb.custom.edu'];
+    expect(await resolveBlackboardOrigin()).toBe('https://bb.custom.edu');
+    expect(await resolveBlackboardLaunchUrl(store[PROFILE_KEY])).toBe('https://bb.custom.edu/ultra/stream');
+    expect(await resolveBlackboardLaunchUrl({ universityId: 'buid', updatedAt: '2026-11-21T00:00:00Z' })).toBe('https://blackboard.buid.ac.ae/ultra/course');
+
+    delete (globalThis as any).chrome;
   });
 });

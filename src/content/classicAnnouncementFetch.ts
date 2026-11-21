@@ -281,7 +281,7 @@ export async function saveStudentProfileIfFound(info?: { studentName?: string; s
         });
       }
     } else {
-      const uniId = (await detectUniversityFromHost(window.location.hostname)) || 'uos';
+      const uniId = (await detectUniversityFromHost(window.location.hostname)) || 'other';
       await saveProfile({
         universityId: uniId,
         studentName: nameToUse,

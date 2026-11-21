@@ -1,6 +1,9 @@
+import type { StudentProfile } from '../types';
+import { profileUniversity } from '../core/studentProfile';
+
 /**
  * Blackboard addresses the student added (universities whose Blackboard is not on a
- * *.blackboard.com or UOS address). The browser asks for permission to that one site; the
+ * *.blackboard.com or built-in university address). The browser asks for permission to that one site; the
  * service worker then runs the scraper and dark mode there like on the built-in addresses.
  */
 
@@ -8,7 +11,7 @@ export const EXTRA_SITES_KEY = 'bbs_extra_blackboard_origins';
 export const EXTRA_SCRIPT_IDS = ['bbs-extra-dark', 'bbs-extra-scraper'];
 
 /** Addresses the manifest already covers; adding them again is not needed. */
-const BUILT_IN = /(^|\.)(sharjah\.ac\.ae|blackboard\.com|uaeu\.ac\.ae|adu\.ac\.ae|zu\.ac\.ae|aud\.edu|aus\.edu|aurak\.ac\.ae)$/i;
+const BUILT_IN = /(^|\.)(sharjah\.ac\.ae|blackboard\.com|uaeu\.ac\.ae|adu\.ac\.ae|zu\.ac\.ae|aud\.edu|aus\.edu|aurak\.ac\.ae|buid\.ac\.ae)$/i;
 
 /**
  * "lms.example.edu/ultra/course" or "https://lms.example.edu" to "https://lms.example.edu".
@@ -31,6 +34,41 @@ export function normalizeBlackboardOrigin(input: string): string | null {
 
 export function isBuiltInBlackboardHost(hostname: string): boolean {
   return BUILT_IN.test(hostname || '');
+}
+
+/**
+ * True when an HTTPS URL appears to belong to a Blackboard Learn portal (built-in host,
+ * Blackboard Ultra/Classic path, or Blackboard subdomain) and is not a Banner exam/finance portal.
+ */
+export function isLikelyBlackboardUrl(rawUrl: string | undefined): boolean {
+  if (!rawUrl) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname.toLowerCase();
+  const path = parsed.pathname.toLowerCase();
+  if (/banner|studentexampage|tahseel|finance|payment/i.test(host + path)) return false;
+  if (/^\/(?:ultra|webapps)(?:\/|$)/.test(path)) return true;
+  if ((!host.includes('blackboarder') && host.includes('blackboard')) || host.startsWith('learn.') || host.startsWith('ilearn.') || host.startsWith('elearning.') || host.startsWith('bb.') || host.startsWith('lms.')) {
+    return true;
+  }
+  return isBuiltInBlackboardHost(host) && !host.startsWith('www.');
+}
+
+/**
+ * Resolves the Blackboard URL to open in a browser tab for the active profile.
+ * Never falls back to University of Sharjah when the student picked "Other university".
+ */
+export async function resolveBlackboardLaunchUrl(profile: StudentProfile | null | undefined): Promise<string | null> {
+  const uni = profileUniversity(profile);
+  if (uni.blackboardUrl) return uni.blackboardUrl;
+  const extra = await getExtraSites().catch(() => []);
+  if (extra.length > 0) return `${extra[0]}/ultra/stream`;
+  return null;
 }
 
 export function originPattern(origin: string): string {

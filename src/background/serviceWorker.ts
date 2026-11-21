@@ -528,7 +528,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       fullRescan: Boolean(message.fullRescan),
       interactive: !auto && message.interactive !== false,
       auto,
-      senderTabId: typeof sender?.tab?.id === 'number' ? sender.tab.id : undefined,
+      senderTabId: typeof sender?.tab?.id === 'number'
+        ? sender.tab.id
+        : (typeof message.senderTabId === 'number' ? message.senderTabId : undefined),
+      senderTabUrl: typeof message.senderTabUrl === 'string' ? message.senderTabUrl : sender?.tab?.url,
       onSync: afterScanSync
     })
       .then(res => sendResponse(res))
