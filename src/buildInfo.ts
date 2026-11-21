@@ -14,11 +14,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.37",
-  "build": "c06325bd9df9",
-  "commit": "2757348399b448c4374bd33c0876fc06e6c81134",
-  "shortCommit": "2757348",
-  "timestamp": "2026-11-21T20:21:10.306Z",
-  "message": "fix(ci): ensure sequential Chrome -> Edge -> async Firefox upload and run workflow immediately",
+  "build": "ebc5280e29d3",
+  "commit": "0693fe02e2c59971f7de79e09351a0383e080eff",
+  "shortCommit": "0693fe0",
+  "timestamp": "2026-11-21T21:29:48.636Z",
+  "message": "fix(ci): handle Edge active-review submit conflict cleanly after draft upload",
   "changelog": [
     "Connecting an existing Sync Key via Settings > Sync > Use Existing now cancels any pending sync timers, reads Firebase's raw cloud vault first (skipLocalMerge), unconditionally replaces all local tasks, courses, quick links, payments, semesters, tombstones, and profile with Firebase's data (regardless of local timestamps), switches the active Sync Key last, and never pushes stale local data back up to Firebase.",
     "Restoring a JSON backup now completely replaces all local stores without merging prior local tasks/tombstones, stamps fresh collection timestamps and a backupEpoch, and directly overwrites the Firebase vault under the active Sync Key (overwriteCloudVault) without pulling or merging old cloud items back in. Other devices and the Companion Web App adopt any newer backupEpoch cleanly instead of resurrecting pre-restore tasks.",

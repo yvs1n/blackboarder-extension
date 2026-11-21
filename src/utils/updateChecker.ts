@@ -13,9 +13,19 @@ export interface RemoteVersionInfo {
 export const GITHUB_REPO_URL = 'https://github.com/yvs1n/blackboarder-extension';
 export const GITHUB_ZIP_URL = 'https://github.com/yvs1n/blackboarder-extension/releases/latest/download/blackboarder-extension.zip';
 export const CHROME_WEB_STORE_URL = 'https://chromewebstore.google.com/detail/kciflchaejgedgjookkmnkgjhbhhabjb';
+export const EDGE_ADDONS_URL = 'https://microsoftedge.microsoft.com/addons/detail/blackboarder-academic-ca/ibgabkiphnfkfpkkbljhofagodomfhom';
 export const PRIVACY_POLICY_URL = 'https://blackboarder.pages.dev/privacy.html';
 export const TERMS_OF_SERVICE_URL = 'https://blackboarder.pages.dev/terms.html';
 export const FEEDBACK_URL = 'https://github.com/yvs1n/blackboarder-extension/issues/new';
+
+/** Returns the browser-appropriate official store listing (Edge Add-ons on Edge, Chrome Web Store otherwise). */
+export function storeForBrowser(userAgent?: string): { name: string; shortName: string; url: string } {
+  const ua = typeof userAgent === 'string' ? userAgent : (typeof navigator !== 'undefined' ? navigator.userAgent || '' : '');
+  if (/EdgA?|Edge/i.test(ua)) {
+    return { name: 'Microsoft Edge Add-ons', shortName: 'Edge Add-ons', url: EDGE_ADDONS_URL };
+  }
+  return { name: 'Chrome Web Store', shortName: 'Chrome Web Store', url: CHROME_WEB_STORE_URL };
+}
 const RAW_BASE_URL = 'https://raw.githubusercontent.com/yvs1n/blackboarder-extension/main/';
 // dist/version.json describes the extension; the root copy is the same file for older layouts
 const REMOTE_VERSION_PATHS = ['dist/version.json', 'version.json'];

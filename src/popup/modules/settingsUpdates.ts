@@ -11,11 +11,13 @@ import { createStateMachine } from '../../core/stateMachine';
 import { IS_STORE_BUILD } from '../../utils/storeBuild';
 import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/updateBanner';
 import {
+  EDGE_ADDONS_URL,
   CHROME_WEB_STORE_URL,
   FEEDBACK_URL,
   GITHUB_REPO_URL,
   GITHUB_ZIP_URL,
   PRIVACY_POLICY_URL,
+  storeForBrowser,
   TERMS_OF_SERVICE_URL
 } from '../../utils/updateChecker';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
@@ -175,11 +177,12 @@ export function initExtensionUpdateSystem() {
   if (versionBadge) versionBadge.textContent = 'v' + BUILD_INFO.version;
   initChangelogUiAndModal();
   if (IS_STORE_BUILD) {
+    const store = storeForBrowser();
     const card = document.getElementById('card-extension-updates');
     const subtitle = card?.querySelector('.settings-card-subtitle');
-    if (subtitle) subtitle.textContent = 'Updates install automatically via Chrome Web Store / browser store.';
+    if (subtitle) subtitle.textContent = `Updates install automatically via ${store.name}.`;
     if (statusPill) {
-      statusPill.textContent = 'Chrome Web Store';
+      statusPill.textContent = store.shortName;
       statusPill.className = 'settings-pill pill-green';
     }
     if (statusDesc) statusDesc.textContent = 'Installed version: v' + BUILD_INFO.version + '. Updates are delivered automatically by Chrome Web Store, Edge Add-ons, or Firefox Add-ons.';
@@ -194,14 +197,16 @@ export function initExtensionUpdateSystem() {
     return;
   }
 
-  // Unpacked GitHub build: guide existing users to migrate smoothly to the Chrome Web Store without data loss
+  // Unpacked GitHub build: guide existing users to migrate smoothly to their browser's store without data loss
+  const store = storeForBrowser();
   const MIGRATION_DISMISSED_KEY = 'bbs_dismissed_cws_migration';
   if (migrationCard) migrationCard.style.display = 'block';
   const triggerBackup = () => document.getElementById('btn-backup-json')?.click();
   document.getElementById('btn-cws-migration-backup')?.addEventListener('click', triggerBackup);
   document.getElementById('btn-cws-banner-backup')?.addEventListener('click', triggerBackup);
-  document.getElementById('btn-cws-migration-store')?.addEventListener('click', () => openUrl(CHROME_WEB_STORE_URL));
-  document.getElementById('btn-cws-banner-store')?.addEventListener('click', () => openUrl(CHROME_WEB_STORE_URL));
+  const storeUrl = store.url || CHROME_WEB_STORE_URL || EDGE_ADDONS_URL;
+  document.getElementById('btn-cws-migration-store')?.addEventListener('click', () => openUrl(storeUrl));
+  document.getElementById('btn-cws-banner-store')?.addEventListener('click', () => openUrl(storeUrl));
   const dismissMigrationBanner = () => {
     if (migrationBanner) migrationBanner.style.display = 'none';
     try { localStorage.setItem(MIGRATION_DISMISSED_KEY, BUILD_INFO.version || '1.8.35'); } catch {}
