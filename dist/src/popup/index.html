@@ -6,7 +6,7 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-IBTwbLib.js"></script>
+  <script type="module" crossorigin src="../../assets/popup-5IIXxqnu.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/popup-Ba_D6yZo.css">
 </head>
 <body>
@@ -303,7 +303,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.30</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.31</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -664,6 +664,17 @@
             <label class="form-label" for="setting-university">University</label>
             <select id="setting-university" class="form-select"></select>
             <span class="setting-desc" id="university-detect-note"></span>
+          </div>
+
+          <div class="toggle-control-row" style="margin-bottom: 10px;">
+            <div class="toggle-text-block">
+              <span class="toggle-main-label" id="postgraduate-label">Postgraduate Studies</span>
+              <span class="toggle-status-desc">Master's &amp; PhD grading scale and passing thresholds</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-postgraduate" aria-labelledby="postgraduate-label">
+              <span class="slider round"></span>
+            </label>
           </div>
 
           <div class="form-group" id="group-student-identity" style="display: none;">
@@ -1120,7 +1131,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.30</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.31</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -2274,6 +2285,16 @@
             <label for="wt-university" style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Your University</label>
             <select id="wt-university" class="form-select" style="margin-top: 4px;"></select>
             <span style="display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--text-muted);">Not listed? Choose Other for standard 4.0, or scanning any Blackboard page will detect it from the address.</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--surface-border);">
+              <div>
+                <span style="display: block; font-size: 11.5px; font-weight: 600; color: var(--text-main);">Postgraduate Studies</span>
+                <span style="display: block; font-size: 10.5px; color: var(--text-muted);">Use Master's / PhD grading scale &amp; pass threshold</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="wt-postgraduate" aria-label="Postgraduate Studies">
+                <span class="slider round"></span>
+              </label>
+            </div>
           </div>
         </div>
 

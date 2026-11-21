@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   UNIVERSITY_PRESETS, getUniversity, findUniversityByHost, normalizeGradeScale, describeGradeScale, swapUniversityQuickLinks
 } from '../src/core/universities';
-import { sanitizeProfile, newerProfile, profileUniversity, profileGradeScale } from '../src/core/studentProfile';
+import { sanitizeProfile, newerProfile, profileUniversity, profileGradeScale, profileLowestPass } from '../src/core/studentProfile';
 import { normalizeBlackboardOrigin, isBuiltInBlackboardHost, isLikelyBlackboardUrl, resolveBlackboardLaunchUrl, EXTRA_SITES_KEY } from '../src/utils/blackboardSites';
 import { resolveBlackboardOrigin } from '../src/background/httpScanner';
 import { PROFILE_KEY } from '../src/utils/profile';
@@ -201,5 +201,33 @@ describe('Blackboard addresses', () => {
     expect(await resolveBlackboardLaunchUrl({ universityId: 'buid', updatedAt: '2026-11-21T00:00:00Z' })).toBe('https://blackboard.buid.ac.ae/ultra/course');
 
     delete (globalThis as any).chrome;
+  });
+});
+
+describe('postgraduate grading scales and studyLevel sync', () => {
+  it('switches university scale and pass mark for postgraduate studyLevel while keeping custom scale overrides', () => {
+    const buidPg = sanitizeProfile({ universityId: 'buid', studyLevel: 'postgraduate', updatedAt: '2026-11-21T00:00:00Z' })!;
+    expect(buidPg.studyLevel).toBe('postgraduate');
+    expect(profileLowestPass(buidPg)).toBe('C');
+    const buidPgScale = profileGradeScale(buidPg);
+    expect(buidPgScale.map(g => g.letter)).toEqual(['A', 'B', 'C', 'F']);
+    expect(buidPgScale.find(g => g.letter === 'C')?.min).toBe(50);
+
+    const uosPg = sanitizeProfile({ universityId: 'uos', studyLevel: 'postgraduate', updatedAt: '2026-11-21T00:00:00Z' })!;
+    expect(profileLowestPass(uosPg)).toBe('C+');
+    expect(profileGradeScale(uosPg).map(g => g.letter)).toEqual(['A', 'B+', 'B', 'C+', 'F']);
+
+    const otherPg = sanitizeProfile({ universityId: 'other', studyLevel: 'postgraduate', updatedAt: '2026-11-21T00:00:00Z' })!;
+    expect(profileLowestPass(otherPg)).toBe('C');
+    expect(profileGradeScale(otherPg).some(g => g.letter === 'D')).toBe(false);
+
+    const customPg = sanitizeProfile({
+      universityId: 'buid',
+      studyLevel: 'postgraduate',
+      gradeScale: [{ letter: 'A', min: 80, points: 4 }, { letter: 'F', min: 0, points: 0 }],
+      updatedAt: '2026-11-21T00:00:00Z'
+    })!;
+    expect(profileGradeScale(customPg).find(g => g.letter === 'A')?.min).toBe(80);
+    expect(newerProfile({ universityId: 'buid', studyLevel: 'postgraduate', updatedAt: '2026-11-20T00:00:00Z' }, { universityId: 'buid', updatedAt: '2026-11-21T00:00:00Z' })?.studyLevel).toBe('postgraduate');
   });
 });

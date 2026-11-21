@@ -5,7 +5,7 @@
  */
 import type { StudentProfile } from '../types';
 import { UNIVERSITY_PRESETS, getUniversity, normalizeGradeScale, GradeRow } from '../core/universities';
-import { profileUniversity, profileGradeScale } from '../core/studentProfile';
+import { profileUniversity, profileGradeScale, profileLowestPass } from '../core/studentProfile';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { getProfile, saveProfile, PROFILE_KEY } from '../utils/profile';
 import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
@@ -49,20 +49,22 @@ function renderScaleEditor(profile: StudentProfile | null) {
       <button type="button" class="grade-scale-remove" aria-label="Remove ${esc(g.letter)}" ${g.min === 0 ? 'disabled' : ''}>✕</button>
     </div>`).join('');
   const uni = profileUniversity(profile);
+  const isPg = profile?.studyLevel === 'postgraduate';
+  const lowestPass = profileLowestPass(profile);
   const summaryText = document.getElementById('grade-scale-summary-text');
   if (summaryText) {
     const top = scale[0];
     summaryText.textContent = profile?.gradeScale
       ? `Custom scale (${scale.length} grades, ${top?.letter || 'A'} from ${top?.min ?? 90}%)`
-      : `${uni.name} scale (${top?.letter || 'A'} from ${top?.min ?? 90}%)`;
+      : `${uni.name}${isPg ? ' (Postgraduate)' : ''} scale (${top?.letter || 'A'} from ${top?.min ?? 90}%)`;
   }
   const note = document.getElementById('grade-scale-note');
   if (note) {
     note.textContent = profile?.gradeScale
       ? 'Your own scale. Use University Scale goes back to the published one.'
       : uni.cutoffsFromSyllabus
-        ? `${uni.shortName === 'Other' ? 'This is a common UAE scale.' : `${uni.shortName} publishes grade points only;`} Instructors set the percentages, so edit them to match your syllabus.`
-        : `${uni.name}'s published scale. Lowest pass: ${uni.lowestPass}.`;
+        ? `${uni.shortName === 'Other' ? 'This is a common UAE scale.' : `${uni.shortName} publishes grade points / bands;`} Lowest pass: ${lowestPass}. Edit to match your syllabus.`
+        : `${uni.name}${isPg ? ' Postgraduate' : ''}'s published scale. Lowest pass: ${lowestPass}.`;
   }
 }
 
@@ -127,6 +129,11 @@ function refresh() {
   }
   fillUniversitySelect(document.getElementById('setting-university') as HTMLSelectElement | null, cached);
   fillUniversitySelect(document.getElementById('wt-university') as HTMLSelectElement | null, cached);
+  const isPg = cached?.studyLevel === 'postgraduate';
+  for (const id of ['setting-postgraduate', 'wt-postgraduate']) {
+    const cb = document.getElementById(id) as HTMLInputElement | null;
+    if (cb) cb.checked = isPg;
+  }
   renderScaleEditor(cached);
   const note = document.getElementById('university-detect-note');
   if (note) {
@@ -221,7 +228,22 @@ export function renderStudentIdentity(profile: StudentProfile | null): void {
 
 async function update(hooks: UniversitySettingsHooks, next: Omit<StudentProfile, 'updatedAt'>) {
   const before = profileUniversity(cached).id;
-  cached = await saveProfile(next);
+  const merged: Omit<StudentProfile, 'updatedAt'> = {
+    studyLevel: cached?.studyLevel,
+    studentId: cached?.studentId,
+    studentEmail: cached?.studentEmail,
+    college: cached?.college,
+    major: cached?.major,
+    priorCredits: cached?.priorCredits,
+    priorGpa: cached?.priorGpa,
+    targetCredits: cached?.targetCredits,
+    targetTermGpa: cached?.targetTermGpa,
+    targetCgpa: cached?.targetCgpa,
+    targetGpaMode: cached?.targetGpaMode,
+    currentSemesterName: cached?.currentSemesterName,
+    ...next
+  };
+  cached = await saveProfile(merged);
   if (before !== profileUniversity(cached).id) {
     try { await chrome.storage?.local?.remove?.(SESSION_STATUS_KEY); } catch {}
   }
@@ -247,7 +269,19 @@ export async function initUniversitySettings(hooks: UniversitySettingsHooks): Pr
     document.getElementById(id)?.addEventListener('change', e => {
       // A new university starts from its own scale
       const universityId = getUniversity((e.target as HTMLSelectElement).value).id;
-      update(hooks, { universityId, source: 'picked' }).catch(() => {});
+      update(hooks, { universityId, gradeScale: undefined, source: 'picked' }).catch(() => {});
+    });
+  }
+
+  for (const id of ['setting-postgraduate', 'wt-postgraduate']) {
+    document.getElementById(id)?.addEventListener('change', e => {
+      const checked = (e.target as HTMLInputElement).checked;
+      update(hooks, {
+        universityId: profileUniversity(cached).id,
+        studyLevel: checked ? 'postgraduate' : 'undergraduate',
+        gradeScale: undefined,
+        source: cached?.source || 'picked'
+      }).catch(() => {});
     });
   }
 

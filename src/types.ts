@@ -65,6 +65,8 @@ export interface StudentProfile {
   gradeScale?: { letter: string; min: number; points: number }[];
   /** 'picked' in onboarding or Settings, 'detected' from the Blackboard address */
   source?: 'picked' | 'detected';
+  /** Academic level: switches university grading rules & minimum passing mark */
+  studyLevel?: 'undergraduate' | 'postgraduate';
   /** Cumulative credit hours completed prior to tracking in Blackboarder (e.g. 45 credits) */
   priorCredits?: number;
   /** Cumulative GPA prior to tracking in Blackboarder (e.g. 3.35) */

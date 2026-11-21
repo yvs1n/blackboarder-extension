@@ -20,6 +20,9 @@ export function sanitizeProfile(raw: unknown): StudentProfile | null {
   const scale = normalizeGradeScale(r.gradeScale);
   if (scale) profile.gradeScale = scale;
   if (r.source === 'picked' || r.source === 'detected') profile.source = r.source;
+  if (r.studyLevel === 'postgraduate' || r.studyLevel === 'undergraduate') {
+    profile.studyLevel = r.studyLevel;
+  }
   if (typeof r.priorCredits === 'number' && !isNaN(r.priorCredits) && r.priorCredits >= 0 && r.priorCredits <= 300) {
     profile.priorCredits = Math.round(r.priorCredits * 10) / 10;
   }
@@ -68,7 +71,8 @@ export function newerProfile(a: StudentProfile | null | undefined, b: StudentPro
     targetTermGpa: newer.targetTermGpa !== undefined ? newer.targetTermGpa : older.targetTermGpa,
     targetCgpa: newer.targetCgpa !== undefined ? newer.targetCgpa : older.targetCgpa,
     targetGpaMode: newer.targetGpaMode || older.targetGpaMode,
-    currentSemesterName: newer.currentSemesterName || older.currentSemesterName
+    currentSemesterName: newer.currentSemesterName || older.currentSemesterName,
+    studyLevel: newer.studyLevel || older.studyLevel
   };
 }
 
@@ -80,7 +84,21 @@ export function profileUniversity(profile: StudentProfile | null | undefined): U
   return getUniversity(profile?.universityId || DEFAULT_UNIVERSITY_ID);
 }
 
-/** The grading scale in use: the student's own, else their university's. */
+/** The grading scale in use: the student's own, else their university's postgraduate/undergraduate scale. */
 export function profileGradeScale(profile: StudentProfile | null | undefined): GradeRow[] {
-  return (profile?.gradeScale && normalizeGradeScale(profile.gradeScale)) || profileUniversity(profile).gradeScale;
+  const custom = profile?.gradeScale && normalizeGradeScale(profile.gradeScale);
+  if (custom) return custom;
+  const uni = profileUniversity(profile);
+  if (profile?.studyLevel === 'postgraduate' && uni.postgraduateScale) {
+    return uni.postgraduateScale;
+  }
+  return uni.gradeScale;
+}
+
+/** Lowest passing letter grade for the student's university and study level. */
+export function profileLowestPass(profile: StudentProfile | null | undefined): string {
+  const uni = profileUniversity(profile);
+  return profile?.studyLevel === 'postgraduate'
+    ? (uni.postgraduateLowestPass || 'C')
+    : uni.lowestPass;
 }

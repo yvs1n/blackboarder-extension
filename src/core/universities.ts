@@ -35,10 +35,14 @@ export interface UniversityPreset {
   /** Home domains; any Blackboard address ending in one of these belongs to this university */
   domains: string[];
   gradeScale: GradeRow[];
+  /** Postgraduate / Master's grading scale for this university when different from undergraduate */
+  postgraduateScale?: GradeRow[];
   /** True when the university publishes points only and instructors set the percentage cutoffs */
   cutoffsFromSyllabus?: boolean;
   /** Lowest passing letter, shown with the scale */
   lowestPass: string;
+  /** Lowest passing letter for postgraduate courses */
+  postgraduateLowestPass?: string;
   /** Blackboard address, when known; used for the default Blackboard quick link */
   blackboardUrl?: string;
   quickLinks?: QuickLinkPreset[];
@@ -108,6 +112,26 @@ const BUID_SCALE: GradeRow[] = [
   { letter: 'F', min: 0, points: 0 }
 ];
 
+/** BUiD M-Level Postgraduate marking scheme (70%+ A/Distinction, 60%+ B/Merit, 50%+ C/Pass, <50% Fail). */
+const BUID_POSTGRAD_SCALE: GradeRow[] = [
+  { letter: 'A', min: 70, points: 4.0 },
+  { letter: 'B', min: 60, points: 3.0 },
+  { letter: 'C', min: 50, points: 2.0 },
+  { letter: 'F', min: 0, points: 0 }
+];
+
+/** UOS Graduate / Master's bylaws (C+ 75% minimum pass; below 75% is Fail). */
+const HALF_STEP_UOS_POSTGRAD: GradeRow[] = [
+  { letter: 'A', min: 90, points: 4.0 },
+  { letter: 'B+', min: 85, points: 3.5 },
+  { letter: 'B', min: 80, points: 3.0 },
+  { letter: 'C+', min: 75, points: 2.5 },
+  { letter: 'F', min: 0, points: 0 }
+];
+
+const pgScaleFrom = (scale: GradeRow[], minPass = 70): GradeRow[] =>
+  scale.filter(g => g.min >= minPass || g.min === 0);
+
 export const GENERIC_UNIVERSITY_ID = 'other';
 
 export const UNIVERSITY_PRESETS: UniversityPreset[] = [
@@ -117,7 +141,9 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'UOS',
     domains: ['sharjah.ac.ae'],
     gradeScale: HALF_STEP_SCALE,
+    postgraduateScale: HALF_STEP_UOS_POSTGRAD,
     lowestPass: 'D',
+    postgraduateLowestPass: 'C+',
     blackboardUrl: 'https://elearning.sharjah.ac.ae/ultra/course',
     quickLinks: [
       { id: 'ql-attendance', title: 'Attendance (Banner)', url: 'https://banner.sharjah.ac.ae', category: 'attendance' },
@@ -135,7 +161,9 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'UAEU',
     domains: ['uaeu.ac.ae'],
     gradeScale: HALF_STEP_SCALE,
+    postgraduateScale: pgScaleFrom(HALF_STEP_SCALE),
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://learn.uaeu.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -145,7 +173,9 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'ADU',
     domains: ['adu.ac.ae'],
     gradeScale: HALF_STEP_SCALE,
+    postgraduateScale: pgScaleFrom(HALF_STEP_SCALE),
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://blackboard.adu.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -155,7 +185,9 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'ZU',
     domains: ['zu.ac.ae'],
     gradeScale: PLUS_MINUS_SCALE,
+    postgraduateScale: pgScaleFrom(PLUS_MINUS_SCALE),
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://learn.zu.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -165,8 +197,10 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'AUD',
     domains: ['aud.edu'],
     gradeScale: PLUS_MINUS_SCALE,
+    postgraduateScale: pgScaleFrom(PLUS_MINUS_SCALE),
     cutoffsFromSyllabus: true,
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://blackboard.aud.edu/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -177,8 +211,10 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     domains: ['aus.edu'],
     // AUS has no D+ or D-; C- is the lowest pass
     gradeScale: PLUS_MINUS_SCALE.filter(g => g.letter !== 'D+'),
+    postgraduateScale: pgScaleFrom(PLUS_MINUS_SCALE.filter(g => g.letter !== 'D+')),
     cutoffsFromSyllabus: true,
     lowestPass: 'C-',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://ilearn.aus.edu/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -188,7 +224,9 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'AURAK',
     domains: ['aurak.ac.ae'],
     gradeScale: AURAK_SCALE,
+    postgraduateScale: pgScaleFrom(AURAK_SCALE),
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://bb.aurak.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -198,8 +236,10 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'BUiD',
     domains: ['buid.ac.ae'],
     gradeScale: BUID_SCALE,
+    postgraduateScale: BUID_POSTGRAD_SCALE,
     cutoffsFromSyllabus: true,
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     blackboardUrl: 'https://blackboard.buid.ac.ae/ultra/course',
     timeZone: 'Asia/Dubai'
   },
@@ -209,8 +249,10 @@ export const UNIVERSITY_PRESETS: UniversityPreset[] = [
     shortName: 'Other',
     domains: [],
     gradeScale: PLUS_MINUS_SCALE,
+    postgraduateScale: pgScaleFrom(PLUS_MINUS_SCALE),
     cutoffsFromSyllabus: true,
     lowestPass: 'D',
+    postgraduateLowestPass: 'C',
     timeZone: 'Asia/Dubai'
   }
 ];
