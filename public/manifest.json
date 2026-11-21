@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Blackboarder: Academic Calendar & Deadline Companion",
+  "name": "Blackboarder: Academic Calendar & Deadlines",
   "version": "1.8.34",
   "description": "Extracts assignments, quizzes, and course deadlines from Blackboard Learn with calendar sync, syllabus weighting, and quick links.",
   "icons": {

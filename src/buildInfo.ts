@@ -14,11 +14,11 @@ export interface BuildInfo {
 
 export const BUILD_INFO: BuildInfo = {
   "version": "1.8.34",
-  "build": "739d193d5525",
-  "commit": "cd2c0c9248afa63c95b06e5eba6b1d4491e458d8",
-  "shortCommit": "cd2c0c9",
-  "timestamp": "2026-11-21T12:24:04.863Z",
-  "message": "v1.8.33: Auto-register all enrolled courses beyond UOS codes and support 0-60 postgraduate credit hours",
+  "build": "7bdb063020f3",
+  "commit": "0940ef1fb64d45c9ce494a6a260c94ec8edf07be",
+  "shortCommit": "0940ef1",
+  "timestamp": "2026-11-21T12:46:09.860Z",
+  "message": "fix(package): write POSIX forward-slash entry paths in ZIP archives on Windows",
   "changelog": [
     "AI-Gated Automatic Blackboard Syllabus Discovery & Review (src/scan/syllabusScanner.ts, src/popup/modules/courseImporter.ts, src/popup/modules/coursesView.ts, src/popup/modules/scanBanner.ts, src/popup/index.html): On the first successful Blackboard scan when an AI API key is configured (or manually anytime from Courses > Scan Syllabi), Blackboarder inspects enrolled course contents and attachments for syllabus files and inline outline documents (syllabus, course outline, specification, Arabic equivalents), extracts their text (PDF via pdfjs, Word .docx, text, HTML), parses weights/schedules through AI, and opens the shared confirmation review modal (#modal-course-import) before saving anything into existing courses. Crawling is strictly disabled unless an AI API key is present.",
     "Built-In Syllabus Extractor Upgrades (src/core/courseDocument.ts): Improved non-AI local extraction to match AI handling across comma/semicolon inline weight lists (Midterm 30%, Quizzes 20%, Final 50%), points-based grading tables with explicit Total normalization, tabular assessment rows with prose notes in separate columns, expanded assessment headers, 0-60 credit hour ranges (including Module Credits / CATS and 0-credit workshops), alphanumeric/term-suffixed course codes (RES691_SEP26), and title-only modules.",
