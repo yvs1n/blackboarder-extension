@@ -15,6 +15,8 @@ export interface GradebookColumn {
   gradesReleased?: boolean;
   dueDate?: string;
   grading?: { due?: string };
+  created?: string;
+  position?: number;
   userCreatedColumn?: boolean;
   contentId?: string;
   deleted?: boolean;
@@ -117,15 +119,19 @@ export function gradebookToUpdates(
     if (g.isExempt) { skip('exempt'); continue; }
     if (!title || /orientation|توجيه|تهيئة/i.test(title)) continue;
 
-    const gradedAt = g.gradedDate || g.lastGradedDate || g.modifiedDate || g.lastModified || g.modified || g.attemptDate || g.created;
+    const gradedAt = g.gradedDate || g.lastGradedDate || g.attemptDate || g.created || g.modifiedDate || g.lastModified || g.modified;
     const rawColDue = col?.dueDate || col?.grading?.due;
+    const colCreated = col?.created && !isNaN(new Date(col.created).getTime()) ? new Date(col.created).toISOString() : undefined;
+    const colPosition = typeof col?.position === 'number' && Number.isFinite(col.position) ? col.position : undefined;
     const base = {
       courseName: course.courseName || undefined,
       courseCode: course.courseCode && course.courseCode !== 'UOS' ? course.courseCode : undefined,
       title,
       sourceId: `gb:${col.id}`,
       dueDate: rawColDue && !isNaN(new Date(rawColDue).getTime()) ? new Date(rawColDue).toISOString() : undefined,
-      gradedAt: gradedAt && !isNaN(new Date(gradedAt).getTime()) ? gradedAt : undefined
+      gradedAt: gradedAt && !isNaN(new Date(gradedAt).getTime()) ? gradedAt : undefined,
+      ...(colCreated ? { columnCreated: colCreated } : {}),
+      ...(colPosition !== undefined ? { columnPosition: colPosition } : {})
     };
 
     const raw = typeof g.displayGrade?.score === 'number' ? g.displayGrade.score : g.effectiveScore;
@@ -406,11 +412,15 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       }
       const isGbTask = (match.id || '').startsWith('gbcol_') || match.sourceSnippet === 'gradebook';
       const colDueChanged = isGbTask && !!update.dueDate && match.columnDueDate !== update.dueDate;
+      const colCreatedChanged = !!update.columnCreated && match.columnCreated !== update.columnCreated;
+      const colPosChanged = typeof update.columnPosition === 'number' && match.columnPosition !== update.columnPosition;
       const changed = match.submissionStatus !== 'graded' ||
         match.status !== 'completed' ||
         !!match.markProvisional !== provisional ||
         (!!src && match.gradeSourceId !== src) ||
         colDueChanged ||
+        colCreatedChanged ||
+        colPosChanged ||
         (update.score !== undefined && match.score !== update.score) ||
         (update.maxScore !== undefined && match.maxScore !== update.maxScore) ||
         (!!update.scoreDisplay && match.scoreDisplay !== update.scoreDisplay);
@@ -419,6 +429,8 @@ export function applySubmissionUpdates(tasks: DeadlineTask[], updates: TaskSubmi
       if (src) match.gradeSourceId = src;
       if (update.gradedAt) match.gradedAt = update.gradedAt;
       if (colDueChanged) match.columnDueDate = update.dueDate;
+      if (colCreatedChanged) match.columnCreated = update.columnCreated;
+      if (colPosChanged) match.columnPosition = update.columnPosition;
       if (provisional) match.markProvisional = true;
       else delete match.markProvisional;
       if (update.score !== undefined) match.score = update.score;

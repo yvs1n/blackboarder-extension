@@ -60,6 +60,18 @@ async function swapQuickLinksForUniversity(fromId: string, toId: string): Promis
   } catch {}
 }
 
+/** Clears saved profile completely from local storage (used when switching sync keys or restoring a backup without a profile). */
+export async function clearProfile(): Promise<void> {
+  if (hasChromeStorage()) {
+    try {
+      await chrome.storage.local.remove([PROFILE_KEY]);
+    } catch {}
+  }
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(PROFILE_KEY);
+  } catch {}
+}
+
 /** Keeps a cloud profile when it is newer than the one here. Returns true when it was taken. */
 export async function mergeCloudProfile(cloud: unknown): Promise<boolean> {
   const incoming = sanitizeProfile(cloud);

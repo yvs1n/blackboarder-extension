@@ -111,6 +111,8 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       sourceSnippet: str(t.sourceSnippet),
       dueDate: hasValidDate ? str(t.dueDate) : '',
       ...(typeof t.columnDueDate === 'string' && !isNaN(new Date(t.columnDueDate).getTime()) ? { columnDueDate: t.columnDueDate } : {}),
+      ...(typeof t.columnCreated === 'string' && !isNaN(new Date(t.columnCreated).getTime()) ? { columnCreated: t.columnCreated } : {}),
+      ...(typeof t.columnPosition === 'number' && Number.isFinite(t.columnPosition) ? { columnPosition: t.columnPosition } : {}),
       hasSpecificTime: Boolean(t.hasSpecificTime),
       type: TASK_TYPES.includes(t.type) ? t.type : 'other',
       priority: PRIORITIES.includes(t.priority) ? t.priority : 'medium',

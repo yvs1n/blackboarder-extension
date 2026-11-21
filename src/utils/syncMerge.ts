@@ -31,6 +31,7 @@ export interface SyncSide {
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string | null;
   scanRequest?: CloudScanRequest | null;
+  backupEpoch?: string | null;
 }
 
 export interface MergedSync {
@@ -46,6 +47,7 @@ export interface MergedSync {
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
+  backupEpoch?: string;
   /** True when the cloud's courses, quick links, semesters or payments changed/won */
   coursesFromCloud: boolean;
   quickLinksFromCloud: boolean;
@@ -113,7 +115,8 @@ export function readCloudSide(data: any): SyncSide {
     semestersUpdatedAt: typeof data.semestersUpdatedAt === 'string' ? data.semestersUpdatedAt : undefined,
     payments: sanitizeCloudPayments(data.payments),
     paymentsUpdatedAt: typeof data.paymentsUpdatedAt === 'string' ? data.paymentsUpdatedAt : undefined,
-    scanRequest: sanitizeScanRequest(data.scanRequest)
+    scanRequest: sanitizeScanRequest(data.scanRequest),
+    backupEpoch: typeof data.backupEpoch === 'string' ? data.backupEpoch : undefined
   };
 }
 
@@ -160,6 +163,7 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
     payments: (Array.isArray(local.payments) || Array.isArray(c.payments)) ? mergedPayments : undefined,
     paymentsUpdatedAt,
     scanRequest: newerScanRequest(local.scanRequest, c.scanRequest),
+    backupEpoch: (c.backupEpoch || local.backupEpoch) || undefined,
     coursesFromCloud: courses.fromCloud,
     quickLinksFromCloud: links.fromCloud,
     semestersFromCloud: semPick.fromCloud || ((c.semesters?.length ?? 0) > (local.semesters?.length ?? 0)),

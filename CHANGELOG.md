@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.37] - 2026-11-22
+
+### Fixed
+
+- **Authoritative "Use Existing Key" & JSON Backup Restore (`src/utils/backupRestore.ts`, `src/utils/firebaseSync.ts`, `src/popup/modules/settingsSync.ts`, `src/popup/modules/syncController.ts`, `src/background/serviceWorker.ts`, `src/mobile/app/`):**
+  - Connecting an existing Sync Key via **Settings > Sync > Use Existing** now cancels any pending sync timers, reads Firebase's raw cloud vault first (`skipLocalMerge`), unconditionally replaces all local tasks, courses, quick links, payments, semesters, tombstones, and profile with Firebase's data (regardless of local timestamps), switches the active Sync Key last, and **never** pushes stale local data back up to Firebase.
+  - Restoring a JSON backup now completely replaces all local stores without merging prior local tasks/tombstones, stamps fresh collection timestamps and a `backupEpoch`, and directly overwrites the Firebase vault under the active Sync Key (`overwriteCloudVault`) without pulling or merging old cloud items back in. Other devices and the Companion Web App adopt any newer `backupEpoch` cleanly instead of resurrecting pre-restore tasks.
+  - Companion Web App pairing now resets all local stores (including semesters, profile, payments, and backup epoch) whenever switching to any new Sync Key (including from an unpaired state).
+- **Future-Proof Chronological Marks Sorting (`src/utils/marks.ts`, `src/utils/gradebook.ts`, `src/scan/scanPipeline.ts`, `src/utils/taskMerge.ts`, `src/utils/cloudSanitize.ts`):**
+  - Removed the `t.updatedAt` fallback from `completedAt` in `buildMarksSummary` so re-syncing, editing, or repairing an undated completed task can never promote it to the top of Marks.
+  - Extracted Blackboard's immutable `columnCreated` timestamp and `columnPosition` display index from `/gradebook/columns`, preserved `columnDueDate`/`columnCreated`/`columnPosition`/`completedAt`/`gradedAt` across `deduplicateTaskList` and cloud sanitization, restricted number tie-breaking to matching assessment families (`Quiz 4 > Quiz 3`), and added Blackboard internal column PK sequence tie-breaking (`_1928185_1 > _1916865_1`).
+
+---
+
 ## [1.8.36] - 2026-11-21
 
 ### Added

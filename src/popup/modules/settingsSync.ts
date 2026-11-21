@@ -1,17 +1,13 @@
-import { DeadlineTask, UserSettings } from '../../types';
+import { UserSettings } from '../../types';
 import { BUILD_INFO } from '../../buildInfo';
 import { calendarFeedUrl, cleanCalendarFeedShow } from '../../core/calendarLink';
-import { filterCleanUserCourses } from '../../core/courseFilter';
 import { detectUserDevice } from '../../core/deviceDetection';
 import { createArmedAction } from '../../core/stateMachine';
 import { ensureAiPass, pairingLink } from '../../utils/aiKeyLock';
-import { compareTasksByTime } from '../../utils/calendar';
-import { sanitizeCloudCourses, sanitizeCloudQuickLinks, sanitizeCloudTasks } from '../../utils/cloudSanitize';
-import { getExtraSites, saveExtraSites } from '../../utils/blackboardSites';
+import { applyBackupAuthoritatively, applyCloudSnapshotAuthoritatively } from '../../utils/backupRestore';
+import { getExtraSites } from '../../utils/blackboardSites';
 import { deleteSyncDataFromFirebase, fetchTasksFromFirebase, pushTasksToFirebase } from '../../utils/firebaseSync';
-import { sanitizePayments } from '../../core/payments';
-import { sanitizeSemesters } from '../../core/semesters';
-import { getProfile, saveProfile } from '../../utils/profile';
+import { getProfile } from '../../utils/profile';
 import { qrSvg } from '../../utils/qrCode';
 import {
   generateUniqueSyncKey,
@@ -24,17 +20,13 @@ import {
   getTasks,
   getUserCourses,
   safeSetLocalStorage,
-  saveQuickLinks,
   saveSettings,
-  saveStoredPayments,
-  saveStoredSemesters,
-  saveTasks,
-  saveUserCourses,
 } from '../../utils/storage';
-import { getLocalTombstones, setStorageTombstones } from '../../utils/tombstones';
+import { getLocalTombstones } from '../../utils/tombstones';
 import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
+import { cancelPendingSync } from './syncController';
 import { refreshAiKeyLock } from './settingsView';
 
 export const SITE_URL = 'https://blackboarder.pages.dev';
@@ -101,83 +93,35 @@ export async function handleRestoreJson(file: File) {
       return;
     }
 
-    let restoredTaskCount = 0;
-    if (data.tasks && Array.isArray(data.tasks)) {
-      const existingMap = new Map<string, DeadlineTask>();
-      popupState.currentTasks.forEach(t => existingMap.set(t.id, t));
+    cancelPendingSync();
+    const currentSettings = await getSettings();
+    const outcome = await applyBackupAuthoritatively(data, {
+      activeSyncKey: currentSettings.syncKey,
+      deviceLabel: 'Chrome Extension (Restored Backup)'
+    });
 
-      sanitizeCloudTasks(data.tasks).forEach((t: DeadlineTask) => {
-        if (t.title) {
-          existingMap.set(t.id, t);
-        }
-      });
-
-      const merged = Array.from(existingMap.values()).sort(compareTasksByTime);
-      await saveTasks(merged);
-      popupState.currentTasks = merged;
-      restoredTaskCount = data.tasks.length;
-    }
-
-    let restoredCourseCount = 0;
-    if (data.courses && Array.isArray(data.courses)) {
-      const sanitizedCourses = sanitizeCloudCourses(data.courses) || [];
-      const cleanCourses = filterCleanUserCourses(sanitizedCourses);
-      if (cleanCourses.length > 0) {
-        await saveUserCourses(cleanCourses);
-        popupState.currentUserCourses = cleanCourses;
-        restoredCourseCount = cleanCourses.length;
-      }
-    }
-
-    if (data.quickLinks && Array.isArray(data.quickLinks)) {
-      const cleanLinks = sanitizeCloudQuickLinks(data.quickLinks);
-      if (cleanLinks && cleanLinks.length > 0) {
-        await saveQuickLinks(cleanLinks);
-        popupState.currentQuickLinks = cleanLinks;
-      }
-    }
-
-    if (data.payments && Array.isArray(data.payments)) {
-      const cleanPayments = sanitizePayments(data.payments);
-      await saveStoredPayments(cleanPayments);
-      popupState.currentPayments = cleanPayments;
-    }
-
-    if (data.semesters && Array.isArray(data.semesters)) {
-      const cleanSemesters = sanitizeSemesters(data.semesters);
-      await saveStoredSemesters(cleanSemesters);
-    }
-
-    if (data.tombstones && typeof data.tombstones === 'object' && !Array.isArray(data.tombstones)) {
-      const mergedTombstones = { ...getLocalTombstones(), ...data.tombstones };
-      await setStorageTombstones(mergedTombstones);
-    }
-
-    if (data.extraSites && Array.isArray(data.extraSites)) {
-      await saveExtraSites(data.extraSites).catch(() => {});
-    }
-
-    if (data.profile && typeof data.profile === 'object') {
-      await saveProfile(data.profile).catch(() => {});
-    }
-
-    if (data.settings && typeof data.settings === 'object') {
-      await saveSettings(data.settings);
-      if (typeof data.settings.syncKey === 'string' && data.settings.syncKey.trim()) {
-        const cleanKey = data.settings.syncKey.trim().toUpperCase();
-        safeSetLocalStorage('bbs_persistent_sync_key', cleanKey);
-        safeSetLocalStorage('bbs_sync_key', cleanKey);
-      }
-    }
+    popupState.currentTasks = outcome.applied.tasks;
+    popupState.currentUserCourses = outcome.applied.courses;
+    popupState.currentQuickLinks = outcome.applied.quickLinks;
+    popupState.currentPayments = outcome.applied.payments;
+    popupState.cachedSemesters = outcome.applied.semesters;
 
     const latestSettings = await getSettings();
     loadSyncStatus(latestSettings);
     await popupActions.loadSettingsForm();
+    popupActions.renderUserCoursesManager();
+    popupActions.renderLegend();
+    popupActions.updateCourseFilterOptions(popupState.currentTasks);
+    popupActions.renderQuickLinksBar();
+    await popupActions.updateSemesterSelector();
     popupActions.refreshAllViews();
-    popupActions.syncTasksToCloud(popupState.currentTasks, 'Restored Backup', true);
-    const msg = restoredCourseCount > 0
-      ? `Successfully restored ${restoredTaskCount} deadlines and ${restoredCourseCount} courses!`
-      : `Successfully restored ${restoredTaskCount} deadlines!`;
+
+    const cloudWarn = outcome.syncKey && outcome.cloudResult && !outcome.cloudResult.success
+      ? ` (Note: Firebase update failed: ${outcome.cloudResult.message})`
+      : '';
+    const msg = outcome.restoredCourseCount > 0
+      ? `Successfully restored ${outcome.restoredTaskCount} deadlines and ${outcome.restoredCourseCount} courses!${cloudWarn}`
+      : `Successfully restored ${outcome.restoredTaskCount} deadlines!${cloudWarn}`;
     alert(msg);
   } catch (err) {
     console.error('Failed to parse backup JSON:', err);
@@ -293,6 +237,47 @@ function setupWidgetPlatformCards(): void {
   });
 }
 
+export async function connectExistingSyncKey(parsedKey: string): Promise<{ ok: boolean; error?: string }> {
+  cancelPendingSync();
+  // Fetch Firebase's copy WITHOUT local timestamp merging BEFORE touching syncKey or local storage.
+  const check = await fetchTasksFromFirebase(parsedKey, { skipLocalMerge: true });
+  if (!check.success || check.deleted) {
+    return {
+      ok: false,
+      error: check.deleted
+        ? 'No active vault found for that key. Double-check the key or use Restore JSON.'
+        : (check.error || 'Could not verify that key right now.')
+    };
+  }
+
+  // Overwrite ALL local state unconditionally from Firebase (never mix local items, never push local up).
+  const applied = await applyCloudSnapshotAuthoritatively(check);
+  popupState.currentTasks = applied.tasks;
+  popupState.currentUserCourses = applied.courses;
+  popupState.currentQuickLinks = applied.quickLinks;
+  popupState.currentPayments = applied.payments;
+  popupState.cachedSemesters = applied.semesters;
+
+  // Switch syncKey LAST once local storage already matches Firebase 100%.
+  await saveSettings({ syncKey: parsedKey });
+  safeSetLocalStorage('bbs_persistent_sync_key', parsedKey);
+  safeSetLocalStorage('bbs_sync_key', parsedKey);
+  const settingInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
+  if (settingInput) settingInput.value = parsedKey;
+
+  const refreshedSettings = await getSettings();
+  loadSyncStatus(refreshedSettings);
+  await popupActions.loadSettingsForm();
+  popupActions.renderUserCoursesManager();
+  popupActions.renderLegend();
+  popupActions.updateCourseFilterOptions(popupState.currentTasks);
+  popupActions.renderQuickLinksBar();
+  await popupActions.updateSemesterSelector();
+  void refreshAiKeyLock(true);
+  popupActions.refreshAllViews();
+  return { ok: true };
+}
+
 export function setupSyncSettingsEvents(): void {
   const calendarShowSelect = document.getElementById('setting-calendar-show') as HTMLSelectElement | null;
   if (calendarShowSelect) {
@@ -351,27 +336,11 @@ export function setupSyncSettingsEvents(): void {
     btnConnectExistingKey.textContent = 'Checking...';
     if (connectKeyStatus) connectKeyStatus.textContent = 'Checking cloud vault for your Sync Key...';
     try {
-      const check = await fetchTasksFromFirebase(parsedKey);
-      if (!check.success || check.deleted) {
-        if (connectKeyStatus) {
-          connectKeyStatus.textContent = check.deleted
-            ? 'No active vault found for that key. Double-check the key or use Restore JSON.'
-            : (check.error || 'Could not verify that key right now.');
-        }
+      const outcome = await connectExistingSyncKey(parsedKey);
+      if (!outcome.ok) {
+        if (connectKeyStatus) connectKeyStatus.textContent = outcome.error || 'Could not verify that key right now.';
         return;
       }
-      await saveSettings({ syncKey: parsedKey });
-      safeSetLocalStorage('bbs_persistent_sync_key', parsedKey);
-      safeSetLocalStorage('bbs_sync_key', parsedKey);
-      const settingInput = document.getElementById('setting-sync-key') as HTMLInputElement | null;
-      if (settingInput) settingInput.value = parsedKey;
-
-      await popupActions.pullTasksFromFirebaseIfNewer();
-      const refreshedSettings = await getSettings();
-      loadSyncStatus(refreshedSettings);
-      await popupActions.loadSettingsForm();
-      void refreshAiKeyLock(true);
-      popupActions.refreshAllViews();
 
       if (inputExistingKey) inputExistingKey.value = '';
       if (connectKeyPanel) connectKeyPanel.hidden = true;
@@ -399,6 +368,7 @@ export function setupSyncSettingsEvents(): void {
   });
 
   btnConfirmRegenKey?.addEventListener('click', async () => {
+    cancelPendingSync();
     const oldSettings = await getSettings();
     const oldKey = (oldSettings.syncKey || '').trim();
     const newKey = generateUniqueSyncKey();

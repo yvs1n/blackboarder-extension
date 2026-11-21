@@ -35,6 +35,9 @@ export interface MarkRow {
   submittedAt?: string;
   completedAt?: string;
   createdAt?: string;
+  columnCreated?: string;
+  columnPosition?: number;
+  gradeSourceId?: string;
   isBonus?: boolean;
   bonusUnit?: 'points' | 'percent';
   bonusTarget?: string;
@@ -199,9 +202,12 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       dueDate: t.dueDate || t.columnDueDate,
       gradedAt: t.gradedAt,
       submittedAt: t.submittedAt,
-      // Only treat updatedAt as completion time for manual tasks without a real Blackboard gradedAt timestamp.
-      completedAt: t.completedAt || (!isGradebook && !t.gradedAt && t.status === 'completed' ? (t.submittedAt || t.updatedAt) : undefined),
+      // Never use updatedAt as completion time: syncs/repairs/edits bump updatedAt and would throw old marks to the top.
+      completedAt: t.completedAt || (!isGradebook && !t.gradedAt && t.status === 'completed' ? t.submittedAt : undefined),
       createdAt: t.createdAt,
+      columnCreated: t.columnCreated,
+      columnPosition: typeof t.columnPosition === 'number' && Number.isFinite(t.columnPosition) ? t.columnPosition : undefined,
+      gradeSourceId: t.gradeSourceId,
       isBonus,
       bonusUnit: isBonus ? (t.bonusUnit === 'percent' ? 'percent' : 'points') : undefined,
       bonusTarget: isBonus ? t.bonusTarget : undefined,
@@ -280,6 +286,15 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
       if (row.createdAt && !existingRow.createdAt) {
         existingRow.createdAt = row.createdAt;
       }
+      if (row.columnCreated && !existingRow.columnCreated) {
+        existingRow.columnCreated = row.columnCreated;
+      }
+      if (typeof row.columnPosition === 'number' && typeof existingRow.columnPosition !== 'number') {
+        existingRow.columnPosition = row.columnPosition;
+      }
+      if (row.gradeSourceId && !existingRow.gradeSourceId) {
+        existingRow.gradeSourceId = row.gradeSourceId;
+      }
       if (graded && existingRow.status !== 'graded') {
         const wasAwaiting = existingRow.status === 'submitted' || existingRow.status === 'waiting';
         existingRow.status = 'graded';
@@ -350,39 +365,70 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
     if (c.bonusWeight) c.bonusWeight = round1(c.bonusWeight);
     const pcts = c.marks.filter(m => !m.ignoreMark && m.percent !== undefined).map(m => m.percent!);
     if (pcts.length) c.averagePercent = round1(pcts.reduce((a, b) => a + b, 0) / pcts.length);
-    // Ranked from newest to oldest by posting, due, or completion date (NOT by when the mark was released); oldest at the bottom
-    const time = (m: MarkRow) => {
-      const parse = (d?: string) => {
-        if (!d) return NaN;
-        const n = new Date(d).getTime();
-        return isNaN(n) ? NaN : n;
-      };
-      const tDue = parse(m.dueDate);
+    // Ranked newest to oldest by explicit assessment/due date, submission/completion date,
+    // Blackboard grade release date, or static Blackboard column creation timestamp (never updatedAt or scan-time createdAt).
+    const parseMs = (d?: string): number => {
+      if (!d) return NaN;
+      const n = new Date(d).getTime();
+      return isNaN(n) ? NaN : n;
+    };
+    const rowTimeMs = (m: MarkRow): number => {
+      const tDue = parseMs(m.dueDate);
       if (!isNaN(tDue)) return tDue;
-      const tSub = parse(m.submittedAt);
+      const tSub = parseMs(m.submittedAt);
       if (!isNaN(tSub)) return tSub;
-      const tComp = parse(m.completedAt);
+      const tComp = parseMs(m.completedAt);
       if (!isNaN(tComp)) return tComp;
-      const tGraded = parse(m.gradedAt);
+      const tGraded = parseMs(m.gradedAt);
       if (!isNaN(tGraded)) return tGraded;
+      const tColCreated = parseMs(m.columnCreated);
+      if (!isNaN(tColCreated)) return tColCreated;
       // Ignore scan-time createdAt on gradebook items so re-discovered old columns don't jump to the top
       if (!m.isGradebook && !(m.id && (m.id.startsWith('gbcol_') || m.id.startsWith('gb_')))) {
-        const tCreated = parse(m.createdAt);
+        const tCreated = parseMs(m.createdAt);
         if (!isNaN(tCreated)) return tCreated;
       }
       return -Infinity;
+    };
+    const assessmentSortFamily = (title: string): string => {
+      const s = (title || '').toLowerCase();
+      if (/\bquiz\b|كويز/i.test(s) || /^q\d+\b/i.test(s.trim())) return 'quiz';
+      if (/\b(?:assignment|hw|homework)\b|واجب/i.test(s) || /^hw\d+\b/i.test(s.trim())) return 'assignment';
+      if (/\b(?:lab|report)\b|مختبر|تقرير/i.test(s)) return 'lab';
+      if (/\b(?:exam|test|midterm|final)\b|اختبار|امتحان/i.test(s)) return 'exam';
+      return s.replace(/\d+/g, '').replace(/[^a-z\u0600-\u06ff]+/g, ' ').trim();
+    };
+    const bbColumnSeq = (m: MarkRow): number | null => {
+      const src = m.gradeSourceId || m.id || '';
+      const match = src.match(/_(\d+)_\d+$/);
+      if (!match) return null;
+      const n = Number(match[1]);
+      return Number.isFinite(n) ? n : null;
     };
     c.marks.sort((a, b) => {
       if (Boolean(a.ignoreMark) !== Boolean(b.ignoreMark)) {
         return a.ignoreMark ? 1 : -1;
       }
-      const timeA = time(a);
-      const timeB = time(b);
+      const timeA = rowTimeMs(a);
+      const timeB = rowTimeMs(b);
       if (timeA !== timeB) return timeB - timeA;
-      const numA = extractAssessmentNumber(a.title);
-      const numB = extractAssessmentNumber(b.title);
-      if (numA !== null && numB !== null && numA !== numB) {
-        return numB - numA;
+      // Tie-breaker 1: Blackboard Gradebook instructor display order (later column first)
+      if (typeof a.columnPosition === 'number' && typeof b.columnPosition === 'number' && a.columnPosition !== b.columnPosition) {
+        return b.columnPosition - a.columnPosition;
+      }
+      // Tie-breaker 2: Higher assessment number within the same assessment family (Quiz 4 > Quiz 3 > Quiz 2 > Quiz 1)
+      if (assessmentSortFamily(a.title) === assessmentSortFamily(b.title)) {
+        const numA = extractAssessmentNumber(a.title);
+        const numB = extractAssessmentNumber(b.title);
+        if (numA !== null && numB !== null && numA !== numB) {
+          return numB - numA;
+        }
+      }
+      // Tie-breaker 3: Blackboard monotonic internal column ID sequence (_1928185_1 > _1916865_1)
+      const seqA = bbColumnSeq(a);
+      const seqB = bbColumnSeq(b);
+      if (seqA !== null && seqB !== null && seqA !== seqB) {
+        return seqB - seqA;
       }
       return a.title.localeCompare(b.title, undefined, { numeric: true });
     });

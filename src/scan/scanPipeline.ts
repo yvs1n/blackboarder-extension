@@ -209,6 +209,8 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
       description: '',
       dueDate: '',
       ...(u.dueDate ? { columnDueDate: u.dueDate } : {}),
+      ...(u.columnCreated ? { columnCreated: u.columnCreated } : {}),
+      ...(typeof u.columnPosition === 'number' && Number.isFinite(u.columnPosition) ? { columnPosition: u.columnPosition } : {}),
       hasSpecificTime: false,
       type,
       priority: type === 'exam' || type === 'quiz' ? 'high' : 'medium',

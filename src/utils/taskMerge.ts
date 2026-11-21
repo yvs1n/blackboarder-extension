@@ -43,7 +43,7 @@ const OPTIONAL_FIELDS = [
 
 // Fields that fill a gap on a locally-newer task without overriding local edits.
 const GAP_FILL_FIELDS = [
-  'courseName', 'courseCode', 'notes', 'room', 'description', 'sourceSnippet', 'columnDueDate',
+  'courseName', 'courseCode', 'notes', 'room', 'description', 'sourceSnippet', 'columnDueDate', 'columnCreated', 'columnPosition',
   'weight', 'weightDisplay', 'syllabusNote', 'bonusUnit', 'bonusTarget', 'bonusTargetLabel'
 ] as const;
 
@@ -611,9 +611,13 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const scoreDisplay = submissionStatus === 'graded' && gradedSource
     ? (gradedSource.scoreDisplay || (typeof score === 'number' && typeof maxScore === 'number' && maxScore > 0 ? `${score} / ${maxScore} (${Math.round((score / maxScore) * 100)}%)` : (typeof score === 'number' ? `${score} pts` : undefined)))
     : undefined;
-  const gradedAt = submissionStatus === 'graded' && gradedSource ? gradedSource.gradedAt : undefined;
+  const gradedAt = (submissionStatus === 'graded' && gradedSource?.gradedAt) || existing.gradedAt || incoming.gradedAt;
   const markProvisional = submissionStatus === 'graded' && gradedSource ? gradedSource.markProvisional : undefined;
   const gradeSourceId = gradedSource?.gradeSourceId || existing.gradeSourceId || incoming.gradeSourceId;
+  const columnDueDate = existing.columnDueDate || incoming.columnDueDate;
+  const columnCreated = existing.columnCreated || incoming.columnCreated;
+  const columnPosition = existing.columnPosition ?? incoming.columnPosition;
+  const completedAt = existing.completedAt || incoming.completedAt;
   const gradeSourcesBefore = Array.from(new Set([
     ...(existing.gradeSourcesBefore || []),
     ...(incoming.gradeSourcesBefore || [])
@@ -631,6 +635,10 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     id,
     title,
     dueDate,
+    ...(columnDueDate ? { columnDueDate } : {}),
+    ...(columnCreated ? { columnCreated } : {}),
+    ...(typeof columnPosition === 'number' ? { columnPosition } : {}),
+    ...(completedAt ? { completedAt } : {}),
     hasSpecificTime,
     type,
     status,

@@ -13,15 +13,18 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.36",
-  "build": "261017e4029f",
-  "commit": "4bc9042bac22b7daa599d88723bfdbe50e59a49e",
-  "shortCommit": "4bc9042",
-  "timestamp": "2026-11-21T19:05:35.112Z",
-  "message": "release(v1.8.35): Chrome Web Store launch, unpacked migration update, Contact/Feedback sections, Privacy & Terms links",
+  "version": "1.8.37",
+  "build": "c06325bd9df9",
+  "commit": "2757348399b448c4374bd33c0876fc06e6c81134",
+  "shortCommit": "2757348",
+  "timestamp": "2026-11-21T20:21:10.306Z",
+  "message": "fix(ci): ensure sequential Chrome -> Edge -> async Firefox upload and run workflow immediately",
   "changelog": [
-    "Connect Existing Sync Key (src/popup/index.html, src/popup/modules/settingsSync.ts): Added a Use Existing button and input panel right under Settings > Sync > Personal Sync Key so students switching to the Chrome Web Store build (or a new browser) can paste their BBS-... Sync Key or full pairing link and immediately pull their cloud vault without overwriting it.",
-    "Complete Backup Export & Restore (src/popup/modules/settingsSync.ts): Export JSON and Restore JSON now include payments, semesters (archived terms/CGPA), tombstones, and extraSites alongside tasks, courses, quickLinks, profile, and settings."
+    "Connecting an existing Sync Key via Settings > Sync > Use Existing now cancels any pending sync timers, reads Firebase's raw cloud vault first (skipLocalMerge), unconditionally replaces all local tasks, courses, quick links, payments, semesters, tombstones, and profile with Firebase's data (regardless of local timestamps), switches the active Sync Key last, and never pushes stale local data back up to Firebase.",
+    "Restoring a JSON backup now completely replaces all local stores without merging prior local tasks/tombstones, stamps fresh collection timestamps and a backupEpoch, and directly overwrites the Firebase vault under the active Sync Key (overwriteCloudVault) without pulling or merging old cloud items back in. Other devices and the Companion Web App adopt any newer backupEpoch cleanly instead of resurrecting pre-restore tasks.",
+    "Companion Web App pairing now resets all local stores (including semesters, profile, payments, and backup epoch) whenever switching to any new Sync Key (including from an unpaired state).",
+    "Removed the t.updatedAt fallback from completedAt in buildMarksSummary so re-syncing, editing, or repairing an undated completed task can never promote it to the top of Marks.",
+    "Extracted Blackboard's immutable columnCreated timestamp and columnPosition display index from /gradebook/columns, preserved columnDueDate/columnCreated/columnPosition/completedAt/gradedAt across deduplicateTaskList and cloud sanitization, restricted number tie-breaking to matching assessment families (Quiz 4 > Quiz 3), and added Blackboard internal column PK sequence tie-breaking (_1928185_1 > _1916865_1)."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

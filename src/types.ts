@@ -184,6 +184,8 @@ export interface DeadlineTask {
   description: string;
   dueDate: string; // ISO 8601 string
   columnDueDate?: string; // Official Blackboard gradebook column due date (kept off pending calendar)
+  columnCreated?: string; // Official Blackboard gradebook column creation timestamp (tiebreaker for undated columns)
+  columnPosition?: number; // Official Blackboard gradebook display order index (tiebreaker for undated columns)
   hasSpecificTime: boolean;
   type: TaskType;
   priority: TaskPriority;
@@ -238,6 +240,8 @@ export interface TaskSubmissionUpdate {
   sourceId?: string; // Gradebook column id ("gb:_123_1")
   dueDate?: string; // Official instructor due date from Blackboard column, if set
   gradedAt?: string; // When Blackboard recorded the grade, if it says
+  columnCreated?: string; // When Blackboard created the gradebook column
+  columnPosition?: number; // Instructor display position in Blackboard gradebook
 }
 
 // Generative AI service. Each keeps its own key, so switching back and forth loses nothing

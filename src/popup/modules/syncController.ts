@@ -6,6 +6,7 @@ import { profileUniversity } from '../../core/studentProfile';
 import { resolveTaskWeight } from '../../core/syllabusWeights';
 import { extractDeadlinesLocally } from '../../engine/localExtractor';
 import { fetchTasksFromFirebase, pushTasksToFirebase } from '../../utils/firebaseSync';
+import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer } from '../../utils/backupRestore';
 import { purgeSyntheticGradebookTasks } from '../../utils/gradebook';
 import { compareTasksByTime } from '../../utils/calendar';
 import { SEMESTERS_STORAGE_KEY } from '../../utils/semestersStorage';
@@ -153,28 +154,52 @@ function writeLocalFlag(key: string): Promise<void> {
 
 let cloudSyncTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingCloudSyncAction = 'Extension Update';
+let syncGeneration = 0;
+
+/**
+ * Cancels any debounced local task persist or queued Firebase push and invalidates any in-flight pull/push
+ * started before an authoritative key switch or JSON backup restore.
+ */
+export function cancelPendingSync(): number {
+  syncGeneration++;
+  pendingTasksToPersist = null;
+  if (persistDebounceTimer) {
+    clearTimeout(persistDebounceTimer);
+    persistDebounceTimer = null;
+  }
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
+  }
+  return syncGeneration;
+}
 
 export function syncTasksToCloud(tasks: DeadlineTask[], actionDescription: string = 'Extension Update', immediate = false) {
+  const gen = syncGeneration;
   pendingCloudSyncAction = actionDescription;
   if (cloudSyncTimer) {
     clearTimeout(cloudSyncTimer);
     cloudSyncTimer = null;
   }
   if (immediate) {
-    executeCloudSync(tasks, actionDescription);
+    executeCloudSync(tasks, actionDescription, gen);
     return;
   }
   cloudSyncTimer = setTimeout(() => {
-    executeCloudSync(tasks, pendingCloudSyncAction);
+    if (gen !== syncGeneration) return;
+    executeCloudSync(tasks, pendingCloudSyncAction, gen);
   }, 150);
 }
 
-export async function executeCloudSync(tasks: DeadlineTask[], actionDescription: string) {
+export async function executeCloudSync(tasks: DeadlineTask[], actionDescription: string, expectedGen: number = syncGeneration) {
   try {
     await Promise.all([persistChain, awaitTombstonesPersisted()]);
-    const pulled = await pullTasksFromFirebaseIfNewer();
+    if (expectedGen !== syncGeneration) return;
+    const pulled = await pullTasksFromFirebaseIfNewer(expectedGen);
+    if (expectedGen !== syncGeneration) return;
     const toPush = pulled ?? tasks;
     const [settings, tombstones, coursesUpdatedAt] = await Promise.all([getSettings(), getLocalTombstones(), getCoursesUpdatedAt()]);
+    if (expectedGen !== syncGeneration) return;
 
     pushTasksToFirebase(
       toPush,
@@ -201,11 +226,12 @@ export async function executeCloudSync(tasks: DeadlineTask[], actionDescription:
   }
 }
 
-export async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | null> {
+export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGeneration): Promise<DeadlineTask[] | null> {
   let result: DeadlineTask[] | null = null;
   try {
     const settings = await getSettings();
     const res = await fetchTasksFromFirebase(settings.syncKey);
+    if (expectedGen !== syncGeneration) return null;
     if (res.deleted && settings.syncKey) {
       console.warn('[Firebase Sync] Sync key was deleted on another device. Unpairing...');
       await saveSettings({ syncKey: '' });
@@ -216,6 +242,26 @@ export async function pullTasksFromFirebaseIfNewer(): Promise<DeadlineTask[] | n
       popupActions.showToast('Your Sync Key was deleted on another device. This device has been unpaired.');
       refreshAllViews();
       return null;
+    }
+    if (res.success) {
+      const localEpoch = await getLocalBackupEpoch();
+      if (expectedGen !== syncGeneration) return null;
+      if (isCloudBackupEpochNewer(res.backupEpoch, localEpoch)) {
+        const applied = await applyCloudSnapshotAuthoritatively(res);
+        if (expectedGen !== syncGeneration) return null;
+        popupState.currentTasks = applied.tasks;
+        popupState.currentUserCourses = applied.courses;
+        popupState.currentQuickLinks = applied.quickLinks;
+        popupState.currentPayments = applied.payments;
+        popupState.cachedSemesters = applied.semesters;
+        popupActions.renderUserCoursesManager();
+        popupActions.renderLegend();
+        popupActions.updateCourseFilterOptions(popupState.currentTasks);
+        popupActions.renderQuickLinksBar();
+        await popupActions.updateSemesterSelector();
+        refreshAllViews();
+        return popupState.currentTasks;
+      }
     }
     if (res.success && Array.isArray(res.tasks)) {
       const localTombs = await getLocalTombstones();

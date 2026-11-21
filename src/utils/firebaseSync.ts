@@ -96,6 +96,7 @@ export interface FirebaseSyncPayload {
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
+  backupEpoch?: string;
 }
 
 export { sanitizeCloudTasks };
@@ -178,7 +179,8 @@ export async function pushTasksToFirebase(
         payments: merged.payments,
         paymentsUpdatedAt: merged.paymentsUpdatedAt,
         // And so does the phone's scan request, or the extension would never see it
-        scanRequest: merged.scanRequest
+        scanRequest: merged.scanRequest,
+        ...(merged.backupEpoch ? { backupEpoch: merged.backupEpoch } : {})
       };
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -211,11 +213,105 @@ export async function pushTasksToFirebase(
   }
 }
 
+export interface CloudOverrideSnapshot {
+  tasks: DeadlineTask[];
+  courses?: UserCourseConfig[];
+  coursesUpdatedAt?: string;
+  quickLinks?: QuickLink[];
+  quickLinksUpdatedAt?: string;
+  tombstones?: Record<string, string>;
+  profile?: StudentProfile | null;
+  semesters?: ArchivedSemester[];
+  semestersUpdatedAt?: string;
+  payments?: PaymentItem[];
+  paymentsUpdatedAt?: string;
+  backupEpoch?: string;
+}
+
+/**
+ * Overwrites the Firebase vault under `syncKey` with an explicit backup snapshot (JSON restore).
+ * Unlike `pushTasksToFirebase`, this NEVER merges stale cloud tasks/courses/payments back in.
+ */
+export async function overwriteCloudVault(
+  snapshot: CloudOverrideSnapshot,
+  device: string = 'Restored Backup',
+  syncKey?: string
+): Promise<{ success: boolean; message: string; lastSync?: string; count?: number }> {
+  const cleanKey = extractSyncKey(syncKey);
+  const targetUrl = getFirebaseDataUrl(cleanKey);
+  if (!targetUrl) return { success: false, message: NO_SYNC_KEY_MESSAGE };
+  try {
+    let existingScanRequest: CloudScanRequest | undefined;
+    try {
+      const prevRes = await fetch(targetUrl, { cache: 'no-store' });
+      if (prevRes?.ok) {
+        const rawPrev = await prevRes.json().catch(() => null);
+        const unwrapped = await unwrapCloudVault(rawPrev, cleanKey);
+        existingScanRequest = sanitizeScanRequest((unwrapped as any)?.scanRequest);
+      }
+    } catch {}
+
+    const nowIso = new Date().toISOString();
+    const epoch = snapshot.backupEpoch || nowIso;
+    const cleanTasks = sanitizeCloudTasks(snapshot.tasks || []);
+    const cleanCourses = sanitizeCloudCourses(snapshot.courses || []) || [];
+    const cleanLinks = sanitizeCloudQuickLinks(snapshot.quickLinks || []) || [];
+    const cleanPayments = Array.isArray(snapshot.payments) ? snapshot.payments : [];
+    const cleanSemesters = Array.isArray(snapshot.semesters) ? snapshot.semesters : [];
+    const cleanTombstones = snapshot.tombstones && typeof snapshot.tombstones === 'object' ? snapshot.tombstones : {};
+
+    const payload: FirebaseSyncPayload = {
+      tasks: cleanTasks,
+      lastSync: nowIso,
+      device,
+      count: cleanTasks.length,
+      syncKey: cleanKey,
+      quickLinks: cleanLinks,
+      quickLinksUpdatedAt: snapshot.quickLinksUpdatedAt || epoch,
+      courses: cleanCourses,
+      coursesUpdatedAt: snapshot.coursesUpdatedAt || epoch,
+      tombstones: encodeCloudKeys(cleanTombstones),
+      ...(snapshot.profile ? { profile: { ...snapshot.profile, updatedAt: snapshot.profile.updatedAt || epoch } } : {}),
+      semesters: cleanSemesters,
+      semestersUpdatedAt: snapshot.semestersUpdatedAt || epoch,
+      payments: cleanPayments,
+      paymentsUpdatedAt: snapshot.paymentsUpdatedAt || epoch,
+      ...(existingScanRequest ? { scanRequest: existingScanRequest } : {}),
+      backupEpoch: epoch
+    };
+
+    const cloudDoc = await wrapCloudVault(payload, cleanKey);
+    const res = await fetch(targetUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cloudDoc)
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      return { success: false, message: `Firebase error (${res.status}): ${err}` };
+    }
+    return {
+      success: true,
+      message: `Overwrote Firebase backup (${cleanTasks.length} deadlines)`,
+      lastSync: nowIso,
+      count: cleanTasks.length
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Could not connect to Firebase: ${err.message || err}`
+    };
+  }
+}
+
 /**
  * Fetches the latest deadlines stored in Firebase Realtime Database.
  * If syncKey is provided, retrieves the isolated user bucket.
  */
-export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
+export async function fetchTasksFromFirebase(
+  syncKey?: string,
+  options?: { skipLocalMerge?: boolean }
+): Promise<{
   success: boolean;
   tasks: DeadlineTask[];
   deleted?: boolean;
@@ -233,6 +329,7 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
   scanRequest?: CloudScanRequest;
+  backupEpoch?: string;
 }> {
   const cleanKey = extractSyncKey(syncKey);
   const targetUrl = getFirebaseDataUrl(cleanKey);
@@ -257,10 +354,12 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       };
     }
 
-    await mergeCloudProfile(data?.profile).catch(() => false);
-    await mergeCloudSemesters(data?.semesters, data?.semestersUpdatedAt).catch(() => false);
     const decodedTombstones = decodeCloudKeys(data?.tombstones) || {};
-    await mergeCloudPaymentsStorage(data?.payments, data?.paymentsUpdatedAt, decodedTombstones).catch(() => false);
+    if (!options?.skipLocalMerge) {
+      await mergeCloudProfile(data?.profile).catch(() => false);
+      await mergeCloudSemesters(data?.semesters, data?.semestersUpdatedAt).catch(() => false);
+      await mergeCloudPaymentsStorage(data?.payments, data?.paymentsUpdatedAt, decodedTombstones).catch(() => false);
+    }
     const quickLinks = sanitizeCloudQuickLinks(data?.quickLinks);
     const courses = sanitizeCloudCourses(data?.courses);
     if (!data || !Array.isArray(data.tasks)) {
@@ -279,7 +378,8 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
         semestersUpdatedAt: data?.semestersUpdatedAt,
         payments: data?.payments,
         paymentsUpdatedAt: data?.paymentsUpdatedAt,
-        scanRequest: sanitizeScanRequest(data?.scanRequest)
+        scanRequest: sanitizeScanRequest(data?.scanRequest),
+        backupEpoch: typeof data?.backupEpoch === 'string' ? data.backupEpoch : undefined
       };
     }
 
@@ -293,12 +393,13 @@ export async function fetchTasksFromFirebase(syncKey?: string): Promise<{
       courses,
       coursesUpdatedAt: data.coursesUpdatedAt,
       tombstones: decodedTombstones,
-      profile: data.profile,
+      profile: data?.profile,
       semesters: data.semesters,
       semestersUpdatedAt: data.semestersUpdatedAt,
       payments: data.payments,
       paymentsUpdatedAt: data.paymentsUpdatedAt,
-      scanRequest: sanitizeScanRequest(data.scanRequest)
+      scanRequest: sanitizeScanRequest(data.scanRequest),
+      backupEpoch: typeof data.backupEpoch === 'string' ? data.backupEpoch : undefined
     };
   } catch (err: any) {
     return {

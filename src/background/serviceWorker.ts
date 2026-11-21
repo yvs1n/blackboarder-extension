@@ -1,5 +1,6 @@
 import { DeadlineTask, UserSettings, DEFAULT_SETTINGS, QuickLink } from '../types';
 import { pushTasksToFirebase, fetchTasksFromFirebase, markCloudScanRequestCompleted } from '../utils/firebaseSync';
+import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer } from '../utils/backupRestore';
 import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
 import { pickNewerList } from '../utils/syncMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
@@ -103,6 +104,14 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
     }
     if (!res.success || !Array.isArray(res.tasks)) {
       return false;
+    }
+
+    const localEpoch = await getLocalBackupEpoch();
+    if (isCloudBackupEpochNewer(res.backupEpoch, localEpoch)) {
+      await applyCloudSnapshotAuthoritatively(res);
+      await updateExtensionBadge();
+      console.log('[Background Sync] Adopted authoritative restored backup from Firebase');
+      return true;
     }
 
     if (Array.isArray(res.courses)) {
