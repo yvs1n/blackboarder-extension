@@ -386,6 +386,10 @@ function storeManifestText(text) {
   const manifest = JSON.parse(text);
   manifest.permissions = (manifest.permissions || []).filter(p => p !== 'nativeMessaging');
   manifest.host_permissions = (manifest.host_permissions || []).filter(h => !/github/i.test(h));
+  if (manifest.background && typeof manifest.background === 'object') {
+    delete manifest.background.scripts;
+  }
+  delete manifest.browser_specific_settings;
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
@@ -394,6 +398,9 @@ function firefoxManifestText(text) {
   const manifest = JSON.parse(text);
   manifest.permissions = (manifest.permissions || []).filter(p => p !== 'nativeMessaging' && p !== 'sidePanel');
   manifest.host_permissions = (manifest.host_permissions || []).filter(h => !/github/i.test(h));
+  if (manifest.background && typeof manifest.background === 'object') {
+    delete manifest.background.service_worker;
+  }
   delete manifest.side_panel;
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
