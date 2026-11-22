@@ -664,6 +664,10 @@ async function main() {
     await buildUserscript(currentVersion, viteDefines);
     copyWidget();
     copyPdfJs(WEB_DIR);
+    if (fs.existsSync(r('scripts', 'seoPages.mjs'))) {
+      const { syncSeoPagesAndSitemap } = await import('./seoPages.mjs');
+      syncSeoPagesAndSitemap({ root: ROOT, webDir: r('mobile-web'), readText, writeIfChanged });
+    }
     const webInfo = stampWebApp(git);
     console.log(`Web app build ${webInfo.build}`);
   }
