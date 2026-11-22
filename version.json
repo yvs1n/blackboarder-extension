@@ -1,10 +1,10 @@
 {
   "version": "1.8.37",
-  "build": "ebc5280e29d3",
-  "commit": "0693fe02e2c59971f7de79e09351a0383e080eff",
-  "shortCommit": "0693fe0",
-  "timestamp": "2026-11-21T21:29:48.636Z",
-  "message": "fix(ci): handle Edge active-review submit conflict cleanly after draft upload",
+  "build": "05c7f6be3e10",
+  "commit": "36e4e210ba9cf454e59be449e280737c30a64da4",
+  "shortCommit": "36e4e21",
+  "timestamp": "2026-11-22T05:47:44.350Z",
+  "message": "fix(ci): exclude publishStores test referencing private script from public extension export",
   "changelog": [
     "Connecting an existing Sync Key via Settings > Sync > Use Existing now cancels any pending sync timers, reads Firebase's raw cloud vault first (skipLocalMerge), unconditionally replaces all local tasks, courses, quick links, payments, semesters, tombstones, and profile with Firebase's data (regardless of local timestamps), switches the active Sync Key last, and never pushes stale local data back up to Firebase.",
     "Restoring a JSON backup now completely replaces all local stores without merging prior local tasks/tombstones, stamps fresh collection timestamps and a backupEpoch, and directly overwrites the Firebase vault under the active Sync Key (overwriteCloudVault) without pulling or merging old cloud items back in. Other devices and the Companion Web App adopt any newer backupEpoch cleanly instead of resurrecting pre-restore tasks.",
@@ -15,8 +15,8 @@
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
+    "assets/popup-B21uOemQ.js",
     "assets/popup-Ba_D6yZo.css",
-    "assets/popup-z87qyrZF.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",
