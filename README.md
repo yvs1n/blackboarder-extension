@@ -9,9 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://blackboarder.pages.dev/"><img src="https://img.shields.io/badge/Website-blackboarder.pages.dev-18181b?style=flat" alt="Website" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.37-blue?logo=github&logoColor=white" alt="Version v1.8.37" /></a>
+  <a href="https://blackboarder.pages.dev/chrome-extension"><img src="https://img.shields.io/badge/Chrome-Web_Store-blue?logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
+  <a href="https://blackboarder.pages.dev/edge-extension"><img src="https://img.shields.io/badge/Edge-Add--ons-0078D7?logo=microsoftedge&logoColor=white" alt="Microsoft Edge Add-ons" /></a>
+  <a href="https://blackboarder.pages.dev/firefox-extension"><img src="https://img.shields.io/badge/Firefox-Add--ons-FF7139?logo=firefoxbrowser&logoColor=white" alt="Firefox Add-ons" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
-  <a href="#-quick-start--installation"><img src="https://img.shields.io/badge/Chrome_Extension-Manifest_V3-blue?logo=googlechrome&logoColor=white" alt="Manifest V3" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
   <a href="#-development"><img src="https://img.shields.io/badge/Tests-724_Passing-success?logo=vitest&logoColor=white" alt="Vitest 724 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
@@ -23,7 +26,7 @@
 
 Course announcements on Blackboard bury quiz dates, homework deadlines, exams and room changes inside long English or Arabic messages. **Blackboarder** reads them for you and turns them into one calendar of deadlines.
 
-It was built at the **University of Sharjah** and works for any university on Blackboard Learn or Ultra: pick yours when you set it up (UOS, UAEU, ADU, ZU, AUD, AUS, AURAK or Other), or scan any Blackboard page and it is filled in. Your university sets the GPA grading scale (and, for UOS, fills in its quick links). It has three parts that stay in sync:
+It was built at the **University of Sharjah** and works for any university on Blackboard Learn or Ultra: pick yours when you set it up (UOS, UAEU, ADU, ZU, AUD, AUS, AURAK, BUiD or Other), or scan any Blackboard page and it is filled in. Your university sets the GPA grading scale (and, for UOS, fills in its quick links). It has three parts that stay in sync:
 
 | Part | What it does |
 | :--- | :--- |
@@ -77,9 +80,14 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 
 Works in **Chrome, Firefox, Edge, Brave, Opera and Vivaldi**.
 
-### 1. Get the files
+### 1. Get the extension (or mobile scanner)
 
-- **GitHub Release (Recommended):** Download **[`blackboarder-extension.zip`](https://github.com/yvs1n/blackboarder-extension/releases/latest)** from the latest release and unzip it somewhere permanent (for example `Documents\blackboarder`). Do not delete the folder afterwards; the browser loads the extension from it.
+- **Browser Stores (Recommended):**
+  - **Chrome / Brave / Opera / Vivaldi:** [Chrome Web Store](https://blackboarder.pages.dev/chrome-extension)
+  - **Microsoft Edge:** [Edge Add-ons](https://blackboarder.pages.dev/edge-extension)
+  - **Firefox (Desktop & Android):** [Firefox Add-ons](https://blackboarder.pages.dev/firefox-extension)
+- **iPhone / iPad Safari:** Install the free **Userscripts** Safari extension and add [`blackboarder.user.js`](https://blackboarder.pages.dev/blackboarder.user.js) (see [blackboarder.pages.dev/#install](https://blackboarder.pages.dev/#install)).
+- **GitHub Release (Unpacked / Auto-Updater):** Download **[`blackboarder-extension.zip`](https://github.com/yvs1n/blackboarder-extension/releases/latest)** from the latest release and unzip it somewhere permanent (for example `Documents\blackboarder`). Do not delete the folder afterwards; the browser loads the extension from it.
 - **With git:** `git clone https://github.com/yvs1n/blackboarder-extension.git` (loads from `dist/`).
 
 You do not need to build anything; everything is precompiled.
@@ -196,7 +204,7 @@ blackboarder-extension/
 `-- AGENTS.md             Project map and rules for contributors and coding agents
 ```
 
-**Guides:** [Install the extension](docs/INSTALL_EXTENSION.md)
+**Guides:** [Install the extension](docs/INSTALL_EXTENSION.md) | [Website](https://blackboarder.pages.dev/) | [Supported Universities](https://blackboarder.pages.dev/universities/)
 
 ---
 
