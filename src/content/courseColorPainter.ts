@@ -75,15 +75,25 @@ function itemScopes(el: Element): Element[] {
   return scopes;
 }
 
+const elementCourseIdCache = new WeakMap<Element, string>();
+
 function courseIdForElement(el: Element): string | null {
+  const cached = elementCourseIdCache.get(el);
+  if (cached) return cached;
   for (const scope of itemScopes(el)) {
     const link = scope.querySelector(COURSE_LINK);
     const id = link ? courseIdFromHref(link.getAttribute('href') || '') : null;
-    if (id) return id;
+    if (id) {
+      elementCourseIdCache.set(el, id);
+      return id;
+    }
   }
   const own = el.closest(COURSE_LINK);
   const ownId = own ? courseIdFromHref(own.getAttribute('href') || '') : null;
-  if (ownId) return ownId;
+  if (ownId) {
+    elementCourseIdCache.set(el, ownId);
+    return ownId;
+  }
   if (el.closest('section.course')) return courseIdFromHref(location.pathname);
   return null;
 }

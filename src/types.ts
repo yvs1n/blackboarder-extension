@@ -178,6 +178,7 @@ export interface Announcement {
 export interface DeadlineTask {
   id: string;
   announcementId?: string;
+  announcementPostedAt?: string;
   courseCode: string;
   courseName: string;
   title: string;
@@ -187,6 +188,7 @@ export interface DeadlineTask {
   columnCreated?: string; // Official Blackboard gradebook column creation timestamp (tiebreaker for undated columns)
   columnPosition?: number; // Official Blackboard gradebook display order index (tiebreaker for undated columns)
   hasSpecificTime: boolean;
+  timeSource?: 'explicit' | 'schedule' | 'default';
   type: TaskType;
   priority: TaskPriority;
   status: TaskStatus;

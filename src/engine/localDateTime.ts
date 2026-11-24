@@ -1,3 +1,5 @@
+import { normalizeDigits } from '../core/titleLocalization';
+
 export interface DateMatchResult {
   date: Date;
   hasSpecificTime: boolean;
@@ -39,34 +41,78 @@ interface DateCandidate {
   index: number;
 }
 
-const DATE_SCHEDULE_CUE_RE = /(?:will\s+be(?:\s+held|\s+conducted|\s+given|\s+on)?|held|conducted|takes?\s+place|scheduled|due|submit(?:ted)?(?:\s+by)?|deadline|opens?|closes?|until|date|سيكون|سيعقد|موعد|بتاريخ|حتى)\b/i;
-const DATE_PAST_TOPIC_CUE_RE = /\b(?:from|since|lectures?\s+(?:of|on|from)|class(?:es)?\s+(?:of|on)|covered(?:\s+on)?|material\s+from|posted\s+on|originally)\s*$/i;
+const DATE_SCHEDULE_CUE_RE = /(?:will\s+be(?:\s+held|\s+conducted|\s+given|\s+on)?|held|conducted|takes?\s+place|scheduled(?:\s+for)?|due(?:\s+(?:on|by))?|submit(?:ted)?(?:\s+by)?|deadline|opens?|closes?|until|date|(?:moved|rescheduled|postponed|shifted|changed)\s+(?:[^.\n]{0,35}\s+)?(?:to|until)|new\s+(?:date|deadline)|updated\s+(?:date|deadline)|سيكون|سيعقد|موعد|بتاريخ|حتى|تأجيل\S*(?:\s+\S+){0,4}?\s+إلى|تعديل\S*(?:\s+\S+){0,4}?\s+إلى|الموعد\s*الجديد)\b/i;
+const DATE_PAST_TOPIC_CUE_RE = /(?:from|since|lectures?\s+(?:of|on|from)|class(?:es)?\s+(?:of|on)|covered(?:\s+on)?|material\s+from|posted\s+on|originally(?:\s+(?:on|scheduled\s+(?:on|for)))?|moved\s+from|changed\s+from|rescheduled\s+from|instead\s+of|بدلاً?\s*من|من\s+تاريخ)\s*$/i;
+
+const TIME_DURATION_FOLLOW_RE = /^\s*(?:days?|hrs?|hours?|weeks?|wks?|months?|minutes?|mins?|%|marks?|points?|pts?|chapters?|ch\.?|sections?|questions?|pages?|times?)\b/i;
+
+function normalizeDateTimeText(text: string): string {
+  return normalizeDigits(text || '')
+    .replace(/[\u2013\u2014\u2212]/g, '-')
+    .replace(/\u00a0/g, ' ');
+}
+
+function detectMeridiem(str: string): 'am' | 'pm' | undefined {
+  if (!str) return undefined;
+  const s = str.toLowerCase();
+  if (/(?:p\.?\s*m\.?|مساءً?|ظهراً?|الظهر|عصراً?|العصر|ليلاً?)/.test(s) || /(?:^|[\d\s])م(?=$|[\s,.)!؛،-])/.test(s)) {
+    return 'pm';
+  }
+  if (/(?:a\.?\s*m\.?|صباحاً?|صباح|فجراً?)/.test(s) || /(?:^|[\d\s])ص(?=$|[\s,.)!؛،-])/.test(s)) {
+    return 'am';
+  }
+  return undefined;
+}
+
+function inferRangeStartMarker(startStr: string, endStr: string): 'am' | 'pm' | undefined {
+  if (detectMeridiem(startStr)) return undefined;
+  const endMarker = detectMeridiem(endStr);
+  if (!endMarker) return undefined;
+  if (endMarker === 'am') return 'am';
+
+  const startHourMatch = startStr.match(/(\d{1,2})/);
+  const endHourMatch = endStr.match(/(\d{1,2})/);
+  if (!startHourMatch || !endHourMatch) return 'pm';
+
+  const sHour = parseInt(startHourMatch[1], 10);
+  const eHour = parseInt(endHourMatch[1], 10);
+  if (sHour >= 13) return undefined;
+  if (sHour === 12) return 'pm'; // 12:00 - 1:30 pm starts at noon
+  if (eHour === 12 || sHour > eHour) return 'am'; // 11:00 - 12:30 pm or 10:00 - 1:00 pm
+  return 'pm';
+}
+
+function isOldOrNegatedTimeContext(str: string, index: number): boolean {
+  const before = str.slice(Math.max(0, index - 42), index).toLowerCase();
+  return /(?:moved\s+from|changed\s+from|rescheduled\s+from|shifted\s+from|postponed\s+from|instead\s+of|rather\s+than|not\s+(?:at\s+)?|ليس\s*(?:في|الساعة)\s*|بدلاً?\s*من\s*)\s*$/i.test(before);
+}
 
 /**
- * Parses a single time component (e.g. "12:30 pm", "13:30", "11:00 am", "10 صباحاً").
+ * Parses a single time component (e.g. "12:30 pm", "10.30 a.m.", "13:30", "11:00 am", "10 صباحاً", "2 ظهراً").
  */
 function parseSingleTimeString(
   str: string,
   fallbackMarker?: 'am' | 'pm'
 ): { hour: number; minute: number } | null {
   if (!str) return null;
-  const clean = str.trim();
+  const clean = normalizeDateTimeText(str).trim().replace(/\b([ap])\.\s*m\.?/gi, '$1m');
 
-  // Arabic 12-hour: requires Arabic indicator (صباحاً / مساءً)
-  const arMatch = clean.match(/^(\d{1,2})(?::(\d{2}))?\s*(صباحاً|صباحا|مساءً|مساء)$/);
+  // Arabic 12-hour with explicit marker (صباحاً / مساءً / ظهراً / عصراً / ص / م)
+  const arMatch = clean.match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(صباحاً|صباحا|صباح|فجراً|فجرا|مساءً|مساء|ظهراً|ظهرا|الظهر|عصراً|عصرا|العصر|ليلاً|ليلا|ص|م)$/);
   if (arMatch) {
     let hour = parseInt(arMatch[1], 10);
     const minute = arMatch[2] ? parseInt(arMatch[2], 10) : 0;
-    const isPm = /مساء/.test(arMatch[3]);
+    const isPm = /(?:مساء|ظهر|عصر|ليل|^م$)/.test(arMatch[3]);
     if (isPm && hour < 12) hour += 12;
     if (!isPm && hour === 12) hour = 0;
     if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
       return { hour, minute };
     }
+    return null;
   }
 
-  // English 12-hour with optional AM/PM: e.g. "12:30 pm", "13:30 pm", "11:00", "2 pm"
-  const engMatch = clean.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  // English 12/24-hour with optional AM/PM and ":" or "." separator
+  const engMatch = clean.match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?$/i);
   if (engMatch) {
     let hour = parseInt(engMatch[1], 10);
     const minute = engMatch[2] ? parseInt(engMatch[2], 10) : 0;
@@ -85,52 +131,86 @@ function parseSingleTimeString(
 }
 
 /**
- * Parses time expressions from a text snippet, prioritizing ranges and preposition times.
+ * Parses time expressions from a text snippet, prioritizing explicit reschedules, ranges, and cued times.
  */
 export function parseTime(text: string): { hour: number; minute: number; hasTime: boolean; matchStr: string } {
-  const rangeFromToRegex = /\b(?:from|between)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}(?::\d{2})?)\s*(?:to|until|-|and)\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}(?::\d{2})?)\b/i;
-  const fromToMatch = text.match(rangeFromToRegex);
-  if (fromToMatch) {
-    const startStr = fromToMatch[1];
-    const endStr = fromToMatch[2];
-    const fallbackMarker = !/am|pm/i.test(startStr) ? (/pm/i.test(endStr) ? 'pm' : /am/i.test(endStr) ? 'am' : undefined) : undefined;
-    const startParsed = parseSingleTimeString(startStr, fallbackMarker);
+  const norm = normalizeDateTimeText(text);
+  const TIME_TOKEN = '(?:\\d{1,2}(?:[:.]\\d{2})?\\s*(?:a\\.?m\\.?|p\\.?m\\.?|صباحاً|صباحا|مساءً|مساء|ظهراً|ظهرا|عصراً|عصرا|ص|م)|\\d{1,2}(?:[:.]\\d{2})?)';
+
+  // 0. Explicit time change / reschedule target (must run before rangeFromTo so "moved from 10am to 2pm" picks 2pm!)
+  const rescheduleTimeRe = new RegExp(
+    `(?:(?:moved|rescheduled|postponed|shifted|changed|updated)\\s+(?:the\\s+)?(?:time|timing|exam|quiz|test|class|session)?\\s*(?:from\\s+${TIME_TOKEN}\\s+)?(?:to|until|till)|(?:new|updated)\\s+(?:time|timing)\\s*[:\\-])\\s*(?:at\\s+)?(\\d{1,2}(?:[:.]\\d{2})?\\s*(?:a\\.?m\\.?|p\\.?m\\.?)|\\d{1,2}[:.]\\d{2})`,
+    'i'
+  );
+  const reschedMatch = norm.match(rescheduleTimeRe);
+  if (reschedMatch) {
+    const parsed = parseSingleTimeString(reschedMatch[1]);
+    if (parsed) {
+      return { hour: parsed.hour, minute: parsed.minute, hasTime: true, matchStr: reschedMatch[0] };
+    }
+  }
+
+  const arReschedMatch = norm.match(/(?:تعديل|تغيير|نقل|تأجيل)\s*(?:وقت|موعد|الساعة)?(?:\s+\S+){0,5}?\s*إلى\s*(?:الساعة\s*)?(\d{1,2}(?:[:.]\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء|ظهراً|ظهرا|عصراً|عصرا|ص|م)?)/);
+  if (arReschedMatch) {
+    const parsed = parseSingleTimeString(arReschedMatch[1]);
+    if (parsed) {
+      return { hour: parsed.hour, minute: parsed.minute, hasTime: true, matchStr: arReschedMatch[0] };
+    }
+  }
+
+  // 1. "from/between X to/until/- Y" range (skip when preceded by moved/changed)
+  const rangeFromToRegex = /\b(?:from|between)\s+(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{1,2}(?:[:.]\d{2})?)\s*(?:to|until|-|and)\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{1,2}(?:[:.]\d{2})?)\b/gi;
+  for (const fromToMatch of norm.matchAll(rangeFromToRegex)) {
+    const idx = fromToMatch.index ?? 0;
+    if (isOldOrNegatedTimeContext(norm, idx) || /(?:moved|changed|rescheduled|shifted|postponed)\s*$/i.test(norm.slice(Math.max(0, idx - 25), idx))) {
+      continue;
+    }
+    const startParsed = parseSingleTimeString(fromToMatch[1], inferRangeStartMarker(fromToMatch[1], fromToMatch[2]));
     if (startParsed) {
       return { hour: startParsed.hour, minute: startParsed.minute, hasTime: true, matchStr: fromToMatch[0] };
     }
   }
 
-  const hyphenRangeRegex = /\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\s*[-–\u2014]\s*(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2})\b/i;
-  const hyphenMatch = text.match(hyphenRangeRegex);
-  if (hyphenMatch) {
-    const startStr = hyphenMatch[1];
-    const endStr = hyphenMatch[2];
-    const fallbackMarker = !/am|pm/i.test(startStr) ? (/pm/i.test(endStr) ? 'pm' : /am/i.test(endStr) ? 'am' : undefined) : undefined;
-    const startParsed = parseSingleTimeString(startStr, fallbackMarker);
+  // 2. Hyphenated time range: "11:00 - 12:30 pm", "2 - 3:30 pm", "10.30 - 11.45 am"
+  const hyphenRangeRegex = /\b(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)\s*-\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{1,2}:\d{2})\b/gi;
+  for (const hyphenMatch of norm.matchAll(hyphenRangeRegex)) {
+    if (isOldOrNegatedTimeContext(norm, hyphenMatch.index ?? 0)) continue;
+    // Skip bare numbers with no colon and no am/pm on BOTH sides (e.g. "10 - 12" in chapters/marks)
+    if (!/[:.]|a\.?m|p\.?m/i.test(hyphenMatch[1]) && !/[:.]|a\.?m|p\.?m/i.test(hyphenMatch[2])) continue;
+    const startParsed = parseSingleTimeString(hyphenMatch[1], inferRangeStartMarker(hyphenMatch[1], hyphenMatch[2]));
     if (startParsed) {
       return { hour: startParsed.hour, minute: startParsed.minute, hasTime: true, matchStr: hyphenMatch[0] };
     }
   }
 
-  const arRangeRegex = /من\s*(?:الساعة\s*)?(\d{1,2}(?::\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء)|\d{1,2}(?::\d{2})?)\s*(?:إلى|الي|-)\s*(?:الساعة\s*)?(\d{1,2}(?::\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء)|\d{1,2}(?::\d{2})?)/;
-  const arRangeMatch = text.match(arRangeRegex);
-  if (arRangeMatch) {
-    const startParsed = parseSingleTimeString(arRangeMatch[1]);
+  // 3. Arabic time range: "من 1 إلى 2 مساءً" or "من 11 إلى 12:30 مساءً"
+  const arRangeRegex = /من\s*(?:الساعة\s*)?(\d{1,2}(?:[:.]\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء|ظهراً|ظهرا|عصراً|عصرا|ص|م)?)\s*(?:إلى|الي|حتى|-)\s*(?:الساعة\s*)?(\d{1,2}(?:[:.]\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء|ظهراً|ظهرا|عصراً|عصرا|ص|م)?)/g;
+  for (const arRangeMatch of norm.matchAll(arRangeRegex)) {
+    if (!detectMeridiem(arRangeMatch[1]) && !detectMeridiem(arRangeMatch[2]) && !/[:.]/.test(arRangeMatch[1])) continue;
+    const startParsed = parseSingleTimeString(arRangeMatch[1], inferRangeStartMarker(arRangeMatch[1], arRangeMatch[2]));
     if (startParsed) {
       return { hour: startParsed.hour, minute: startParsed.minute, hasTime: true, matchStr: arRangeMatch[0] };
     }
   }
 
-  const prepTimeRegex = /\b(?:at|by|starts?\s+at|ends?\s+at|due\s+at)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}(?::\d{2})?)\b/i;
-  const prepMatch = text.match(prepTimeRegex);
-  if (prepMatch) {
-    const parsed = parseSingleTimeString(prepMatch[1]);
+  // 4. Explicit labeled time / prepositions ("Time: 2:30 pm", "at 10:00", "due at 23:59")
+  const labeledTimeRe = /\b(?:time|timing|starts?(?:\s+at)?|begins?(?:\s+at)?|ends?\s+at|due\s+(?:time|at)|at|by)\b\s*[:\-]?\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{1,2}(?:[:.]\d{2})?)\b/gi;
+  for (const prepMatch of norm.matchAll(labeledTimeRe)) {
+    const idx = prepMatch.index ?? 0;
+    if (isOldOrNegatedTimeContext(norm, idx)) continue;
+    const rawTime = prepMatch[1];
+    const hasSepOrMeridiem = /[:.]|a\.?m|p\.?m/i.test(rawTime);
+    const after = norm.slice(idx + prepMatch[0].length, idx + prepMatch[0].length + 20);
+    if (!hasSepOrMeridiem && TIME_DURATION_FOLLOW_RE.test(after)) continue;
+    // Bare "by 2" without ":", ".", or am/pm is ambiguous (e.g. "divided by 2"); only trust bare digit after "at" or "time:"
+    if (!hasSepOrMeridiem && /^\s*by\b/i.test(prepMatch[0])) continue;
+    const parsed = parseSingleTimeString(rawTime);
     if (parsed) {
       return { hour: parsed.hour, minute: parsed.minute, hasTime: true, matchStr: prepMatch[0] };
     }
   }
 
-  const arPrepMatch = text.match(/الساعة\s*(\d{1,2}(?::\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء)|\d{1,2}(?::\d{2})?)/);
+  const arPrepMatch = norm.match(/(?:الساعة|الوقت)\s*[:\-]?\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:صباحاً|صباحا|مساءً|مساء|ظهراً|ظهرا|عصراً|عصرا|ص|م)?)/);
   if (arPrepMatch) {
     const parsed = parseSingleTimeString(arPrepMatch[1]);
     if (parsed) {
@@ -138,44 +218,48 @@ export function parseTime(text: string): { hour: number; minute: number; hasTime
     }
   }
 
-  const ampmRegex = /(\b\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/gi;
-  const allAmPmMatches = Array.from(text.matchAll(ampmRegex));
-  if (allAmPmMatches.length > 0) {
-    let chosenMatch = allAmPmMatches[0];
-    if (allAmPmMatches.length > 1 && chosenMatch.index === 0) {
-      chosenMatch = allAmPmMatches[1];
+  // 5. AM/PM anywhere (supports 10:30 am, 10.30 a.m., 2 pm), skipping negated/old times
+  const ampmRegex = /\b(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b/gi;
+  const validAmPmMatches = Array.from(norm.matchAll(ampmRegex)).filter(m => !isOldOrNegatedTimeContext(norm, m.index ?? 0));
+  if (validAmPmMatches.length > 0) {
+    let chosenMatch = validAmPmMatches[0];
+    if (validAmPmMatches.length > 1 && chosenMatch.index === 0) {
+      chosenMatch = validAmPmMatches[1];
     }
-    let hour = parseInt(chosenMatch[1], 10);
+    const hourRaw = parseInt(chosenMatch[1], 10);
     const minute = chosenMatch[2] ? parseInt(chosenMatch[2], 10) : 0;
-    const isPm = /pm/i.test(chosenMatch[3]);
-    const isAm = /am/i.test(chosenMatch[3]);
-    if (hour < 13) {
-      if (isPm && hour < 12) hour += 12;
-      else if (isAm && hour === 12) hour = 0;
+    if (hourRaw <= 23 && minute <= 59) {
+      let hour = hourRaw;
+      const isPm = /^p/i.test(chosenMatch[3]);
+      if (hour < 13) {
+        if (isPm && hour < 12) hour += 12;
+        else if (!isPm && hour === 12) hour = 0;
+      }
+      return { hour, minute, hasTime: true, matchStr: chosenMatch[0] };
     }
-    return { hour, minute, hasTime: true, matchStr: chosenMatch[0] };
   }
 
-  const arMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(صباحاً|صباحا|مساءً|مساء)/);
-  if (arMatch) {
-    let hour = parseInt(arMatch[1], 10);
-    const minute = arMatch[2] ? parseInt(arMatch[2], 10) : 0;
-    const isPm = /مساء/i.test(arMatch[3]);
-    const isAm = /صباح/i.test(arMatch[3]);
-    if (isPm && hour < 12) hour += 12;
-    if (isAm && hour === 12) hour = 0;
-    return { hour, minute, hasTime: true, matchStr: arMatch[0] };
+  // 6. Arabic time anywhere (supports ظهراً / عصراً / ص / م)
+  const arRegex = /(\d{1,2})(?:[:.](\d{2}))?\s*(صباحاً|صباحا|صباح|فجراً|فجرا|مساءً|مساء|ظهراً|ظهرا|الظهر|عصراً|عصرا|العصر|ليلاً|ليلا|ص|م)(?=$|[\s,.)!؛،\-])/g;
+  for (const arMatch of norm.matchAll(arRegex)) {
+    if (isOldOrNegatedTimeContext(norm, arMatch.index ?? 0)) continue;
+    const parsed = parseSingleTimeString(arMatch[0]);
+    if (parsed) {
+      return { hour: parsed.hour, minute: parsed.minute, hasTime: true, matchStr: arMatch[0] };
+    }
   }
 
-  if (/\bmidnight\b|منتصف\s*الليل/i.test(text)) {
+  if (/\bmidnight\b|منتصف\s*الليل/i.test(norm)) {
     return { hour: 23, minute: 59, hasTime: true, matchStr: 'midnight' };
   }
-  if (/\bnoon\b|الظهر/i.test(text)) {
+  if (/\bnoon\b|منتصف\s*النهار/i.test(norm)) {
     return { hour: 12, minute: 0, hasTime: true, matchStr: 'noon' };
   }
 
-  const time24Match = text.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
-  if (time24Match) {
+  // 7. Strict 24-hour HH:MM (guarding against section/room codes like A10:006)
+  for (const time24Match of norm.matchAll(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g)) {
+    const idx = time24Match.index ?? 0;
+    if (isOldOrNegatedTimeContext(norm, idx)) continue;
     return {
       hour: parseInt(time24Match[1], 10),
       minute: parseInt(time24Match[2], 10),
@@ -224,10 +308,10 @@ function pickBestDateCandidate(
   let bestScore = -Infinity;
 
   for (const c of candidates) {
-    const beforeClause = clean.slice(Math.max(0, c.index - 45), c.index);
+    const beforeClause = clean.slice(Math.max(0, c.index - 55), c.index);
     let score = 0;
     if (DATE_SCHEDULE_CUE_RE.test(beforeClause)) score += 4;
-    if (DATE_PAST_TOPIC_CUE_RE.test(beforeClause)) score -= 3;
+    if (DATE_PAST_TOPIC_CUE_RE.test(beforeClause)) score -= 4;
     if (c.date.getTime() >= todayStart) score += 2;
     if (score >= bestScore) {
       bestScore = score;
@@ -241,7 +325,7 @@ function pickBestDateCandidate(
  * Parses date expressions relative to a base date.
  */
 export function parseDateString(text: string, baseDate: Date): DateMatchResult | null {
-  const clean = text.trim();
+  const clean = normalizeDateTimeText(text).trim();
   const baseYear = baseDate.getFullYear();
   const timeInfo = parseTime(clean);
 
@@ -406,9 +490,10 @@ export function parseDateString(text: string, baseDate: Date): DateMatchResult |
       let chosen = engMatches[engMatches.length - 1];
       let bestScore = -Infinity;
       for (const m of engMatches) {
-        const before = clean.slice(Math.max(0, (m.index ?? 0) - 30), m.index ?? 0);
+        const before = clean.slice(Math.max(0, (m.index ?? 0) - 55), m.index ?? 0);
         let s = m[1] ? 2 : 0;
-        if (DATE_SCHEDULE_CUE_RE.test(before)) s += 3;
+        if (DATE_SCHEDULE_CUE_RE.test(before)) s += 4;
+        if (DATE_PAST_TOPIC_CUE_RE.test(before)) s -= 4;
         if (/\btoday\s+is\s*$/i.test(before)) s -= 4;
         if (s >= bestScore) {
           bestScore = s;
@@ -419,7 +504,18 @@ export function parseDateString(text: string, baseDate: Date): DateMatchResult |
       dayName = chosen[2].toLowerCase();
       isNext = (chosen[1] || '').toLowerCase() === 'next';
     } else {
-      const chosen = arMatches[arMatches.length - 1];
+      let chosen = arMatches[arMatches.length - 1];
+      let bestScore = -Infinity;
+      for (const m of arMatches) {
+        const before = clean.slice(Math.max(0, (m.index ?? 0) - 55), m.index ?? 0);
+        let s = m[2] ? 2 : 0;
+        if (DATE_SCHEDULE_CUE_RE.test(before)) s += 4;
+        if (DATE_PAST_TOPIC_CUE_RE.test(before)) s -= 4;
+        if (s >= bestScore) {
+          bestScore = s;
+          chosen = m;
+        }
+      }
       matchStr = chosen[0];
       dayName = chosen[1];
       isNext = Boolean(chosen[2]);

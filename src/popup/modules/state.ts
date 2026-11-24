@@ -50,65 +50,74 @@ export const popupState = {
   currentThemeSetting: 'light' as 'light' | 'dark' | 'system',
 };
 
-/** Cached DOM element lookups used across popup modules. */
+const domElementCache = new Map<string, HTMLElement>();
+function cachedEl<T extends HTMLElement>(id: string): T {
+  const hit = domElementCache.get(id);
+  if (hit && hit.isConnected) return hit as T;
+  const el = document.getElementById(id) as T | null;
+  if (el) domElementCache.set(id, el);
+  return el as T;
+}
+
+/** Cached DOM element lookups used across popup modules (memoized while connected). */
 export const dom = {
-  tabNavCalendar: () => document.getElementById('tab-nav-calendar') as HTMLButtonElement,
-  tabNavDetails: () => document.getElementById('tab-nav-details') as HTMLButtonElement,
-  tabNavMarks: () => document.getElementById('tab-nav-marks') as HTMLButtonElement,
-  tabNavCourses: () => document.getElementById('tab-nav-courses') as HTMLButtonElement,
-  navBadgeCount: () => document.getElementById('nav-badge-count') as HTMLElement,
+  tabNavCalendar: () => cachedEl<HTMLButtonElement>('tab-nav-calendar'),
+  tabNavDetails: () => cachedEl<HTMLButtonElement>('tab-nav-details'),
+  tabNavMarks: () => cachedEl<HTMLButtonElement>('tab-nav-marks'),
+  tabNavCourses: () => cachedEl<HTMLButtonElement>('tab-nav-courses'),
+  navBadgeCount: () => cachedEl<HTMLElement>('nav-badge-count'),
 
-  viewCalendar: () => document.getElementById('view-calendar') as HTMLElement,
-  viewDetails: () => document.getElementById('view-details') as HTMLElement,
-  viewMarks: () => document.getElementById('view-marks') as HTMLElement,
-  viewCourses: () => document.getElementById('view-courses') as HTMLElement,
-  viewPayments: () => document.getElementById('view-payments') as HTMLElement,
-  viewSettings: () => document.getElementById('view-settings') as HTMLElement,
+  viewCalendar: () => cachedEl<HTMLElement>('view-calendar'),
+  viewDetails: () => cachedEl<HTMLElement>('view-details'),
+  viewMarks: () => cachedEl<HTMLElement>('view-marks'),
+  viewCourses: () => cachedEl<HTMLElement>('view-courses'),
+  viewPayments: () => cachedEl<HTMLElement>('view-payments'),
+  viewSettings: () => cachedEl<HTMLElement>('view-settings'),
 
-  calMonthTitle: () => document.getElementById('cal-month-title') as HTMLElement,
-  btnCalPrev: () => document.getElementById('btn-cal-prev') as HTMLButtonElement,
-  btnCalNext: () => document.getElementById('btn-cal-next') as HTMLButtonElement,
-  btnCalToday: () => document.getElementById('btn-cal-today') as HTMLButtonElement,
-  calendarGrid: () => document.getElementById('calendar-grid') as HTMLDivElement,
-  legendChipsContainer: () => document.getElementById('legend-chips-container') as HTMLDivElement,
-  selectedDayTitle: () => document.getElementById('selected-day-title') as HTMLElement,
-  selectedDayList: () => document.getElementById('selected-day-list') as HTMLDivElement,
-  btnAddOnDate: () => document.getElementById('btn-add-on-date') as HTMLButtonElement,
+  calMonthTitle: () => cachedEl<HTMLElement>('cal-month-title'),
+  btnCalPrev: () => cachedEl<HTMLButtonElement>('btn-cal-prev'),
+  btnCalNext: () => cachedEl<HTMLButtonElement>('btn-cal-next'),
+  btnCalToday: () => cachedEl<HTMLButtonElement>('btn-cal-today'),
+  calendarGrid: () => cachedEl<HTMLDivElement>('calendar-grid'),
+  legendChipsContainer: () => cachedEl<HTMLDivElement>('legend-chips-container'),
+  selectedDayTitle: () => cachedEl<HTMLElement>('selected-day-title'),
+  selectedDayList: () => cachedEl<HTMLDivElement>('selected-day-list'),
+  btnAddOnDate: () => cachedEl<HTMLButtonElement>('btn-add-on-date'),
 
-  dayExpandedBackdrop: () => document.getElementById('day-expanded-backdrop') as HTMLDivElement,
-  dayExpandedDrawer: () => document.getElementById('day-expanded-drawer') as HTMLElement,
-  dayDrawerTitle: () => document.getElementById('day-drawer-title') as HTMLElement,
-  dayDrawerSubtitle: () => document.getElementById('day-drawer-subtitle') as HTMLElement,
-  btnDrawerAdd: () => document.getElementById('btn-drawer-add') as HTMLButtonElement,
-  btnDrawerClose: () => document.getElementById('btn-drawer-close') as HTMLButtonElement,
-  dayDrawerBody: () => document.getElementById('day-drawer-body') as HTMLDivElement,
+  dayExpandedBackdrop: () => cachedEl<HTMLDivElement>('day-expanded-backdrop'),
+  dayExpandedDrawer: () => cachedEl<HTMLElement>('day-expanded-drawer'),
+  dayDrawerTitle: () => cachedEl<HTMLElement>('day-drawer-title'),
+  dayDrawerSubtitle: () => cachedEl<HTMLElement>('day-drawer-subtitle'),
+  btnDrawerAdd: () => cachedEl<HTMLButtonElement>('btn-drawer-add'),
+  btnDrawerClose: () => cachedEl<HTMLButtonElement>('btn-drawer-close'),
+  dayDrawerBody: () => cachedEl<HTMLDivElement>('day-drawer-body'),
 
-  taskListEl: () => document.getElementById('task-list') as HTMLDivElement,
-  searchInput: () => document.getElementById('search-input') as HTMLInputElement,
-  filterCourseSelect: () => document.getElementById('filter-course') as HTMLSelectElement,
-  filterTypeSelect: () => document.getElementById('filter-type') as HTMLSelectElement,
+  taskListEl: () => cachedEl<HTMLDivElement>('task-list'),
+  searchInput: () => cachedEl<HTMLInputElement>('search-input'),
+  filterCourseSelect: () => cachedEl<HTMLSelectElement>('filter-course'),
+  filterTypeSelect: () => cachedEl<HTMLSelectElement>('filter-type'),
 
-  statUrgentCount: () => document.getElementById('stat-urgent-count') as HTMLElement,
-  statWeekCount: () => document.getElementById('stat-week-count') as HTMLElement,
-  statTotalCount: () => document.getElementById('stat-total-count') as HTMLElement,
+  statUrgentCount: () => cachedEl<HTMLElement>('stat-urgent-count'),
+  statWeekCount: () => cachedEl<HTMLElement>('stat-week-count'),
+  statTotalCount: () => cachedEl<HTMLElement>('stat-total-count'),
 
-  btnScanTab: () => document.getElementById('btn-scan-tab') as HTMLButtonElement,
-  btnAddModal: () => document.getElementById('btn-add-modal') as HTMLButtonElement,
-  btnExportAllIcs: () => document.getElementById('btn-export-all-ics') as HTMLButtonElement,
-  btnSettingsToggle: () => document.getElementById('btn-settings-toggle') as HTMLButtonElement,
-  btnCancelAdd: () => document.getElementById('btn-cancel-add') as HTMLButtonElement,
-  btnCancelSettings: () => document.getElementById('btn-cancel-settings') as HTMLButtonElement,
+  btnScanTab: () => cachedEl<HTMLButtonElement>('btn-scan-tab'),
+  btnAddModal: () => cachedEl<HTMLButtonElement>('btn-add-modal'),
+  btnExportAllIcs: () => cachedEl<HTMLButtonElement>('btn-export-all-ics'),
+  btnSettingsToggle: () => cachedEl<HTMLButtonElement>('btn-settings-toggle'),
+  btnCancelAdd: () => cachedEl<HTMLButtonElement>('btn-cancel-add'),
+  btnCancelSettings: () => cachedEl<HTMLButtonElement>('btn-cancel-settings'),
 
-  headerScanBanner: () => document.getElementById('header-scan-banner') as HTMLDivElement | null,
+  headerScanBanner: () => cachedEl<HTMLDivElement>('header-scan-banner') as HTMLDivElement | null,
   hsbIcon: () => document.getElementById('hsb-icon') as SVGElement | null,
-  hsbText: () => document.getElementById('hsb-text') as HTMLSpanElement | null,
+  hsbText: () => cachedEl<HTMLSpanElement>('hsb-text') as HTMLSpanElement | null,
 
-  modalAddTask: () => document.getElementById('modal-add-task') as HTMLElement | null,
-  btnCloseAddModal: () => document.getElementById('btn-close-add-modal') as HTMLButtonElement | null,
-  modalEditTask: () => document.getElementById('modal-edit-task') as HTMLElement,
-  formAddTask: () => document.getElementById('form-add-task') as HTMLFormElement,
-  formEditTask: () => document.getElementById('form-edit-task') as HTMLFormElement,
-  formSettings: () => document.getElementById('form-settings') as HTMLFormElement,
+  modalAddTask: () => cachedEl<HTMLElement>('modal-add-task') as HTMLElement | null,
+  btnCloseAddModal: () => cachedEl<HTMLButtonElement>('btn-close-add-modal') as HTMLButtonElement | null,
+  modalEditTask: () => cachedEl<HTMLElement>('modal-edit-task'),
+  formAddTask: () => cachedEl<HTMLFormElement>('form-add-task'),
+  formEditTask: () => cachedEl<HTMLFormElement>('form-edit-task'),
+  formSettings: () => cachedEl<HTMLFormElement>('form-settings'),
 };
 
 /**

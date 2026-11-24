@@ -27,6 +27,199 @@ interface OpenRouterResponse {
   };
 }
 
+interface AiHint {
+  category?: TaskType;
+  priority?: TaskPriority;
+  hasRoom?: boolean;
+  hasTime?: boolean;
+}
+
+type AiTransportEndpoint = Pick<AiEndpoint, 'provider' | 'chatUrl' | 'syncKey' | 'aiPass'>;
+
+function buildHintBlock(hint?: AiHint): string {
+  const hintLines: string[] = [];
+  if (hint?.category) {
+    hintLines.push(`Assessment Type: "${hint.category}" with priority: "${hint.priority || 'medium'}". Use this type unless clear evidence indicates otherwise.`);
+  }
+  if (hint?.hasRoom !== undefined) {
+    hintLines.push(
+      hint.hasRoom
+        ? 'Doctor mentions an explicit room/location in text: YES (You MUST extract this exact room/hall/lab into "room").'
+        : 'Doctor mentions an explicit room/location in text: NO (Leave "room" as null; do not guess or hallucinate a room so the schedule default room is preserved).'
+    );
+  }
+  if (hint?.hasTime !== undefined) {
+    hintLines.push(
+      hint.hasTime
+        ? 'Doctor states an explicit clock time: YES (Extract the start time and set "hasSpecificTime": true).'
+        : 'Doctor states an explicit clock time: NO (Set "hasSpecificTime": false so the schedule class time is preserved).'
+    );
+  }
+  return hintLines.length > 0 ? `PRE-CLASSIFICATION GUIDANCE (from the announcement wording):\n${hintLines.map(h => `- ${h}`).join('\n')}\n` : '';
+}
+
+async function requestAiChatJson(
+  requestPayload: Record<string, unknown>,
+  apiKey: string,
+  endpoint: AiTransportEndpoint,
+  viaServer: boolean,
+  isOpenRouter: boolean
+): Promise<{ ok: boolean; fatal?: boolean; data?: OpenRouterResponse }> {
+  if (viaServer) {
+    // Same prompt and parsing as the extension; the server only adds the key and model
+    const { model: _model, ...forServer } = requestPayload;
+    const res = await fetch(endpoint.chatUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...forServer, syncKey: endpoint.syncKey, aiPass: endpoint.aiPass })
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.ok || !json.data) {
+      console.info('[AI] Server AI unavailable:', json?.error || res.status);
+      return { ok: false, fatal: true };
+    }
+    return { ok: true, data: json.data as OpenRouterResponse };
+  }
+
+  let data: OpenRouterResponse | null = null;
+  const isContentScript =
+    typeof window !== 'undefined' &&
+    window.location?.protocol !== 'chrome-extension:' &&
+    (window.location?.protocol === 'http:' || window.location?.protocol === 'https:') &&
+    isExtensionContextValid();
+
+  if (isContentScript) {
+    try {
+      const bgResp = await new Promise<any>((resolve, reject) => {
+        try {
+          if (!isExtensionContextValid()) {
+            reject(new Error('Extension context invalidated'));
+            return;
+          }
+          chrome.runtime.sendMessage(
+            {
+              type: 'PROXY_OPENROUTER_CHAT',
+              body: requestPayload,
+              apiKey: apiKey.trim(),
+              provider: endpoint.provider,
+              url: endpoint.chatUrl
+            },
+            response => {
+              try {
+                if (chrome.runtime?.lastError) {
+                  reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                  resolve(response);
+                }
+              } catch (cbErr) {
+                reject(cbErr);
+              }
+            }
+          );
+        } catch (callErr) {
+          reject(callErr);
+        }
+      });
+      if (bgResp && bgResp.ok && bgResp.data) {
+        data = bgResp.data as OpenRouterResponse;
+      }
+    } catch (e: any) {
+      if (e?.message?.includes('Extension context invalidated')) {
+        console.info('[OpenRouter AI] Extension context invalidated; falling back to direct fetch.');
+      } else {
+        console.info('[OpenRouter AI] Service worker proxy failed, falling back:', String(e));
+      }
+    }
+  }
+
+  if (!data) {
+    const post = (payload: Record<string, unknown>) => fetch(endpoint.chatUrl, {
+      method: 'POST',
+      headers: aiRequestHeaders(endpoint.provider, apiKey.trim()),
+      body: JSON.stringify(payload)
+    });
+    let response = await post(requestPayload);
+
+    // Some OpenAI-compatible services refuse JSON mode; ask again without it
+    if (response.status === 400 && !isOpenRouter) {
+      const { response_format: _omit, ...plain } = requestPayload;
+      response = await post(plain);
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn(`[AI] Model ${String(requestPayload.model || '')} returned status ${response.status}:`, errText);
+      return { ok: false };
+    }
+
+    data = (await response.json()) as OpenRouterResponse;
+  }
+
+  return { ok: true, data };
+}
+
+function mapAiItemsToTasks(
+  validItems: AiExtractedItem[],
+  announcement: Announcement,
+  cleanBody: string,
+  hint?: AiHint
+): DeadlineTask[] {
+  const combinedText = `${announcement.title || ''}\n${cleanBody}`.trim();
+  return validItems.map(item => {
+    const validDate = new Date(item.dueDate);
+    const fullDoctorText = cleanBody || announcement.contentText || item.description || announcement.title;
+    const explicitTime = Boolean(item.hasSpecificTime);
+
+    const scheduleRes = resolveTaskTimeWithSchedule({
+      dueDate: validDate,
+      courseNameOrCode: announcement.courseName || item.courseCode || announcement.courseCode,
+      hasSpecificTime: explicitTime,
+      announcementText: combinedText,
+      title: item.title
+    });
+
+    const resolvedType = (item.type && item.type !== 'other')
+      ? (item.type as TaskType)
+      : (hint?.category && hint.category !== 'other'
+          ? hint.category
+          : (item.type as TaskType || 'other'));
+
+    const roomInfo = resolveTaskRoom({
+      courseNameOrCode: announcement.courseName || item.courseCode || announcement.courseCode,
+      announcementText: combinedText,
+      title: item.title,
+      existingRoom: item.room,
+      type: resolvedType
+    });
+
+    const timeSource: DeadlineTask['timeSource'] = explicitTime
+      ? 'explicit'
+      : scheduleRes.appliedSchedule ? 'schedule' : 'default';
+
+    return {
+      id: `task_ai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      announcementId: announcement.id,
+      ...(announcement.postedAt ? { announcementPostedAt: announcement.postedAt } : {}),
+      courseCode: item.courseCode || announcement.courseCode,
+      courseName: announcement.courseName,
+      title: toEnglishDeadlineTitle(item.title || 'Extracted Task', resolvedType),
+      description: fullDoctorText,
+      dueDate: scheduleRes.dueDate.toISOString(),
+      hasSpecificTime: scheduleRes.hasSpecificTime,
+      timeSource,
+      type: resolvedType,
+      priority: item.priority || hint?.priority || 'medium',
+      status: 'pending',
+      sourceSnippet: fullDoctorText,
+      confidence: 0.95,
+      extractedBy: 'ai',
+      room: roomInfo.room || undefined,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  });
+}
+
 /**
  * Extracts deadlines and academic tasks from an announcement with the generative AI the student
  * picked: OpenRouter by default, or IFM or any OpenAI-compatible service through `endpoint`.
@@ -35,13 +228,8 @@ export async function extractDeadlinesWithAi(
   announcement: Announcement,
   apiKey: string,
   model: string = 'google/gemini-3.8-flash',
-  hint?: {
-    category?: TaskType;
-    priority?: TaskPriority;
-    hasRoom?: boolean;
-    hasTime?: boolean;
-  },
-  endpoint: Pick<AiEndpoint, 'provider' | 'chatUrl' | 'syncKey' | 'aiPass'> = { provider: 'openrouter', chatUrl: OPENROUTER_CHAT_URL }
+  hint?: AiHint,
+  endpoint: AiTransportEndpoint = { provider: 'openrouter', chatUrl: OPENROUTER_CHAT_URL }
 ): Promise<DeadlineTask[]> {
   // The web app has no key: its server holds the extension's key, locked, and is reached by sync key
   const viaServer = endpoint.provider === 'server';
@@ -97,27 +285,7 @@ If no deadlines or tasks are found, return { "deadlines": [] }. Output valid JSO
     announcement.title
   );
 
-  const hintLines: string[] = [];
-  if (hint?.category) {
-    hintLines.push(`Assessment Type: "${hint.category}" with priority: "${hint.priority || 'medium'}". Use this type unless clear evidence indicates otherwise.`);
-  }
-  if (hint?.hasRoom !== undefined) {
-    hintLines.push(
-      hint.hasRoom
-        ? 'Doctor mentions an explicit room/location in text: YES (You MUST extract this exact room/hall/lab into "room").'
-        : 'Doctor mentions an explicit room/location in text: NO (Leave "room" as null; do not guess or hallucinate a room so the schedule default room is preserved).'
-    );
-  }
-  if (hint?.hasTime !== undefined) {
-    hintLines.push(
-      hint.hasTime
-        ? 'Doctor states an explicit clock time: YES (Extract the start time and set "hasSpecificTime": true).'
-        : 'Doctor states an explicit clock time: NO (Set "hasSpecificTime": false so the schedule class time is preserved).'
-    );
-  }
-
-  const hintBlock = hintLines.length > 0 ? `PRE-CLASSIFICATION GUIDANCE (from the announcement wording):\n${hintLines.map(h => `- ${h}`).join('\n')}\n` : '';
-
+  const hintBlock = buildHintBlock(hint);
   const userContent = `Course: ${announcement.courseCode} ${announcement.courseName}
 Announcement Title: ${announcement.title}
 Posted Date (METADATA ONLY - DO NOT USE AS ASSESSMENT TIME): ${announcement.postedAt || 'Unknown'}
@@ -136,9 +304,6 @@ ${cleanBody}`;
 
   for (const currentModel of candidateModels) {
     try {
-      let response: Response | null = null;
-      let data: OpenRouterResponse | null = null;
-
       const requestPayload: Record<string, unknown> = {
         model: currentModel,
         messages: [
@@ -151,162 +316,126 @@ ${cleanBody}`;
         max_tokens: isOpenRouter ? 1000 : 4000
       };
 
-      if (viaServer) {
-        // Same prompt and parsing as the extension; the server only adds the key and model
-        const { model: _model, ...forServer } = requestPayload;
-        const res = await fetch(endpoint.chatUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...forServer, syncKey: endpoint.syncKey, aiPass: endpoint.aiPass })
-        });
-        const json = await res.json().catch(() => null);
-        if (!res.ok || !json?.ok || !json.data) {
-          console.info('[AI] Server AI unavailable:', json?.error || res.status);
-          return [];
-        }
-        data = json.data as OpenRouterResponse;
+      const res = await requestAiChatJson(requestPayload, apiKey, endpoint, viaServer, isOpenRouter);
+      if (!res.ok) {
+        if (res.fatal) return [];
+        continue;
       }
 
-      const isContentScript =
-        typeof window !== 'undefined' &&
-        window.location?.protocol !== 'chrome-extension:' &&
-        (window.location?.protocol === 'http:' || window.location?.protocol === 'https:') &&
-        isExtensionContextValid();
-
-      if (!data && isContentScript) {
-        try {
-          const bgResp = await new Promise<any>((resolve, reject) => {
-            try {
-              if (!isExtensionContextValid()) {
-                reject(new Error('Extension context invalidated'));
-                return;
-              }
-              chrome.runtime.sendMessage(
-                {
-                  type: 'PROXY_OPENROUTER_CHAT',
-                  body: requestPayload,
-                  apiKey: apiKey.trim(),
-                  provider: endpoint.provider,
-                  url: endpoint.chatUrl
-                },
-                response => {
-                  try {
-                    if (chrome.runtime?.lastError) {
-                      reject(new Error(chrome.runtime.lastError.message));
-                    } else {
-                      resolve(response);
-                    }
-                  } catch (cbErr) {
-                    reject(cbErr);
-                  }
-                }
-              );
-            } catch (callErr) {
-              reject(callErr);
-            }
-          });
-          if (bgResp && bgResp.ok && bgResp.data) {
-            data = bgResp.data as OpenRouterResponse;
-          }
-        } catch (e: any) {
-          if (e?.message?.includes('Extension context invalidated')) {
-            console.info('[OpenRouter AI] Extension context invalidated; falling back to direct fetch.');
-          } else {
-            console.info('[OpenRouter AI] Service worker proxy failed, falling back:', String(e));
-          }
-        }
-      }
-
-      if (!data) {
-        const post = (payload: Record<string, unknown>) => fetch(endpoint.chatUrl, {
-          method: 'POST',
-          headers: aiRequestHeaders(endpoint.provider, apiKey.trim()),
-          body: JSON.stringify(payload)
-        });
-        response = await post(requestPayload);
-
-        // Some OpenAI-compatible services refuse JSON mode; ask again without it
-        if (response.status === 400 && !isOpenRouter) {
-          const { response_format: _omit, ...plain } = requestPayload;
-          response = await post(plain);
-        }
-
-        if (!response.ok) {
-          const errText = await response.text();
-          console.warn(`[AI] Model ${currentModel} returned status ${response.status}:`, errText);
-          continue;
-        }
-
-        data = (await response.json()) as OpenRouterResponse;
-      }
-
-      const content = data.choices?.[0]?.message?.content;
+      const content = res.data?.choices?.[0]?.message?.content;
       if (!content) continue;
 
       const parsed: any = parseAiJson(content);
-
       const rawItems: unknown = Array.isArray(parsed) ? parsed : (parsed.deadlines || (parsed as any).tasks);
-      if (!Array.isArray(rawItems)) {
-        return [];
-      }
+      if (!Array.isArray(rawItems)) return [];
 
       // An item without a usable date would otherwise be created as "due right now"
       const validItems = (rawItems as AiExtractedItem[]).filter(
         item => item && !isNaN(new Date(item.dueDate).getTime())
       );
 
-      return validItems.map(item => {
-        const validDate = new Date(item.dueDate);
-        const fullDoctorText = cleanBody || announcement.contentText || item.description || announcement.title;
-
-        const scheduleRes = resolveTaskTimeWithSchedule({
-          dueDate: validDate,
-          courseNameOrCode: announcement.courseName || item.courseCode || announcement.courseCode,
-          hasSpecificTime: Boolean(item.hasSpecificTime),
-          announcementText: cleanBody,
-          title: item.title
-        });
-
-        const resolvedType = (item.type && item.type !== 'other')
-          ? (item.type as TaskType)
-          : (hint?.category && hint.category !== 'other'
-              ? hint.category
-              : (item.type as TaskType || 'other'));
-
-        const roomInfo = resolveTaskRoom({
-          courseNameOrCode: announcement.courseName || item.courseCode || announcement.courseCode,
-          announcementText: cleanBody,
-          title: item.title,
-          existingRoom: item.room,
-          type: resolvedType
-        });
-
-        const resolvedPriority = item.priority || hint?.priority || 'medium';
-
-        return {
-          id: `task_ai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-          announcementId: announcement.id,
-          courseCode: item.courseCode || announcement.courseCode,
-          courseName: announcement.courseName,
-          title: toEnglishDeadlineTitle(item.title || 'Extracted Task', resolvedType),
-          description: fullDoctorText,
-          dueDate: scheduleRes.dueDate.toISOString(),
-          hasSpecificTime: scheduleRes.hasSpecificTime,
-          type: resolvedType,
-          priority: resolvedPriority,
-          status: 'pending',
-          sourceSnippet: fullDoctorText,
-          confidence: 0.95,
-          extractedBy: 'ai',
-          room: roomInfo.room || undefined,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-      });
+      return mapAiItemsToTasks(validItems, announcement, cleanBody, hint);
     } catch (error) {
       console.warn(`Failed with model ${currentModel}:`, error);
     }
   }
 
   return [];
+}
+
+/**
+ * Confirmation / refinement pass: lets an optional AI model verify or fix ambiguous
+ * dates, times, rooms, or titles already extracted by the primary built-in parser.
+ * On any failure or unparseable output, returns ok: false with the untouched localTasks.
+ */
+export async function confirmDeadlinesWithAi(
+  announcement: Announcement,
+  localTasks: DeadlineTask[],
+  apiKey: string,
+  model: string = 'google/gemini-3.8-flash',
+  hint?: AiHint,
+  endpoint: AiTransportEndpoint = { provider: 'openrouter', chatUrl: OPENROUTER_CHAT_URL }
+): Promise<{ ok: boolean; tasks: DeadlineTask[] }> {
+  const viaServer = endpoint.provider === 'server';
+  if (localTasks.length === 0 || (viaServer ? !(endpoint.syncKey && endpoint.aiPass) : (!apiKey || !apiKey.trim()))) {
+    return { ok: false, tasks: localTasks };
+  }
+  const isOpenRouter = endpoint.provider === 'openrouter';
+  const baseDate = announcement.postedAt ? new Date(announcement.postedAt) : new Date();
+  const baseDateStr = baseDate.toISOString().slice(0, 10);
+
+  const cleanBody = sanitizeDoctorAnnouncementText(
+    announcement.contentText,
+    announcement.courseName,
+    announcement.courseCode,
+    announcement.title
+  );
+
+  const candidates = localTasks.map(t => ({
+    title: t.title,
+    type: t.type,
+    dueDate: t.dueDate,
+    hasSpecificTime: t.timeSource === 'explicit',
+    room: t.room || null
+  }));
+
+  const systemPrompt = `You verify and refine deadline extractions already produced by a deterministic university Blackboard parser (English and Arabic).
+Reference Date: ${baseDateStr}. Course: ${announcement.courseCode} - ${announcement.courseName}.
+Rules:
+1. Review the candidate deadlines against the announcement text. Fix any wrong date, rescheduled time, missing explicit clock time ("hasSpecificTime": true only if the text explicitly states a time), missing/wrong room/hall/lab ("room": exact room token or null if not stated in text), or title translation.
+2. Add any missed upcoming graded deadline if clearly present in the text; drop false positives (e.g. post-exam reviews or past score announcements).
+3. Keep concise English titles and ISO 8601 timestamps ("YYYY-MM-DDTHH:mm:00"). Return ONLY valid JSON: { "deadlines": [...] }.`;
+
+  const hintBlock = buildHintBlock(hint);
+  const userContent = `Announcement Title: ${announcement.title}
+Posted Date (METADATA ONLY): ${announcement.postedAt || 'Unknown'}
+${hintBlock}Built-in Parser Candidates:
+${JSON.stringify(candidates)}
+
+Announcement Body:
+${cleanBody}`;
+
+  const payload: Record<string, unknown> = {
+    model: isOpenRouter ? (model || DEFAULT_OPENROUTER_MODEL) : model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent }
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.1,
+    max_tokens: isOpenRouter ? 1000 : 4000
+  };
+
+  try {
+    const res = await requestAiChatJson(payload, apiKey, endpoint, viaServer, isOpenRouter);
+    if (!res.ok) return { ok: false, tasks: localTasks };
+
+    const content = res.data?.choices?.[0]?.message?.content;
+    if (!content) return { ok: false, tasks: localTasks };
+
+    const parsed: any = parseAiJson(content);
+    const rawItems: unknown = Array.isArray(parsed) ? parsed : (parsed.deadlines || (parsed as any).tasks);
+    if (!Array.isArray(rawItems)) return { ok: false, tasks: localTasks };
+
+    const validItems = (rawItems as AiExtractedItem[]).filter(
+      item => item && !isNaN(new Date(item.dueDate).getTime())
+    );
+    const confirmed = mapAiItemsToTasks(validItems, announcement, cleanBody, hint).map((task, idx) => {
+      const localMatch = localTasks[idx] && localTasks[idx].type === task.type ? localTasks[idx] : localTasks.find(l => l.type === task.type);
+      if (localMatch) {
+        return {
+          ...task,
+          extractedBy: localMatch.extractedBy,
+          weight: localMatch.weight,
+          weightDisplay: localMatch.weightDisplay,
+          syllabusNote: localMatch.syllabusNote
+        };
+      }
+      return task;
+    });
+    return { ok: true, tasks: confirmed };
+  } catch (err) {
+    console.warn('[AI] Confirmation pass failed, keeping local parser output:', err);
+    return { ok: false, tasks: localTasks };
+  }
 }

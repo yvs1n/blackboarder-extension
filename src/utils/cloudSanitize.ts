@@ -104,6 +104,9 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     const clean: any = {
       ...t,
       id: t.id,
+      ...(typeof t.announcementPostedAt === 'string' && !isNaN(new Date(t.announcementPostedAt).getTime())
+        ? { announcementPostedAt: t.announcementPostedAt }
+        : {}),
       title: str(t.title),
       courseCode: str(t.courseCode),
       courseName: str(t.courseName),
@@ -114,6 +117,7 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
       ...(typeof t.columnCreated === 'string' && !isNaN(new Date(t.columnCreated).getTime()) ? { columnCreated: t.columnCreated } : {}),
       ...(typeof t.columnPosition === 'number' && Number.isFinite(t.columnPosition) ? { columnPosition: t.columnPosition } : {}),
       hasSpecificTime: Boolean(t.hasSpecificTime),
+      ...(t.timeSource === 'explicit' || t.timeSource === 'schedule' || t.timeSource === 'default' ? { timeSource: t.timeSource } : {}),
       type: TASK_TYPES.includes(t.type) ? t.type : 'other',
       priority: PRIORITIES.includes(t.priority) ? t.priority : 'medium',
       status: STATUSES.includes(t.status) ? t.status : 'pending'

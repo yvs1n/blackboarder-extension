@@ -13,18 +13,20 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.37",
-  "build": "05c7f6be3e10",
-  "commit": "36e4e210ba9cf454e59be449e280737c30a64da4",
-  "shortCommit": "36e4e21",
-  "timestamp": "2026-11-22T05:47:44.350Z",
-  "message": "fix(ci): exclude publishStores test referencing private script from public extension export",
+  "version": "1.8.38",
+  "build": "db116e95ce47",
+  "commit": "25de03d4c433e027b865e2b0b347568e2cbf3d48",
+  "shortCommit": "25de03d",
+  "timestamp": "2026-11-24T18:04:46.855Z",
+  "message": "Unify navbars, motion reveals, adaptive store CTAs, and responsive grids across landing and all subpages",
   "changelog": [
-    "Connecting an existing Sync Key via Settings > Sync > Use Existing now cancels any pending sync timers, reads Firebase's raw cloud vault first (skipLocalMerge), unconditionally replaces all local tasks, courses, quick links, payments, semesters, tombstones, and profile with Firebase's data (regardless of local timestamps), switches the active Sync Key last, and never pushes stale local data back up to Firebase.",
-    "Restoring a JSON backup now completely replaces all local stores without merging prior local tasks/tombstones, stamps fresh collection timestamps and a backupEpoch, and directly overwrites the Firebase vault under the active Sync Key (overwriteCloudVault) without pulling or merging old cloud items back in. Other devices and the Companion Web App adopt any newer backupEpoch cleanly instead of resurrecting pre-restore tasks.",
-    "Companion Web App pairing now resets all local stores (including semesters, profile, payments, and backup epoch) whenever switching to any new Sync Key (including from an unpaired state).",
-    "Removed the t.updatedAt fallback from completedAt in buildMarksSummary so re-syncing, editing, or repairing an undated completed task can never promote it to the top of Marks.",
-    "Extracted Blackboard's immutable columnCreated timestamp and columnPosition display index from /gradebook/columns, preserved columnDueDate/columnCreated/columnPosition/completedAt/gradedAt across deduplicateTaskList and cloud sanitization, restricted number tie-breaking to matching assessment families (Quiz 4 > Quiz 3), and added Blackboard internal column PK sequence tie-breaking (_1928185_1 > _1916865_1)."
+    "Solidified the offline built-in parser as the primary extraction engine: added multi-line block pairing (so separate Date:, Time:, and Room: lines resolve together), ordinal assessment normalization (2nd quiz -> Quiz 2, الكويز الثاني), Arabic-Indic / Eastern Arabic digit normalization (normalizeDigits), dot time separators (10.30 a.m.), Arabic time indicators (ظهراً, عصراً, ص, م), cross-noon range inference (11:00 - 12:30 pm, من 1 إلى 2 مساءً), explicit time-change/reschedule target extraction (moved from 10:00 AM to 2:00 PM no longer picks the old time), and deterministic extraction confidence scoring.",
+    "Upgraded the optional AI provider layer in extractDeadlinesHybridDetailed with confirmDeadlinesWithAi: clean, high-confidence local extractions stand on their own without spending tokens, while ambiguous local extractions (low confidence, tentative/rescheduled phrasing, or missing cued room/time) are verified by the configured AI model with safe automatic fallback to the local parser on any error.",
+    "Rewrote extractRoomFromText with global .matchAll() scanning and relocation/negation awareness (moved from A8-103 to A8-204, Lab 2 exam ... Room 205, قاعة الامتحان: بالقاعة A12-007, Building M9, Room 104, held in MB-102, EB2-104, M9-G05, Arabic-Indic digits).",
+    "Added sequential multi-announcement reconciliation (extractAnnouncementFieldDelta, applyAnnouncementDeltaToTask, resolveLatestFieldsFromNotes, announcementPostedAt): every announcement about an existing deadline appends to professor notes chronologically ([Doctor Update]:) and checks each field (date, time, room, weight) independently so unmentioned or matching values stay intact while updated rooms, timings, or postponed dates update in place without losing previously announced times/rooms. repairTaskWeightsAndRooms and mergeDuplicatePair evaluate [Doctor Update]: segments oldest-to-newest so initial segments never revert later updates.",
+    "Extended stripHtmlToText to decode &ndash;/&mdash;/&rsquo;/&rdquo; entities and runScanPipeline to re-extract edited Blackboard announcements.",
+    "Memoized popup DOM lookups (state.ts) and GPA trajectory plans (dayDrawer.ts, tasksView.ts), pre-bucketed calendar weekday class lookups with delegated cell click/keyboard handlers (calendarView.ts), added requestAnimationFrame search debouncing + / focus and Escape clear shortcuts + content-visibility: auto on .task-card, and added WeakMap stream-item and course-ID caching in activityFilter.ts and courseColorPainter.ts.",
+    "Restored linear inline university links in the landing hero (mobile-web/index.html) and unified underlined links and footer links across index.html, subpage.css, and legal.css with a scale-free left-to-right sliding underline animation."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

@@ -152,16 +152,37 @@ export function renderDoctorQuoteHtml(
   `;
 }
 
-function getCurrentTrajectoryPlan(): { plan: TrajectoryTargetPlan | null; targetGpa: number } {
+let cachedTrajectorySig = '';
+let cachedTrajectoryResult: { plan: TrajectoryTargetPlan | null; targetGpa: number } = { plan: null, targetGpa: 3.75 };
+
+export function getCurrentTrajectoryPlan(): { plan: TrajectoryTargetPlan | null; targetGpa: number } {
   const profile = getCachedProfile();
+  const tasks = popupState.currentTasks;
+  const courses = popupState.currentUserCourses;
+  const sig = [
+    profile?.universityId || '',
+    profile?.studyLevel || '',
+    profile?.targetTermGpa ?? '',
+    courses.length,
+    ...courses.map(c => `${c.id}:${c.creditHours ?? ''}:${(c.syllabus || []).map(s => `${s.id}:${s.totalWeight}:${s.count ?? ''}`).join(',')}`),
+    tasks.length,
+    ...tasks.map(t => `${t.id}:${t.status}:${t.score ?? ''}:${t.maxScore ?? ''}:${t.weight ?? ''}:${t.ignoreMark ? 1 : 0}`)
+  ].join('|');
+
+  if (sig === cachedTrajectorySig) {
+    return cachedTrajectoryResult;
+  }
+
   const scale = profileGradeScale(profile);
   const syllabi = getAllSyllabi();
-  const gpa = buildGpaSummary(popupState.currentTasks, syllabi, scale);
+  const gpa = buildGpaSummary(tasks, syllabi, scale);
   const targetGpa = (typeof profile?.targetTermGpa === 'number' && profile.targetTermGpa > 0)
     ? profile.targetTermGpa
     : (gpa.gpa !== undefined ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20) : 3.75);
-  const plan = calculateTrajectoryTargetPlan(gpa, targetGpa, popupState.currentTasks, scale);
-  return { plan, targetGpa };
+  const plan = calculateTrajectoryTargetPlan(gpa, targetGpa, tasks, scale);
+  cachedTrajectorySig = sig;
+  cachedTrajectoryResult = { plan, targetGpa };
+  return cachedTrajectoryResult;
 }
 
 export function getTaskTargetBadgeHtml(

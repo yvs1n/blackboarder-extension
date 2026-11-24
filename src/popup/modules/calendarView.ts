@@ -20,9 +20,29 @@ export function isCalendarDeadline(task: DeadlineTask): boolean {
   return true;
 }
 
+function ensureCalendarGridDelegation(calendarGrid: HTMLElement): void {
+  if (calendarGrid.dataset.bbsDelegated === '1') return;
+  calendarGrid.dataset.bbsDelegated = '1';
+  calendarGrid.addEventListener('click', e => {
+    const cell = (e.target as HTMLElement | null)?.closest<HTMLElement>('.cal-day[data-date]');
+    if (cell?.dataset.date) {
+      popupActions.selectDay(cell.dataset.date, true);
+    }
+  });
+  calendarGrid.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const cell = (e.target as HTMLElement | null)?.closest<HTMLElement>('.cal-day[data-date]');
+    if (cell?.dataset.date) {
+      e.preventDefault();
+      popupActions.selectDay(cell.dataset.date, true);
+    }
+  });
+}
+
 export function renderCalendar(animationDirection: 'next' | 'prev' | 'none' = 'none') {
   const calMonthTitle = dom.calMonthTitle();
   const calendarGrid = dom.calendarGrid();
+  ensureCalendarGridDelegation(calendarGrid);
   calMonthTitle.textContent = formatMonthYear(popupState.calendarYear, popupState.calendarMonth);
 
   const tasksByDate = new Map<string, DeadlineTask[]>();
@@ -53,12 +73,15 @@ export function renderCalendar(animationDirection: 'next' | 'prev' | 'none' = 'n
   const todayKey = formatDateKey(new Date());
   const fragment = document.createDocumentFragment();
   const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
-  const getDayClasses = (d: Date): ClassOccurrence[] => {
+  // Pre-compute weekday class templates once (7 days instead of 35-42 full course scans)
+  const classesByWeekday: ClassOccurrence[][] = Array.from({ length: 7 }, (_, dow) => {
     if (!showClasses) return [];
-    return classesOnDay(popupState.currentUserCourses, d).filter(o =>
+    const probe = new Date(2026, 10, 1 + dow); // Nov 1 2026 = Sunday (dow 0)
+    return classesOnDay(popupState.currentUserCourses, probe).filter(o =>
       matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, popupState.selectedCourseFilter)
     );
-  };
+  });
+  const getDayClasses = (d: Date): ClassOccurrence[] => classesByWeekday[d.getDay()] || [];
 
   for (let i = offset - 1; i >= 0; i--) {
     const dayNum = prevMonthDays - i;
@@ -93,7 +116,7 @@ export function renderCalendar(animationDirection: 'next' | 'prev' | 'none' = 'n
   calendarGrid.classList.toggle('is-six-rows', rowCount >= 6);
   calendarGrid.classList.toggle('is-four-rows', rowCount <= 4);
 
-  if (animationDirection === 'next' || animationDirection === 'prev') {
+  if ((animationDirection === 'next' || animationDirection === 'prev') && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     calendarGrid.classList.remove('cal-slide-next', 'cal-slide-prev');
     void calendarGrid.offsetWidth;
     calendarGrid.classList.add(animationDirection === 'next' ? 'cal-slide-next' : 'cal-slide-prev');
@@ -193,11 +216,6 @@ export function createDayCell(
       chip.title = `${resolved.courseName}: ${task.title} ${task.weightDisplay ? `(${task.weightDisplay})` : ''} - ${timeStr} - Click to expand day view`;
     }
 
-    chip.addEventListener('click', e => {
-      e.stopPropagation();
-      popupActions.selectDay(dateKey, true);
-    });
-
     chipsContainer.appendChild(chip);
   });
 
@@ -214,10 +232,6 @@ export function createDayCell(
       chip.style.borderLeftStyle = 'solid';
       chip.innerHTML = `${getSvgIcon('clock')} <span>${escapeHtml(c.courseName)}</span>`;
       chip.title = `Class: ${c.courseName} (${formatClock(c.start)} - ${formatClock(c.end)})${c.room ? ' in ' + c.room : ''} - Click to expand day view`;
-      chip.addEventListener('click', e => {
-        e.stopPropagation();
-        popupActions.selectDay(dateKey, true);
-      });
       chipsContainer.appendChild(chip);
     });
   }
@@ -227,26 +241,10 @@ export function createDayCell(
     const more = document.createElement('span');
     more.className = 'cal-event-more';
     more.textContent = `+${totalEvents - maxVisibleChips}`;
-    more.addEventListener('click', e => {
-      e.stopPropagation();
-      popupActions.selectDay(dateKey, true);
-    });
     header.appendChild(more);
   }
 
   cell.appendChild(chipsContainer);
-
-  cell.addEventListener('click', () => {
-    popupActions.selectDay(dateKey, true);
-  });
-
-  cell.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      popupActions.selectDay(dateKey, true);
-    }
-  });
-
   return cell;
 }
 

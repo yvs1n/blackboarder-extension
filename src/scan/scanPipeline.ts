@@ -3,6 +3,7 @@ import { processAnnouncementsBatch, titleCourseKeyFor } from '../engine/hybridEx
 import {
   getSettings,
   getTasks,
+  getAnnouncements,
   saveTasksMergingLatest,
   saveAnnouncements,
   saveLastScanCheckpoint,
@@ -75,7 +76,21 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
   }
   const { fullRescan, checkpoint } = input;
   const knownDirectIds = new Set(checkpoint.processedDirectTaskIds);
-  const knownAnnIds = new Set(checkpoint.processedAnnouncementIds);
+  const effectiveKnownAnnIds = new Set(checkpoint.processedAnnouncementIds);
+
+  if (!fullRescan && effectiveKnownAnnIds.size > 0) {
+    const savedAnns = await getAnnouncements();
+    const savedById = new Map(savedAnns.map(a => [a.id, a]));
+    for (const incoming of [...input.streamAnnouncements, ...input.courseAnnouncements]) {
+      const prev = savedById.get(incoming.id);
+      if (prev && (
+        (prev.title || '').trim() !== (incoming.title || '').trim() ||
+        (prev.contentText || '').trim() !== (incoming.contentText || '').trim()
+      )) {
+        effectiveKnownAnnIds.delete(incoming.id);
+      }
+    }
+  }
 
   // Stream task ids are deterministic, so a card the student deleted would come back on a full
   // re-scan unless the deletion record is honoured here
@@ -83,7 +98,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
   const directStreamTasks = input.directTasks
     .filter(t => (fullRescan || !knownDirectIds.has(t.id)) && !tombstones[t.id]);
   const announcements = mergeStreamAndCourseAnnouncements(
-    input.streamAnnouncements.filter(a => fullRescan || !knownAnnIds.has(a.id)),
+    input.streamAnnouncements.filter(a => fullRescan || !effectiveKnownAnnIds.has(a.id)),
     input.courseAnnouncements,
     null
   );
@@ -120,12 +135,12 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
     });
   };
 
-  // Process announcements for deadlines (skips already processed IDs)
+  // Process announcements for deadlines (skips already processed unchanged IDs)
   const { newTasks: extractedTasks, allTasks: mergedAnnTasks } = await processAnnouncementsBatch(
     announcements,
     existingTasks,
     settings,
-    fullRescan ? undefined : knownAnnIds,
+    fullRescan ? undefined : effectiveKnownAnnIds,
     reportProgress
   );
 
@@ -166,6 +181,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
         if (!matched.hasSpecificTime && dt.hasSpecificTime) {
           matched.dueDate = dt.dueDate;
           matched.hasSpecificTime = dt.hasSpecificTime;
+          matched.timeSource = dt.timeSource || 'explicit';
           matched.updatedAt = new Date().toISOString();
         }
       }
@@ -177,7 +193,7 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
     }
   }
 
-  let finalTasks = deduplicateTaskList([...newlyAddedDirect, ...mergedAnnTasks]).filter(isValidTask);
+  let finalTasks = deduplicateTaskList([...mergedAnnTasks, ...newlyAddedDirect]).filter(isValidTask);
 
   // Put marks and submissions on their tasks (only changed tasks are touched)
   const marksChanged = applySubmissionUpdates(finalTasks, submissionUpdates);

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.38] - 2026-11-24
+
+### Improved
+
+- **Primary No-AI Extraction Engine & Optional AI Confirmation (`src/engine/localExtractor.ts`, `src/engine/localDateTime.ts`, `src/engine/hybridExtractor.ts`, `src/engine/aiExtractor.ts`):**
+  - Solidified the offline built-in parser as the primary extraction engine: added multi-line block pairing (so separate `Date:`, `Time:`, and `Room:` lines resolve together), ordinal assessment normalization (`2nd quiz` -> `Quiz 2`, `الكويز الثاني`), Arabic-Indic / Eastern Arabic digit normalization (`normalizeDigits`), dot time separators (`10.30 a.m.`), Arabic time indicators (`ظهراً`, `عصراً`, `ص`, `م`), cross-noon range inference (`11:00 - 12:30 pm`, `من 1 إلى 2 مساءً`), explicit time-change/reschedule target extraction (`moved from 10:00 AM to 2:00 PM` no longer picks the old time), and deterministic extraction confidence scoring.
+  - Upgraded the optional AI provider layer in `extractDeadlinesHybridDetailed` with `confirmDeadlinesWithAi`: clean, high-confidence local extractions stand on their own without spending tokens, while ambiguous local extractions (low confidence, tentative/rescheduled phrasing, or missing cued room/time) are verified by the configured AI model with safe automatic fallback to the local parser on any error.
+- **Classroom / Room & Sequential Multi-Announcement Reconciliation (`src/core/announcementReconcile.ts`, `src/core/courseSchedule.ts`, `src/utils/taskRepair.ts`, `src/utils/taskMerge.ts`, `src/scan/scanPipeline.ts`, `src/scan/blackboardApi.ts`):**
+  - Rewrote `extractRoomFromText` with global `.matchAll()` scanning and relocation/negation awareness (`moved from A8-103 to A8-204`, `Lab 2 exam ... Room 205`, `قاعة الامتحان: بالقاعة A12-007`, `Building M9, Room 104`, `held in MB-102`, `EB2-104`, `M9-G05`, Arabic-Indic digits).
+  - Added sequential multi-announcement reconciliation (`extractAnnouncementFieldDelta`, `applyAnnouncementDeltaToTask`, `resolveLatestFieldsFromNotes`, `announcementPostedAt`): every announcement about an existing deadline appends to professor notes chronologically (`[Doctor Update]:`) and checks each field (`date`, `time`, `room`, `weight`) independently so unmentioned or matching values stay intact while updated rooms, timings, or postponed dates update in place without losing previously announced times/rooms. `repairTaskWeightsAndRooms` and `mergeDuplicatePair` evaluate `[Doctor Update]:` segments oldest-to-newest so initial segments never revert later updates.
+  - Extended `stripHtmlToText` to decode `&ndash;`/`&mdash;`/`&rsquo;`/`&rdquo;` entities and `runScanPipeline` to re-extract edited Blackboard announcements.
+- **Extension Performance, UX & Landing Polish (`src/popup/`, `src/content/`, `mobile-web/`):**
+  - Memoized popup DOM lookups (`state.ts`) and GPA trajectory plans (`dayDrawer.ts`, `tasksView.ts`), pre-bucketed calendar weekday class lookups with delegated cell click/keyboard handlers (`calendarView.ts`), added `requestAnimationFrame` search debouncing + `/` focus and `Escape` clear shortcuts + `content-visibility: auto` on `.task-card`, and added `WeakMap` stream-item and course-ID caching in `activityFilter.ts` and `courseColorPainter.ts`.
+  - Restored linear inline university links in the landing hero (`mobile-web/index.html`) and unified underlined links and footer links across `index.html`, `subpage.css`, and `legal.css` with a scale-free left-to-right sliding underline animation.
+
+---
+
 ## [1.8.37] - 2026-11-22
 
 ### Fixed

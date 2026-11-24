@@ -78,8 +78,6 @@ export function renderAllViewsNow() {
     popupActions.renderUserCoursesManager();
   } else if (popupState.currentActiveView === 'payments') {
     popupActions.renderPaymentsView();
-  } else if (popupState.currentActiveView === 'settings') {
-    popupActions.renderUserCoursesManager();
   }
 
   (['calendar', 'details', 'marks', 'courses', 'payments', 'settings'] as AppView[]).forEach(v => {

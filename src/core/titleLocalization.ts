@@ -2,6 +2,14 @@
  * Title normalization, Arabic-to-English assessment localization, and announcement text merging.
  */
 
+/** Convert Arabic-Indic (٠-٩) and Eastern Arabic (۰-۹) digits to ASCII (0-9). */
+export function normalizeDigits(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[٠-٩]/g, ch => String(ch.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, ch => String(ch.charCodeAt(0) - 0x06F0));
+}
+
 /** True for titles that are only a task type word, such as "Exam", "Meeting" or "Other". */
 export function isBareTypeTitle(title: string): boolean {
   const trimmed = title.trim();
@@ -31,11 +39,8 @@ export function toEnglishDeadlineTitle(rawTitle: string, taskType?: string): str
   // 2. Strip leading course code prefixes like "[CS101] ", "MATH 101 - "
   title = title.replace(/^\s*\[?[A-Z]{2,5}\s*\d{3,4}[A-Z]?\]?\s*[-:|]\s*/i, '');
 
-  // 3. Convert Arabic-Indic digits (٠-٩) to ASCII digits (0-9)
-  const arDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-  for (let i = 0; i < 10; i++) {
-    title = title.split(arDigits[i]).join(String(i));
-  }
+  // 3. Convert Arabic-Indic / Eastern Arabic digits to ASCII digits (0-9)
+  title = normalizeDigits(title);
 
   const hasArabic = /[\u0600-\u06FF]/.test(title);
   if (!hasArabic) {

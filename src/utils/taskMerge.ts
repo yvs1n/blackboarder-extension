@@ -1,5 +1,6 @@
 import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle, mergeAnnouncementTexts, isBareTypeTitle } from '../core/courseHelper';
+import { resolveLatestFieldsFromNotes } from '../core/announcementReconcile';
 import { coreTitle, isPracticeTitle, isBonusTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
 import { isExamItem, hasScanTimeDueDate } from './gradebook';
@@ -530,12 +531,14 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   // Due date: student edits win (Rule 3); otherwise prefer real announcement/schedule date over scan-time gbcol date
   let dueDate = existing.dueDate;
   let hasSpecificTime = existing.hasSpecificTime;
+  let timeSource = existing.timeSource;
   if (existing.userEdited && !incoming.userEdited) {
     dueDate = existing.dueDate;
     hasSpecificTime = existing.hasSpecificTime;
   } else if (incoming.userEdited && !existing.userEdited) {
     dueDate = incoming.dueDate;
     hasSpecificTime = incoming.hasSpecificTime;
+    timeSource = incoming.timeSource;
   } else {
     // A scan-time date is a gradebook-sourced task whose due date is the day it was created
     const isScanDate = (t: DeadlineTask) => Boolean(
@@ -551,14 +554,25 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     } else if (inReal && !existReal) {
       dueDate = incoming.dueDate;
       hasSpecificTime = incoming.hasSpecificTime;
-    } else if (incoming.hasSpecificTime && !existing.hasSpecificTime) {
+      timeSource = incoming.timeSource;
+    } else if (
+      (incoming.timeSource === 'explicit' && existing.timeSource !== 'explicit') ||
+      (incoming.hasSpecificTime && !existing.hasSpecificTime)
+    ) {
       dueDate = incoming.dueDate;
       hasSpecificTime = true;
+      timeSource = incoming.timeSource || 'explicit';
+    } else if (!timeSource && incoming.timeSource) {
+      timeSource = incoming.timeSource;
     }
   }
 
-  // Room & weight: prefer weight matching the resolved specific type (e.g. project 15% over assignment 10%)
-  const room = existing.room || incoming.room;
+  // Room & weight: walk merged professor notes sequentially so latest update wins (unless student edited)
+  const mergedNotesPreview = mergeAnnouncementTexts(existing.description || existing.sourceSnippet, incoming.description || incoming.sourceSnippet);
+  const announcedRoom = (!isUserEdited && type !== 'assignment' && type !== 'project')
+    ? (resolveLatestFieldsFromNotes({ title, notesText: mergedNotesPreview, courseNameOrCode: existing.courseName || incoming.courseName, taskType: type }).latestRoom || null)
+    : null;
+  const room = isUserEdited ? (existing.room || incoming.room) : (announcedRoom || incoming.room || existing.room);
   const preferIncomingWeight = incoming.type === type && existing.type !== type && incoming.weight !== undefined;
   const weight = preferIncomingWeight
     ? incoming.weight
@@ -640,6 +654,7 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     ...(typeof columnPosition === 'number' ? { columnPosition } : {}),
     ...(completedAt ? { completedAt } : {}),
     hasSpecificTime,
+    ...(timeSource ? { timeSource } : {}),
     type,
     status,
     description: desc,

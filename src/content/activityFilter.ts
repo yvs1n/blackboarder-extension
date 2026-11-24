@@ -108,6 +108,9 @@ export function startActivityFilter(getJson: GetJson): void {
   const nameByCourseId = new Map<string, { name: string; code: string; hex: string | null }>();
   let membershipsReady = false;
   let coursesReady = false;
+  let chipsDirty = true;
+  let cacheEpoch = 0;
+  const itemInfoCache = new WeakMap<HTMLElement, { epoch: number; len: number; info: ItemInfo }>();
   let frame: number | null = null;
   // Asking Blackboard for more: a few tries per list length, since it ignores a nudge while still loading
   let askedCount = -1;
@@ -141,6 +144,8 @@ export function startActivityFilter(getJson: GetJson): void {
 
   /** Seeds chips from the student's active courses and Blackboard memberships right away, before scrolling. */
   const syncCourseChipsFromSources = () => {
+    chipsDirty = false;
+    cacheEpoch++;
     for (const [k, c] of chips) {
       if (isExcludedActivityCourse(c.label) || isExcludedActivityCourse(k)) {
         chips.delete(k);
@@ -202,6 +207,11 @@ export function startActivityFilter(getJson: GetJson): void {
   }
 
   const describe = (li: HTMLElement): ItemInfo => {
+    const textLen = (li.textContent || '').length;
+    const hit = itemInfoCache.get(li);
+    if (hit && hit.epoch === cacheEpoch && hit.len === textLen) {
+      return hit.info;
+    }
     const link = li.querySelector(COURSE_LINK);
     const courseId = link ? courseIdFromHref(link.getAttribute('href') || '') : null;
     let courseKey = NON_COURSE_KEY;
@@ -217,7 +227,9 @@ export function startActivityFilter(getJson: GetJson): void {
     }
     const title = li.querySelector('a.js-title-link')?.textContent?.trim() || '';
     const text = li.querySelector('.content, .summary')?.textContent?.trim() || '';
-    return { courseKey, category: classifyActivityItem({ icon: iconTag(li), title, text }) };
+    const info: ItemInfo = { courseKey, category: classifyActivityItem({ icon: iconTag(li), title, text }) };
+    itemInfoCache.set(li, { epoch: cacheEpoch, len: textLen, info });
+    return info;
   };
 
   const save = () => {
@@ -487,7 +499,9 @@ export function startActivityFilter(getJson: GetJson): void {
       return;
     }
 
-    syncCourseChipsFromSources();
+    if (chipsDirty) {
+      syncCourseChipsFromSources();
+    }
 
     const skipped = document.documentElement?.dataset.bbsPreloaderSkipped === '1';
     if (!onActivityRoute) {

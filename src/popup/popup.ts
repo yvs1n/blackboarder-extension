@@ -260,6 +260,9 @@ async function initApp() {
   restoreDraft();
 
   (async () => {
+    const taskSig = (list: typeof popupState.currentTasks) =>
+      list.map(t => `${t.id}:${t.updatedAt}:${t.status}:${t.dueDate}:${t.room || ''}:${t.weight ?? ''}:${t.score ?? ''}:${t.submissionStatus || ''}:${(t.description || '').length}`).join('\n');
+
     updateSemesterSelector().catch(() => {});
     let rawTasks = await getTasks();
     if (!rawTasks || rawTasks.length === 0) rawTasks = getCachedTasksSync();
@@ -268,7 +271,7 @@ async function initApp() {
     const freshTasks = deduplicateTaskList(purgedCached);
     freshTasks.sort(compareTasksByTime);
 
-    if (JSON.stringify(freshTasks) !== JSON.stringify(popupState.currentTasks)) {
+    if (taskSig(freshTasks) !== taskSig(popupState.currentTasks)) {
       popupState.currentTasks = freshTasks;
       refreshAllViews();
     }

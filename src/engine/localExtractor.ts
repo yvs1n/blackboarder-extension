@@ -1,6 +1,6 @@
 import { Announcement, DeadlineTask, TaskType, TaskPriority } from '../types';
 import { resolveTaskWeight } from '../core/syllabusWeights';
-import { resolveTaskTimeWithSchedule, resolveTaskRoom } from '../core/courseSchedule';
+import { resolveTaskTimeWithSchedule, resolveTaskRoom, extractRoomFromText } from '../core/courseSchedule';
 import {
   sanitizeDoctorAnnouncementText,
   isBareTypeTitle,
@@ -10,33 +10,41 @@ import {
   isExamReviewSession,
   toEnglishDeadlineTitle
 } from '../core/courseHelper';
-import { parseDateString } from './localDateTime';
+import { parseDateString, parseTime } from './localDateTime';
+import { isTopicCoverageOnlyLine } from '../core/announcementReconcile';
+
+const ORDINAL_NUM_MAP: Record<string, string> = {
+  '1st': '1', first: '1',
+  '2nd': '2', second: '2',
+  '3rd': '3', third: '3',
+  '4th': '4', fourth: '4'
+};
 
 // Keyword patterns for task type identification (supporting English and Arabic)
 const TASK_TYPE_PATTERNS: Array<{ type: TaskType; regex: RegExp; priority: TaskPriority }> = [
   {
     type: 'quiz',
-    regex: /(?:\b(quiz(?:\s*\d+)?|pop\s*quiz)\b|(?:كويز(?:\s*\d+)?|اختبار\s*قصير(?:\s*\d+)?))/i,
+    regex: /(?:\b((?:(?:1st|first|2nd|second|3rd|third|4th|fourth)\s+)?(?:pop\s*)?quiz(?:\s*#?\s*\d+)?)\b|(?:كويز(?:\s*(?:\d+|أول|ثاني|ثالث|رابع|الأول|الثاني|الثالث|الرابع))?|اختبار\s*قصير(?:\s*\d+)?))/i,
     priority: 'high'
   },
   {
     type: 'exam',
-    regex: /(?:\b(midterm(?:\s*exam)?|final\s*exam|major\s*exam|exam(?:\s*\d+)?)\b|(?:امتحان(?:\s*(?:نصفي|نهائي|\d+))?|اختبار(?:\s*(?:نصفي|نهائي))?))/i,
+    regex: /(?:\b((?:(?:1st|first|2nd|second|3rd|third)\s+)?(?:midterm(?:\s*exam)?|final\s*exam|major\s*exam|make-?up\s*exam|preliminary\s*exam|practical\s*exam|theoretical\s*exam|exam(?:\s*#?\s*\d+)?))\b|(?:امتحان(?:\s*(?:نصفي|نهائي|تعويضي|عملي|نظري|أول|ثاني|ثالث|الأول|الثاني|الثالث|\d+))?|اختبار(?:\s*(?:نصفي|نهائي|تعويضي))?))/i,
     priority: 'high'
   },
   {
     type: 'assignment',
-    regex: /(?:\b(assignment(?:\s*\d+)?|homework(?:\s*\d+)?|hw(?:\s*\d+)?|problem\s*set(?:\s*\d+)?)\b|(?:واجب(?:\s*\d+)?|تمرين(?:\s*\d+)?))/i,
+    regex: /(?:\b((?:assignment|homework|hw|problem\s*set|worksheet)(?:\s*#?\s*\d+)?)\b|(?:واجب(?:\s*\d+)?|تمرين(?:\s*\d+)?|ورقة\s*عمل(?:\s*\d+)?))/i,
     priority: 'medium'
   },
   {
     type: 'project',
-    regex: /(?:\b(project(?:\s*(?:phase|milestone|submission|report|\d+))?|term\s*paper|research\s*paper|capstone)\b|(?:مشروع(?:\s*(?:التخرج|\d+))?|(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+))/i,
+    regex: /(?:\b(project(?:\s*(?:phase|milestone|submission|report|#?\s*\d+))?|term\s*paper|research\s*paper|capstone)\b|(?:مشروع(?:\s*(?:التخرج|\d+))?|(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+))/i,
     priority: 'high'
   },
   {
     type: 'lab',
-    regex: /(?:\b(lab(?:\s*(?:report|exam|submission|\d+))?)\b|(?:مختبر(?:\s*\d+)?|تقرير\s*مختبر))/i,
+    regex: /(?:\b(lab(?:oratory)?(?:\s*(?:report|exam|quiz|test|submission|practical|#?\s*\d+))?)\b|(?:مختبر(?:\s*\d+)?|تقرير\s*مختبر))/i,
     priority: 'medium'
   },
   {
@@ -55,24 +63,51 @@ const TASK_TYPE_PATTERNS: Array<{ type: TaskType; regex: RegExp; priority: TaskP
  * Extracts a concise task title from the surrounding text snippet.
  */
 function extractTaskTitle(sentence: string, taskType: TaskType): string {
-  // Clean whitespace
   const clean = sentence.replace(/\s+/g, ' ').trim();
 
-  // English title label like "Quiz 2", "Assignment-1", "Lab Report 2", "Project Proposal"
-  const specificMatch = clean.match(/\b((?:Final\s+Exam|Midterm\s+Exam|Lab\s+Report|Lab\s+Exam|Pop\s+Quiz|Research\s+Paper|Term\s+Paper|Quiz|Assignment|HW|Homework|Exam|Midterm|Project|Lab)(?:[\s-]+(?:#?\d+|Part\s*\d+|Phase\s*\d+|Proposal|Final|[A-Z]\b))?)/i);
+  // Ordinal + assessment noun ("2nd quiz", "second midterm", "1st assignment")
+  const ordMatch = clean.match(/\b(1st|first|2nd|second|3rd|third|4th|fourth)\s+(quiz|midterm(?:\s+exam)?|exam|assignment|hw|homework|lab(?:\s+report)?|project)\b/i);
+  if (ordMatch) {
+    const num = ORDINAL_NUM_MAP[ordMatch[1].toLowerCase()];
+    const noun = ordMatch[2].replace(/\s+/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase());
+    if (num) return toEnglishDeadlineTitle(`${noun} ${num}`, taskType);
+  }
+
+  // English title label like "Quiz 2", "Assignment-1", "Lab Report 2", "Makeup Exam"
+  const specificMatch = clean.match(/\b((?:Final\s+Exam|Midterm\s+Exam|Make-?up\s+Exam|Practical\s+Exam|Theoretical\s+Exam|Lab\s+Report|Lab\s+Exam|Pop\s+Quiz|Research\s+Paper|Term\s+Paper|Quiz|Assignment|HW|Homework|Exam|Midterm|Project|Lab)(?:[\s-]+(?:#?\d+|Part\s*\d+|Phase\s*\d+|Proposal|Final|[A-Z]\b))?)/i);
   if (specificMatch && specificMatch[1].length > 2) {
     return toEnglishDeadlineTitle(specificMatch[1].replace(/[-–]/g, ' ').replace(/\s+/g, ' ').trim(), taskType);
   }
 
-  // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي", "البحث العلمي"
-  const arTitleMatch = clean.match(/(?:(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+|(?:كويز|واجب|امتحان|مشروع|اختبار)(?:\s*(?:الأول|الثاني|الثالث|الرابع|النهائي|النصفي|\d+))?)/i);
+  // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي", "امتحان تعويضي", "البحث العلمي"
+  const arTitleMatch = clean.match(/(?:(?:ال)?بحث(?:\s*(?:العلمي|الأكاديمي|الجماعي))+|(?:كويز|واجب|امتحان|مشروع|اختبار)(?:\s*(?:الأول|الثاني|الثالث|الرابع|النهائي|النصفي|تعويضي|\d+))?)/i);
   if (arTitleMatch && arTitleMatch[0].length > 2) {
     return toEnglishDeadlineTitle(arTitleMatch[0].trim(), taskType);
   }
 
-  // Capitalize fallback
-  const fallback = taskType.charAt(0).toUpperCase() + taskType.slice(1);
-  return fallback;
+  return taskType.charAt(0).toUpperCase() + taskType.slice(1);
+}
+
+function computeLocalConfidence(params: {
+  hasSpecificTime: boolean;
+  hasExplicitRoom: boolean;
+  hasSpecificTitle: boolean;
+  text: string;
+}): number {
+  let score = 0.84;
+  if (params.hasSpecificTime) score += 0.05;
+  if (params.hasExplicitRoom) score += 0.03;
+  if (params.hasSpecificTitle) score += 0.03;
+  if (/(?:\broom|\bhall|\blocation|\bvenue|\bheld\s+in|قاعة|مختبر)/i.test(params.text) && !params.hasExplicitRoom) {
+    score -= 0.14;
+  }
+  if (/(?:\btime|\btiming|\bat\s+\d|الساعة|الوقت)/i.test(params.text) && !params.hasSpecificTime) {
+    score -= 0.12;
+  }
+  if (/\b(?:either|or\s+(?:maybe|tentatively)|tentative|postponed|rescheduled|to\s+be\s+confirmed|tbd)\b/i.test(params.text)) {
+    score -= 0.12;
+  }
+  return Math.max(0.4, Math.min(0.96, Number(score.toFixed(2))));
 }
 
 /**
@@ -143,9 +178,14 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     }
   }
 
-  for (const sentence of sentences) {
-    // Skip sentences that announce post-exam paper reviews, viewing sessions, or Akkindi sheet checks
-    if (hasExamReviewContent(sentence) && !hasMakeupExamAction(sentence) && !/(?:submit\s+by|due\s+on|due\s+date|submission\s+deadline|تسليم\s+في|آخر\s+موعد)/iu.test(sentence)) {
+  for (let i = 0; i < sentences.length; i++) {
+    const sentence = sentences[i];
+    // Skip sentences that announce post-exam paper reviews, viewing sessions, or Akkindi sheet checks,
+    // or pure topic coverage date mentions ("covers lectures from Oct 5") without a schedule cue
+    if (
+      (hasExamReviewContent(sentence) && !hasMakeupExamAction(sentence) && !/(?:submit\s+by|due\s+on|due\s+date|submission\s+deadline|تسليم\s+في|آخر\s+موعد)/iu.test(sentence)) ||
+      isTopicCoverageOnlyLine(sentence)
+    ) {
       continue;
     }
     // Check if the sentence has any academic/deadline intent
@@ -212,12 +252,29 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       continue;
     }
 
-    // Avoid duplicates for the same course + date + type
-    const dateKey = `${announcement.courseCode}_${effectiveType}_${dateMatch.date.toDateString()}`;
-    if (detectedKeys.has(dateKey)) {
-      continue;
+    // Build bounded multi-line block around this sentence so separate "Date:", "Time:", "Room:" lines pair together
+    const blockLines = [sentence];
+    for (let j = i + 1; j < Math.min(sentences.length, i + 4); j++) {
+      const nextLine = sentences[j];
+      const nextDate = parseDateString(nextLine, baseDate);
+      if (nextDate && nextDate.date.toDateString() !== dateMatch.date.toDateString()) break;
+      const nextType = TASK_TYPE_PATTERNS.find(p => p.type !== 'other' && p.type !== 'meeting' && p.regex.test(nextLine));
+      if (nextType) {
+        const nextTitle = extractTaskTitle(nextLine, nextType.type);
+        const curTitle = extractTaskTitle(sentence, effectiveType);
+        if (!isBareTypeTitle(nextTitle) && nextTitle.toLowerCase() !== curTitle.toLowerCase()) break;
+      }
+      blockLines.push(nextLine);
     }
-    detectedKeys.add(dateKey);
+    const blockText = blockLines.join('\n');
+
+    if (!dateMatch.hasSpecificTime && blockLines.length > 1) {
+      const blockTime = parseTime(blockText);
+      if (blockTime.hasTime) {
+        dateMatch.date.setHours(blockTime.hour, blockTime.minute, 0, 0);
+        dateMatch.hasSpecificTime = true;
+      }
+    }
 
     // Naming. A sentence that only has a date ("Date: Thursday 22 October", "Start date is
     // Sept 4") borrows a specific name from earlier context or the announcement heading. Office
@@ -237,6 +294,15 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     title = toEnglishDeadlineTitle(title, effectiveType);
     // Dates that are not graded work ("other") are left out; the AI tier may still name them.
     if (effectiveType === 'other') continue;
+
+    // Avoid duplicates for the same course + type + item number + date
+    const titleNumMatch = title.match(/\b(\d+)\b/);
+    const dateKey = `${announcement.courseCode}_${effectiveType}_${titleNumMatch ? `${titleNumMatch[1]}_` : ''}${dateMatch.date.toDateString()}`;
+    if (detectedKeys.has(dateKey)) {
+      continue;
+    }
+    detectedKeys.add(dateKey);
+
     const taskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // Time adjustment: if teacher gave a specific time, preserve it.
@@ -245,11 +311,14 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       dueDate: dateMatch.date,
       courseNameOrCode: announcement.courseName || announcement.courseCode,
       hasSpecificTime: dateMatch.hasSpecificTime,
-      announcementText: cleanContent || sentence,
+      announcementText: blockText || cleanContent || sentence,
       title
     });
     const finalDate = scheduleResult.dueDate;
     const hasSpecificTime = scheduleResult.hasSpecificTime;
+    const timeSource: DeadlineTask['timeSource'] = dateMatch.hasSpecificTime
+      ? 'explicit'
+      : scheduleResult.appliedSchedule ? 'schedule' : 'default';
 
     // Doctor's announcement quote: prioritize complete clean doctor announcement text
     const doctorAnnouncementText = cleanContent || sentence.trim();
@@ -271,27 +340,40 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       sourceSnippet: doctorAnnouncementText
     });
 
+    const explicitBlockRoom = extractRoomFromText(blockText);
+    const roomAnnouncementText = explicitBlockRoom
+      ? blockText
+      : `${announcement.title || ''}\n${cleanContent || sentence}`.trim();
     const roomInfo = resolveTaskRoom({
       courseNameOrCode: announcement.courseName || announcement.courseCode,
-      announcementText: cleanContent || sentence,
+      announcementText: roomAnnouncementText,
       title,
       type: effectiveType
+    });
+
+    const confidence = computeLocalConfidence({
+      hasSpecificTime: dateMatch.hasSpecificTime,
+      hasExplicitRoom: Boolean(explicitBlockRoom || extractRoomFromText(roomAnnouncementText)),
+      hasSpecificTitle: !isBareTypeTitle(title),
+      text: `${announcement.title || ''}\n${blockText}`
     });
 
     tasks.push({
       id: taskId,
       announcementId: announcement.id,
+      ...(announcement.postedAt ? { announcementPostedAt: announcement.postedAt } : {}),
       courseCode: announcement.courseCode,
       courseName: announcement.courseName,
       title,
       description: doctorAnnouncementText,
       dueDate: finalDate.toISOString(),
       hasSpecificTime,
+      timeSource,
       type: effectiveType,
       priority,
       status: 'pending',
       sourceSnippet: doctorAnnouncementText,
-      confidence: 0.85,
+      confidence,
       extractedBy: 'local',
       weight: weightInfo.weight,
       weightDisplay: weightInfo.weightDisplay,

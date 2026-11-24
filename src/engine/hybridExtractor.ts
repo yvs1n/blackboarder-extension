@@ -1,10 +1,15 @@
 import { Announcement, DeadlineTask, TaskType, UserSettings } from '../types';
 import { extractDeadlinesLocally } from './localExtractor';
-import { extractDeadlinesWithAi } from './aiExtractor';
+import { extractDeadlinesWithAi, confirmDeadlinesWithAi } from './aiExtractor';
 import { AiSettings, resolveAiEndpoint } from './aiProviders';
 import { resolveTaskWeight, extractAssessmentNumber } from '../core/syllabusWeights';
-import { resolveTaskRoom } from '../core/courseSchedule';
-import { isPresentationTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts, isExamReviewSession } from '../core/courseHelper';
+import { resolveTaskRoom, extractRoomFromText } from '../core/courseSchedule';
+import {
+  extractAnnouncementFieldDelta,
+  applyAnnouncementDeltaToTask
+} from '../core/announcementReconcile';
+import { isPresentationTitle, isBareTypeTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts, isExamReviewSession } from '../core/courseHelper';
+import { parseTime } from './localDateTime';
 import { coreTitle, isPracticeTitle } from '../utils/streamParser';
 import { areTasksDuplicates } from '../utils/taskMerge';
 
@@ -235,9 +240,19 @@ export function guessAssessmentType(text: string): TaskType | null {
 /** What the text plainly states, passed to the AI so it does not guess a type, time or room. */
 export function wordingHint(text: string): { category?: TaskType; hasTime: boolean; hasRoom: boolean } {
   const category = guessAssessmentType(text) || undefined;
-  const hasTime = /\b\d{1,2}[:.]\d{2}\b|\b\d{1,2}\s*(?:am|pm)\b|الساعة\s*\d/i.test(text);
-  const hasRoom = /\b(?:room|hall|lab)\s*[A-Z]?\d|\b[A-Z]\d{1,2}\s*[-:]\s*\d{2,3}\b|قاعة|مختبر\s*\d/i.test(text);
+  const hasTime = parseTime(text).hasTime;
+  const hasRoom = Boolean(extractRoomFromText(text)) ||
+    /\b(?:room|hall|auditorium|lecture\s*hall|building|bldg|in\s+lab|lab\s*(?:#|no\.?)?\s*\d)\b|قاعة|مدرج|مختبر\s*\d/i.test(text);
   return { category, hasTime, hasRoom };
+}
+
+function needsAiConfirmation(fullText: string, localTasks: DeadlineTask[]): boolean {
+  if (localTasks.length === 0) return false;
+  if (localTasks.some(t => t.confidence < 0.80 || isBareTypeTitle(t.title))) return true;
+  const hint = wordingHint(fullText);
+  if (hint.hasRoom && !localTasks.some(t => Boolean(t.room))) return true;
+  if (hint.hasTime && !localTasks.some(t => t.timeSource === 'explicit')) return true;
+  return false;
 }
 
 export interface HybridExtractionResult {
@@ -249,8 +264,9 @@ export interface HybridExtractionResult {
 }
 
 /**
- * Hybrid extraction pipeline: runs the local parser first, then a keyword check,
- * and Generative AI for exact dates when the parser found nothing.
+ * Hybrid extraction pipeline: runs the built-in local parser first (primary engine),
+ * confirms ambiguous extractions via optional AI when configured (with safe local fallback),
+ * or runs AI fallback when the local parser could not date academic wording.
  */
 export async function extractDeadlinesHybrid(
   announcement: Announcement,
@@ -266,32 +282,48 @@ export async function extractDeadlinesHybridDetailed(
   announcement: Announcement,
   settings: AiSettings
 ): Promise<HybridExtractionResult> {
-  // Step 1: Run local parser (instant, offline)
-  const localTasks = extractDeadlinesLocally(announcement);
+  // Step 1: Run built-in local parser (primary engine, instant & offline)
+  const localTasks = extractDeadlinesLocally(announcement).filter(t => !isPresentationTask(t));
   const localTier = 'Built-in parser';
+  const fullText = `${announcement.title} ${announcement.contentText}`;
+  const aiEndpoint = settings.useAiExtraction ? resolveAiEndpoint(settings) : null;
 
   if (localTasks.length > 0) {
     // A generic 'other' gets the category the wording points to
-    const guessed = guessAssessmentType(`${announcement.title} ${announcement.contentText}`);
+    const guessed = guessAssessmentType(fullText);
     if (guessed) {
       for (const t of localTasks) if (t.type === 'other') t.type = guessed;
     }
-    return { tasks: localTasks.filter(t => !isPresentationTask(t)), tier: localTier };
+    if (aiEndpoint && needsAiConfirmation(fullText, localTasks)) {
+      const confirmation = await confirmDeadlinesWithAi(
+        announcement,
+        localTasks,
+        aiEndpoint.apiKey,
+        aiEndpoint.model,
+        wordingHint(fullText),
+        { provider: aiEndpoint.provider, chatUrl: aiEndpoint.chatUrl, syncKey: aiEndpoint.syncKey, aiPass: aiEndpoint.aiPass }
+      );
+      if (confirmation.ok) {
+        const refined = confirmation.tasks.filter(t => !isPresentationTask(t));
+        if (refined.length > 0) {
+          return { tasks: refined, tier: 'Built-in parser (AI confirmed)' };
+        }
+      }
+    }
+    return { tasks: localTasks, tier: localTier };
   }
 
   // If AI is off or the chosen provider has no key, the built-in parser's answer stands
-  const aiEndpoint = settings.useAiExtraction ? resolveAiEndpoint(settings) : null;
   if (!aiEndpoint) {
     return { tasks: localTasks, tier: localTier };
   }
 
   // Step 2: skip the AI call for text that never mentions an assessment or deadline
-  const fullText = `${announcement.title} ${announcement.contentText}`;
   if (!hasAcademicKeywords(fullText)) {
     return { tasks: localTasks, tier: 'No academic keywords detected' };
   }
 
-  // Step 3: Generative AI for exact dates, guided by what the wording already shows
+  // Step 3: Generative AI fallback when built-in parser found nothing
   console.log(`[Blackboarder] Triggering Generative AI parser for announcement: "${announcement.title}"`);
   const aiTasks = await extractDeadlinesWithAi(
     announcement,
@@ -303,7 +335,7 @@ export async function extractDeadlinesHybridDetailed(
 
   const wanted = aiTasks.filter(t => !isPresentationTask(t));
   if (wanted.length > 0) {
-    return { tasks: wanted, tier: 'AI model' };
+    return { tasks: wanted, tier: 'AI fallback' };
   }
 
   return { tasks: localTasks, tier: 'Tier 1 Fallback (AI found nothing)' };
@@ -344,8 +376,15 @@ export async function processAnnouncementsBatch(
   const updatedTasks: DeadlineTask[] = [];
   const updatedTaskIds = new Set<string>();
 
-  // Skip announcements already parsed in a previous scan (unless a full re-scan passes no set)
-  const toProcess = announcements.filter(ann => !(knownProcessedAnnIds && knownProcessedAnnIds.has(ann.id)));
+  // Skip previously parsed announcements and sort dated ones chronologically (oldest first) so newer updates win
+  const toProcess = announcements
+    .map((ann, origIdx) => ({ ann, origIdx, ts: ann.postedAt ? Date.parse(ann.postedAt) : NaN }))
+    .filter(item => !(knownProcessedAnnIds && knownProcessedAnnIds.has(item.ann.id)))
+    .sort((a, b) => {
+      if (!isNaN(a.ts) && !isNaN(b.ts) && a.ts !== b.ts) return a.ts - b.ts;
+      return a.origIdx - b.origIdx;
+    })
+    .map(item => item.ann);
 
   // Extraction (AI calls) runs a few at a time; merging below stays in order so dedupe is stable
   let finished = 0;
@@ -368,12 +407,18 @@ export async function processAnnouncementsBatch(
 
     if (extracted.length === 0) {
       // No new deadline date extracted: check if this announcement gives instructions, topics,
-      // rules, or room updates for an already-existing upcoming deadline in the same course.
+      // rules, time, room, or weight updates for an already-existing upcoming deadline in the same course.
       const matchedExisting = findTaskForInstructionAnnouncement(ann, existingIdMap.values());
       if (matchedExisting) {
         let changed = false;
+        const annTs = ann.postedAt ? Date.parse(ann.postedAt) : NaN;
+        const exTs = matchedExisting.announcementPostedAt ? Date.parse(matchedExisting.announcementPostedAt) : NaN;
+        const isOlderOutOfOrder = !isNaN(annTs) && !isNaN(exTs) && annTs < exTs;
+
         const incomingBody = (ann.contentText || ann.title || '').trim();
-        const mergedDesc = mergeAnnouncementTexts(matchedExisting.description || matchedExisting.sourceSnippet, incomingBody);
+        const mergedDesc = isOlderOutOfOrder
+          ? mergeAnnouncementTexts(incomingBody, matchedExisting.description || matchedExisting.sourceSnippet)
+          : mergeAnnouncementTexts(matchedExisting.description || matchedExisting.sourceSnippet, incomingBody);
         if (mergedDesc && mergedDesc !== (matchedExisting.description || '')) {
           matchedExisting.description = mergedDesc;
           matchedExisting.sourceSnippet = mergedDesc;
@@ -381,16 +426,17 @@ export async function processAnnouncementsBatch(
         }
 
         if (!matchedExisting.userEdited && matchedExisting.extractedBy !== 'manual') {
-          const annCombinedText = `${ann.title || ''} ${ann.contentText || ''}`;
-          const roomRes = resolveTaskRoom({
+          const delta = extractAnnouncementFieldDelta({
+            title: ann.title,
+            bodyText: ann.contentText,
+            baseDate: !isNaN(annTs) ? new Date(annTs) : undefined,
             courseNameOrCode: matchedExisting.courseName || matchedExisting.courseCode,
-            announcementText: annCombinedText,
-            title: matchedExisting.title,
-            existingRoom: matchedExisting.room,
-            type: matchedExisting.type
+            taskTitle: matchedExisting.title,
+            taskType: matchedExisting.type
           });
-          if (roomRes.room && roomRes.room !== matchedExisting.room) {
-            matchedExisting.room = roomRes.room;
+          // Undated announcement matched via instruction matcher never moves calendar day
+          delete delta.calendarDay;
+          if (applyAnnouncementDeltaToTask(matchedExisting, delta, { onlyFillMissing: isOlderOutOfOrder })) {
             changed = true;
           }
 
@@ -411,6 +457,10 @@ export async function processAnnouncementsBatch(
 
         if (!matchedExisting.announcementId && ann.id) {
           matchedExisting.announcementId = ann.id;
+          changed = true;
+        }
+        if (ann.postedAt && !isOlderOutOfOrder && matchedExisting.announcementPostedAt !== ann.postedAt) {
+          matchedExisting.announcementPostedAt = ann.postedAt;
           changed = true;
         }
 
@@ -510,10 +560,16 @@ export async function processAnnouncementsBatch(
 
       if (existing) {
         let changed = false;
+        const prevKey = normalizeTaskKey(existing);
+        const annTs = ann.postedAt ? Date.parse(ann.postedAt) : NaN;
+        const exTs = existing.announcementPostedAt ? Date.parse(existing.announcementPostedAt) : NaN;
+        const isOlderOutOfOrder = !isNaN(annTs) && !isNaN(exTs) && annTs < exTs;
 
-        // 1. Description / sourceSnippet: merge new doctor updates and unabridged text
+        // 1. Description / sourceSnippet: merge doctor updates in chronological order
         const incomingDesc = (task.description || task.sourceSnippet || '').trim();
-        const mergedDesc = mergeAnnouncementTexts(existing.description || existing.sourceSnippet, incomingDesc);
+        const mergedDesc = isOlderOutOfOrder
+          ? mergeAnnouncementTexts(incomingDesc, existing.description || existing.sourceSnippet)
+          : mergeAnnouncementTexts(existing.description || existing.sourceSnippet, incomingDesc);
         if (mergedDesc && mergedDesc !== (existing.description || '')) {
           existing.description = mergedDesc;
           existing.sourceSnippet = mergedDesc;
@@ -522,62 +578,84 @@ export async function processAnnouncementsBatch(
 
         // 2. If existing task was edited or created manually by the student, DO NOT override student changes!
         if (!existing.userEdited && existing.extractedBy !== 'manual') {
-          // Normalize title to standardized English if not already
           const enTitle = toEnglishDeadlineTitle(existing.title, existing.type);
           if (enTitle && enTitle !== existing.title) {
             existing.title = enTitle;
             changed = true;
           }
 
-          // Room: re-resolve room with the latest announcement text. An announced room ALWAYS overrides the default!
-          const newRoomRes = resolveTaskRoom({
+          // Build field delta from ONLY what this announcement explicitly extracted:
+          // - Unmentioned fields keep their previous values on `existing`
+          // - Same values stay untouched
+          // - Newly announced date, explicit time, room, or explicit weight updates accordingly
+          const incomingDue = task.dueDate ? new Date(task.dueDate) : null;
+          const validIncomingDue = Boolean(incomingDue && !isNaN(incomingDue.getTime()));
+          const isDone = existing.status === 'completed' ||
+            existing.submissionStatus === 'graded' ||
+            existing.submissionStatus === 'submitted';
+
+          const delta = extractAnnouncementFieldDelta({
+            title: ann.title,
+            bodyText: incomingDesc,
+            baseDate: !isNaN(annTs) ? new Date(annTs) : undefined,
             courseNameOrCode: existing.courseName || existing.courseCode,
-            announcementText: existing.description || existing.sourceSnippet || incomingDesc,
-            title: existing.title,
-            existingRoom: existing.room || task.room,
-            type: existing.type || task.type
+            taskTitle: existing.title,
+            taskType: existing.type || task.type
           });
-          if (newRoomRes.room && newRoomRes.room !== existing.room) {
-            existing.room = newRoomRes.room;
-            changed = true;
-          } else if (task.room && !existing.room) {
-            existing.room = task.room;
-            changed = true;
-          } else {
-            const cleanExT = (existing.type || task.type || '').toLowerCase();
-            if ((cleanExT === 'assignment' || cleanExT === 'hw' || cleanExT === 'project') && existing.room) {
-              existing.room = undefined;
-              changed = true;
-            }
+
+          // Prefer task's already-extracted date & explicit time when valid (handles AI fallback/confirmation too)
+          if (validIncomingDue && !isDone) {
+            delta.calendarDay = {
+              year: incomingDue!.getFullYear(),
+              month: incomingDue!.getMonth(),
+              day: incomingDue!.getDate()
+            };
+          } else if (isDone) {
+            delete delta.calendarDay;
+            delete delta.explicitTime;
+          }
+          if (!isDone && task.timeSource === 'explicit' && validIncomingDue) {
+            delta.explicitTime = {
+              hour: incomingDue!.getHours(),
+              minute: incomingDue!.getMinutes()
+            };
           }
 
-          // 3. Weight & Syllabus Note if previously missing
+          if (applyAnnouncementDeltaToTask(existing, delta, { onlyFillMissing: isOlderOutOfOrder })) {
+            changed = true;
+          }
+
+          // Fallback syllabus weight & default room if still missing after reconciliation
           if ((existing.weight === undefined || existing.weight === null) && task.weight !== undefined) {
             existing.weight = task.weight;
             existing.weightDisplay = task.weightDisplay;
             existing.syllabusNote = task.syllabusNote;
             changed = true;
           }
-
-          // 4. Rescheduled: take the newly announced date
-          if (rescheduledFrom && dayOf(existing.dueDate) !== dayOf(task.dueDate)) {
-            existing.dueDate = task.dueDate;
-            existing.hasSpecificTime = task.hasSpecificTime;
-            changed = true;
-          }
-
-          // 5. Specific class time: if existing did not have specific time, but new does
-          if (!existing.hasSpecificTime && task.hasSpecificTime && (!sameExam || dayOf(existing.dueDate) === dayOf(task.dueDate))) {
-            existing.dueDate = task.dueDate;
-            existing.hasSpecificTime = true;
-            changed = true;
+          if (!existing.room && task.room) {
+            const cleanExT = String(existing.type || task.type || '').toLowerCase();
+            if (cleanExT !== 'assignment' && cleanExT !== 'hw' && cleanExT !== 'project') {
+              existing.room = task.room;
+              changed = true;
+            }
           }
         }
 
-        // 6. If announcementId was not linked before, link it
+        // 3. Link announcementId & advance latest announcement timestamp
         if (!existing.announcementId && task.announcementId) {
           existing.announcementId = task.announcementId;
           changed = true;
+        }
+        if (ann.postedAt && !isOlderOutOfOrder && existing.announcementPostedAt !== ann.postedAt) {
+          existing.announcementPostedAt = ann.postedAt;
+          changed = true;
+        }
+
+        // Keep lookup map updated if dueDate moved so a 3rd follow-up announcement finds the moved task
+        const nextKey = normalizeTaskKey(existing);
+        if (nextKey !== prevKey) {
+          existingKeyMap.delete(prevKey);
+          existingKeyMap.set(nextKey, existing);
         }
 
         if (changed && !updatedTaskIds.has(existing.id)) {

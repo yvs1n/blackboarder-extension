@@ -1,14 +1,9 @@
 import type { DeadlineTask, TaskStatus } from '../../types';
 import { getCourseColorTheme } from '../../core/courseColors';
-import { profileGradeScale } from '../../core/studentProfile';
-import { getAllSyllabi } from '../../core/syllabusWeights';
-import { calculateTrajectoryTargetPlan } from '../../core/targetGpa';
-import { buildGpaSummary } from '../../utils/gpa';
 import { compareTasksByTime, createGoogleCalendarUrl, formatCountdown } from '../../utils/calendar';
 import { resolveCourseInfo } from '../../core/courseHelper';
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
-import { getCachedProfile } from '../universitySettings';
-import { getTaskTargetBadgeHtml, renderDoctorQuoteHtml } from './dayDrawer';
+import { getCurrentTrajectoryPlan, getTaskTargetBadgeHtml, renderDoctorQuoteHtml } from './dayDrawer';
 import { promptCompletionScoreIfNeeded } from './marksView';
 import { getCombinedCalendarTasks, openPaymentModal, togglePaymentPaid } from './paymentsView';
 import { dom, popupActions, popupState } from './state';
@@ -187,17 +182,27 @@ export function renderTasks() {
     return true;
   });
 
+  const completedSortTime = new Map<string, number>();
+  const parseTs = (d?: string) => {
+    if (!d) return NaN;
+    const n = Date.parse(d);
+    return isNaN(n) ? NaN : n;
+  };
+  for (const t of filtered) {
+    if (t.status === 'completed') {
+      completedSortTime.set(
+        t.id,
+        parseTs(t.dueDate) || parseTs(t.submittedAt) || parseTs(t.completedAt) || parseTs(t.createdAt) || parseTs(t.updatedAt) || parseTs(t.gradedAt) || -Infinity
+      );
+    }
+  }
+
   filtered.sort((a, b) => {
     if (a.status === 'pending' && b.status !== 'pending') return -1;
     if (a.status !== 'pending' && b.status === 'pending') return 1;
     if (a.status === 'completed' && b.status === 'completed') {
-      const parse = (d?: string) => {
-        if (!d) return NaN;
-        const n = new Date(d).getTime();
-        return isNaN(n) ? NaN : n;
-      };
-      const timeA = parse(a.dueDate) || parse(a.submittedAt) || parse(a.completedAt) || parse(a.createdAt) || parse(a.updatedAt) || parse(a.gradedAt) || -Infinity;
-      const timeB = parse(b.dueDate) || parse(b.submittedAt) || parse(b.completedAt) || parse(b.createdAt) || parse(b.updatedAt) || parse(b.gradedAt) || -Infinity;
+      const timeA = completedSortTime.get(a.id) ?? -Infinity;
+      const timeB = completedSortTime.get(b.id) ?? -Infinity;
       if (timeA !== timeB) return timeB - timeA;
       return (a.title || '').localeCompare(b.title || '');
     }
@@ -221,14 +226,7 @@ export function renderTasks() {
     return;
   }
 
-  const profile = getCachedProfile();
-  const scale = profileGradeScale(profile);
-  const syllabi = getAllSyllabi();
-  const gpa = buildGpaSummary(popupState.currentTasks, syllabi, scale);
-  const targetGpa = (typeof profile?.targetTermGpa === 'number' && profile.targetTermGpa > 0)
-    ? profile.targetTermGpa
-    : (gpa.gpa !== undefined ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20) : 3.75);
-  const trajectoryPlan = calculateTrajectoryTargetPlan(gpa, targetGpa, popupState.currentTasks, scale);
+  const { plan: trajectoryPlan, targetGpa } = getCurrentTrajectoryPlan();
 
   const fragment = document.createDocumentFragment();
 
@@ -512,8 +510,34 @@ export function setupTaskFilterEvents() {
     renderTasks();
   });
 
-  dom.searchInput()?.addEventListener('input', (e) => {
+  let searchRaf: number | null = null;
+  const searchInput = dom.searchInput();
+  searchInput?.addEventListener('input', (e) => {
     popupState.currentSearchQuery = (e.target as HTMLInputElement).value.trim();
-    renderTasks();
+    if (searchRaf !== null) cancelAnimationFrame(searchRaf);
+    searchRaf = requestAnimationFrame(() => {
+      searchRaf = null;
+      renderTasks();
+    });
+  });
+
+  searchInput?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && searchInput.value) {
+      e.stopPropagation();
+      searchInput.value = '';
+      popupState.currentSearchQuery = '';
+      renderTasks();
+    }
+  });
+
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key !== '/' || popupState.currentActiveView !== 'details') return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+    const activeModal = document.querySelector('.modal-backdrop:not(.hidden)');
+    if (activeModal && (activeModal as HTMLElement).style.display !== 'none') return;
+    e.preventDefault();
+    searchInput?.focus();
+    searchInput?.select();
   });
 }
