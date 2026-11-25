@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Instead of permanently deleting superseded makeup exams, completed multi-item range extensions (e.g. `Assignments 1-3 (Extended Deadline)`), extra items past a completed syllabus quota, or dated post-exam review/paper-viewing sessions, Rulebook Branch `B5` now routes them to `visibility: 'hidden'` with a human-readable `hiddenReasonLabel`, while Branch `B6` strips their grade weight (`ignoreMark: true`) so they never appear on Calendar, active Deadlines, Overdue badges, Notifications, `/feed.ics`, Marks, GPA, Syllabus Progress, or Target GPA.
   - Added a **`Hidden (N)`** filter chip alongside `Pending`, `All`, and `Completed` in both the Chrome Extension and Mobile Companion Deadlines tabs, with 1-click **Share** (for forwarding times/rooms when friends ask), **Restore** (`visibilityLocked: 'active'`), and permanent **Delete**.
 
+### Fixed
+
+  - Split `gh release create` and asset uploads in `release.yml` with exponential retry loops so transient `uploads.github.com` drops on `BlackboarderWidget.exe` or `.zip` uploads never fail the Release job.
+  - Updated `pushReminderFor` in `04-web-push.js` to skip `visibility === 'hidden'` and `status === 'dismissed'` tasks, isolated per-user push tick errors so one corrupted user record never crashes the entire tick, and added transient 429/5xx HTTP retries across `push-cron/worker.js`, `push-reminders.yml`, and `publish-stores.mjs`.
+  - Enabled `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` across workflows to silence Node 20 runner deprecation warnings.
+
 ---
 
 ## [1.8.42] - 2026-11-25

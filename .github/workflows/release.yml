@@ -11,6 +11,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 # Only the newest run matters; an older one would upload an older zip
 concurrency:
   group: release
@@ -127,10 +130,31 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag_info.outputs.tag }}
         run: |
-          files="release/blackboarder-extension.zip release/blackboarder-extension-store.zip release/BlackboarderWidget.exe docs/INSTALL_EXTENSION.md"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" $files --clobber
-            gh release edit "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --draft=false --prerelease=false --latest
+          retry() {
+            local max=3 delay=5 n=1
+            until "$@"; do
+              if [ "$n" -ge "$max" ]; then
+                return 1
+              fi
+              echo "Attempt $n failed; retrying in ${delay}s: $*"
+              sleep "$delay"
+              n=$((n + 1))
+              delay=$((delay * 2))
+            done
+          }
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            retry gh release create "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --latest
           else
-            gh release create "$TAG" $files --title "Blackboarder $TAG" --notes-file release-notes.md --latest
+            retry gh release edit "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --draft=false --prerelease=false --latest
           fi
+
+          for f in release/blackboarder-extension.zip release/blackboarder-extension-store.zip release/BlackboarderWidget.exe docs/INSTALL_EXTENSION.md; do
+            if [ -f "$f" ]; then
+              retry gh release upload "$TAG" "$f" --clobber
+            else
+              echo "Warning: release asset missing, skipping $f"
+            fi
+          done
+
+          retry gh release edit "$TAG" --title "Blackboarder $TAG" --notes-file release-notes.md --draft=false --prerelease=false --latest
