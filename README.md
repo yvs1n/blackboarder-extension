@@ -10,13 +10,13 @@
 
 <p align="center">
   <a href="https://blackboarder.pages.dev/"><img src="https://img.shields.io/badge/Website-blackboarder.pages.dev-18181b?style=flat" alt="Website" /></a>
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.41-blue?logo=github&logoColor=white" alt="Version v1.8.41" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.42-blue?logo=github&logoColor=white" alt="Version v1.8.42" /></a>
   <a href="https://blackboarder.pages.dev/chrome-extension"><img src="https://img.shields.io/badge/Chrome-Web_Store-blue?logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
   <a href="https://blackboarder.pages.dev/edge-extension"><img src="https://img.shields.io/badge/Edge-Add--ons-0078D7?logo=microsoftedge&logoColor=white" alt="Microsoft Edge Add-ons" /></a>
   <a href="https://blackboarder.pages.dev/firefox-extension"><img src="https://img.shields.io/badge/Firefox-Add--ons-FF7139?logo=firefoxbrowser&logoColor=white" alt="Firefox Add-ons" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-730_Passing-success?logo=vitest&logoColor=white" alt="Vitest 730 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-731_Passing-success?logo=vitest&logoColor=white" alt="Vitest 731 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 

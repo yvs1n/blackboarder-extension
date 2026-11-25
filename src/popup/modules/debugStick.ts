@@ -2,7 +2,10 @@ import { BUILD_INFO } from '../../buildInfo';
 import { resolveCourseInfo } from '../../core/courseHelper';
 import {
   countCompletedInSyllabusComponent,
+  extractReferencedAssessmentNumbers,
   isBonusTaskText,
+  isCompletedExtensionOrRangeTask,
+  isExtensionOrMissedWorkTask,
   isMakeupSupersededByCompletedOriginal,
   isMakeupTask,
   isUneditedExtraPastSyllabusQuota,
@@ -160,6 +163,9 @@ export function buildElementDebugReport(target: HTMLElement, ctx: DebugReportCon
         isMakeupTask: isMakeupTask(task),
         makeupTarget: isMakeupTask(task) ? resolveMakeupTarget(task) : null,
         isMakeupSupersededByCompletedOriginal: isMakeupSupersededByCompletedOriginal(task, ctx.tasks),
+        isExtensionOrMissedWorkTask: isExtensionOrMissedWorkTask(task),
+        referencedAssessmentNumbers: extractReferencedAssessmentNumbers(task.title || ''),
+        isCompletedExtensionOrRangeTask: isCompletedExtensionOrRangeTask(task, ctx.tasks),
         isBonusDetected: isBonusTaskText(task),
         isUneditedExtraPastSyllabusQuota: isUneditedExtraPastSyllabusQuota(task, ctx.tasks)
       },

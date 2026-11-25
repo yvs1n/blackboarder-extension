@@ -8,6 +8,7 @@ import {
 } from './syllabusWeights';
 
 const MAKEUP_SIGNAL_RE = /\b(?:make[\s-]*up|makeup|deferred|substitute|re-?sit|resit)\s+(?:exam(?:ination)?|mid[\s-]*term|final|quiz|test|lab)\b|\b(?:make[\s-]*up|makeup)\b[\s:,-]*(?:for|of)\b|\bfor\s+(?:those|students?)\s+who\s+missed\b|\bmissed\s+the\s+(?:mid[\s-]*term|final|exam(?:ination)?|quiz|test|lab)\b|(?:امتحان|اختبار|كويز)\s*(?:تعويضي|بديل|مؤجل)/i;
+const EXTENSION_MISSED_WORK_RE = /\b(?:extended\s+deadline|deadline\s+(?:has\s+been\s+|is\s+)?extended|extension\s+(?:for|of|on)|re-?opened\s+(?:for|to)|chance\s+to\s+(?:do|submit|complete)\s+(?:a\s+|any\s+)?missed|missed\s+(?:an?\s+|any\s+)?(?:assignment|homework|hw|quiz|lab|report|exam|mid[\s-]*term|test)|catch[\s-]*up\s+(?:assignment|homework|hw|quiz|lab|window|deadline)|late\s+submission\s+window)\b|تمديد\s*(?:موعد|فترة)/i;
 const PRACTICE_RE = /\b(?:practice|mock|trial|sample|dry\s*run)\b|تجريبي/i;
 const BONUS_SIGNAL_RE = /\b(?:bonus|extra\s*credit|extra\s*marks?|extra\s*points?|optional\s+(?:quiz|exam|test|assignment|homework|hw|lab))\b|(?:كويز|اختبار|امتحان|واجب|درجات?)\s*(?:بونص|إضافي(?:ة)?)|\bبونص\b/i;
 const BONUS_NEGATION_RE = /\b(?:no\s+bonus|not\s+optional|without\s+bonus|non[\s-]*bonus)\b|بدون\s*(?:بونص|درجات\s*إضافية)/i;
@@ -300,13 +301,157 @@ export function canPairBonusWithScannedTask(
   return false;
 }
 
+function normalizeSimpleType(type?: string): string {
+  const v = (type || 'assignment').toLowerCase().trim();
+  if (v === 'hw' || v === 'homework') return 'assignment';
+  if (v === 'test') return 'quiz';
+  if (v === 'midterm' || v === 'final') return 'exam';
+  return v;
+}
+
 /**
- * Removes redundant unedited makeup tasks and unedited extra tasks whose syllabus component
- * quota is already 100% completed/graded.
+ * Extracts explicit assessment sequence numbers from ranges ("Assignments 1-3", "Quizzes 2 to 4")
+ * and lists ("Assignments 1, 2, and 3", "Labs 1 & 2").
+ */
+export function extractReferencedAssessmentNumbers(text?: string): number[] {
+  if (!text) return [];
+  const nums = new Set<number>();
+  const noun = '(?:assignments?|homeworks?|hw|quizzes|quiz|labs?|lab\\s*reports?|experiments?|exps?|exams?|mid[\\s_-]*terms?|tests?|projects?)';
+
+  // Range: e.g. "Assignments 1-3", "HW 1–3", "Quizzes 2 to 4"
+  const rangeRe = new RegExp(`\\b${noun}\\s*#?\\s*(\\d{1,2})\\s*(?:-|–|—|\\bto\\b)\\s*#?\\s*(\\d{1,2})\\b`, 'gi');
+  for (const m of text.matchAll(rangeRe)) {
+    const start = parseInt(m[1], 10);
+    const end = parseInt(m[2], 10);
+    if (!isNaN(start) && !isNaN(end) && start >= 1 && end >= start && end - start <= 12 && end <= 30) {
+      for (let i = start; i <= end; i++) nums.add(i);
+    }
+  }
+
+  // List: e.g. "Assignments 1, 2, and 3", "Assignments 1, 2 and 3", "Quizzes 1 & 2"
+  const listRe = new RegExp(
+    `\\b${noun}\\s*#?\\s*(\\d{1,2}(?:\\s*(?:,\\s*(?:and|&)|,|&|\\band\\b)\\s*#?\\s*\\d{1,2})+)\\b`,
+    'gi'
+  );
+  for (const m of text.matchAll(listRe)) {
+    const parts = m[1].match(/\d{1,2}/g) || [];
+    for (const p of parts) {
+      const n = parseInt(p, 10);
+      if (!isNaN(n) && n >= 1 && n <= 30) nums.add(n);
+    }
+  }
+
+  if (nums.size === 0) {
+    const single = extractAssessmentNumber(text);
+    if (single !== null && single >= 1 && single <= 30) nums.add(single);
+  }
+
+  return Array.from(nums).sort((a, b) => a - b);
+}
+
+export function isExtensionOrMissedWorkTask(
+  task: Pick<DeadlineTask, 'title' | 'description' | 'sourceSnippet' | 'summary'>
+): boolean {
+  const combined = `${task.title || ''} ${task.description || ''} ${task.sourceSnippet || ''} ${task.summary?.brief || ''}`;
+  if (EXTENSION_MISSED_WORK_RE.test(combined)) return true;
+  return extractReferencedAssessmentNumbers(task.title || '').length >= 2;
+}
+
+/**
+ * Returns true when an unedited extension/missed-work/multi-item announcement (e.g.
+ * "Assignments 1-3 (Extended Deadline)") references specific numbered assessments and ALL of
+ * them are already completed, submitted, or graded in the same course.
+ */
+export function isCompletedExtensionOrRangeTask(
+  task: DeadlineTask,
+  allTasks: Iterable<DeadlineTask>
+): boolean {
+  if (!task || task.userEdited || task.extractedBy === 'manual') return false;
+  if (isCompletedOrGradedTask(task)) return false;
+  if (!isExtensionOrMissedWorkTask(task)) return false;
+
+  const titleNums = extractReferencedAssessmentNumbers(task.title || '');
+  const nums = titleNums.length > 0
+    ? titleNums
+    : extractReferencedAssessmentNumbers(`${task.summary?.brief || ''} ${task.description || ''}`);
+  if (nums.length === 0) return false;
+
+  const targetType = normalizeSimpleType(task.type);
+  const completedNums = new Set<number>();
+  for (const orig of allTasks) {
+    if (!orig || orig.id === task.id) continue;
+    if (!isCompletedOrGradedTask(orig)) continue;
+    if (isMakeupTask(orig) || PRACTICE_RE.test(orig.title || '')) continue;
+    if (!sameCourseNormalized(task, orig)) continue;
+    if (normalizeSimpleType(orig.type) !== targetType) continue;
+    const origNum = extractAssessmentNumber(orig.title || '');
+    if (origNum !== null) completedNums.add(origNum);
+  }
+
+  return nums.every(n => completedNums.has(n));
+}
+
+/**
+ * Strips duplicate syllabus grade allocation from unedited pending reminders that should remain
+ * visible as Due Dates without double-counting in Marks, Syllabus Progress, or Target GPA:
+ * - Catch-up / extended-deadline / multi-item range announcements, OR
+ * - Extra unedited pending tasks when all `maxItems` slots of their syllabus component are
+ *   already allocated across completed tasks + earlier/numbered pending tasks.
+ */
+export function stripAlreadyAllocatedWeights(tasks: DeadlineTask[]): DeadlineTask[] {
+  if (!Array.isArray(tasks) || tasks.length === 0) return tasks || [];
+
+  return tasks.map(task => {
+    if (!task || task.userEdited || task.extractedBy === 'manual') return task;
+    if (isCompletedOrGradedTask(task) || task.isBonus || isBonusTaskText(task)) return task;
+
+    let shouldDeallocate = isExtensionOrMissedWorkTask(task);
+
+    if (!shouldDeallocate) {
+      const compInfo = resolveMatchedSyllabusComponent(task);
+      if (compInfo && compInfo.maxItems > 0) {
+        const siblingsInComp = tasks.filter(other => {
+          if (!other || other.id === task.id || other.status === 'dismissed') return false;
+          if (other.isBonus || isBonusTaskText(other) || isMakeupTask(other) || PRACTICE_RE.test(other.title || '')) return false;
+          if (!sameCourseNormalized(task, other)) return false;
+          const otherComp = resolveMatchedSyllabusComponent(other);
+          return Boolean(otherComp && otherComp.courseId === compInfo.courseId && otherComp.comp.id === compInfo.comp.id);
+        });
+        const completedCount = siblingsInComp.filter(isCompletedOrGradedTask).length;
+        const numberedPendingCount = siblingsInComp.filter(
+          o => !isCompletedOrGradedTask(o) && !isExtensionOrMissedWorkTask(o) && extractAssessmentNumber(o.title || '') !== null
+        ).length;
+        const selfNum = extractAssessmentNumber(task.title || '');
+        if (selfNum === null && completedCount + numberedPendingCount >= compInfo.maxItems) {
+          shouldDeallocate = true;
+        }
+      }
+    }
+
+    if (!shouldDeallocate) return task;
+    if (task.weight === undefined && !task.weightDisplay && !task.syllabusNote && task.ignoreMark) {
+      return task;
+    }
+    const next: DeadlineTask = { ...task, ignoreMark: true };
+    delete next.weight;
+    delete next.weightDisplay;
+    delete next.syllabusNote;
+    return next;
+  });
+}
+
+/**
+ * Removes redundant unedited makeup tasks, completed range-extension announcements, and unedited
+ * extra tasks whose syllabus component quota is already 100% completed/graded, then strips
+ * duplicate grade allocation from any remaining catch-up / due-date-only reminders.
  */
 export function filterRedundantMakeupTasks(tasks: DeadlineTask[]): DeadlineTask[] {
   if (!Array.isArray(tasks) || tasks.length <= 1) return tasks || [];
-  return tasks.filter(
-    t => !isMakeupSupersededByCompletedOriginal(t, tasks) && !isUneditedExtraPastSyllabusQuota(t, tasks)
+  const filtered = tasks.filter(
+    t =>
+      !isMakeupSupersededByCompletedOriginal(t, tasks) &&
+      !isCompletedExtensionOrRangeTask(t, tasks) &&
+      !isUneditedExtraPastSyllabusQuota(t, tasks)
   );
+  return stripAlreadyAllocatedWeights(filtered);
 }

@@ -78,9 +78,9 @@ export function calculateCourseTargetAnalysis(
   const remainingWeight = Math.max(0, 100 - gradedWeight);
   const maxPossiblePercent = round1(Math.min(100, earnedWeight + remainingWeight));
 
-  // Find upcoming pending tasks for this course
+  // Find upcoming pending graded tasks for this course (skip completed, dismissed, or due-date-only unallocated reminders)
   const pendingTasks = tasks.filter(t => {
-    if (!t || t.status === 'completed') return false;
+    if (!t || t.status === 'completed' || t.status === 'dismissed' || t.ignoreMark) return false;
     const cName = (t.courseName || '').toLowerCase();
     const targetName = (courseGrade.courseName || '').toLowerCase();
     return cName && (cName === targetName || targetName.includes(cName) || cName.includes(targetName));
@@ -418,7 +418,7 @@ export function calculateTrajectoryTargetPlan(
     const maxPossiblePoints = bestRow ? bestRow.points : 0;
 
     const pendingTasks = tasks.filter(t => {
-      if (!t || t.status === 'completed') return false;
+      if (!t || t.status === 'completed' || t.status === 'dismissed' || t.ignoreMark) return false;
       const cName = (t.courseName || '').toLowerCase();
       const targetName = (c.courseName || '').toLowerCase();
       return cName && (cName === targetName || targetName.includes(cName) || cName.includes(targetName));

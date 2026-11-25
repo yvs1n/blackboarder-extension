@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.42] - 2026-11-25
+
+### Fixed
+
+- **Completed Range-Extension Suppression & Unallocated Due-Date Protection (`src/core/makeupFilter.ts`, `src/core/targetGpa.ts`, `src/popup/modules/debugStick.ts`):**
+  - Added `extractReferencedAssessmentNumbers` and `isCompletedExtensionOrRangeTask` to detect multi-item extension and missed-work announcements (such as `Assignments 1-3 (Extended Deadline)` / `"This is your chance to do a missed assignment"`), suppressing and tombstoning them automatically whenever all referenced assessments (`1`, `2`, `3`) are already completed or graded in the same course.
+  - Added `stripAlreadyAllocatedWeights` so any kept catch-up/extension reminder (e.g. when one of the referenced items is still incomplete) or extra unnumbered reminder in a fully allocated syllabus component has its duplicate grade weight stripped (`weight: undefined`, `ignoreMark: true`) and is excluded from Target GPA, Syllabus Progress, and Marks calculations.
+
+---
+
 ## [1.8.41] - 2026-11-25
 
 ### Added & Fixed

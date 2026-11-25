@@ -3,10 +3,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { DeadlineTask, UserCourseConfig } from '../src/types';
 import { setActiveUserCourses } from '../src/core/userCourses';
 import {
-  isMakeupSupersededByCompletedOriginal,
+  extractReferencedAssessmentNumbers,
   isBonusText,
+  isCompletedExtensionOrRangeTask,
+  isMakeupSupersededByCompletedOriginal,
   isUneditedExtraPastSyllabusQuota
 } from '../src/core/makeupFilter';
+import { calculateCourseTargetAnalysis } from '../src/core/targetGpa';
 import { extractDeadlinesLocally } from '../src/engine/localExtractor';
 import { deduplicateTaskList, mergeCloudTasks } from '../src/utils/taskMerge';
 import { saveTasksMergingLatest } from '../src/utils/storage/tasksStorage';
@@ -226,6 +229,76 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
     expect(report).toContain('"title": "Quiz 1"');
     expect(report).toContain('[REDACTED]');
     expect(report).not.toContain('testtokenxyz_987654321');
+
+    setActiveUserCourses([]);
+  });
+
+  it('suppresses "Assignments 1-3 (Extended Deadline)" when Assignments 1, 2, and 3 are all completed, and strips grade allocation if one is still missed', () => {
+    const calcCourse: UserCourseConfig = {
+      id: 'course_1440133_2flz',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      colorHex: '#dc2626',
+      creditHours: 3,
+      aliases: ['1440 133'],
+      scheduleSlots: [],
+      syllabus: [
+        { id: 'calc1_assignments', name: 'Homeworks', type: 'assignment', totalWeight: 10, count: 3, outOf: 4, unitWeight: 3.3, keywords: ['assignment', 'hw'] },
+        { id: 'calc1_final', name: 'Final Exam', type: 'exam', totalWeight: 40, count: 1, keywords: ['final'] }
+      ]
+    };
+    setActiveUserCourses([calcCourse]);
+
+    expect(extractReferencedAssessmentNumbers('Assignments 1-3 (Extended Deadline)')).toEqual([1, 2, 3]);
+    expect(extractReferencedAssessmentNumbers('Assignments 1, 2, and 3')).toEqual([1, 2, 3]);
+
+    const a1 = makeTask({ id: 'a1', courseCode: '1440 133', courseName: 'Calculus I for Engineering', title: 'Assignment 1', type: 'assignment', dueDate: '2026-09-18T18:59:00.000Z', status: 'completed', submissionStatus: 'graded', score: 15, maxScore: 15, weight: 3.3 });
+    const a2 = makeTask({ id: 'a2', courseCode: '1440 133', courseName: 'Calculus I for Engineering', title: 'Assignment 2', type: 'assignment', dueDate: '2026-10-08T19:00:00.000Z', status: 'completed', submissionStatus: 'graded', score: 10, maxScore: 10, weight: 3.3 });
+    const a3 = makeTask({ id: 'a3', courseCode: '1440 133', courseName: 'Calculus I for Engineering', title: 'Assignment 3', type: 'assignment', dueDate: '2026-11-19T19:59:00.000Z', status: 'completed', submissionStatus: 'graded', score: 10, maxScore: 10, weight: 3.3 });
+    const a4 = makeTask({ id: 'a4', courseCode: '1440 133', courseName: 'Calculus I for Engineering', title: 'Assignment 4', type: 'assignment', dueDate: '2026-12-03T08:30:00.000Z', status: 'pending', weight: 3.3 });
+    const ext = makeTask({
+      id: 'task_ai_ext_1_3',
+      courseCode: '1440 133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Assignments 1-3 (Extended Deadline)',
+      type: 'assignment',
+      dueDate: '2026-12-02T08:30:00.000Z',
+      description: 'This is your chance to do a missed assignment.',
+      sourceSnippet: 'This is your chance to do a missed assignment.',
+      extractedBy: 'ai',
+      weight: 3.3,
+      weightDisplay: '3.3% (Homeworks 1 of 3)'
+    });
+
+    // Case 1: All 1, 2, 3 completed -> completely suppressed
+    expect(isCompletedExtensionOrRangeTask(ext, [a1, a2, a3, a4, ext])).toBe(true);
+    const dedupedAllDone = deduplicateTaskList([a1, a2, a3, a4, ext]);
+    expect(dedupedAllDone.some(t => t.id === 'task_ai_ext_1_3')).toBe(false);
+
+    // Case 2: Assignment 3 NOT completed yet -> kept as a Due Date reminder, but weight stripped & excluded from Target GPA
+    const a3Pending = { ...a3, status: 'pending' as const, submissionStatus: undefined, score: undefined, maxScore: undefined };
+    const dedupedMissedOne = deduplicateTaskList([a1, a2, a3Pending, a4, ext]);
+    const keptExt = dedupedMissedOne.find(t => t.id === 'task_ai_ext_1_3');
+    expect(keptExt).toBeTruthy();
+    expect(keptExt?.weight).toBeUndefined();
+    expect(keptExt?.weightDisplay).toBeUndefined();
+    expect(keptExt?.ignoreMark).toBe(true);
+
+    const targetAnalysis = calculateCourseTargetAnalysis(
+      {
+        courseName: 'Calculus I for Engineering',
+        creditHours: 3,
+        gradedWeight: 56.6,
+        earnedWeight: 50,
+        percent: 88.3,
+        letter: 'B+',
+        points: 3.5,
+        components: []
+      },
+      dedupedMissedOne
+    );
+    const targetA = targetAnalysis.targets.find(t => t.letter === 'A');
+    expect(targetA?.upcomingTasks?.some(u => u.id === 'task_ai_ext_1_3')).toBe(false);
 
     setActiveUserCourses([]);
   });
