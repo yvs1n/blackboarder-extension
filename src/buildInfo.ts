@@ -13,18 +13,18 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.39",
-  "build": "966516bd4996",
-  "commit": "888d5d6c772095995e14b148b53ecf19b162a2cd",
-  "shortCommit": "888d5d6",
-  "timestamp": "2026-11-25T03:15:23.898Z",
-  "message": "v1.8.38: upgrade extraction engine, sequential note reconciliation, popup/content perf, and landing polish",
+  "version": "1.8.40",
+  "build": "91df2f0f2b15",
+  "commit": "0d228a0bb0b05de348f02f0c255c2144582ade4c",
+  "shortCommit": "0d228a0",
+  "timestamp": "2026-11-25T05:13:48.512Z",
+  "message": "release(v1.8.39): singleton syllabus dedup, structured summary, unified actions, Professor Update",
   "changelog": [
-    "Added resolveSingletonSyllabusKey to enforce at most 1 deliverable per singleton syllabus category within a course (such as Final Exam, Midterm Exam, Course Project, or any custom syllabus component with count === 1 or outOf === 1). When a scan discovers a generically titled deliverable (such as Exam) categorized under Final Exam, it merges cleanly into the existing Final Exam rather than creating a duplicate card, while multi-item components (Quiz 1 vs Quiz 2, numbered Midterm 1 vs Midterm 2, and Practice tests) remain distinct.",
-    "Standardized all deadlines across every course onto a consistent ordered Summary grid (When, Room, Weight, Topics, Rules, plus optional Score and concise Summary overview), extracted deterministically from chronological professor announcements and enriched optionally by AI when configured.",
-    "Moved full chronological announcement posts and follow-up updates into a collapsed Professor Notes dropdown (<details class=\"prof-notes-dropdown\">) with update badges and one-click Copy / Full View actions.",
-    "Standardized every deadline card, Day Drawer card, Reading Sheet, Reading Pane, and Selected Day row across both Chrome Extension and Mobile Companion to share identical equal-height button sizing, order, and semantics ([Mark Done / Pending], [Edit], [Share], [Calendar], [Delete] with 5-second Undo toast support).",
-    "Updated multi-announcement note tags ([Professor Update]:), UI labels (Professor Notes), and AI prompts to use consistent academic terminology while retaining full backward compatibility for legacy [Doctor Update]: history already stored in user vaults."
+    "Recognized Final Examination, Midterm Examination, Laboratory Final Examination, and Make-up Examination directly as exams instead of falling through to lab, preventing exam announcements from matching or overwriting completed/graded lab reports (such as gradebook Lab. Report rows) via bare-title substring merges.",
+    "Skipped numbered/bulleted experiment and topic lists under Coverage / will cover all laboratory experiments listed below headers so covered past experiments are never re-created as new lab deadlines.",
+    "Automatically suppresses auto-extracted, unedited makeup exams/quizzes (e.g. makeup exam for those who missed the midterm) whenever the student already completed, submitted, or received a grade on the corresponding original exam in the same course, while preserving makeup deadlines for students who have not completed the original exam or manually added/edited the makeup item.",
+    "Extended time range parsing to handle 5:00 to 6:00 PM (without a leading from) so start times inherit PM cleanly instead of parsing as 05:00 AM.",
+    "Added strict word boundaries and administrative phrase guards in extractTopicsFromSegments so words like Coverage or section Instructor never produce truncated fragments in the Topics summary row, and fixed .high-priority-tag contrast in dark mode."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

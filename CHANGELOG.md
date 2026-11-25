@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.40] - 2026-11-25
+
+### Fixed
+
+- **Final Examination Classification & Coverage List Protection (`src/engine/localExtractor.ts`, `src/engine/hybridExtractor.ts`, `src/utils/taskMerge.ts`):**
+  - Recognized `Final Examination`, `Midterm Examination`, `Laboratory Final Examination`, and `Make-up Examination` directly as exams instead of falling through to `lab`, preventing exam announcements from matching or overwriting completed/graded lab reports (such as gradebook `Lab. Report` rows) via bare-title substring merges.
+  - Skipped numbered/bulleted experiment and topic lists under `Coverage` / `will cover all laboratory experiments listed below` headers so covered past experiments are never re-created as new lab deadlines.
+- **Completed-Exam Makeup Suppression (`src/core/makeupFilter.ts`, `src/engine/hybridExtractor.ts`, `src/utils/taskMerge.ts`):**
+  - Automatically suppresses auto-extracted, unedited makeup exams/quizzes (e.g. `makeup exam for those who missed the midterm`) whenever the student already completed, submitted, or received a grade on the corresponding original exam in the same course, while preserving makeup deadlines for students who have not completed the original exam or manually added/edited the makeup item.
+- **Time Range Parsing, Summary Topics Cleanup & Dark Mode Polish (`src/engine/localDateTime.ts`, `src/core/deadlineSummary.ts`, `src/popup/styles/04-cards.css`):**
+  - Extended time range parsing to handle `5:00 to 6:00 PM` (without a leading `from`) so start times inherit `PM` cleanly instead of parsing as `05:00 AM`.
+  - Added strict word boundaries and administrative phrase guards in `extractTopicsFromSegments` so words like `Coverage` or `section Instructor` never produce truncated fragments in the `Topics` summary row, and fixed `.high-priority-tag` contrast in dark mode.
+
+---
+
 ## [1.8.39] - 2026-11-25
 
 ### Added & Improved

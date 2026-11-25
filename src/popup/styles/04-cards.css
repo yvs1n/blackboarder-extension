@@ -401,7 +401,7 @@
 }
 
 .high-priority-tag {
-  color: #18181b;
+  color: var(--text-main);
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.03em;

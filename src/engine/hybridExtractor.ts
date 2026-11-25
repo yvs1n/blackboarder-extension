@@ -12,6 +12,7 @@ import { isPresentationTitle, isBareTypeTitle, toEnglishDeadlineTitle, mergeAnno
 import { parseTime } from './localDateTime';
 import { coreTitle, isPracticeTitle } from '../utils/streamParser';
 import { areTasksDuplicates } from '../utils/taskMerge';
+import { isMakeupSupersededByCompletedOriginal } from '../core/makeupFilter';
 
 /**
  * Normalizes title for deduplication comparison.
@@ -122,7 +123,7 @@ function taskKind(t: DeadlineTask): 'midterm' | 'final' | 'exam' | 'quiz' | 'ass
   if (/(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(title)) return 'midterm';
   if (/(?:\bfinals?\b|نهائي)/i.test(title)) return 'final';
   if (t.type === 'quiz' || /quiz|كويز|اختبار\s*قصير/i.test(title)) return 'quiz';
-  if (t.type === 'exam' || /\b(?:exam|test)\b|امتحان|اختبار/i.test(title)) return 'exam';
+  if (t.type === 'exam' || /\b(?:exam(?:ination)?|test)\b|امتحان|اختبار/i.test(title)) return 'exam';
   if (t.type === 'lab' || /lab|تقرير|تجربة/i.test(title)) return 'lab';
   if (t.type === 'project' || /project|مشروع|بحث/i.test(title)) return 'project';
   if (t.type === 'assignment' || /assignment|homework|hw|واجب/i.test(title)) return 'assignment';
@@ -130,14 +131,15 @@ function taskKind(t: DeadlineTask): 'midterm' | 'final' | 'exam' | 'quiz' | 'ass
 }
 
 function annMatchesKind(text: string, kind: NonNullable<ReturnType<typeof taskKind>>): boolean {
+  const isFinalOrMidtermAnn = /(?:\bfinal\s+exam(?:ination)?|\bmid[\s_-]*term(?:\s+exam(?:ination)?)?|امتحان\s*(?:نهائي|نصفي))/i.test(text);
   switch (kind) {
     case 'midterm': return /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(text);
     case 'final': return /(?:\bfinals?\b|نهائي)/i.test(text);
-    case 'quiz': return /\bquiz(?:zes)?\b|كويز|اختبار\s*قصير/i.test(text);
-    case 'exam': return /\b(?:exams?|tests?)\b|امتحان|اختبار/i.test(text) && !/(?:\bmid[\s_-]*terms?\b|\bfinals?\b|نصفي|نهائي)/i.test(text);
-    case 'lab': return /\b(?:labs?|experiments?|lab\s*reports?)\b|مختبر|تقرير|تجربة/i.test(text);
-    case 'project': return /\bprojects?\b|مشروع|بحث/i.test(text);
-    case 'assignment': return /\b(?:assignments?|homework|hw\d*|problem\s*sets?)\b|واجب/i.test(text);
+    case 'quiz': return !isFinalOrMidtermAnn && /\bquiz(?:zes)?\b|كويز|اختبار\s*قصير/i.test(text);
+    case 'exam': return /\b(?:exam(?:ination)?s?|tests?)\b|امتحان|اختبار/i.test(text) && !/(?:\bmid[\s_-]*terms?\b|\bfinals?\b|نصفي|نهائي)/i.test(text);
+    case 'lab': return !isFinalOrMidtermAnn && /\b(?:labs?|experiments?|lab\s*reports?)\b|مختبر|تقرير|تجربة/i.test(text);
+    case 'project': return !isFinalOrMidtermAnn && /\bprojects?\b|مشروع|بحث/i.test(text);
+    case 'assignment': return !isFinalOrMidtermAnn && /\b(?:assignments?|homework|hw\d*|problem\s*sets?)\b|واجب/i.test(text);
   }
 }
 
@@ -249,7 +251,7 @@ export function titleCourseKeyFor(task: Pick<DeadlineTask, 'title' | 'courseCode
 }
 
 const TYPE_WORDS: Array<[TaskType, RegExp]> = [
-  ['exam', /\b(midterms?|finals?|exams?)\b|امتحان|اختبار (?:نهائي|فصلي)/i],
+  ['exam', /\b(midterms?|finals?|exams?|examinations?)\b|امتحان|اختبار (?:نهائي|فصلي)/i],
   ['quiz', /\b(quiz(?:zes)?)\b|كويز|اختبار قصير/i],
   ['lab', /\b(labs?|experiments?)\b|مختبر|تجربة/i],
   ['project', /\b(projects?|presentations?)\b|مشروع|عروض|عرض/i],
@@ -527,6 +529,11 @@ export async function processAnnouncementsBatch(
 
       const key = normalizeTaskKey(task);
       const titleCourseKey = titleCourseKeyFor(task);
+
+      // Skip auto-extracted makeup exams when the student already completed or has a grade for the original exam
+      if (isMakeupSupersededByCompletedOriginal(task, existingIdMap.values())) {
+        continue;
+      }
 
       // One announcement can hold several deadlines, so its id only matches the same task
       const sameAnnouncement = task.announcementId ? existingAnnIdMap.get(`${task.announcementId}|${cleanTitle(task.title)}`) : undefined;

@@ -29,7 +29,7 @@ const TASK_TYPE_PATTERNS: Array<{ type: TaskType; regex: RegExp; priority: TaskP
   },
   {
     type: 'exam',
-    regex: /(?:\b((?:(?:1st|first|2nd|second|3rd|third)\s+)?(?:midterm(?:\s*exam)?|final\s*exam|major\s*exam|make-?up\s*exam|preliminary\s*exam|practical\s*exam|theoretical\s*exam|exam(?:\s*#?\s*\d+)?))\b|(?:امتحان(?:\s*(?:نصفي|نهائي|تعويضي|عملي|نظري|أول|ثاني|ثالث|الأول|الثاني|الثالث|\d+))?|اختبار(?:\s*(?:نصفي|نهائي|تعويضي))?))/i,
+    regex: /(?:\b((?:(?:1st|first|2nd|second|3rd|third)\s+)?(?:midterm(?:\s*exam(?:ination)?)?|final\s*exam(?:ination)?|major\s*exam(?:ination)?|make-?up\s*exam(?:ination)?|preliminary\s*exam(?:ination)?|practical\s*exam(?:ination)?|theoretical\s*exam(?:ination)?|lab(?:oratory)?\s*final\s*exam(?:ination)?|exam(?:ination)?(?:\s*#?\s*\d+)?))\b|(?:امتحان(?:\s*(?:نصفي|نهائي|تعويضي|عملي|نظري|أول|ثاني|ثالث|الأول|الثاني|الثالث|\d+))?|اختبار(?:\s*(?:نصفي|نهائي|تعويضي))?))/i,
     priority: 'high'
   },
   {
@@ -73,10 +73,16 @@ function extractTaskTitle(sentence: string, taskType: TaskType): string {
     if (num) return toEnglishDeadlineTitle(`${noun} ${num}`, taskType);
   }
 
-  // English title label like "Quiz 2", "Assignment-1", "Lab Report 2", "Makeup Exam"
-  const specificMatch = clean.match(/\b((?:Final\s+Exam|Midterm\s+Exam|Make-?up\s+Exam|Practical\s+Exam|Theoretical\s+Exam|Lab\s+Report|Lab\s+Exam|Pop\s+Quiz|Research\s+Paper|Term\s+Paper|Quiz|Assignment|HW|Homework|Exam|Midterm|Project|Lab)(?:[\s-]+(?:#?\d+|Part\s*\d+|Phase\s*\d+|Proposal|Final|[A-Z]\b))?)/i);
+  // English title label like "Quiz 2", "Assignment-1", "Lab Report 2", "Makeup Exam", "Final Examination"
+  const specificMatch = clean.match(/\b((?:Lab(?:oratory)?\s+Final\s+Exam(?:ination)?|Final\s+Exam(?:ination)?|Midterm\s+Exam(?:ination)?|Make-?up\s+Exam(?:ination)?|Practical\s+Exam(?:ination)?|Theoretical\s+Exam(?:ination)?|Lab\s+Report|Lab\s+Exam(?:ination)?|Pop\s+Quiz|Research\s+Paper|Term\s+Paper|Quiz|Assignment|HW|Homework|Exam(?:ination)?|Midterm|Project|Lab)(?:[\s-]+(?:#?\d+|Part\s*\d+|Phase\s*\d+|Proposal|Final|[A-Z]\b))?)/i);
   if (specificMatch && specificMatch[1].length > 2) {
-    return toEnglishDeadlineTitle(specificMatch[1].replace(/[-–]/g, ' ').replace(/\s+/g, ' ').trim(), taskType);
+    const normalized = specificMatch[1]
+      .replace(/\bExamination\b/gi, 'Exam')
+      .replace(/\bLaboratory\s+Final\s+Exam\b/gi, 'Final Exam')
+      .replace(/[-–]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return toEnglishDeadlineTitle(normalized, taskType);
   }
 
   // Arabic title label like "كويز 1", "الواجب الأول", "امتحان نصفي", "امتحان تعويضي", "البحث العلمي"
@@ -178,8 +184,23 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
     }
   }
 
+  let inCoverageList = false;
+  const COVERAGE_HEADER_RE = /\b(?:coverage|will\s+cover\s+(?:all\s+)?(?:the\s+)?(?:following|laboratory\s+)?(?:experiments?|topics?|chapters?|labs?)|experiments?\s+listed\s+below|topics?\s+listed\s+below|covered\s+experiments?)\b|المواضيع\s+المطلوبة|التجارب\s+المطلوبة/i;
+  const EXPLICIT_SCHEDULE_CUE_RE = /\b(?:due\s+(?:on|by|date)|submit\s+by|submission\s+deadline|will\s+be\s+held\s+on|scheduled\s+(?:for|on))\b|آخر\s+موعد|تسليم\s+في/i;
+
   for (let i = 0; i < sentences.length; i++) {
     const sentence = sentences[i];
+    if (COVERAGE_HEADER_RE.test(sentence) && !EXPLICIT_SCHEDULE_CUE_RE.test(sentence)) {
+      inCoverageList = true;
+      continue;
+    }
+    if (inCoverageList) {
+      if (EXPLICIT_SCHEDULE_CUE_RE.test(sentence)) {
+        inCoverageList = false;
+      } else if (/^(?:\d+[\.\)]\s+|[-•*]\s+|(?:experiment|lab|chapter|topic)\s*\d+)/i.test(sentence)) {
+        continue;
+      }
+    }
     // Skip sentences that announce post-exam paper reviews, viewing sessions, or Akkindi sheet checks,
     // or pure topic coverage date mentions ("covers lectures from Oct 5") without a schedule cue
     if (

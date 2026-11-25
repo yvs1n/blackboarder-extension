@@ -54,26 +54,31 @@ export function extractTopicsFromSegments(segments: string[]): string | null {
       .replace(UPDATE_TAG_PREFIX_RE, '')
       .replace(/\r\n?/g, '\n');
 
-    const topicClauseRe = /(?:covers?|covering|topics?|material\s+(?:included|covered)|chapters?\s*(?:covered|included)?|units?|modules?|sections?|lectures?|syllabus\s+scope)\s*(?:are|is|will\s+be|includes?|:|-)?\s*([^.!?\n;]+(?:[,;&]\s*[^.!?\n;]+)*)/gi;
+    const topicClauseRe = /\b(?:covers?|covering|coverage|topics?|material\s+(?:included|covered)|chapters?\s*(?:covered|included)?|units?|modules?|lectures?|syllabus\s+scope)\b\s*(?:are|is|will\s+be|includes?|:|-)?\s*([^.!?\n;]+(?:[,;&]\s*[^.!?\n;]+)*)/gi;
     let m: RegExpExecArray | null;
     while ((m = topicClauseRe.exec(clean)) !== null) {
       let val = (m[1] || '').trim()
+        .replace(/^(?:the\s+(?:final|midterm|lab(?:oratory)?)\s+exam(?:ination)?\s+will\s+cover\s+)/i, '')
         .replace(/^(?:only|the\s+following|from)\s+/i, '')
-        .replace(/\b(?:on|at|in\s+room|in\s+hall|at\s+\d)\b.*$/i, '')
+        .replace(/\b(?:listed\s+below|as\s+follows?|on|at|in\s+room|in\s+hall|at\s+\d)\b.*$/i, '')
         .replace(/[,\s:-]+$/, '')
         .trim();
-      if (val.length >= 3 && !/^(?:your|the)\s+(?:exam|quiz|midterm|test)$/i.test(val)) {
+      if (
+        val.length >= 3 &&
+        !/^(?:your|the)\s+(?:exam|quiz|midterm|test)$/i.test(val) &&
+        !/\b(?:instructor|attendance|confirm|student\s+id|university\s+id)\b/i.test(val)
+      ) {
         // Check if match itself started with Chapter/Lecture/Module so we keep the noun prefix
         const fullPrefix = (m[0] || '').trim();
-        if (/^(?:chapters?|ch\.?|lectures?|units?|modules?|sections?)\b/i.test(fullPrefix) && !/^(?:chapters?|ch\.?|lectures?|units?|modules?|sections?)\b/i.test(val)) {
-          const noun = fullPrefix.match(/^(chapters?|ch\.?|lectures?|units?|modules?|sections?)/i)?.[1] || 'Chapters';
+        if (/^(?:chapters?|ch\.?|lectures?|units?|modules?)\b/i.test(fullPrefix) && !/^(?:chapters?|ch\.?|lectures?|units?|modules?)\b/i.test(val)) {
+          const noun = fullPrefix.match(/^(chapters?|ch\.?|lectures?|units?|modules?)/i)?.[1] || 'Chapters';
           val = `${noun} ${val}`;
         }
         latestTopics = trimSentence(val, 150);
       }
     }
 
-    const explicitRangeRe = /\b((?:Chapters?|Ch\.?|Lectures?|Units?|Modules?|Sections?|Weeks?)\s*\d+(?:\s*(?:-|to|–|&|,|and)\s*(?:Ch\.?\s*)?\d+)*)/gi;
+    const explicitRangeRe = /\b((?:Chapters?|Ch\.?|Lectures?|Units?|Modules?|Sections?|Weeks?)\s*\d+(?:\.\d+)?(?:\s*(?:-|to|–|&|,|and)\s*(?:Ch\.?\s*)?\d+(?:\.\d+)?)*)/gi;
     let r: RegExpExecArray | null;
     while ((r = explicitRangeRe.exec(clean)) !== null) {
       const token = (r[1] || '').replace(/\s+/g, ' ').trim();

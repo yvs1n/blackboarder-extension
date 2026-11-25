@@ -171,11 +171,11 @@ export function parseTime(text: string): { hour: number; minute: number; hasTime
     }
   }
 
-  // 2. Hyphenated time range: "11:00 - 12:30 pm", "2 - 3:30 pm", "10.30 - 11.45 am"
-  const hyphenRangeRegex = /\b(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)\s*-\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{1,2}:\d{2})\b/gi;
+  // 2. Hyphenated or "to/until" time range: "11:00 - 12:30 pm", "5:00 to 6:00 PM", "2 - 3:30 pm", "10.30 - 11.45 am"
+  const hyphenRangeRegex = /\b(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)\s*(?:-|to|until|till)\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)|\d{1,2}:\d{2})\b/gi;
   for (const hyphenMatch of norm.matchAll(hyphenRangeRegex)) {
     if (isOldOrNegatedTimeContext(norm, hyphenMatch.index ?? 0)) continue;
-    // Skip bare numbers with no colon and no am/pm on BOTH sides (e.g. "10 - 12" in chapters/marks)
+    // Skip bare numbers with no colon and no am/pm on BOTH sides (e.g. "10 - 12" or "1 to 4" in chapters/marks)
     if (!/[:.]|a\.?m|p\.?m/i.test(hyphenMatch[1]) && !/[:.]|a\.?m|p\.?m/i.test(hyphenMatch[2])) continue;
     const startParsed = parseSingleTimeString(hyphenMatch[1], inferRangeStartMarker(hyphenMatch[1], hyphenMatch[2]));
     if (startParsed) {

@@ -5,6 +5,7 @@ import { coreTitle, isPracticeTitle, isBonusTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints, resolveSingletonSyllabusKey } from '../core/syllabusWeights';
 import { isExamItem, hasScanTimeDueDate } from './gradebook';
 import { sanitizeTaskMarks, sanitizeTaskListMarks } from './taskMarkSanitize';
+import { filterRedundantMakeupTasks } from '../core/makeupFilter';
 
 export { extractAssessmentNumber, sanitizeTaskMarks, sanitizeTaskListMarks };
 
@@ -454,9 +455,10 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
     const isAssignA = /assignment|hw|homework|واجب/i.test(a.title);
     const isAssignB = /assignment|hw|homework|واجب/i.test(b.title);
     const sameAssessType = (isQuizA && isQuizB) || (isLabA && isLabB) || (isAssignA && isAssignB) || (typeA === typeB);
+    const eitherBare = isBareTypeTitle(a.title) || isBareTypeTitle(b.title);
     if (numA !== null && numB !== null && numA === numB && sameAssessType) return true;
-    if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) return true;
-    if (coreA && coreB && coreA.length >= 3 && (coreA === coreB || coreA.includes(coreB) || coreB.includes(coreA)) && sameAssessType) return true;
+    if (!eitherBare && cleanA && cleanB && Math.min(cleanA.length, cleanB.length) >= 5 && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA)) && sameAssessType) return true;
+    if (!eitherBare && coreA && coreB && coreA.length >= 4 && (coreA === coreB || coreA.includes(coreB) || coreB.includes(coreA)) && sameAssessType) return true;
   }
 
   const isGenericA = /^(?:assignment|homework|hw|due|duedate|task|untitled)$/i.test(a.title.trim());
@@ -773,5 +775,5 @@ export function deduplicateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
     }
   }
 
-  return sanitizeTaskListMarks(result).sort(compareTasksChronologically);
+  return filterRedundantMakeupTasks(sanitizeTaskListMarks(result)).sort(compareTasksChronologically);
 }
