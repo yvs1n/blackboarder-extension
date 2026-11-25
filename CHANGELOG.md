@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.41] - 2026-11-25
+
+### Added & Fixed
+
+- **Permanent Makeup Purge & Tombstoning (`src/core/makeupFilter.ts`, `src/utils/taskMerge.ts`, `src/popup/popup.ts`, `src/mobile/app/05-sync-fetch.js`):**
+  - Fixed a number-extraction edge case where concatenating `title` and `weightDisplay` (`makeup exam` + `25% (Midterm Exam)`) parsed `25` as an exam sequence number and prevented matching completed `Midterm 1` / `Midterm Exam` records.
+  - Normalized course matching across Roman numerals (`Physics I` vs `Physics 1`), section-suffixed course codes (`1430115_01`), and syllabus `courseId` mappings, and added syllabus component completion checks so makeup tasks are suppressed whenever the target component is already completed.
+  - Recorded deletion tombstones whenever redundant makeup or duplicate tasks are purged on startup, scan, or cloud merge so neither local storage nor Firebase Vault can resurrect previously stored items.
+- **Bonus Assessment Auto-Detection, Manual Bonus Deduplication & Completed Syllabus Quotas (`src/core/makeupFilter.ts`, `src/utils/taskMerge.ts`, `src/engine/localExtractor.ts`, `src/engine/aiExtractor.ts`, `src/utils/streamParser.ts`):**
+  - Scanners now detect explicit bonus / extra-credit wording (English and Arabic) and stamp `isBonus: true` automatically.
+  - Manually added bonus items (such as a hand-entered `Bonus Quiz`) now deduplicate cleanly with scanned assessments of the same type in the same course when scanned without a bonus label, preserving `isBonus: true` and manual settings.
+  - Auto-extracted, unedited non-bonus items whose syllabus component quota (`count` / `outOf`) is already 100% completed or graded are automatically suppressed so extra phantom quizzes or labs never appear once all required syllabus items are finished.
+- **Side-by-Side Unpacked Test Build (`dist-dev/`) & Interactive `Debug Stick` X-Ray Inspector (`scripts/build.js`, `src/popup/modules/debugStick.ts`, `src/popup/styles/15-debug-stick.css`):**
+  - `npm run build` now emits `dist-dev/` (`Blackboarder [DEV]`), allowing side-by-side unpacked installation alongside the Chrome Web Store build with zero extension ID collision.
+  - Added an interactive `Debug Stick` inspector (enabled by default in `dist-dev/`, or unlocked in any build via `Alt+Shift+D` or 5 clicks on `#ext-version-badge`) that highlights hovered UI elements and generates a one-click, secret-redacted JSON X-Ray report of the clicked DOM element, raw `DeadlineTask`, syllabus component quota counts, engine flags, and all sibling tasks in that course.
+
+---
+
 ## [1.8.40] - 2026-11-25
 
 ### Fixed

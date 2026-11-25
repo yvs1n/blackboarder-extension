@@ -1,4 +1,5 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate, TaskType } from '../types';
+import { isBonusText } from '../core/makeupFilter';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, toEnglishDeadlineTitle } from '../core/courseHelper';
 import { resolveTaskWeight, extractExplicitPoints, extractAssessmentNumber } from '../core/syllabusWeights';
 import { resolveTaskRoom } from '../core/courseSchedule';
@@ -650,6 +651,8 @@ export function parseUltraStreamEntries(
         type
       });
 
+      const isBonus = isBonusText(rawClean);
+
       directTasks.push({
         id: taskId,
         courseCode,
@@ -661,6 +664,7 @@ export function parseUltraStreamEntries(
         type,
         priority: 'high',
         status: 'pending',
+        ...(isBonus ? { isBonus: true } : {}),
         sourceSnippet: `Due Date: ${due.toISOString()}`,
         confidence: 1.0,
         extractedBy: 'local',

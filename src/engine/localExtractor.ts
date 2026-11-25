@@ -12,6 +12,7 @@ import {
 } from '../core/courseHelper';
 import { parseDateString, parseTime } from './localDateTime';
 import { isTopicCoverageOnlyLine } from '../core/announcementReconcile';
+import { isBonusText } from '../core/makeupFilter';
 
 const ORDINAL_NUM_MAP: Record<string, string> = {
   '1st': '1', first: '1',
@@ -379,6 +380,8 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       text: `${announcement.title || ''}\n${blockText}`
     });
 
+    const isBonus = isBonusText(`${announcement.title || ''}\n${blockText}\n${doctorAnnouncementText}`);
+
     tasks.push({
       id: taskId,
       announcementId: announcement.id,
@@ -393,6 +396,7 @@ export function extractDeadlinesLocally(announcement: Announcement): DeadlineTas
       type: effectiveType,
       priority,
       status: 'pending',
+      ...(isBonus ? { isBonus: true } : {}),
       sourceSnippet: doctorAnnouncementText,
       confidence,
       extractedBy: 'local',

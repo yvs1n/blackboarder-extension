@@ -1,0 +1,157 @@
+/* ==========================================================================
+   Developer Debug Stick & X-Ray Inspector (Swiss Grid Monochrome)
+   ========================================================================== */
+body.bbs-debug-inspecting,
+body.bbs-debug-inspecting * {
+  cursor: crosshair !important;
+}
+
+.bbs-debug-stick-bar {
+  position: fixed;
+  left: 8px;
+  bottom: 52px;
+  z-index: 9990;
+  display: none;
+}
+
+.bbs-debug-pill {
+  appearance: none;
+  background: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: 0 !important;
+  padding: 3px 8px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer !important;
+  opacity: 0.88;
+}
+
+.bbs-debug-pill:hover,
+.bbs-debug-pill.is-active {
+  background: var(--text-main);
+  color: var(--bg-main);
+  opacity: 1;
+}
+
+.bbs-debug-hover-box {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9989;
+  display: none;
+  border: 2px dashed var(--text-main);
+  background: var(--surface-hover);
+  border-radius: 0 !important;
+}
+
+.bbs-debug-hover-label {
+  position: absolute;
+  left: -2px;
+  top: -18px;
+  background: var(--text-main);
+  color: var(--bg-main);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  white-space: nowrap;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0 !important;
+}
+
+.bbs-debug-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgb(0 0 0 / 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.bbs-debug-modal.hidden {
+  display: none !important;
+}
+
+.bbs-debug-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: 0 !important;
+}
+
+.bbs-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.bbs-debug-title {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.bbs-debug-pre {
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: 62dvh;
+  background: var(--surface);
+  color: var(--text-main);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 10.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bbs-debug-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--surface-border);
+}
+
+.bbs-debug-btn {
+  appearance: none;
+  background: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: 0 !important;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bbs-debug-btn:hover {
+  background: var(--surface-hover);
+}
+
+.bbs-debug-btn-primary {
+  flex: 1 1 auto;
+  background: var(--text-main);
+  color: var(--bg-main);
+}
+
+.bbs-debug-btn-primary:hover {
+  opacity: 0.9;
+  background: var(--text-main);
+}

@@ -269,7 +269,8 @@ export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGen
       }
 
       const { tasks, changed } = mergeCloudTasks(popupState.currentTasks, res.tasks, tombstones);
-      if (changed) {
+      const dedupPreview = deduplicateTaskList(tasks);
+      if (changed || dedupPreview.length !== tasks.length) {
         popupState.currentTasks = (await saveTasksMergingLatest(tasks)).sort(compareTasksByTime);
         refreshAllViews();
         result = popupState.currentTasks;

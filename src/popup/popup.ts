@@ -57,6 +57,7 @@ import {
   switchView,
 } from './modules/navigation';
 import { initOverlayKeyboardHandler } from './modules/overlayController';
+import { initDebugStick } from './modules/debugStick';
 import {
   initPaymentsView,
   openPaymentModal,
@@ -271,6 +272,11 @@ async function initApp() {
     const validTasks = rawTasks.filter(isValidTask);
     const { cleaned: purgedCached, purgedIds: startupPurgedIds } = purgeSyntheticGradebookTasks(validTasks);
     const freshTasks = deduplicateTaskList(purgedCached);
+    const dedupPurgedIds = purgedCached
+      .filter(t => t && t.id && !(t.id.startsWith('gbcol_') && t.sourceSnippet === 'gradebook'))
+      .map(t => t.id)
+      .filter(id => !freshTasks.some(f => f.id === id));
+    const allStartupPurged = [...startupPurgedIds, ...dedupPurgedIds];
     freshTasks.sort(compareTasksByTime);
 
     if (taskSig(freshTasks) !== taskSig(popupState.currentTasks)) {
@@ -278,9 +284,14 @@ async function initApp() {
       refreshAllViews();
     }
 
-    if (startupPurgedIds.length > 0) {
-      startupPurgedIds.forEach(id => recordLocalTombstone(id));
-      saveTasksMergingLatest(popupState.currentTasks).catch(() => {});
+    if (allStartupPurged.length > 0) {
+      allStartupPurged.forEach(id => recordLocalTombstone(id));
+      saveTasksMergingLatest(popupState.currentTasks)
+        .then(saved => {
+          popupState.currentTasks = saved.sort(compareTasksByTime);
+          syncTasksToCloud(popupState.currentTasks, 'Auto-Purge Redundant Deadlines');
+        })
+        .catch(() => {});
     }
 
     const storedPayments = await getStoredPayments().catch(() => []);
@@ -310,6 +321,7 @@ async function initApp() {
 
   initSessionBanner();
   initExtensionUpdateSystem();
+  initDebugStick();
   setupStorageAndSyncListeners();
 
   getScanStatus().then(status => {

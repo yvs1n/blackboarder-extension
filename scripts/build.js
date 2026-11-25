@@ -405,7 +405,18 @@ function firefoxManifestText(text) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-async function buildExtension(info, viteDefines, { outDir = 'dist', store = false, firefox = false } = {}) {
+/** The manifest for the side-by-side local developer test build (dist-dev/): distinct label + no key collision with CWS. */
+function devManifestText(text) {
+  const manifest = JSON.parse(text);
+  delete manifest.key;
+  manifest.name = 'Blackboarder [DEV]';
+  if (manifest.action && typeof manifest.action === 'object') {
+    manifest.action.default_title = 'Blackboarder [DEV] - Debug & Test';
+  }
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
+
+async function buildExtension(info, viteDefines, { outDir = 'dist', store = false, firefox = false, dev = false } = {}) {
   const distDir = r(outDir);
 
   console.log('Building popup...');
@@ -468,7 +479,9 @@ async function buildExtension(info, viteDefines, { outDir = 'dist', store = fals
 
   // manifest.json and icons (also copied by Vite from public/, done here so the lib builds cannot skip them)
   const manifestText = readText(r('public/manifest.json'));
-  const finalManifest = firefox ? firefoxManifestText(manifestText) : (store ? storeManifestText(manifestText) : manifestText);
+  const finalManifest = dev
+    ? devManifestText(manifestText)
+    : (firefox ? firefoxManifestText(manifestText) : (store ? storeManifestText(manifestText) : manifestText));
   fs.writeFileSync(path.join(distDir, 'manifest.json'), finalManifest, 'utf8');
   copyPdfJs(distDir);
   fs.mkdirSync(path.join(distDir, 'icons'), { recursive: true });
@@ -655,7 +668,7 @@ async function main() {
   console.log(`Extension build ${extInfo.build} (${extInfo.shortCommit || 'no git'})`);
   writeBuildInfoTs(extInfo);
 
-  const viteDefines = { 'process.env.NODE_ENV': '"production"', __STORE_BUILD__: 'false' };
+  const viteDefines = { 'process.env.NODE_ENV': '"production"', __STORE_BUILD__: 'false', __DEV_BUILD__: 'false' };
 
   if (HAS_WEB) {
     assembleCompanionAssets();
@@ -677,6 +690,8 @@ async function main() {
   await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-store', store: true });
   // Firefox Desktop & Firefox for Android build (no Chromium-only sidePanel or nativeMessaging)
   await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-firefox', store: true, firefox: true });
+  // Side-by-side developer/debug unpacked build (dist-dev/) with Debug Stick enabled out of the box
+  await buildExtension(extInfo, { ...viteDefines, __DEV_BUILD__: 'true' }, { outDir: 'dist-dev', dev: true });
   // The root copy is what extensions installed before the dist/version.json check still read
   writeIfChanged(r('version.json'), versionJson);
 

@@ -1,11 +1,11 @@
 import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle, mergeAnnouncementTexts, isBareTypeTitle } from '../core/courseHelper';
 import { resolveLatestFieldsFromNotes } from '../core/announcementReconcile';
-import { coreTitle, isPracticeTitle, isBonusTitle } from './streamParser';
+import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints, resolveSingletonSyllabusKey } from '../core/syllabusWeights';
 import { isExamItem, hasScanTimeDueDate } from './gradebook';
 import { sanitizeTaskMarks, sanitizeTaskListMarks } from './taskMarkSanitize';
-import { filterRedundantMakeupTasks } from '../core/makeupFilter';
+import { canPairBonusWithScannedTask, filterRedundantMakeupTasks, isBonusTaskText } from '../core/makeupFilter';
 
 export { extractAssessmentNumber, sanitizeTaskMarks, sanitizeTaskListMarks };
 
@@ -185,9 +185,7 @@ export function mergeCloudTasks(
       changed = true;
     }
     return clean;
-  }).sort(
-    compareTasksChronologically
-  );
+  }).sort(compareTasksChronologically);
   return { tasks, changed };
 }
 
@@ -297,7 +295,7 @@ function compareTaskCourses(a: DeadlineTask, b: DeadlineTask): 'same' | 'differe
 /**
  * Checks if two tasks represent the exact same real-world deadline.
  */
-export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
+export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask, allTasks?: Iterable<DeadlineTask>): boolean {
   if (!a || !b) return false;
   if (a.id === b.id) return true;
 
@@ -307,10 +305,9 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   // A practice run, mock exam, or sample paper never matches a real assessment
   if (isPracticeTitle(a.title) !== isPracticeTitle(b.title)) return false;
 
-  // A bonus mark / bonus deadline never merges with a normal assessment
-  const bonusA = Boolean(a.isBonus) || isBonusTitle(a.title);
-  const bonusB = Boolean(b.isBonus) || isBonusTitle(b.title);
-  if (bonusA !== bonusB) return false;
+  // A bonus mark / bonus deadline only merges with a normal scanned task when allowed by course/quota rules
+  if (!canPairBonusWithScannedTask(a, b, allTasks)) return false;
+  const bonusMismatchPaired = isBonusTaskText(a) !== isBonusTaskText(b);
 
   const cleanA = (a.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
   const cleanB = (b.title || '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '');
@@ -348,6 +345,13 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
   const hasTimeA = !isNaN(timeA);
   const hasTimeB = !isNaN(timeB);
   const diffMs = (hasTimeA && hasTimeB) ? Math.abs(timeA - timeB) : Infinity;
+
+  if (bonusMismatchPaired && typeA === typeB) {
+    return true;
+  }
+  if (isBonusTaskText(a) && isBonusTaskText(b) && typeA === typeB && !(numA !== null && numB !== null && numA !== numB)) {
+    return true;
+  }
 
   // Case 0: Singleton assessment deduplication within the same course:
   // 1. Midterm exams (only 1 midterm exam per course unless explicitly numbered Midterm 1 vs Midterm 2)
@@ -517,12 +521,17 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   // Type: prefer specific type over generic assignment
   const type = (existing.type && existing.type !== 'assignment' ? existing.type : incoming.type) || existing.type;
 
-  // Title: student edits win (Rule 3); otherwise prefer official gbcol title over extension-announcement wrapper or longer informative title
+  const existingManualOrEdited = Boolean(existing.userEdited || existing.extractedBy === 'manual');
+  const incomingManualOrEdited = Boolean(incoming.userEdited || incoming.extractedBy === 'manual');
+  const isBonusMerged = Boolean(existing.isBonus || incoming.isBonus || isBonusTaskText(existing) || isBonusTaskText(incoming));
+  const bonusSource = existing.isBonus ? existing : (incoming.isBonus ? incoming : null);
+
+  // Title: student edits / manual entries win (Rule 3)
   let title = existing.title;
   const isExtensionWrapper = (s: string) => /^(?:تمديد\s*(?:فترة|موعد)?|موعد\s*تسليم|إعلان\s*:)/i.test((s || '').trim());
-  if (existing.userEdited && !incoming.userEdited) {
+  if (existingManualOrEdited && !incomingManualOrEdited) {
     title = existing.title;
-  } else if (incoming.userEdited && !existing.userEdited) {
+  } else if (incomingManualOrEdited && !existingManualOrEdited) {
     title = incoming.title;
   } else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_') && isExtensionWrapper(existing.title)) {
     title = incoming.title;
@@ -692,7 +701,14 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
         ? { ...(existing.summary || {}), ...(incoming.summary || {}) }
         : { ...(incoming.summary || {}), ...(existing.summary || {}) }
     } : {}),
-    ...(existing.ignoreMark || incoming.ignoreMark ? { ignoreMark: true } : {}),
+      ...(existing.ignoreMark || incoming.ignoreMark ? { ignoreMark: true } : {}),
+    ...(isBonusMerged ? {
+      isBonus: true,
+      ...(bonusSource?.bonusUnit ? { bonusUnit: bonusSource.bonusUnit } : {}),
+      ...(bonusSource?.bonusTarget ? { bonusTarget: bonusSource.bonusTarget } : {}),
+      ...(bonusSource?.bonusTargetLabel ? { bonusTargetLabel: bonusSource.bonusTargetLabel } : {})
+    } : {}),
+    ...(existing.extractedBy === 'manual' || incoming.extractedBy === 'manual' ? { extractedBy: 'manual' as const } : {}),
     userEdited: isUserEdited,
     updatedAt: new Date(Math.max(
       new Date(existing.updatedAt || existing.createdAt || 0).getTime(),
@@ -764,10 +780,11 @@ export function deduplicateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
 
   const result: DeadlineTask[] = [];
 
-  for (const incoming of dropMisfiledCopies(sanitized)) {
+  const dropped = dropMisfiledCopies(sanitized);
+  for (const incoming of dropped) {
     if (!incoming || !incoming.title) continue;
 
-    const existingIndex = result.findIndex(existing => areTasksDuplicates(existing, incoming));
+    const existingIndex = result.findIndex(existing => areTasksDuplicates(existing, incoming, dropped));
     if (existingIndex === -1) {
       result.push({ ...incoming });
     } else {

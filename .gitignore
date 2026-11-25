@@ -37,6 +37,7 @@ pnpm-debug.log*
 release/
 dist-store/
 dist-firefox/
+dist-dev/
 
 # Personal schedule documents
 schedule.pdf

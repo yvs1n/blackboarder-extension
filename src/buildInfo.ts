@@ -13,18 +13,21 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.40",
-  "build": "91df2f0f2b15",
-  "commit": "0d228a0bb0b05de348f02f0c255c2144582ade4c",
-  "shortCommit": "0d228a0",
-  "timestamp": "2026-11-25T05:13:48.512Z",
-  "message": "release(v1.8.39): singleton syllabus dedup, structured summary, unified actions, Professor Update",
+  "version": "1.8.41",
+  "build": "cd0b0579e671",
+  "commit": "a47578138b1cf3313ea0fb163f9594569e51145f",
+  "shortCommit": "a475781",
+  "timestamp": "2026-11-25T08:00:00.301Z",
+  "message": "release(v1.8.40): fix Final Examination lab matching, makeup exam suppression, PM time range, and summary topics",
   "changelog": [
-    "Recognized Final Examination, Midterm Examination, Laboratory Final Examination, and Make-up Examination directly as exams instead of falling through to lab, preventing exam announcements from matching or overwriting completed/graded lab reports (such as gradebook Lab. Report rows) via bare-title substring merges.",
-    "Skipped numbered/bulleted experiment and topic lists under Coverage / will cover all laboratory experiments listed below headers so covered past experiments are never re-created as new lab deadlines.",
-    "Automatically suppresses auto-extracted, unedited makeup exams/quizzes (e.g. makeup exam for those who missed the midterm) whenever the student already completed, submitted, or received a grade on the corresponding original exam in the same course, while preserving makeup deadlines for students who have not completed the original exam or manually added/edited the makeup item.",
-    "Extended time range parsing to handle 5:00 to 6:00 PM (without a leading from) so start times inherit PM cleanly instead of parsing as 05:00 AM.",
-    "Added strict word boundaries and administrative phrase guards in extractTopicsFromSegments so words like Coverage or section Instructor never produce truncated fragments in the Topics summary row, and fixed .high-priority-tag contrast in dark mode."
+    "Fixed a number-extraction edge case where concatenating title and weightDisplay (makeup exam + 25% (Midterm Exam)) parsed 25 as an exam sequence number and prevented matching completed Midterm 1 / Midterm Exam records.",
+    "Normalized course matching across Roman numerals (Physics I vs Physics 1), section-suffixed course codes (1430115_01), and syllabus courseId mappings, and added syllabus component completion checks so makeup tasks are suppressed whenever the target component is already completed.",
+    "Recorded deletion tombstones whenever redundant makeup or duplicate tasks are purged on startup, scan, or cloud merge so neither local storage nor Firebase Vault can resurrect previously stored items.",
+    "Scanners now detect explicit bonus / extra-credit wording (English and Arabic) and stamp isBonus: true automatically.",
+    "Manually added bonus items (such as a hand-entered Bonus Quiz) now deduplicate cleanly with scanned assessments of the same type in the same course when scanned without a bonus label, preserving isBonus: true and manual settings.",
+    "Auto-extracted, unedited non-bonus items whose syllabus component quota (count / outOf) is already 100% completed or graded are automatically suppressed so extra phantom quizzes or labs never appear once all required syllabus items are finished.",
+    "npm run build now emits dist-dev/ (Blackboarder [DEV]), allowing side-by-side unpacked installation alongside the Chrome Web Store build with zero extension ID collision.",
+    "Added an interactive Debug Stick inspector (enabled by default in dist-dev/, or unlocked in any build via Alt+Shift+D or 5 clicks on #ext-version-badge) that highlights hovered UI elements and generates a one-click, secret-redacted JSON X-Ray report of the clicked DOM element, raw DeadlineTask, syllabus component quota counts, engine flags, and all sibling tasks in that course."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

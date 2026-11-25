@@ -1,5 +1,6 @@
 import { Announcement, DeadlineTask, TaskType, TaskPriority } from '../types';
 import { resolveTaskTimeWithSchedule, resolveTaskRoom } from '../core/courseSchedule';
+import { isBonusText } from '../core/makeupFilter';
 import { sanitizeDoctorAnnouncementText, toEnglishDeadlineTitle } from '../core/courseHelper';
 import { isExtensionContextValid } from '../utils/storage';
 import { AiEndpoint, OPENROUTER_CHAT_URL, DEFAULT_OPENROUTER_MODEL, aiRequestHeaders, parseAiJson } from './aiProviders';
@@ -210,6 +211,8 @@ function mapAiItemsToTasks(
       : undefined;
     const hasStructuredSummary = Boolean(summaryObj && (summaryObj.topics || summaryObj.formatRules || summaryObj.brief));
 
+    const isBonus = isBonusText(`${item.title || ''} ${announcement.title || ''} ${cleanBody}`);
+
     return {
       id: `task_ai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       announcementId: announcement.id,
@@ -224,6 +227,7 @@ function mapAiItemsToTasks(
       type: resolvedType,
       priority: item.priority || hint?.priority || 'medium',
       status: 'pending',
+      ...(isBonus ? { isBonus: true } : {}),
       sourceSnippet: fullDoctorText,
       ...(hasStructuredSummary ? { summary: summaryObj } : {}),
       confidence: 0.95,
