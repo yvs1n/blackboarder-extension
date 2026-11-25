@@ -459,4 +459,81 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
     expect(mergedRestore.tasks.find(t => t.id === 'phys_makeup_stale')?.visibility).toBeUndefined();
     expect(mergedRestore.tasks.find(t => t.id === 'phys_makeup_stale')?.visibilityLocked).toBe('active');
   });
+
+  it('hides Makeup Assignment and reversed-order Midterm Make-up when original work is completed', () => {
+    const completedAssign1: DeadlineTask = {
+      id: 'assign_1_done',
+      courseCode: '1440 133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Assignment 1',
+      description: '',
+      dueDate: '2026-10-01T19:00:00.000Z',
+      hasSpecificTime: true,
+      type: 'assignment',
+      priority: 'medium',
+      status: 'completed',
+      sourceSnippet: '',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-09-25T00:00:00.000Z',
+      updatedAt: '2026-10-01T19:00:00.000Z'
+    };
+    const makeupAssign: DeadlineTask = {
+      id: 'assign_makeup_1',
+      courseCode: '1440 133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Makeup Assignment',
+      description: 'Makeup assignment for those who missed the homework.',
+      dueDate: '2026-10-20T19:00:00.000Z',
+      hasSpecificTime: true,
+      type: 'assignment',
+      priority: 'medium',
+      status: 'pending',
+      sourceSnippet: 'Makeup assignment for those who missed the homework.',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-10-15T00:00:00.000Z',
+      updatedAt: '2026-10-15T00:00:00.000Z'
+    };
+    const completedPhysMidterm: DeadlineTask = {
+      id: 'phys_midterm_only',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'Midterm',
+      description: '',
+      dueDate: '2026-10-18T10:00:00.000Z',
+      hasSpecificTime: true,
+      type: 'exam',
+      priority: 'high',
+      status: 'completed',
+      sourceSnippet: '',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-10-01T00:00:00.000Z',
+      updatedAt: '2026-10-18T10:00:00.000Z'
+    };
+    const reversedMidtermMakeup: DeadlineTask = {
+      id: 'phys_midterm_makeup_rev',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'Midterm Make-up',
+      description: 'For students who missed the midterm.',
+      dueDate: '2026-10-27T13:00:00.000Z',
+      hasSpecificTime: true,
+      type: 'exam',
+      priority: 'high',
+      status: 'pending',
+      sourceSnippet: 'For students who missed the midterm.',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-10-21T00:00:00.000Z',
+      updatedAt: '2026-10-21T00:00:00.000Z'
+    };
+
+    const evaluated = evaluateTaskList([completedAssign1, makeupAssign, completedPhysMidterm, reversedMidtermMakeup]);
+    expect(evaluated.find(t => t.id === 'assign_makeup_1')?.visibility).toBe('hidden');
+    expect(evaluated.find(t => t.id === 'assign_makeup_1')?.hiddenReason).toBe('makeup_completed');
+    expect(evaluated.find(t => t.id === 'phys_midterm_makeup_rev')?.visibility).toBe('hidden');
+    expect(evaluated.find(t => t.id === 'phys_midterm_makeup_rev')?.hiddenReason).toBe('makeup_completed');
+  });
 });

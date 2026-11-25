@@ -4,15 +4,17 @@ import { sanitizePayments, sortPayments } from '../../core/payments';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
 import { sanitizeSemesters } from '../../core/semesters';
 import { profileUniversity } from '../../core/studentProfile';
+import { getActiveUserCourses } from '../../core/userCourses';
 import { resolveTaskWeight } from '../../core/syllabusWeights';
 import { extractDeadlinesLocally } from '../../engine/localExtractor';
-import { fetchTasksFromFirebase, pushTasksToFirebase } from '../../utils/firebaseSync';
-import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer } from '../../utils/backupRestore';
+import { fetchTasksFromFirebase, overwriteCloudVault, pushTasksToFirebase } from '../../utils/firebaseSync';
+import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer, isLocalBackupEpochNewer } from '../../utils/backupRestore';
 import { purgeSyntheticGradebookTasks } from '../../utils/gradebook';
 import { compareTasksByTime } from '../../utils/calendar';
 import { SEMESTERS_STORAGE_KEY } from '../../utils/semestersStorage';
 import {
   generateUniqueSyncKey,
+  getCachedCoursesSync,
   getCoursesUpdatedAt,
   getQuickLinks,
   getQuickLinksUpdatedAt,
@@ -262,6 +264,28 @@ export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGen
         refreshAllViews();
         return popupState.currentTasks;
       }
+      if (isLocalBackupEpochNewer(localEpoch, res.backupEpoch) && settings.syncKey) {
+        const [tasks, courses, quickLinks, tombstones, coursesUpdatedAt, quickLinksUpdatedAt, payments] = await Promise.all([
+          getTasks(),
+          getUserCourses(),
+          getQuickLinks(),
+          getLocalTombstones(),
+          getCoursesUpdatedAt(),
+          getQuickLinksUpdatedAt(),
+          getStoredPayments().catch(() => [])
+        ]);
+        await overwriteCloudVault({
+          tasks,
+          courses,
+          coursesUpdatedAt: coursesUpdatedAt || localEpoch,
+          quickLinks,
+          quickLinksUpdatedAt: quickLinksUpdatedAt || localEpoch,
+          tombstones,
+          payments,
+          backupEpoch: localEpoch
+        }, 'Chrome Extension (Backup Sync)', settings.syncKey).catch(() => {});
+        return popupState.currentTasks;
+      }
     }
     if (res.success && Array.isArray(res.tasks)) {
       const localTombs = await getLocalTombstones();
@@ -345,6 +369,7 @@ export function setupStorageAndSyncListeners() {
   if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.bbs_tasks) {
+        if (getActiveUserCourses().length === 0) getCachedCoursesSync();
         const newTasks = (changes.bbs_tasks.newValue as DeadlineTask[]) || [];
         try { localStorage.setItem('bbs_tasks', JSON.stringify(newTasks)); } catch {}
         popupState.currentTasks = deduplicateTaskList(newTasks.filter(isValidTask));

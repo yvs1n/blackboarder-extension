@@ -7,7 +7,7 @@ import {
   type SyllabusComponent
 } from './syllabusWeights';
 
-const MAKEUP_SIGNAL_RE = /\b(?:make[\s-]*up|makeup|deferred|substitute|re-?sit|resit)\s+(?:exam(?:ination)?|mid[\s-]*term|final|quiz|test|lab)\b|\b(?:make[\s-]*up|makeup)\b[\s:,-]*(?:for|of)\b|\bfor\s+(?:those|students?)\s+who\s+missed\b|\bmissed\s+the\s+(?:mid[\s-]*term|final|exam(?:ination)?|quiz|test|lab)\b|(?:امتحان|اختبار|كويز)\s*(?:تعويضي|بديل|مؤجل)/i;
+const MAKEUP_SIGNAL_RE = /\b(?:make[\s-]*up|makeup|deferred|substitute|re-?sit|resit|retake)\s+(?:exam(?:ination)?|mid[\s-]*term|final|quiz|test|lab|assignment|homework|hw|project|report|assessment)\b|\b(?:exam(?:ination)?|mid[\s-]*term|final|quiz|test|lab|assignment|homework|hw|project|report|assessment)\s+(?:make[\s-]*up|makeup|re-?sit|resit|retake)\b|\b(?:make[\s-]*up|makeup)\b[\s:,-]*(?:for|of)\b|\bfor\s+(?:those|students?)\s+who\s+missed\b|\bmissed\s+(?:the|an?)\s+(?:mid[\s-]*term|final|exam(?:ination)?|quiz|test|lab|assignment|homework|hw)\b|(?:امتحان|اختبار|كويز|واجب|موعد)\s*(?:تعويضي|بديل|مؤجل)/i;
 const EXTENSION_MISSED_WORK_RE = /\b(?:extended\s+deadline|deadline\s+(?:has\s+been\s+|is\s+)?extended|extension\s+(?:for|of|on)|re-?opened\s+(?:for|to)|chance\s+to\s+(?:do|submit|complete)\s+(?:a\s+|any\s+)?missed|missed\s+(?:an?\s+|any\s+)?(?:assignment|homework|hw|quiz|lab|report|exam|mid[\s-]*term|test)|catch[\s-]*up\s+(?:assignment|homework|hw|quiz|lab|window|deadline)|late\s+submission\s+window)\b|تمديد\s*(?:موعد|فترة)/i;
 const PRACTICE_RE = /\b(?:practice|mock|trial|sample|dry\s*run)\b|تجريبي/i;
 const BONUS_SIGNAL_RE = /\b(?:bonus|extra\s*credit|extra\s*marks?|extra\s*points?|optional\s+(?:quiz|exam|test|assignment|homework|hw|lab))\b|(?:كويز|اختبار|امتحان|واجب|درجات?)\s*(?:بونص|إضافي(?:ة)?)|\bبونص\b/i;
@@ -33,7 +33,7 @@ export function isBonusTaskText(
 }
 
 export interface MakeupTarget {
-  kind: 'midterm' | 'final' | 'quiz' | 'lab' | 'exam';
+  kind: 'midterm' | 'final' | 'quiz' | 'lab' | 'assignment' | 'exam';
   num: number | null;
 }
 
@@ -44,7 +44,7 @@ function extractMakeupTargetNumber(
   if (titleNum !== null) return titleNum;
   const body = `${task.description || ''}\n${task.sourceSnippet || ''}`;
   const explicitTarget = body.match(
-    /\b(?:missed(?:\s+the)?|make[\s-]*up(?:\s+for)?)\s+(?:quiz|mid[\s_-]*term|exam(?:ination)?|test|lab(?:\s*report)?|experiment)\s*#?\s*(\d{1,2})\b/i
+    /\b(?:missed(?:\s+the)?|make[\s-]*up(?:\s+for)?)\s+(?:quiz|mid[\s_-]*term|exam(?:ination)?|test|lab(?:\s*report)?|experiment|assignment|homework|hw)\s*#?\s*(\d{1,2})\b/i
   );
   if (explicitTarget) {
     const n = parseInt(explicitTarget[1], 10);
@@ -62,6 +62,9 @@ export function resolveMakeupTarget(
   if (/\bfinals?\b|نهائي/i.test(combined)) return { kind: 'final', num };
   if (task.type === 'quiz' || /\bquiz(?:zes)?\b|كويز/i.test(combined)) return { kind: 'quiz', num };
   if (task.type === 'lab' || /\blab(?:\s*exam|\s*report)?\b|مختبر/i.test(combined)) return { kind: 'lab', num };
+  if (task.type === 'assignment' || (task.type as string) === 'hw' || /\b(?:assignments?|homeworks?|hw)\b|واجب/i.test(combined)) {
+    return { kind: 'assignment', num };
+  }
   return { kind: 'exam', num };
 }
 
@@ -216,29 +219,32 @@ export function isMakeupSupersededByCompletedOriginal(
       if (orig.type === 'quiz' && target.num !== null && origNum === target.num) return true;
     } else if (target.kind === 'lab') {
       if (orig.type === 'lab' && target.num !== null && origNum === target.num) return true;
+    } else if (target.kind === 'assignment') {
+      const isOrigAssign = normalizeSimpleType(orig.type) === 'assignment' || sameComp;
+      if (isOrigAssign && target.num !== null && origNum === target.num) return true;
     } else {
       if (orig.type === 'exam' && (target.num === null || origNum === target.num)) return true;
     }
   }
 
-  // Unnumbered makeup quiz ("Makeup Quiz" without a quiz number): superseded if at least one
-  // regular quiz in this course is completed and no regular quiz dated on/before the makeup is pending
-  if (target.kind === 'quiz' && target.num === null) {
+  // Unnumbered makeup quiz or assignment without an item number: superseded if at least one
+  // regular item of the same kind in this course is completed and none dated on/before the makeup is pending
+  if ((target.kind === 'quiz' || target.kind === 'assignment') && target.num === null) {
     const makeupDueMs = Date.parse(makeupTask.dueDate || '');
-    const regularQuizzes = Array.from(allTasks).filter(t =>
+    const regularSameKind = Array.from(allTasks).filter(t =>
       t &&
       t.id !== makeupTask.id &&
       t.status !== 'dismissed' &&
-      t.type === 'quiz' &&
+      normalizeSimpleType(t.type) === target.kind &&
       !t.isBonus &&
       !isBonusTaskText(t) &&
       !isMakeupTask(t) &&
       !PRACTICE_RE.test(t.title || '') &&
       sameCourseNormalized(makeupTask, t)
     );
-    const hasCompletedQuiz = regularQuizzes.some(isCompletedOrGradedTask);
-    if (hasCompletedQuiz) {
-      const hasEarlierPending = regularQuizzes.some(t => {
+    const hasCompleted = regularSameKind.some(isCompletedOrGradedTask);
+    if (hasCompleted) {
+      const hasEarlierPending = regularSameKind.some(t => {
         if (isCompletedOrGradedTask(t)) return false;
         if (isNaN(makeupDueMs)) return true;
         const tMs = Date.parse(t.dueDate || '');
@@ -406,19 +412,33 @@ export function isCompletedExtensionOrRangeTask(
   const targetType = normalizeSimpleType(task.type);
   const taskComp = resolveMatchedSyllabusComponent(task);
   const completedNums = new Set<number>();
+  const pendingNums = new Set<number>();
+  let completedSameGroup = 0;
+
   for (const orig of allTasks) {
-    if (!orig || orig.id === task.id) continue;
-    if (!isCompletedOrGradedTask(orig)) continue;
-    if (isMakeupTask(orig) || PRACTICE_RE.test(orig.title || '')) continue;
+    if (!orig || orig.id === task.id || orig.status === 'dismissed') continue;
+    if (orig.isBonus || isBonusTaskText(orig) || isMakeupTask(orig) || PRACTICE_RE.test(orig.title || '')) continue;
     if (!sameCourseNormalized(task, orig)) continue;
     const origComp = taskComp ? resolveMatchedSyllabusComponent(orig) : null;
     const sameComp = Boolean(taskComp && origComp && taskComp.courseId === origComp.courseId && taskComp.comp.id === origComp.comp.id);
     if (normalizeSimpleType(orig.type) !== targetType && !sameComp) continue;
     const origNum = extractAssessmentNumber(orig.title || '');
-    if (origNum !== null) completedNums.add(origNum);
+    if (isCompletedOrGradedTask(orig)) {
+      completedSameGroup++;
+      if (origNum !== null) completedNums.add(origNum);
+    } else if (origNum !== null) {
+      pendingNums.add(origNum);
+    }
   }
 
-  return nums.every(n => completedNums.has(n));
+  if (nums.every(n => completedNums.has(n))) return true;
+
+  // If the student completed at least as many items in this group as the range/required quota
+  // (e.g. Connect items named without #3, or best-3-of-4 quota already met) and none of the
+  // referenced items are still pending, treat the extended catch-up range as completed.
+  const hasPendingInRange = nums.some(n => pendingNums.has(n));
+  const requiredQuota = taskComp?.comp.count && taskComp.comp.count > 0 ? taskComp.comp.count : nums.length;
+  return !hasPendingInRange && completedSameGroup >= Math.max(nums.length, requiredQuota);
 }
 
 /**

@@ -1,10 +1,10 @@
 import { DeadlineTask, UserSettings, DEFAULT_SETTINGS, QuickLink } from '../types';
-import { pushTasksToFirebase, fetchTasksFromFirebase, markCloudScanRequestCompleted } from '../utils/firebaseSync';
-import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer } from '../utils/backupRestore';
-import { mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
+import { pushTasksToFirebase, fetchTasksFromFirebase, markCloudScanRequestCompleted, overwriteCloudVault } from '../utils/firebaseSync';
+import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer, isLocalBackupEpochNewer } from '../utils/backupRestore';
+import { deduplicateTaskList, mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
 import { pickNewerList } from '../utils/syncMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
-import { getUserCourses, getCoursesUpdatedAt, saveUserCourses, getQuickLinksUpdatedAt, saveQuickLinks, getStoredPayments, mergeCloudPaymentsStorage } from '../utils/storage';
+import { getTasks, getUserCourses, getCoursesUpdatedAt, saveUserCourses, getQuickLinks, getQuickLinksUpdatedAt, saveQuickLinks, getStoredPayments, mergeCloudPaymentsStorage } from '../utils/storage';
 import { paymentsAsDeadlineTasks } from '../core/payments';
 import { initAutoUpdate } from './autoUpdate';
 import { IS_STORE_BUILD } from '../utils/storeBuild';
@@ -113,6 +113,27 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
       console.log('[Background Sync] Adopted authoritative restored backup from Firebase');
       return true;
     }
+    if (isLocalBackupEpochNewer(localEpoch, res.backupEpoch) && syncKey) {
+      const [tasks, courses, quickLinks, coursesUpdatedAt, quickLinksUpdatedAt, payments] = await Promise.all([
+        getTasks(),
+        getUserCourses(),
+        getQuickLinks(),
+        getCoursesUpdatedAt(),
+        getQuickLinksUpdatedAt(),
+        getStoredPayments().catch(() => [])
+      ]);
+      await overwriteCloudVault({
+        tasks,
+        courses,
+        coursesUpdatedAt: coursesUpdatedAt || localEpoch,
+        quickLinks,
+        quickLinksUpdatedAt: quickLinksUpdatedAt || localEpoch,
+        tombstones: settingsData.bbs_tombstones || {},
+        payments,
+        backupEpoch: localEpoch
+      }, 'Background Backup Push', syncKey).catch(() => {});
+      return false;
+    }
 
     if (Array.isArray(res.courses)) {
       const localUpdatedAt = await getCoursesUpdatedAt();
@@ -133,6 +154,7 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
       await saveQuickLinks(linksPick.items, linksPick.updatedAt);
     }
 
+    await getUserCourses().catch(() => []);
     const data = await chrome.storage.local.get(['bbs_tasks']) as { bbs_tasks?: DeadlineTask[] };
     const localTasks: DeadlineTask[] = data.bbs_tasks || [];
     const localTombs = settingsData.bbs_tombstones || {};
@@ -141,7 +163,10 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
       await chrome.storage.local.set({ bbs_tombstones: tombstones });
     }
 
-    const { tasks, changed } = mergeCloudTasks(localTasks, res.tasks, tombstones);
+    const { tasks: mergedRaw, changed: mergeChanged } = mergeCloudTasks(localTasks, res.tasks, tombstones);
+    const tasks = deduplicateTaskList(mergedRaw);
+    const ruleChanged = JSON.stringify(tasks) !== JSON.stringify(localTasks);
+    const changed = mergeChanged || ruleChanged;
     const paymentsChanged = await mergeCloudPaymentsStorage(res.payments, res.paymentsUpdatedAt, tombstones).catch(() => false);
     if (changed || paymentsChanged) {
       if (changed) await chrome.storage.local.set({ bbs_tasks: tasks });

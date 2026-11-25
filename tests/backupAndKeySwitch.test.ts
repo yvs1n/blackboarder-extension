@@ -307,4 +307,46 @@ describe('Authoritative Sync Key switching & JSON Restore', () => {
     expect(isCloudBackupEpochNewer((writtenPlain as any).backupEpoch, '2026-10-01T00:00:00.000Z')).toBe(true);
     expect(isCloudBackupEpochNewer((writtenPlain as any).backupEpoch, (writtenPlain as any).backupEpoch)).toBe(false);
   });
+
+  it('Restore JSON refreshes task updatedAt, clears self-contradictory tombstones, and preserves Islamic Final Exam against older tombstones', async () => {
+    installTestStorage();
+    await saveSettings({ syncKey: CLOUD_KEY });
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => (init?.method === 'PUT' ? JSON.parse(String(init.body || 'null')) : null)
+    })));
+
+    const backupWithExamAndStaleTomb = {
+      version: '1.8.40',
+      tasks: [{
+        id: 'islamic_final_1',
+        courseCode: '0104100',
+        courseName: 'Islamic Culture',
+        title: 'Final Exam',
+        description: 'Official Final Exam',
+        dueDate: '2026-12-12T08:30:00.000Z',
+        hasSpecificTime: true,
+        type: 'exam',
+        priority: 'high',
+        status: 'pending',
+        sourceSnippet: 'Official Final Exam',
+        confidence: 1,
+        extractedBy: 'local',
+        createdAt: '2026-10-10T00:00:00.000Z',
+        updatedAt: '2026-10-10T00:00:00.000Z'
+      }],
+      courses: [],
+      tombstones: {
+        islamic_final_1: '2026-11-24T00:00:00.000Z',
+        unrelated_deleted: '2026-10-15T00:00:00.000Z'
+      },
+      settings: { syncKey: CLOUD_KEY }
+    };
+
+    const outcome = await applyBackupAuthoritatively(backupWithExamAndStaleTomb, { activeSyncKey: CLOUD_KEY });
+    expect(outcome.applied.tasks.map(t => t.id)).toEqual(['islamic_final_1']);
+    expect(Date.parse(outcome.applied.tasks[0].updatedAt)).toBeGreaterThan(Date.parse('2026-11-24T00:00:00.000Z'));
+    expect(await getStorageTombstones()).toEqual({ unrelated_deleted: '2026-10-15T00:00:00.000Z' });
+  });
 });

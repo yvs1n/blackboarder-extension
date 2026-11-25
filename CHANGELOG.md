@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.45] - 2026-11-26
+
+### Fixed
+
+- **JSON Backup Restore Protection (`src/utils/backupRestore.ts`, `src/mobile/app/16-pairing-cloud-sync.js`, `src/popup/modules/syncController.ts`, `src/background/serviceWorker.ts`):**
+  - Refreshed restored task `updatedAt` timestamps in `applyBackupAuthoritatively()` and stripped self-contradictory tombstones for IDs present in the backup so newer post-backup tombstones or cloud snapshots can never immediately delete restored tasks (such as an imported Final Exam) or re-inject old makeups.
+  - Applied `saveUserCourses`, `setStorageTombstones`, and `setLocalBackupEpoch` before evaluating Rulebook visibility and saving tasks, and cleared stale `bbs_last_scan_checkpoint` and `bbs_exam_schedule_read` caches on restore.
+  - Added `isLocalBackupEpochNewer()` guards in popup and service worker Firebase pulls plus `backupEpoch` preservation and conflict guards in mobile `pushStateToCloud()` (`16-pairing-cloud-sync.js`), preventing an active phone companion or background pull from stripping `backupEpoch` or overwriting a freshly restored backup.
+  - Loaded `getUserCourses()` inside background `pullTasksFromFirebaseToLocal()` before running `deduplicateTaskList` so background Firebase sync never drops `visibility: 'hidden'` due to empty course/syllabus state in a cold-woken service worker.
+- **Makeup & Extended Assignment Recognition (`src/core/makeupFilter.ts`, `src/core/syllabusWeights.ts`, `src/rulebook/b5-applicability.ts`):**
+  - Expanded `MAKEUP_SIGNAL_RE` and `resolveMakeupTarget()` to recognize `"Makeup Assignment"` / `"Make-up Homework"` and reversed-order titles like `"Midterm Make-up"` or `"Quiz 1 Makeup"`.
+  - Extended `extractAssessmentNumber()` (`Assign`/`Exp`) and `isCompletedExtensionOrRangeTask()` so range catch-up announcements (`Assignments 1-3 (Extended Deadline)`) still transition to `Hidden` when all required homeworks in that syllabus quota are completed and none in the range remain pending.
+
+---
+
 ## [1.8.44] - 2026-11-25
 
 ### Fixed

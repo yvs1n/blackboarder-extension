@@ -2,6 +2,8 @@ import type { ArchivedSemester, DeadlineTask, PaymentItem, QuickLink, StudentPro
 import { compareTasksByTime } from './calendar';
 import { sanitizeCloudCourses, sanitizeCloudQuickLinks, sanitizeCloudTasks } from './cloudSanitize';
 import { filterCleanUserCourses } from '../core/courseFilter';
+import { setActiveUserCourses } from '../core/userCourses';
+import { evaluateTaskList } from '../rulebook';
 import { sanitizePayments } from '../core/payments';
 import { sanitizeSemesters } from '../core/semesters';
 import { sanitizeProfile } from '../core/studentProfile';
@@ -83,6 +85,17 @@ export function isCloudBackupEpochNewer(cloudEpoch?: string | null, localEpoch?:
   return cloudMs > localMs;
 }
 
+/** True when this device holds a JSON backup restore (`localEpoch`) newer than Firebase's current `backupEpoch`. */
+export function isLocalBackupEpochNewer(localEpoch?: string | null, cloudEpoch?: string | null): boolean {
+  if (!localEpoch || typeof localEpoch !== 'string') return false;
+  const localMs = Date.parse(localEpoch);
+  if (isNaN(localMs)) return false;
+  if (!cloudEpoch || typeof cloudEpoch !== 'string') return true;
+  const cloudMs = Date.parse(cloudEpoch);
+  if (isNaN(cloudMs)) return true;
+  return localMs > cloudMs;
+}
+
 /**
  * Unconditionally replaces all local storage state (tasks, courses, quick links, payments, semesters,
  * tombstones, profile, and backup epoch) from an authoritative Firebase snapshot.
@@ -101,7 +114,7 @@ export async function applyCloudSnapshotAuthoritatively(snapshot: CloudSnapshotD
   const cleanProfile = sanitizeProfile(snapshot.profile);
   const backupEpoch = typeof snapshot.backupEpoch === 'string' ? snapshot.backupEpoch : '';
 
-  await saveTasks(tasks);
+  setActiveUserCourses(courses);
   await saveUserCourses(courses, snapshot.coursesUpdatedAt || nowIso);
   await saveQuickLinks(quickLinks, snapshot.quickLinksUpdatedAt || nowIso);
   await saveStoredPayments(payments, snapshot.paymentsUpdatedAt || nowIso);
@@ -113,9 +126,11 @@ export async function applyCloudSnapshotAuthoritatively(snapshot: CloudSnapshotD
     await clearProfile();
   }
   await setLocalBackupEpoch(backupEpoch);
+  const evaluatedTasks = evaluateTaskList(tasks).sort(compareTasksByTime);
+  await saveTasks(evaluatedTasks);
 
   return {
-    tasks,
+    tasks: evaluatedTasks,
     courses,
     quickLinks,
     payments,
@@ -147,8 +162,13 @@ export async function applyBackupAuthoritatively(
   }
 
   const nowIso = new Date().toISOString();
-  const tasks = Array.isArray(data.tasks)
-    ? sanitizeCloudTasks(data.tasks).filter(t => Boolean(t.title)).sort(compareTasksByTime)
+  const nowMs = Date.parse(nowIso) || Date.now();
+  const rawTasks = Array.isArray(data.tasks)
+    ? sanitizeCloudTasks(data.tasks).filter(t => Boolean(t.title)).map(t => {
+        const prevMs = Date.parse(t.updatedAt || t.createdAt || '') || 0;
+        const freshIso = prevMs > nowMs ? t.updatedAt : nowIso;
+        return { ...t, updatedAt: freshIso };
+      }).sort(compareTasksByTime)
     : [];
   const courses = Array.isArray(data.courses)
     ? filterCleanUserCourses(sanitizeCloudCourses(data.courses) || [])
@@ -162,6 +182,11 @@ export async function applyBackupAuthoritatively(
     data.tombstones && typeof data.tombstones === 'object' && !Array.isArray(data.tombstones)
       ? { ...data.tombstones }
       : {};
+  for (const t of rawTasks) {
+    if (t.id && tombstones[t.id]) {
+      delete tombstones[t.id];
+    }
+  }
 
   const rawProfile = data.profile && typeof data.profile === 'object' ? sanitizeProfile({ ...data.profile, updatedAt: nowIso }) : null;
 
@@ -185,7 +210,7 @@ export async function applyBackupAuthoritatively(
     safeSetLocalStorage('bbs_sync_key', targetSyncKey);
   }
 
-  await saveTasks(tasks);
+  setActiveUserCourses(courses);
   await saveUserCourses(courses, nowIso);
   await saveQuickLinks(quickLinks, nowIso);
   await saveStoredPayments(payments, nowIso);
@@ -205,6 +230,19 @@ export async function applyBackupAuthoritatively(
   }
 
   await setLocalBackupEpoch(nowIso);
+  const tasks = evaluateTaskList(rawTasks).sort(compareTasksByTime);
+  await saveTasks(tasks);
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('bbs_last_scan_checkpoint');
+    }
+  } catch {}
+  if (isExtensionContextValid()) {
+    try {
+      await chrome.storage.local.remove(['bbs_last_scan_checkpoint', 'bbs_exam_schedule_read']);
+    } catch {}
+  }
 
   let cloudResult: BackupRestoreOutcome['cloudResult'];
   if (targetSyncKey) {

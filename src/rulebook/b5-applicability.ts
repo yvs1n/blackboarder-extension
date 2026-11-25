@@ -71,6 +71,7 @@ export function evaluateTaskVisibility(
       final: 'Original Final Exam already completed',
       quiz: target.num ? `Original Quiz ${target.num} already completed` : 'Original Quiz already completed',
       lab: target.num ? `Original Lab ${target.num} already completed` : 'Original Lab already completed',
+      assignment: target.num ? `Original Assignment ${target.num} already completed` : 'Original Assignment already completed',
       exam: 'Original Exam already completed'
     };
     return {
