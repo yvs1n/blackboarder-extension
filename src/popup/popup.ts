@@ -62,6 +62,7 @@ import {
   openPaymentModal,
   renderPaymentsView,
   togglePaymentPaid,
+  deletePaymentItem,
   updatePaymentsHeaderBadge,
 } from './modules/paymentsView';
 import {
@@ -173,6 +174,7 @@ Object.assign(popupActions, {
   renderPaymentsView,
   updatePaymentsHeaderBadge,
   togglePaymentPaid,
+  deletePaymentItem,
   openPaymentModal,
 });
 

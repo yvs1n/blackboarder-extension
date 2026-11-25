@@ -14,6 +14,11 @@ interface AiExtractedItem {
   description?: string;
   sourceSnippet: string;
   room?: string;
+  summary?: {
+    topics?: string;
+    formatRules?: string;
+    brief?: string;
+  };
 }
 
 interface OpenRouterResponse {
@@ -44,15 +49,15 @@ function buildHintBlock(hint?: AiHint): string {
   if (hint?.hasRoom !== undefined) {
     hintLines.push(
       hint.hasRoom
-        ? 'Doctor mentions an explicit room/location in text: YES (You MUST extract this exact room/hall/lab into "room").'
-        : 'Doctor mentions an explicit room/location in text: NO (Leave "room" as null; do not guess or hallucinate a room so the schedule default room is preserved).'
+        ? 'Professor mentions an explicit room/location in text: YES (You MUST extract this exact room/hall/lab into "room").'
+        : 'Professor mentions an explicit room/location in text: NO (Leave "room" as null; do not guess or hallucinate a room so the schedule default room is preserved).'
     );
   }
   if (hint?.hasTime !== undefined) {
     hintLines.push(
       hint.hasTime
-        ? 'Doctor states an explicit clock time: YES (Extract the start time and set "hasSpecificTime": true).'
-        : 'Doctor states an explicit clock time: NO (Set "hasSpecificTime": false so the schedule class time is preserved).'
+        ? 'Professor states an explicit clock time: YES (Extract the start time and set "hasSpecificTime": true).'
+        : 'Professor states an explicit clock time: NO (Set "hasSpecificTime": false so the schedule class time is preserved).'
     );
   }
   return hintLines.length > 0 ? `PRE-CLASSIFICATION GUIDANCE (from the announcement wording):\n${hintLines.map(h => `- ${h}`).join('\n')}\n` : '';
@@ -196,6 +201,15 @@ function mapAiItemsToTasks(
       ? 'explicit'
       : scheduleRes.appliedSchedule ? 'schedule' : 'default';
 
+    const summaryObj = item.summary && typeof item.summary === 'object'
+      ? {
+          ...(typeof item.summary.topics === 'string' && item.summary.topics.trim() ? { topics: item.summary.topics.trim().slice(0, 260) } : {}),
+          ...(typeof item.summary.formatRules === 'string' && item.summary.formatRules.trim() ? { formatRules: item.summary.formatRules.trim().slice(0, 260) } : {}),
+          ...(typeof item.summary.brief === 'string' && item.summary.brief.trim() ? { brief: item.summary.brief.trim().slice(0, 360) } : {})
+        }
+      : undefined;
+    const hasStructuredSummary = Boolean(summaryObj && (summaryObj.topics || summaryObj.formatRules || summaryObj.brief));
+
     return {
       id: `task_ai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       announcementId: announcement.id,
@@ -211,6 +225,7 @@ function mapAiItemsToTasks(
       priority: item.priority || hint?.priority || 'medium',
       status: 'pending',
       sourceSnippet: fullDoctorText,
+      ...(hasStructuredSummary ? { summary: summaryObj } : {}),
       confidence: 0.95,
       extractedBy: 'ai',
       room: roomInfo.room || undefined,
@@ -249,7 +264,7 @@ Reference Context:
 - Course: ${announcement.courseCode} - ${announcement.courseName}.
 
 CRITICAL TIME & DATE RULES:
-1. NEVER USE THE "Posted Date" AS THE DEADLINE OR ASSESSMENT TIME! The posted date is strictly metadata indicating when the doctor published the announcement.
+1. NEVER USE THE "Posted Date" AS THE DEADLINE OR ASSESSMENT TIME! The posted date is strictly metadata indicating when the professor published the announcement.
 2. If the instructor states an explicit time or range for the quiz/exam/class (e.g. "from 12:30 pm to 13:30 pm", "at 11:00 am", "12:30 - 1:30 pm", "من 12:30 إلى 13:30"):
    - Extract the START time of the assessment (e.g. 12:30:00).
    - Set "hasSpecificTime": true.
@@ -267,14 +282,19 @@ CRITICAL TIME & DATE RULES:
       "hasSpecificTime": true,
       "type": "quiz" | "assignment" | "exam" | "project" | "lab" | "meeting" | "other",
       "priority": "high" | "medium" | "low",
-      "room": "A8-204 (or specific room/lab if mentioned by doctor, otherwise null)",
-      "description": "Clean explanation or instructions written by the doctor",
-      "sourceSnippet": "Exact text sentence mentioning the deadline"
+      "room": "A8-204 (or specific room/lab if mentioned by professor, otherwise null)",
+      "description": "Clean explanation or instructions written by the professor",
+      "sourceSnippet": "Exact text sentence mentioning the deadline",
+      "summary": {
+        "topics": "Covered chapters/topics/lectures if mentioned, otherwise null",
+        "formatRules": "Format, duration, calculator/book rules, ID requirement if mentioned, otherwise null",
+        "brief": "1 concise sentence summarizing the key action or update"
+      }
     }
   ]
 }
 6. CRITICAL LANGUAGE RULE: All deadline titles MUST be in English (e.g. 'Midterm Exam', 'Quiz 1', 'Homework 2', 'Final Exam', 'Course Project'). Even if the announcement is in Arabic, translate and standardize the title into concise English.
-7. If the doctor mentions a specific classroom, hall, or lab to attend in (e.g. "room A8-204", "hall TH005", "Lab 3", "قاعة 103", "مختبر 105"), extract it into "room". Otherwise set "room" to null.
+7. If the professor mentions a specific classroom, hall, or lab to attend in (e.g. "room A8-204", "hall TH005", "Lab 3", "قاعة 103", "مختبر 105"), extract it into "room". Otherwise set "room" to null.
 8. DO NOT extract post-exam reviews, paper viewing sessions, Akkindi / bubble sheet checks, grade disputes, or answer key discussions where the exam has already concluded (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان", "الاطلاع على ورقة الإجابة"). Only extract upcoming future assessments, exams to be taken, or work to be submitted.
 If no deadlines or tasks are found, return { "deadlines": [] }. Output valid JSON only.`;
 
@@ -289,7 +309,7 @@ If no deadlines or tasks are found, return { "deadlines": [] }. Output valid JSO
   const userContent = `Course: ${announcement.courseCode} ${announcement.courseName}
 Announcement Title: ${announcement.title}
 Posted Date (METADATA ONLY - DO NOT USE AS ASSESSMENT TIME): ${announcement.postedAt || 'Unknown'}
-${hintBlock}Doctor's Announcement Body:
+${hintBlock}Professor's Announcement Body:
 ${cleanBody}`;
 
   // Fallback models only exist on OpenRouter; another provider runs just the model it was given
@@ -428,7 +448,8 @@ ${cleanBody}`;
           extractedBy: localMatch.extractedBy,
           weight: localMatch.weight,
           weightDisplay: localMatch.weightDisplay,
-          syllabusNote: localMatch.syllabusNote
+          syllabusNote: localMatch.syllabusNote,
+          summary: task.summary || localMatch.summary
         };
       }
       return task;

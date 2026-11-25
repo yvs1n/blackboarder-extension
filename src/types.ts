@@ -200,6 +200,11 @@ export interface DeadlineTask {
   syllabusNote?: string; // Syllabus rule explanation
   room?: string; // Classroom, lab, or hall (e.g. "A8-103", "W8-Lab 3")
   notes?: string; // Student custom notes and instructions
+  summary?: {
+    topics?: string;
+    formatRules?: string;
+    brief?: string;
+  };
   submissionStatus?: 'pending' | 'submitted' | 'graded';
   submittedAt?: string; // ISO string or human-readable date
   submissionReceipt?: string; // Confirmation receipt number

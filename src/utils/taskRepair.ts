@@ -5,8 +5,8 @@ import { resolveLatestFieldsFromNotes } from '../core/announcementReconcile';
 
 /**
  * Re-checks weight, room, and multi-announcement professor-note updates on every task the student
- * has not edited, walking `[Doctor Update]:` segments chronologically so the latest professor
- * update wins rather than letting the initial announcement shadow later changes.
+ * has not edited, walking `[Professor Update]:` (and legacy `[Doctor Update]:`) segments chronologically
+ * so the latest professor update wins rather than letting the initial announcement shadow later changes.
  * Returns how many tasks changed.
  */
 export function repairTaskWeightsAndRooms(tasks: DeadlineTask[]): number {

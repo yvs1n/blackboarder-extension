@@ -1,0 +1,285 @@
+/* Uniform Structured Summary, Collapsible Professor Notes & Unified Action Bar */
+.deadline-summary-block {
+  margin-top: 4px;
+  border: 1px solid var(--surface-border);
+  background: #f8fafc;
+  font-size: 11px;
+}
+
+.summary-grid-header {
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.summary-grid-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-grid-row {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 8px;
+  padding: 3.5px 8px;
+  border-bottom: 1px solid var(--surface-border);
+  align-items: baseline;
+  line-height: 1.35;
+}
+
+.summary-grid-row:last-child {
+  border-bottom: none;
+}
+
+.summary-grid-key {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.summary-grid-val {
+  color: var(--text-main);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.summary-grid-row.is-muted .summary-grid-val {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.deadline-summary-block.is-reading .summary-grid-row {
+  grid-template-columns: 68px 1fr;
+  padding: 5px 10px;
+  font-size: 11.5px;
+}
+
+.prof-notes-dropdown {
+  border-top: 1px solid var(--surface-border);
+  background: var(--surface);
+}
+
+.prof-notes-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  transition: background-color 0.12s ease;
+}
+
+.prof-notes-summary::-webkit-details-marker {
+  display: none;
+}
+
+.prof-notes-summary:hover {
+  background: var(--surface-hover);
+}
+
+.prof-notes-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.prof-notes-count {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-hover);
+  border: 1px solid var(--surface-border);
+  padding: 0 5px;
+  line-height: 1.45;
+}
+
+.prof-notes-chevron {
+  transition: transform 0.16s ease;
+  color: var(--text-muted);
+}
+
+.prof-notes-dropdown[open] > .prof-notes-summary .prof-notes-chevron {
+  transform: rotate(180deg);
+}
+
+.prof-notes-content {
+  padding: 7px 8px;
+  border-top: 1px solid var(--surface-border);
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prof-notes-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.prof-notes-copy-btn,
+.prof-notes-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.prof-notes-copy-btn:hover,
+.prof-notes-inspect-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
+}
+
+.prof-notes-segments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 165px;
+  overflow-y: auto;
+}
+
+.deadline-summary-block.is-reading .prof-notes-segments {
+  max-height: none;
+}
+
+.prof-note-segment {
+  padding: 5px 8px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-left: 3px solid var(--surface-border-strong);
+}
+
+.prof-note-segment.is-update {
+  border-left-color: var(--primary);
+}
+
+.prof-note-segment-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.prof-note-segment.is-update .prof-note-segment-label {
+  color: var(--primary);
+}
+
+.prof-note-segment-text {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-main);
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.task-card-footer,
+.task-actions,
+.unified-task-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface-border);
+  width: 100%;
+}
+
+.unified-task-actions .btn-task-act,
+.btn-card-action {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 7px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0 !important;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 0;
+  box-shadow: none !important;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.unified-task-actions .btn-task-act .ui-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.unified-task-actions .btn-task-act:hover,
+.btn-card-action:hover {
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
+  color: var(--text-main);
+}
+
+.unified-task-actions .btn-task-act-primary {
+  flex: 1.35 1 0;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-accent);
+}
+
+.unified-task-actions .btn-task-act-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--on-accent);
+}
+
+.unified-task-actions .btn-task-act-primary.btn-is-completed {
+  background: var(--surface-hover);
+  border-color: var(--surface-border-strong);
+  color: var(--text-main);
+}
+
+.unified-task-actions .btn-task-act-primary.btn-is-completed:hover {
+  background: var(--surface-border);
+}
+
+.unified-task-actions .btn-task-act-danger {
+  flex: 0 0 30px;
+  width: 30px;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.unified-task-actions .btn-task-act-danger:hover,
+.unified-selected-actions .btn-sel-delete:hover {
+  color: var(--text-main);
+  border-color: var(--surface-border-strong);
+  background: var(--surface-hover);
+}

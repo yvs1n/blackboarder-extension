@@ -131,22 +131,22 @@ describe('announcement tasks are not swallowed by an older task with the same ti
       updatedAt: new Date().toISOString()
     };
 
-    const doctorUpdateAnn: Announcement = {
-      id: 'ann_doctor_update',
+    const professorUpdateAnn: Announcement = {
+      id: 'ann_professor_update',
       courseCode: '0401201',
       courseName: 'Physics I',
-      title: 'Midterm Exam Doctor Update',
-      contentText: 'Doctor Update: Midterm will take place in room M9-012. Scientific calculators are permitted.',
+      title: 'Midterm Exam Professor Update',
+      contentText: 'Professor Update: Midterm will take place in room M9-012. Scientific calculators are permitted.',
       sourceUrl: 'https://elearning.sharjah.ac.ae',
       scannedAt: new Date().toISOString()
     };
 
-    const r = await processAnnouncementsBatch([doctorUpdateAnn], [existingMidterm], DEFAULT_SETTINGS);
+    const r = await processAnnouncementsBatch([professorUpdateAnn], [existingMidterm], DEFAULT_SETTINGS);
     expect(r.newTasks).toHaveLength(0);
     const updated = r.allTasks.find(t => t.id === 'task_midterm_init')!;
     expect(updated).toBeDefined();
     expect(updated.room).toBe('M9-012');
-    expect(updated.description).toContain('[Doctor Update]:');
+    expect(updated.description).toContain('[Professor Update]:');
     expect(updated.description).toContain('Scientific calculators are permitted');
     expect(updated.description).toContain('Midterm exam will cover chapters 1 to 4');
   });

@@ -27,7 +27,105 @@ export interface ResolvedWeight {
   weight?: number;
   weightDisplay?: string;
   syllabusNote?: string;
+  componentId?: string;
   componentName?: string;
+  componentCount?: number;
+  componentOutOf?: number;
+}
+
+const PRACTICE_OR_REVIEW_RE = /\b(?:practice|mock|trial|sample|dry\s*run|review|rubric|syllabus|example|solution|make[\s-]*up)\b|تجريبي|مراجعة/i;
+const SINGLETON_COMPONENT_NAME_RE = /^(?:(?:course|term|capstone|final|graduation|comprehensive|mid[\s_-]*term)\s+)?(?:final\s+exam|final\s+assessment|final|mid[\s_-]*term(?:\s+exam)?|project|capstone|thesis|dissertation|term\s+paper|research\s+paper|final\s+paper|presentation)\b/i;
+const PLURAL_COMPONENT_NAME_RE = /\b(?:quizzes|exams|midterms|tests|assignments|homeworks|hw|labs|reports|projects|papers|presentations|tasks)\b/i;
+
+/**
+ * Identifies when a task belongs to a syllabus component or exam category that allows at most 1
+ * deliverable per course (e.g. "Final Exam", "Midterm Exam", "Capstone Project", or any
+ * configured syllabus component with count === 1 / outOf === 1).
+ */
+export function resolveSingletonSyllabusKey(task: {
+  title?: string;
+  type?: string;
+  weight?: number;
+  weightDisplay?: string;
+  syllabusNote?: string;
+  description?: string;
+  sourceSnippet?: string;
+  notes?: string;
+  courseName?: string;
+  courseCode?: string;
+  isBonus?: boolean;
+}): string | null {
+  if (!task || task.isBonus) return null;
+  const title = (task.title || '').trim();
+  if (!title || PRACTICE_OR_REVIEW_RE.test(title)) return null;
+
+  const weightMeta = `${task.weightDisplay || ''} ${task.syllabusNote || ''}`.trim();
+  if (/(?:\bfinals?\b|نهائي|ختامي)/i.test(title) || /(?:\bfinals?\b|نهائي|ختامي)/i.test(weightMeta)) {
+    return 'cat:final';
+  }
+
+  const courseQuery = (task.courseName || task.courseCode || '').trim();
+  const taskType = (task.type || 'other') as TaskType;
+  const bodyText = `${task.sourceSnippet || ''} ${task.description || ''} ${task.notes || ''}`.trim();
+
+  let compId: string | undefined;
+  let compName: string | undefined;
+  let compCount: number | undefined;
+  let compOutOf: number | undefined;
+
+  if (courseQuery) {
+    const matched = resolveTaskWeight(courseQuery, title, taskType, bodyText);
+    compId = matched.componentId;
+    compName = matched.componentName;
+    compCount = matched.componentCount;
+    compOutOf = matched.componentOutOf;
+
+    if (!compName && task.syllabusNote) {
+      const normalizedQuery = courseQuery.toLowerCase();
+      const syllabus = getAllSyllabi().find(s =>
+        (s.courseName && normalizedQuery.includes(s.courseName.toLowerCase())) ||
+        s.courseCodePattern.test(courseQuery)
+      );
+      if (syllabus) {
+        const lowerNote = task.syllabusNote.toLowerCase();
+        const byNote = syllabus.components.find(c => c.name && lowerNote.includes(c.name.toLowerCase()));
+        if (byNote) {
+          compId = byNote.id;
+          compName = byNote.name;
+          compCount = byNote.count;
+          compOutOf = byNote.outOf;
+        }
+      }
+    }
+  }
+
+  if (compName) {
+    const lowerComp = compName.trim().toLowerCase();
+    if ((typeof compCount === 'number' && compCount > 1) || (typeof compOutOf === 'number' && compOutOf > 1)) {
+      return null;
+    }
+    if (/(?:\bfinals?\b|نهائي|ختامي)/i.test(lowerComp) && !/\bexams\b/i.test(lowerComp)) {
+      return 'cat:final';
+    }
+    if (/(?:\bmid[\s_-]*terms?\b|نصفي|فصلي)/i.test(lowerComp) && !/\bmid[\s_-]*terms\b/i.test(lowerComp)) {
+      return 'cat:midterm';
+    }
+    const explicitSingle = compCount === 1 || (compCount === undefined && compOutOf === 1);
+    const implicitSingle =
+      compCount === undefined &&
+      compOutOf === undefined &&
+      SINGLETON_COMPONENT_NAME_RE.test(compName) &&
+      !PLURAL_COMPONENT_NAME_RE.test(compName);
+    if (explicitSingle || implicitSingle) {
+      return `comp:${(compId || lowerComp).replace(/\s+/g, '_')}`;
+    }
+  }
+
+  if (/(?:\bmid[\s_-]*terms?\b|نصفي|فصلي)/i.test(title) || /(?:\bmid[\s_-]*terms?\b|نصفي|فصلي)/i.test(weightMeta)) {
+    return 'cat:midterm';
+  }
+
+  return null;
 }
 
 /**
@@ -306,7 +404,10 @@ export function resolveTaskWeight(
       weight: weightVal,
       weightDisplay: display,
       syllabusNote: `${syllabus.courseName}: ${matchedComp.note || `${matchedComp.name} (${matchedComp.totalWeight}% total)`}`,
-      componentName: matchedComp.name
+      componentId: matchedComp.id,
+      componentName: matchedComp.name,
+      componentCount: matchedComp.count,
+      componentOutOf: matchedComp.outOf
     };
   }
 

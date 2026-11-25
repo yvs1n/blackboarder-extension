@@ -183,5 +183,6 @@ export const popupActions = {
   renderPaymentsView: () => {},
   updatePaymentsHeaderBadge: () => {},
   togglePaymentPaid: async (_paymentId: string) => {},
+  deletePaymentItem: async (_paymentId: string) => {},
   openPaymentModal: (_existing?: PaymentItem) => {},
 };

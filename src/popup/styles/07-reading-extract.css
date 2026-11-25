@@ -264,77 +264,7 @@
   align-items: center;
   gap: 6px;
   margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px solid var(--surface-border);
-}
-
-.reading-actions-bar .modal-reading-toggle-btn {
-  flex: 1;
-  min-height: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 12px;
-  background: var(--primary);
-  color: var(--on-accent);
-  border: 1px solid var(--primary);
-  border-radius: 0 !important;
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  box-shadow: none !important;
-  appearance: none;
-  -webkit-appearance: none;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-
-.reading-actions-bar .modal-reading-toggle-btn:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
-.reading-actions-bar .modal-reading-share-btn,
-.reading-actions-bar .modal-reading-gcal-btn,
-.reading-actions-bar .modal-reading-edit-btn,
-.reading-actions-bar .btn-outline-action,
-.reading-actions-bar .btn-card-action {
-  height: 32px;
-  min-height: 32px;
-  width: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 10px;
-  background: var(--surface);
-  color: var(--text-main);
-  border: 1px solid var(--surface-border);
-  border-radius: 0 !important;
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  box-shadow: none !important;
-  appearance: none;
-  -webkit-appearance: none;
-  text-decoration: none;
-  box-sizing: border-box;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-}
-
-.reading-actions-bar .modal-reading-share-btn:hover,
-.reading-actions-bar .modal-reading-gcal-btn:hover,
-.reading-actions-bar .modal-reading-edit-btn:hover,
-.reading-actions-bar .btn-outline-action:hover,
-.reading-actions-bar .btn-card-action:hover {
-  background: var(--surface-hover);
-  border-color: var(--surface-border-strong);
-  color: var(--text-main);
+  padding-top: 4px;
 }
 
 .room-picker-modal-card {

@@ -1,18 +1,22 @@
-import type { DeadlineTask, TaskStatus } from '../../types';
+import type { DeadlineTask } from '../../types';
 import { getCourseColorTheme } from '../../core/courseColors';
 import { getAllCourseSchedules } from '../../core/courseSchedule';
 import { profileGradeScale } from '../../core/studentProfile';
 import { bonusTargetOptionsForCourse, getAllSyllabi } from '../../core/syllabusWeights';
 import { calculateTrajectoryTargetPlan } from '../../core/targetGpa';
 import { buildGpaSummary } from '../../utils/gpa';
-import { createGoogleCalendarUrl, formatCountdown } from '../../utils/calendar';
+import { formatCountdown } from '../../utils/calendar';
 import { parseCourseDetails, resolveCourseInfo } from '../../core/courseHelper';
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { findPickedCourse } from '../coursePicker';
 import { getCachedProfile } from '../universitySettings';
 import { getTaskTargetBadgeHtml } from './dayDrawer';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
-import { promptCompletionScoreIfNeeded } from './marksView';
+import {
+  renderSummaryAndNotesForExt,
+  renderUnifiedActionsForExt,
+  wireUnifiedTaskActions
+} from './taskActions';
 import { dom, formatDateKey, popupActions, popupState } from './state';
 
 export function updateAddRoomVisibility() {
@@ -107,10 +111,8 @@ export function openReadingSheet(task: DeadlineTask) {
 
   const resolved = resolveCourseInfo(task);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
-  const isCompleted = task.status === 'completed';
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
   const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
-  const gcalUrl = createGoogleCalendarUrl(task);
 
   const profile = getCachedProfile();
   const scale = profileGradeScale(profile);
@@ -121,9 +123,6 @@ export function openReadingSheet(task: DeadlineTask) {
     : (gpa.gpa !== undefined ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20) : 3.75);
   const trajectoryPlan = calculateTrajectoryTargetPlan(gpa, targetGpa, popupState.currentTasks, scale);
   const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
-
-  const fullAnnouncement = (task.description || task.sourceSnippet || '').trim();
-  const hasAnnouncement = fullAnnouncement && !fullAnnouncement.startsWith('Blackboard Ultra Stream item');
 
   badgeGroup.innerHTML = `
     <div class="course-badge-main reading-course-badge" title="${escapeHtml(resolved.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
@@ -166,22 +165,12 @@ export function openReadingSheet(task: DeadlineTask) {
       ${task.priority === 'high' ? '<span class="high-priority-tag">HIGH PRIORITY</span>' : ''}
     </div>
 
-    <div class="reading-announcement-box">
-      <div class="reading-box-header">
-        <span class="reading-box-title">
-          <span>${getSvgIcon('message', 'mr-1')}</span>
-          <span>Doctor Announcement</span>
-        </span>
-        ${hasAnnouncement ? `
-          <button type="button" class="btn-copy-announcement" id="btn-copy-drawer-text">
-            <span>${getSvgIcon('copy', 'mr-1')} Copy</span>
-          </button>
-        ` : ''}
-      </div>
-      <div class="reading-box-content">
-        ${hasAnnouncement ? escapeHtml(fullAnnouncement) : '<span style="color: var(--text-muted);">No detailed announcement text available.</span>'}
-      </div>
-    </div>
+    ${renderSummaryAndNotesForExt(task, {
+      variant: 'reading',
+      countdownLabel: countdown.label,
+      includeCopyBtn: true,
+      copyBtnId: 'btn-copy-drawer-text'
+    })}
 
     ${task.notes && task.notes.trim() ? `
       <div class="reading-notes-box">
@@ -194,55 +183,19 @@ export function openReadingSheet(task: DeadlineTask) {
     ` : ''}
 
     <div class="reading-actions-bar">
-      <button type="button" class="btn-primary-action modal-reading-toggle-btn">
-        ${isCompleted ? `${getSvgIcon('refresh', 'mr-1')} Mark Pending` : `${getSvgIcon('check', 'mr-1')} Mark Done`}
-      </button>
-      <button type="button" class="btn-outline-action modal-reading-share-btn">
-        <span>${getSvgIcon('share', 'mr-1')} Share</span>
-      </button>
-      <a class="btn-outline-action modal-reading-gcal-btn" href="${gcalUrl}" target="_blank" rel="noopener noreferrer">
-        <span>${getSvgIcon('calendar', 'mr-1')} G-Cal</span>
-      </a>
-      <button type="button" class="btn-outline-action modal-reading-edit-btn">
-        <span>${getSvgIcon('pencil', 'mr-1')} Edit</span>
-      </button>
+      ${renderUnifiedActionsForExt(task, { variant: 'reading' })}
     </div>
   `;
 
-  content.querySelector('#btn-copy-drawer-text')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(fullAnnouncement).then(() => {
-      popupActions.showToast('Announcement text copied to clipboard!');
-    });
+  wireUnifiedTaskActions(content, task, {
+    onAfterToggle: closeReadingSheet,
+    onAfterDelete: closeReadingSheet,
+    onBeforeEdit: closeReadingSheet
   });
 
   content.querySelector('.modal-reading-room-btn')?.addEventListener('click', () => {
     closeReadingSheet();
     openRoomPicker(task.id);
-  });
-
-  content.querySelector('.modal-reading-toggle-btn')?.addEventListener('click', async () => {
-    const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
-    popupState.currentTasks = popupActions.applyTaskUpdateLocal(task.id, {
-      status: nextStatus,
-      completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined,
-    });
-    popupActions.refreshAllViews();
-    popupActions.syncTasksToCloud(popupState.currentTasks, 'Status Change');
-    closeReadingSheet();
-    popupActions.showToast(nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending');
-    if (nextStatus === 'completed') {
-      const updated = popupState.currentTasks.find(t => t.id === task.id);
-      promptCompletionScoreIfNeeded(updated);
-    }
-  });
-
-  content.querySelector('.modal-reading-share-btn')?.addEventListener('click', () => {
-    popupActions.shareTask(task);
-  });
-
-  content.querySelector('.modal-reading-edit-btn')?.addEventListener('click', () => {
-    closeReadingSheet();
-    openEditModal(task);
   });
 
   registerOverlayCloseHandler('modal-reading-sheet', closeReadingSheet);

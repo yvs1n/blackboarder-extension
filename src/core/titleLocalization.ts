@@ -144,8 +144,8 @@ export function toEnglishDeadlineTitle(rawTitle: string, taskType?: string): str
 }
 
 /**
- * Merges existing announcement descriptions with newly posted doctor updates,
- * preserving existing syllabus details and appending new doctor information under a clear header.
+ * Merges existing announcement descriptions with newly posted professor updates,
+ * preserving existing syllabus details and appending new professor information under a clear header.
  */
 export function mergeAnnouncementTexts(existingText?: string, incomingText?: string): string {
   const ex = (existingText || '').trim();
@@ -173,5 +173,5 @@ export function mergeAnnouncementTexts(existingText?: string, incomingText?: str
   }
 
   if (newParagraphs.length === 0) return ex.length >= inc.length ? ex : inc;
-  return `${ex}\n\n[Doctor Update]:\n${newParagraphs.join('\n\n')}`;
+  return `${ex}\n\n[Professor Update]:\n${newParagraphs.join('\n\n')}`;
 }

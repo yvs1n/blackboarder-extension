@@ -317,12 +317,32 @@
 }
 
 [data-theme="dark"] .doctor-quote-box,
+[data-theme="dark"] .deadline-summary-block,
+[data-theme="dark"] .prof-notes-content,
 [data-theme="dark"] .reading-announcement-box,
 [data-theme="dark"] .reading-box-content {
   --quote-fade-bg: #141417;
   background: #141417;
   border-color: #2c2c36;
   color: var(--text-main);
+}
+
+[data-theme="dark"] .summary-grid-header,
+[data-theme="dark"] .prof-notes-summary:hover {
+  background: #1e1e26;
+}
+
+[data-theme="dark"] .prof-notes-dropdown,
+[data-theme="dark"] .prof-note-segment,
+[data-theme="dark"] .prof-notes-copy-btn,
+[data-theme="dark"] .prof-notes-inspect-btn {
+  background: var(--surface);
+  border-color: #2c2c36;
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .summary-grid-row {
+  border-bottom-color: #2c2c36;
 }
 
 [data-theme="dark"] .quote-label {

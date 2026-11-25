@@ -309,27 +309,8 @@
 .day-card-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 5px;
   margin-top: 4px;
-  padding-top: 6px;
-  border-top: 1px dashed #e2e8f0;
-}
-
-.btn-card-toggle.btn-is-completed {
-  background: #f4f4f5;
-  border-color: #f4f4f6;
-  color: var(--text-muted);
-}
-
-.btn-card-delete {
-  color: var(--text-main);
-  border-color: var(--surface-border-strong);
-  background: var(--surface);
-}
-
-.btn-card-delete:hover {
-  background: var(--surface-hover);
 }
 
 .day-drawer-empty {

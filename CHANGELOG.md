@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.39] - 2026-11-25
+
+### Added & Improved
+
+- **Strict Singleton & Syllabus-Category Deduplication (`src/core/syllabusWeights.ts`, `src/utils/taskMerge.ts`, `src/engine/hybridExtractor.ts`, `src/scan/scanPipeline.ts`):**
+  - Added `resolveSingletonSyllabusKey` to enforce at most 1 deliverable per singleton syllabus category within a course (such as `Final Exam`, `Midterm Exam`, `Course Project`, or any custom syllabus component with `count === 1` or `outOf === 1`). When a scan discovers a generically titled deliverable (such as `Exam`) categorized under `Final Exam`, it merges cleanly into the existing `Final Exam` rather than creating a duplicate card, while multi-item components (`Quiz 1` vs `Quiz 2`, numbered `Midterm 1` vs `Midterm 2`, and `Practice` tests) remain distinct.
+- **Uniform Structured Deadline Summary & Collapsible `Professor Notes` Dropdown (`src/core/deadlineSummary.ts`, `src/engine/aiExtractor.ts`):**
+  - Standardized all deadlines across every course onto a consistent ordered Summary grid (`When`, `Room`, `Weight`, `Topics`, `Rules`, plus optional `Score` and concise `Summary` overview), extracted deterministically from chronological professor announcements and enriched optionally by AI when configured.
+  - Moved full chronological announcement posts and follow-up updates into a collapsed **`Professor Notes`** dropdown (`<details class="prof-notes-dropdown">`) with update badges and one-click Copy / Full View actions.
+- **Unified Deadline Action Buttons Across Extension & Companion (`src/core/taskActionsHtml.ts`, `src/popup/modules/taskActions.ts`, `src/popup/modules/`, `src/mobile/app/`):**
+  - Standardized every deadline card, Day Drawer card, Reading Sheet, Reading Pane, and Selected Day row across both Chrome Extension and Mobile Companion to share identical equal-height button sizing, order, and semantics (`[Mark Done / Pending]`, `[Edit]`, `[Share]`, `[Calendar]`, `[Delete]` with 5-second Undo toast support).
+- **`Doctor Update` -> `Professor Update` Terminology:**
+  - Updated multi-announcement note tags (`[Professor Update]:`), UI labels (`Professor Notes`), and AI prompts to use consistent academic terminology while retaining full backward compatibility for legacy `[Doctor Update]:` history already stored in user vaults.
+
+---
+
 ## [1.8.38] - 2026-11-24
 
 ### Improved

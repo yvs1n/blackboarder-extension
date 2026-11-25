@@ -1,22 +1,25 @@
-import type { DeadlineTask, TaskStatus } from '../../types';
+import type { DeadlineTask } from '../../types';
 import { classesOnDay, todaysClassesHtml } from '../../core/classSchedule';
 import { getCourseColorTheme, getCourseHex } from '../../core/courseColors';
 import { profileGradeScale } from '../../core/studentProfile';
 import { getAllSyllabi } from '../../core/syllabusWeights';
 import { calculateTrajectoryTargetPlan, type TrajectoryTargetPlan } from '../../core/targetGpa';
 import { buildGpaSummary } from '../../utils/gpa';
-import { compareTasksByTime, createGoogleCalendarUrl, formatCountdown, formatTaskTime } from '../../utils/calendar';
-import { addTask, getCachedSettingsSync } from '../../utils/storage';
-import { matchesSelectedCourseFilter, resolveCourseInfo, sanitizeDoctorAnnouncementText } from '../../core/courseHelper';
-import { recordLocalTombstone, removeLocalTombstone } from '../../utils/tombstones';
+import { compareTasksByTime, formatCountdown, formatTaskTime } from '../../utils/calendar';
+import { getCachedSettingsSync } from '../../utils/storage';
+import { matchesSelectedCourseFilter, resolveCourseInfo } from '../../core/courseHelper';
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { isCalendarDeadline } from './calendarView';
 import { closeDayDrawerShell, openDayDrawerShell, registerOverlayCloseHandler } from './overlayController';
-import { promptCompletionScoreIfNeeded } from './marksView';
-import { deletePaymentItem, getCombinedCalendarTasks, openPaymentModal, togglePaymentPaid } from './paymentsView';
+import { getCombinedCalendarTasks } from './paymentsView';
 import { openConfiguredBlackboard } from './settingsWalkthrough';
 import { dom, formatDateKey, popupActions, popupState } from './state';
+import {
+  renderSummaryAndNotesForExt,
+  renderUnifiedActionsForExt,
+  wireUnifiedTaskActions
+} from './taskActions';
 
 export function selectDay(dateKey: string, openDrawer: boolean = true) {
   popupState.selectedDateStr = dateKey;
@@ -117,39 +120,11 @@ export function closeDayExpandedDrawer() {
 
 export function renderDoctorQuoteHtml(
   task: DeadlineTask,
-  courseName?: string,
-  courseCode?: string,
-  idPrefix: string = 'quote-body-'
+  _courseName?: string,
+  _courseCode?: string,
+  _idPrefix: string = 'quote-body-'
 ): string {
-  const rawSnippet = (task.description || task.sourceSnippet || '').trim();
-  if (!rawSnippet || rawSnippet.startsWith('Blackboard Ultra Stream item')) return '';
-  const cleanSnippet = sanitizeDoctorAnnouncementText(rawSnippet, courseName, courseCode, task.title);
-  if (!cleanSnippet) return '';
-  const normalizedText = cleanSnippet.replace(/\n{3,}/g, '\n\n').trim();
-  const isLong = normalizedText.length > 120 || normalizedText.includes('\n');
-  const quoted = normalizedText.startsWith('"') && normalizedText.endsWith('"')
-    ? escapeHtml(normalizedText)
-    : `"${escapeHtml(normalizedText)}"`;
-  return `
-    <div class="doctor-quote-box" data-task-id="${escapeHtml(task.id)}">
-      <div class="quote-label-row">
-        <div class="quote-label">
-          <span>${getSvgIcon('message', 'mr-1')}</span>
-          <span>Doctor Announcement:</span>
-        </div>
-        <button type="button" class="btn-inspect-quote" data-id="${escapeHtml(task.id)}" data-task-id="${escapeHtml(task.id)}" title="Inspect full announcement">
-          <span>${getSvgIcon('search', 'mr-1')} Full View</span>
-        </button>
-      </div>
-      <div class="quote-body ${isLong ? 'clamped' : 'expanded'}" id="${idPrefix}${escapeHtml(task.id)}">${quoted}</div>
-      ${isLong ? `
-        <button type="button" class="btn-toggle-quote" data-id="${escapeHtml(task.id)}" data-task-id="${escapeHtml(task.id)}" aria-expanded="false">
-          <span class="quote-toggle-icon">${getSvgIcon('book', 'mr-1')}</span>
-          <span class="quote-toggle-text">Read Full Announcement ▾</span>
-        </button>
-      ` : ''}
-    </div>
-  `;
+  return renderSummaryAndNotesForExt(task, { variant: 'card', includeFullViewBtn: true });
 }
 
 let cachedTrajectorySig = '';
@@ -278,7 +253,7 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       ` : ''}
     </div>
 
-    ${renderDoctorQuoteHtml(task, resolved.courseName, resolved.courseCode, 'quote-body-day-')}
+    ${renderSummaryAndNotesForExt(task, { variant: 'card', includeFullViewBtn: true })}
 
     ${task.notes ? `
       <div class="day-card-student-notes" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 0;">
@@ -291,123 +266,11 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
     ` : ''}
 
     <div class="day-card-actions">
-      <button type="button" class="btn-card-action btn-card-toggle ${isCompleted ? 'btn-is-completed' : ''}" title="${isCompleted ? 'Mark as Pending' : 'Mark as Done'}">
-        ${isCompleted ? `${getSvgIcon('check', 'mr-1')} Completed` : `${getSvgIcon('circle', 'mr-1')} Mark Done`}
-      </button>
-      <button type="button" class="btn-card-action btn-card-share" title="Share / Copy Task Details">
-        ${getSvgIcon('share', 'mr-1')} Share
-      </button>
-      <button type="button" class="btn-card-action btn-card-edit" title="Edit Deadline">
-        ${getSvgIcon('pencil', 'mr-1')} Edit
-      </button>
-      <a class="btn-card-action btn-card-gcal" href="${createGoogleCalendarUrl(task)}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
-        ${getSvgIcon('calendar', 'mr-1')} G-Cal
-      </a>
-      <button type="button" class="btn-card-action btn-card-delete" title="Delete Deadline">
-        ${getSvgIcon('trash')}
-      </button>
+      ${renderUnifiedActionsForExt(task, { variant: 'card' })}
     </div>
   `;
 
-  card.querySelector('.btn-card-toggle')?.addEventListener('click', async e => {
-    e.stopPropagation();
-    if (isPayment && task.paymentId) {
-      await togglePaymentPaid(task.paymentId);
-      return;
-    }
-    const prevStatus = task.status;
-    const nextStatus: TaskStatus = isCompleted ? 'pending' : 'completed';
-    popupState.currentTasks = popupActions.applyTaskUpdateLocal(task.id, {
-      status: nextStatus,
-      completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined,
-    });
-    popupActions.refreshAllViews();
-    popupActions.syncTasksToCloud(popupState.currentTasks, 'Drawer Status Change');
-    popupActions.showToast(
-      nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending',
-      'Undo',
-      async () => {
-        popupState.currentTasks = popupActions.applyTaskUpdateLocal(task.id, {
-          status: prevStatus,
-          completedAt: prevStatus === 'completed' ? task.completedAt || new Date().toISOString() : undefined,
-        });
-        popupActions.refreshAllViews();
-        popupActions.syncTasksToCloud(popupState.currentTasks, 'Revert Status Change');
-        popupActions.showToast('Status reverted');
-      }
-    );
-
-    if (nextStatus === 'completed') {
-      const updatedTask = popupState.currentTasks.find(t => t.id === task.id);
-      promptCompletionScoreIfNeeded(updatedTask);
-    }
-  });
-
-  card.querySelector('.btn-card-share')?.addEventListener('click', e => {
-    e.stopPropagation();
-    popupActions.shareTask(task);
-  });
-
-  card.querySelector('.btn-card-edit')?.addEventListener('click', e => {
-    e.stopPropagation();
-    if (isPayment && task.paymentId) {
-      const existing = popupState.currentPayments.find(p => p.id === task.paymentId);
-      if (existing) openPaymentModal(existing);
-      return;
-    }
-    popupActions.openEditModal(task);
-  });
-
-  card.querySelector('.btn-card-delete')?.addEventListener('click', async e => {
-    e.stopPropagation();
-    if (isPayment && task.paymentId) {
-      await deletePaymentItem(task.paymentId);
-      return;
-    }
-    const taskToDelete = task;
-    recordLocalTombstone(task.id);
-    popupState.currentTasks = popupActions.removeTaskLocal(task.id);
-    popupActions.refreshAllViews();
-    popupActions.syncTasksToCloud(popupState.currentTasks, 'Drawer Deleted Deadline');
-    popupActions.showToast(
-      `Deleted "${taskToDelete.title.slice(0, 22)}..."`,
-      'Undo',
-      async () => {
-        await removeLocalTombstone(taskToDelete.id);
-        popupState.currentTasks = await addTask({ ...taskToDelete, updatedAt: new Date().toISOString() });
-        popupActions.refreshAllViews();
-        popupActions.syncTasksToCloud(popupState.currentTasks, 'Restored Deadline');
-        popupActions.showToast('Deadline restored');
-      }
-    );
-  });
-
-  card.querySelector('.btn-inspect-quote')?.addEventListener('click', e => {
-    e.stopPropagation();
-    popupActions.openReadingSheet(task);
-  });
-
-  card.querySelector('.btn-toggle-quote')?.addEventListener('click', e => {
-    e.stopPropagation();
-    const body = card.querySelector('.quote-body');
-    const btn = card.querySelector('.btn-toggle-quote') as HTMLElement;
-    if (!body || !btn) return;
-    const isClamped = body.classList.contains('clamped');
-    if (isClamped) {
-      body.classList.remove('clamped');
-      body.classList.add('expanded');
-      btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Show Less ▴</span>`;
-    } else {
-      body.classList.remove('expanded');
-      body.classList.add('clamped');
-      btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Read Full Announcement ▾</span>`;
-    }
-  });
-
-  card.querySelector('.doctor-quote-box')?.addEventListener('click', e => {
-    if ((e.target as HTMLElement).closest('.btn-toggle-quote, .btn-inspect-quote')) return;
-    popupActions.openReadingSheet(task);
-  });
+  wireUnifiedTaskActions(card, task);
 
   return card;
 }

@@ -2,7 +2,7 @@ import { DeadlineTask } from '../types';
 import { resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle, mergeAnnouncementTexts, isBareTypeTitle } from '../core/courseHelper';
 import { resolveLatestFieldsFromNotes } from '../core/announcementReconcile';
 import { coreTitle, isPracticeTitle, isBonusTitle } from './streamParser';
-import { extractAssessmentNumber, extractExplicitPoints } from '../core/syllabusWeights';
+import { extractAssessmentNumber, extractExplicitPoints, resolveSingletonSyllabusKey } from '../core/syllabusWeights';
 import { isExamItem, hasScanTimeDueDate } from './gradebook';
 import { sanitizeTaskMarks, sanitizeTaskListMarks } from './taskMarkSanitize';
 
@@ -350,6 +350,27 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask): boolean {
 
   // Case 0: Singleton assessment deduplication within the same course:
   // 1. Midterm exams (only 1 midterm exam per course unless explicitly numbered Midterm 1 vs Midterm 2)
+  // 0. Strict syllabus-category / singleton restriction (at most 1 deliverable per singleton component)
+  const singletonA = resolveSingletonSyllabusKey(a);
+  const singletonB = resolveSingletonSyllabusKey(b);
+  if (singletonA && singletonB && singletonA === singletonB) {
+    if (!(numA !== null && numB !== null && numA !== numB)) {
+      return true;
+    }
+  }
+  const practiceRe = /\b(?:practice|mock|trial|sample|dry\s*run|review|make[\s-]*up)\b|تجريبي/i;
+  const isBareExamA = typeA === 'exam' && numA === null && !practiceRe.test(a.title) && isBareTypeTitle(a.title);
+  const isBareExamB = typeB === 'exam' && numB === null && !practiceRe.test(b.title) && isBareTypeTitle(b.title);
+  if ((isBareExamA && (singletonB === 'cat:final' || singletonB === 'cat:midterm')) ||
+      (isBareExamB && (singletonA === 'cat:final' || singletonA === 'cat:midterm'))) {
+    const msA = new Date(a.dueDate).getTime();
+    const msB = new Date(b.dueDate).getTime();
+    if (!isNaN(msA) && !isNaN(msB) && Math.abs(msA - msB) <= 14 * 24 * 60 * 60 * 1000) {
+      return true;
+    }
+  }
+
+  // 1. Midterms (match explicitly labeled midterms unless explicitly Midterm 1 vs Midterm 2)
   const isMidA = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(a.title) || (a.type === 'exam' && /mid/i.test(a.title));
   const isMidB = /(?:\bmid[\s_-]*terms?\b|نصفي)/i.test(b.title) || (b.type === 'exam' && /mid/i.test(b.title));
   if (isMidA && isMidB) {
@@ -664,6 +685,11 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     weight,
     weightDisplay,
     syllabusNote,
+    ...((existing.summary || incoming.summary) ? {
+      summary: taskTime(incoming) > taskTime(existing)
+        ? { ...(existing.summary || {}), ...(incoming.summary || {}) }
+        : { ...(incoming.summary || {}), ...(existing.summary || {}) }
+    } : {}),
     ...(existing.ignoreMark || incoming.ignoreMark ? { ignoreMark: true } : {}),
     userEdited: isUserEdited,
     updatedAt: new Date(Math.max(

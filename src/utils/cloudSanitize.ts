@@ -130,6 +130,19 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     }
     // Student notes are only the student's; a task they never made or edited has none
     if (clean.notes && !clean.userEdited && clean.extractedBy !== 'manual') delete clean.notes;
+    if (t.summary && typeof t.summary === 'object') {
+      const cleanSummary: { topics?: string; formatRules?: string; brief?: string } = {};
+      if (typeof t.summary.topics === 'string' && t.summary.topics.trim()) cleanSummary.topics = t.summary.topics.trim().slice(0, 260);
+      if (typeof t.summary.formatRules === 'string' && t.summary.formatRules.trim()) cleanSummary.formatRules = t.summary.formatRules.trim().slice(0, 260);
+      if (typeof t.summary.brief === 'string' && t.summary.brief.trim()) cleanSummary.brief = t.summary.brief.trim().slice(0, 360);
+      if (cleanSummary.topics || cleanSummary.formatRules || cleanSummary.brief) {
+        clean.summary = cleanSummary;
+      } else {
+        delete clean.summary;
+      }
+    } else {
+      delete clean.summary;
+    }
     if (t.isBonus) {
       clean.isBonus = true;
       clean.bonusUnit = t.bonusUnit === 'percent' ? 'percent' : 'points';

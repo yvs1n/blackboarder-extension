@@ -12,7 +12,7 @@ import {
   ScanCheckpoint
 } from '../utils/storage';
 import { isValidTask, isBareTypeTitle } from '../core/courseHelper';
-import { deduplicateTaskList } from '../utils/taskMerge';
+import { deduplicateTaskList, areTasksDuplicates, mergeDuplicatePair } from '../utils/taskMerge';
 import { applySubmissionUpdates, purgeSyntheticGradebookTasks } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
@@ -169,7 +169,8 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
 
     const matched = existingIdMap.get(dt.id)
       || (titleCourseKey ? existingTitleCourseMap.get(titleCourseKey) : undefined)
-      || (dateKey && existingDateKeySet.has(dateKey) ? true : undefined);
+      || (dateKey && existingDateKeySet.has(dateKey) ? true : undefined)
+      || mergedAnnTasks.find(t => areTasksDuplicates(t, dt));
 
     if (matched && typeof matched === 'object') {
       // Matched an existing task! If user edited it, never overwrite user changes.
@@ -183,6 +184,10 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
           matched.hasSpecificTime = dt.hasSpecificTime;
           matched.timeSource = dt.timeSource || 'explicit';
           matched.updatedAt = new Date().toISOString();
+        }
+        const idx = mergedAnnTasks.indexOf(matched);
+        if (idx !== -1) {
+          mergedAnnTasks[idx] = mergeDuplicatePair(matched, dt);
         }
       }
     } else if (!matched) {

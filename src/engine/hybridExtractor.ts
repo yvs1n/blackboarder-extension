@@ -2,7 +2,7 @@ import { Announcement, DeadlineTask, TaskType, UserSettings } from '../types';
 import { extractDeadlinesLocally } from './localExtractor';
 import { extractDeadlinesWithAi, confirmDeadlinesWithAi } from './aiExtractor';
 import { AiSettings, resolveAiEndpoint } from './aiProviders';
-import { resolveTaskWeight, extractAssessmentNumber } from '../core/syllabusWeights';
+import { resolveTaskWeight, extractAssessmentNumber, resolveSingletonSyllabusKey } from '../core/syllabusWeights';
 import { resolveTaskRoom, extractRoomFromText } from '../core/courseSchedule';
 import {
   extractAnnouncementFieldDelta,
@@ -63,10 +63,35 @@ function sameKnownCourse(a: DeadlineTask, b: DeadlineTask): boolean {
  * ("Midterm" for "Midterm Exam"). If this course already has that exam, it is the same exam.
  */
 function findSameExam(task: DeadlineTask, existing: Iterable<DeadlineTask>): DeadlineTask | undefined {
+  const singleton = resolveSingletonSyllabusKey(task);
+  const taskNum = extractAssessmentNumber(task.title || '');
+  const isBareExam = task.type === 'exam' && taskNum === null && !isPracticeTitle(task.title || '') && isBareTypeTitle(task.title || '');
+  const taskDueMs = new Date(task.dueDate).getTime();
+
+  if (singleton) {
+    for (const e of existing) {
+      if (!sameKnownCourse(e, task)) continue;
+      if (resolveSingletonSyllabusKey(e) !== singleton) continue;
+      const eNum = extractAssessmentNumber(e.title || '');
+      if (taskNum !== null && eNum !== null && taskNum !== eNum) continue;
+      return e;
+    }
+  }
+
   if (task.type !== 'exam') return undefined;
   const kind = examKind(task.title);
   for (const e of existing) {
-    if (e.type === 'exam' && sameKnownCourse(e, task) && examKind(e.title) === kind) return e;
+    if (e.type !== 'exam' || !sameKnownCourse(e, task)) continue;
+    if (examKind(e.title) === kind) return e;
+    if (isBareExam) {
+      const eKey = resolveSingletonSyllabusKey(e);
+      if (eKey === 'cat:final' || eKey === 'cat:midterm') {
+        const eDueMs = new Date(e.dueDate).getTime();
+        if (!isNaN(taskDueMs) && !isNaN(eDueMs) && Math.abs(taskDueMs - eDueMs) <= 14 * 24 * 60 * 60 * 1000) {
+          return e;
+        }
+      }
+    }
   }
   return undefined;
 }

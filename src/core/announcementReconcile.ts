@@ -26,13 +26,13 @@ export function isTopicCoverageOnlyLine(line: string): boolean {
 
 /**
  * Splits a merged professor-notes description (`mergeAnnouncementTexts`) into chronological
- * announcement segments (oldest first, newest `[Doctor Update]:` last).
+ * announcement segments (oldest first, newest `[Professor Update]:` or legacy `[Doctor Update]:` last).
  */
 export function splitAnnouncementNotes(text?: string): string[] {
   const raw = (text || '').trim();
   if (!raw || raw.toLowerCase() === 'gradebook' || /^gbcol_/i.test(raw)) return [];
   return raw
-    .split(/\n+\s*\[Doctor Update\]:\s*\n+|\n\s*---+\s*\n/i)
+    .split(/\n+\s*\[(?:Professor|Doctor) Update\]:\s*\n+|\n\s*---+\s*\n/i)
     .map(s => s.trim())
     .filter(Boolean);
 }
@@ -246,7 +246,7 @@ export function applyAnnouncementDeltaToTask(
 
 /**
  * Walks all chronological segments in a task's professor notes (`description` / `sourceSnippet`)
- * from oldest to newest so the latest explicit room/time/weight in `[Doctor Update]:` segments wins,
+ * from oldest to newest so the latest explicit room/time/weight in `[Professor Update]:` (or legacy `[Doctor Update]:`) segments wins,
  * rather than letting the first segment shadow later professor updates.
  */
 export function resolveLatestFieldsFromNotes(params: {

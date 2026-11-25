@@ -1,11 +1,15 @@
-import type { DeadlineTask, TaskStatus } from '../../types';
+import type { DeadlineTask } from '../../types';
 import { getCourseColorTheme } from '../../core/courseColors';
-import { compareTasksByTime, createGoogleCalendarUrl, formatCountdown } from '../../utils/calendar';
+import { compareTasksByTime, formatCountdown } from '../../utils/calendar';
 import { resolveCourseInfo } from '../../core/courseHelper';
 import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
-import { getCurrentTrajectoryPlan, getTaskTargetBadgeHtml, renderDoctorQuoteHtml } from './dayDrawer';
-import { promptCompletionScoreIfNeeded } from './marksView';
-import { getCombinedCalendarTasks, openPaymentModal, togglePaymentPaid } from './paymentsView';
+import { getCurrentTrajectoryPlan, getTaskTargetBadgeHtml } from './dayDrawer';
+import {
+  renderSummaryAndNotesForExt,
+  renderUnifiedActionsForExt,
+  wireUnifiedTaskActions
+} from './taskActions';
+import { getCombinedCalendarTasks, openPaymentModal } from './paymentsView';
 import { dom, popupActions, popupState } from './state';
 
 export function showToast(message: string, actionText?: string, onAction?: () => void) {
@@ -236,7 +240,6 @@ export function renderTasks() {
     const isCompleted = task.status === 'completed';
     const resolved = resolveCourseInfo(task);
     const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
-    const gcalUrl = createGoogleCalendarUrl(task);
 
     const targetBadgeHtml = isPayment ? '' : getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
@@ -275,7 +278,7 @@ export function renderTasks() {
       classTimeBadgeHtml = `<span class="meta-pill time-class">${getSvgIcon('clock', 'mr-1')} Class Time</span>`;
     }
 
-    const doctorQuoteHtml = renderDoctorQuoteHtml(task, resolved.courseName, resolved.courseCode, 'quote-body-');
+    const summaryNotesHtml = renderSummaryAndNotesForExt(task, { variant: 'card', includeFullViewBtn: true });
 
     let studentNotesHtml = '';
     if (task.notes && task.notes.trim()) {
@@ -342,59 +345,21 @@ export function renderTasks() {
 
       ${task.priority === 'high' ? '<div class="priority-label-row"><span class="high-priority-tag">HIGH PRIORITY</span></div>' : ''}
 
-      ${doctorQuoteHtml}
+      ${summaryNotesHtml}
       ${studentNotesHtml}
 
       <div class="task-card-footer">
-        <button type="button" class="btn-card-action btn-share-card" data-id="${escapeHtml(task.id)}" title="Share task details">
-          ${getSvgIcon('share', 'mr-1')} <span class="btn-responsive-label">Share</span>
-        </button>
-        <button type="button" class="btn-card-action btn-edit-card" data-id="${escapeHtml(task.id)}" title="Edit deadline">
-          ${getSvgIcon('pencil', 'mr-1')} <span class="btn-responsive-label">Edit</span>
-        </button>
-        <a class="btn-card-action btn-gcal" href="${gcalUrl}" target="_blank" rel="noopener noreferrer" title="Add to Google Calendar">
-          ${getSvgIcon('calendar', 'mr-1')} <span class="btn-responsive-label">G-Calendar</span>
-        </a>
-        <button type="button" class="btn-card-action btn-card-toggle" data-id="${escapeHtml(task.id)}">
-          ${isCompleted ? `${getSvgIcon('refresh', 'mr-1')} <span class="btn-responsive-label">Mark Pending</span>` : `${getSvgIcon('check', 'mr-1')} <span class="btn-responsive-label">Mark Done</span>`}
-        </button>
+        ${renderUnifiedActionsForExt(task, { variant: 'card' })}
       </div>
     `;
 
     card.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+      if ((e.target as HTMLElement).closest('button, a, input, select, details, summary')) return;
       if (isPayment && task.paymentId) {
         const existing = popupState.currentPayments.find(p => p.id === task.paymentId);
         if (existing) openPaymentModal(existing);
         return;
       }
-      popupActions.openReadingSheet(task);
-    });
-
-    card.querySelector('.btn-inspect-quote')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      popupActions.openReadingSheet(task);
-    });
-
-    card.querySelector('.btn-toggle-quote')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const body = card.querySelector('.quote-body');
-      const btn = card.querySelector('.btn-toggle-quote') as HTMLElement;
-      if (!body || !btn) return;
-      const isClamped = body.classList.contains('clamped');
-      if (isClamped) {
-        body.classList.remove('clamped');
-        body.classList.add('expanded');
-        btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Show Less ▴</span>`;
-      } else {
-        body.classList.remove('expanded');
-        body.classList.add('clamped');
-        btn.innerHTML = `${getSvgIcon('book', 'mr-1')} <span class="quote-toggle-text">Read Full Announcement ▾</span>`;
-      }
-    });
-
-    card.querySelector('.doctor-quote-box')?.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('.btn-toggle-quote, .btn-inspect-quote')) return;
       popupActions.openReadingSheet(task);
     });
 
@@ -403,86 +368,13 @@ export function renderTasks() {
       popupActions.openRoomPicker(task.id);
     });
 
-    card.querySelector('.btn-share-card')?.addEventListener('click', (e) => {
+    wireUnifiedTaskActions(card, task);
+
+    card.querySelector('.status-checkbox-btn')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      shareTask(task);
+      const btn = card.querySelector('.btn-card-toggle') as HTMLElement | null;
+      if (btn) btn.click();
     });
-
-    card.querySelector('.btn-edit-card')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (isPayment && task.paymentId) {
-        const existing = popupState.currentPayments.find(p => p.id === task.paymentId);
-        if (existing) openPaymentModal(existing);
-        return;
-      }
-      popupActions.openEditModal(task);
-    });
-
-    const handleToggleDone = async (e: Event) => {
-      e.stopPropagation();
-      if (isPayment && task.paymentId) {
-        await togglePaymentPaid(task.paymentId);
-        return;
-      }
-      const currentTask = popupState.currentTasks.find(t => t.id === task.id) || task;
-      const prevStatus = currentTask.status;
-      const currentlyCompleted = prevStatus === 'completed';
-      const nextStatus: TaskStatus = currentlyCompleted ? 'pending' : 'completed';
-      popupState.currentTasks = popupActions.applyTaskUpdateLocal(task.id, {
-        status: nextStatus,
-        completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined,
-      });
-
-      const nowCompleted = nextStatus === 'completed';
-      card.classList.toggle('status-completed', nowCompleted);
-      card.classList.toggle('status-pending', !nowCompleted);
-      card.classList.toggle('is-completed', nowCompleted);
-
-      const checkBtn = card.querySelector('.status-checkbox-btn');
-      if (checkBtn) {
-        checkBtn.classList.toggle('checked', nowCompleted);
-        checkBtn.textContent = nowCompleted ? '✓' : '';
-        checkBtn.setAttribute('title', nowCompleted ? 'Mark as Pending' : 'Mark as Done');
-      }
-
-      if (popupState.currentFilterStatus === 'all') {
-        const toggleBtn = card.querySelector('.btn-card-toggle');
-        if (toggleBtn) {
-          toggleBtn.innerHTML = nowCompleted
-            ? `${getSvgIcon('refresh', 'mr-1')} <span class="btn-responsive-label">Mark Pending</span>`
-            : `${getSvgIcon('check', 'mr-1')} <span class="btn-responsive-label">Mark Done</span>`;
-        }
-        updateStats(popupState.currentTasks);
-        popupState.dirtyViews.add('calendar');
-        popupState.dirtyViews.add('marks');
-        popupState.dirtyViews.add('courses');
-      } else {
-        popupActions.refreshAllViews();
-      }
-
-      popupActions.syncTasksToCloud(popupState.currentTasks, 'Status Change');
-      showToast(
-        nextStatus === 'completed' ? 'Marked as completed' : 'Reverted to pending',
-        'Undo',
-        async () => {
-          popupState.currentTasks = popupActions.applyTaskUpdateLocal(task.id, {
-            status: prevStatus,
-            completedAt: prevStatus === 'completed' ? task.completedAt || new Date().toISOString() : undefined,
-          });
-          popupActions.refreshAllViews();
-          popupActions.syncTasksToCloud(popupState.currentTasks, 'Revert Status Change');
-          showToast('Status reverted');
-        }
-      );
-
-      if (nextStatus === 'completed') {
-        const updatedTask = popupState.currentTasks.find(t => t.id === task.id);
-        promptCompletionScoreIfNeeded(updatedTask);
-      }
-    };
-
-    card.querySelector('.status-checkbox-btn')?.addEventListener('click', handleToggleDone);
-    card.querySelector('.btn-card-toggle')?.addEventListener('click', handleToggleDone);
 
     fragment.appendChild(card);
   });
