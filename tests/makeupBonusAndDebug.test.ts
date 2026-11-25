@@ -348,4 +348,115 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
 
     setActiveUserCourses([]);
   });
+
+  it('bumps updatedAt on Rulebook visibility transition so mergeCloudTasks persists hidden state and catches unnumbered makeup quizzes', () => {
+    const staleStamp = '2026-10-20T00:00:00.000Z';
+    const completedMidterm: DeadlineTask = {
+      id: 'phys_midterm_done',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'Midterm Exam',
+      description: '',
+      dueDate: '2026-10-18T10:00:00.000Z',
+      hasSpecificTime: true,
+      type: 'exam',
+      priority: 'high',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 21,
+      maxScore: 25,
+      sourceSnippet: '',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: staleStamp,
+      updatedAt: staleStamp
+    };
+    const pendingMakeup: DeadlineTask = {
+      id: 'phys_makeup_stale',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'makeup exam',
+      description: 'The makeup exam for those who missed the midterm is scheduled on Oct 27.',
+      dueDate: '2026-10-27T13:00:00.000Z',
+      hasSpecificTime: true,
+      type: 'exam',
+      priority: 'high',
+      status: 'pending',
+      weight: 25,
+      weightDisplay: '25% (Midterm Exam)',
+      sourceSnippet: 'makeup exam for those who missed the midterm',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: staleStamp,
+      updatedAt: staleStamp
+    };
+    const completedQuiz1: DeadlineTask = {
+      id: 'phys_quiz_1',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'Quiz 1',
+      description: '',
+      dueDate: '2026-10-05T08:30:00.000Z',
+      hasSpecificTime: true,
+      type: 'quiz',
+      priority: 'medium',
+      status: 'completed',
+      sourceSnippet: '',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: staleStamp,
+      updatedAt: staleStamp
+    };
+    const pendingUnnumberedMakeupQuiz: DeadlineTask = {
+      id: 'phys_makeup_quiz',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'Makeup Quiz',
+      description: 'Makeup quiz for students who missed the quiz.',
+      dueDate: '2026-10-12T08:30:00.000Z',
+      hasSpecificTime: true,
+      type: 'quiz',
+      priority: 'medium',
+      status: 'pending',
+      sourceSnippet: 'Makeup quiz for students who missed the quiz.',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: staleStamp,
+      updatedAt: staleStamp
+    };
+
+    const evaluated = evaluateTaskList([completedMidterm, pendingMakeup, completedQuiz1, pendingUnnumberedMakeupQuiz]);
+    const hiddenMidtermMakeup = evaluated.find(t => t.id === 'phys_makeup_stale');
+    const hiddenQuizMakeup = evaluated.find(t => t.id === 'phys_makeup_quiz');
+
+    expect(hiddenMidtermMakeup?.visibility).toBe('hidden');
+    expect(hiddenMidtermMakeup?.hiddenReason).toBe('makeup_completed');
+    expect(hiddenMidtermMakeup?.ignoreMark).toBe(true);
+    expect(Date.parse(hiddenMidtermMakeup!.updatedAt)).toBeGreaterThan(Date.parse(staleStamp));
+
+    expect(hiddenQuizMakeup?.visibility).toBe('hidden');
+    expect(hiddenQuizMakeup?.hiddenReason).toBe('makeup_completed');
+
+    // Cloud sync carrying stale pre-Rulebook active snapshot must not wipe hidden fields
+    const cloudStaleCopy: DeadlineTask[] = [
+      { ...completedMidterm },
+      { ...pendingMakeup },
+      { ...completedQuiz1 },
+      { ...pendingUnnumberedMakeupQuiz }
+    ];
+    const merged = mergeCloudTasks(evaluated, cloudStaleCopy, {});
+    const afterCloud = deduplicateTaskList(merged.tasks);
+    expect(afterCloud.find(t => t.id === 'phys_makeup_stale')?.visibility).toBe('hidden');
+    expect(afterCloud.find(t => t.id === 'phys_makeup_quiz')?.visibility).toBe('hidden');
+
+    // When a cloud copy explicitly restores visibilityLocked='active', OPTIONAL_FIELDS clears visibility
+    const restoredCloud = {
+      ...pendingMakeup,
+      visibilityLocked: 'active' as const,
+      updatedAt: new Date(Date.now() + 60_000).toISOString()
+    };
+    const mergedRestore = mergeCloudTasks(evaluated, [completedMidterm, restoredCloud], {});
+    expect(mergedRestore.tasks.find(t => t.id === 'phys_makeup_stale')?.visibility).toBeUndefined();
+    expect(mergedRestore.tasks.find(t => t.id === 'phys_makeup_stale')?.visibilityLocked).toBe('active');
+  });
 });

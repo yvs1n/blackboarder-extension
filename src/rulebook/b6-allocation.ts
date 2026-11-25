@@ -17,7 +17,12 @@ export function applyGradeAllocationRules(tasks: DeadlineTask[]): DeadlineTask[]
       if (task.weight === undefined && !task.weightDisplay && !task.syllabusNote && task.ignoreMark) {
         return task;
       }
-      const next: DeadlineTask = { ...task, ignoreMark: true };
+      const prevMs = Date.parse(task.updatedAt || task.createdAt || '') || 0;
+      const next: DeadlineTask = {
+        ...task,
+        ignoreMark: true,
+        updatedAt: new Date(Math.max(Date.now(), prevMs + 1)).toISOString()
+      };
       delete next.weight;
       delete next.weightDisplay;
       delete next.syllabusNote;

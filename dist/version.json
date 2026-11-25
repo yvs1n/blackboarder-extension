@@ -1,20 +1,23 @@
 {
-  "version": "1.8.43",
-  "build": "672ec034cbe7",
-  "commit": "991ef94c27f52a199cc779585e2579ce48318eef",
-  "shortCommit": "991ef94",
-  "timestamp": "2026-11-25T15:45:10.200Z",
-  "message": "v1.8.42: suppress completed range extensions and strip duplicate grade allocation on due-date reminders",
+  "version": "1.8.44",
+  "build": "f07b43ae0e48",
+  "commit": "500d6f03c547ba0dcd6d6ff4f5b49f02d039712e",
+  "shortCommit": "500d6f0",
+  "timestamp": "2026-11-25T19:34:19.318Z",
+  "message": "fix(ci): make Publish to Web Stores idempotent when version is already submitted or published",
   "changelog": [
-    "Introduced the compiled TypeScript Rulebook (src/rulebook/types.ts, b5-applicability.ts, b6-allocation.ts, index.ts) with zero runtime DSL overhead and lazy explainTaskDecision() rulebookTrace reporting inside the Debug Stick X-Ray inspector.",
-    "Instead of permanently deleting superseded makeup exams, completed multi-item range extensions (e.g. Assignments 1-3 (Extended Deadline)), extra items past a completed syllabus quota, or dated post-exam review/paper-viewing sessions, Rulebook Branch B5 now routes them to visibility: 'hidden' with a human-readable hiddenReasonLabel, while Branch B6 strips their grade weight (ignoreMark: true) so they never appear on Calendar, active Deadlines, Overdue badges, Notifications, /feed.ics, Marks, GPA, Syllabus Progress, or Target GPA.",
-    "Added a Hidden (N) filter chip alongside Pending, All, and Completed in both the Chrome Extension and Mobile Companion Deadlines tabs, with 1-click Share (for forwarding times/rooms when friends ask), Restore (visibilityLocked: 'active'), and permanent Delete."
+    "Bumped updatedAt monotonically in evaluateTaskList() and applyGradeAllocationRules() whenever Rulebook Branch B5 or B6 updates visibility, hiddenReason, weight, or ignoreMark, and added visibility, hiddenReason, hiddenReasonLabel, and visibilityLocked to OPTIONAL_FIELDS in mergeCloudTasks (src/utils/taskMerge.ts) and src/mobile/app/05-sync-fetch.js so equal-timestamp or older cloud copies never revert auto-hidden deadlines back to active.",
+    "Awaited getUserCourses() in popup.ts and pullTasksFromFirebaseIfNewer (syncController.ts) before running Rulebook deduplication, updated startup/sync signatures to detect visibility & grade-allocation transitions even when array length is unchanged, and re-evaluated evaluateTaskList() immediately on task completion/edit/course-recalc across both Extension and Mobile Companion so checking off a Midterm, Quiz, or Assignment moves superseded makeups and completed range extensions straight into Hidden.",
+    "Extended isMakeupSupersededByCompletedOriginal() to recognize \"1st Exam\" / \"Exam 1\" midterms and unnumbered \"Makeup Quiz\" deadlines when prior quizzes up to that date are completed, and allowed multi-item extension range matching (Assignments 1-3) across matching syllabus components.",
+    "Prevented mergeExamScheduleTasks fuzzy fallback matching from claiming hidden, dismissed, makeup, practice, or exam-review tasks when pairing official Banner exams.",
+    "Interactive Exam Schedule page scans (StudentExamPage) and Full Re-scan (refreshExamSchedule(true)) now automatically clear tombstones and restore deleted upcoming official Banner exams (e.g., an accidentally deleted Final Exam) while keeping past deleted exams suppressed and reporting accurate schedule scan counts.",
+    "Added Recover Deleted Deadlines & Re-scan inside Settings > Scanning (#btn-restore-deleted-rescan) so any accidentally deleted announcement or assessment can also be recovered in one click."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
     "assets/popup-CZP6ZUkd.css",
-    "assets/popup-erEysFMe.js",
+    "assets/popup-RFjSVtit.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

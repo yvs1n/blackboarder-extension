@@ -10,6 +10,7 @@ import {
   extractStudentFromExamHtml
 } from '../core/examSchedule';
 import { getTasks, getUserCourses, autoRegisterDiscoveredCourses, saveTasksMergingLatest } from '../utils/storage';
+import { setStorageTombstones } from '../utils/tombstones';
 import { deduplicateTaskList } from '../utils/taskMerge';
 import { isValidTask } from '../core/courseHelper';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
@@ -83,7 +84,7 @@ async function fetchBannerVirtualDomainTasks(pageUrl: string, html: string): Pro
   }
 }
 
-async function readViaHttp(page: string): Promise<ExamRefreshResult> {
+async function readViaHttp(page: string, force = false): Promise<ExamRefreshResult> {
   const res = await fetch(page, {
     credentials: 'include',
     headers: { Accept: 'text/html,application/xhtml+xml,application/json' }
@@ -137,7 +138,24 @@ async function readViaHttp(page: string): Promise<ExamRefreshResult> {
   }
 
   const stored = await chrome.storage.local.get(['bbs_tombstones']).catch(() => ({} as Record<string, any>));
-  const tombstones = (stored?.bbs_tombstones as Record<string, string>) || {};
+  const tombstones = { ...((stored?.bbs_tombstones as Record<string, string>) || {}) };
+  if (force) {
+    const startOfTodayMs = new Date().setHours(0, 0, 0, 0);
+    const nowIso = new Date().toISOString();
+    let changed = false;
+    for (const exam of examTasks) {
+      if (!tombstones[exam.id]) continue;
+      const dueMs = Date.parse(exam.dueDate || '');
+      if (!isNaN(dueMs) && dueMs >= startOfTodayMs) {
+        delete tombstones[exam.id];
+        exam.updatedAt = nowIso;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await setStorageTombstones(tombstones).catch(() => {});
+    }
+  }
   const activeExamTasks = examTasks.filter(t => !tombstones[t.id]);
 
   if (activeExamTasks.length === 0) {
@@ -173,7 +191,7 @@ export async function refreshExamSchedule(force = false): Promise<ExamRefreshRes
   } catch {}
 
   try {
-    const result = await readViaHttp(page);
+    const result = await readViaHttp(page, force);
     if (result.state === 'read' || result.state === 'empty') {
       const saved = { ...result, readAt: new Date().toISOString() };
       await chrome.storage.local.set({ [EXAM_READ_KEY]: saved }).catch(() => {});

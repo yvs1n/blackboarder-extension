@@ -2,6 +2,7 @@ import { AiProvider, UserSettings } from '../../types';
 import { IFM_MODEL, normalizeAiBaseUrl, resolveAiEndpoint, testAiEndpoint } from '../../engine/aiProviders';
 import { describeAiLock, ensureAiPass, getAiLockState, newAiPass, syncAiKeyLock } from '../../utils/aiKeyLock';
 import { getSettings, saveLastScanCheckpoint, saveSettings } from '../../utils/storage';
+import { setStorageTombstones } from '../../utils/tombstones';
 import { loadSyncStatus, setupSyncSettingsEvents } from './settingsSync';
 import { dom, popupActions, popupState } from './state';
 import { applyTheme, setThemeNow } from './theme';
@@ -364,7 +365,23 @@ export function setupSettingsEvents() {
 
   const btnTriggerFullRescan = document.getElementById('btn-trigger-full-rescan');
   const btnResetCheckpoint = document.getElementById('btn-reset-checkpoint');
+  const btnRestoreDeletedRescan = document.getElementById('btn-restore-deleted-rescan');
   const rescanStatusMsg = document.getElementById('rescan-status-msg');
+
+  btnRestoreDeletedRescan?.addEventListener('click', async () => {
+    await setStorageTombstones({});
+    await saveLastScanCheckpoint({
+      lastScannedAt: '',
+      processedAnnouncementIds: [],
+      processedDirectTaskIds: [],
+      processedAnnouncementKeys: []
+    });
+    if (rescanStatusMsg) {
+      rescanStatusMsg.textContent = 'Deleted records cleared! Running Full Re-scan to recover deleted exams & deadlines...';
+      rescanStatusMsg.style.color = 'var(--text-main)';
+    }
+    await popupActions.scanActiveTab(true);
+  });
 
   btnTriggerFullRescan?.addEventListener('click', async () => {
     if (rescanStatusMsg) {

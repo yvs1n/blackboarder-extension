@@ -186,4 +186,47 @@ describe('two midterms in one course', () => {
     expect(tasks.find(t => t.id === 'a1')!.dueDate).toBe('2026-10-05T10:00:00.000Z');
     expect(tasks.find(t => t.id === 'a2')!.dueDate).toBe('2026-11-10T10:00:00.000Z');
   });
+
+  it('does not let a hidden review session or dismissed task absorb an incoming official Final Exam', () => {
+    const hiddenReview: DeadlineTask = {
+      ...exam('rev_islamic', 'Final Exam Sheet Review', '2026-12-01T10:00:00.000Z'),
+      visibility: 'hidden',
+      hiddenReason: 'review_session',
+      courseCode: '0104100',
+      courseName: 'Islamic Culture'
+    };
+    const officialFinal: DeadlineTask = {
+      ...exam('banner_exam_0104100_final_2026-12-10', 'Final Exam', '2026-12-10T08:30:00.000Z'),
+      courseCode: '0104100',
+      courseName: 'Islamic Culture'
+    };
+    const { tasks, addedCount } = mergeExamScheduleTasks([hiddenReview], [officialFinal]);
+    expect(addedCount).toBe(1);
+    expect(tasks.some(t => t.id === 'banner_exam_0104100_final_2026-12-10' && t.visibility !== 'hidden')).toBe(true);
+  });
+
+  it('recovers deleted upcoming official exams on Full Re-scan while keeping deleted past exams suppressed', async () => {
+    const futureYear = new Date().getFullYear() + 1;
+    const htmlWithPastAndFuture = `
+      <table>
+        <tr><th>CRN</th><th>Course Number</th><th>Course Title</th><th>Exam Date</th><th>From / Time</th><th>To / Time</th><th>Building</th><th>Room</th><th>Exam Type</th><th>Exam Method</th><th>Comment</th></tr>
+        <tr><td>11111</td><td>1440133</td><td>Calculus I</td><td>22/10/2025</td><td>14:30PM</td><td>15:30PM</td><td>A12</td><td>110</td><td>MIDTERM</td><td>Paper_Based</td><td></td></tr>
+        <tr><td>22222</td><td>0104100</td><td>Islamic Culture</td><td>15/12/${futureYear}</td><td>08:30AM</td><td>10:30AM</td><td>M5</td><td>101</td><td>FINAL</td><td>Paper_Based</td><td></td></tr>
+      </table>
+    `;
+    const pastId = 'banner_exam_1440133_midterm_2025-10-22';
+    const upcomingIslamicId = `banner_exam_0104100_final_${futureYear}-12-15`;
+    const env = fakeEnv({ html: htmlWithPastAndFuture });
+    env.store.bbs_tombstones = {
+      [pastId]: '2026-10-25T00:00:00.000Z',
+      [upcomingIslamicId]: '2026-11-24T00:00:00.000Z'
+    };
+
+    const res = await refreshExamSchedule(true);
+    expect(res).toMatchObject({ state: 'read', found: 1, added: 1 });
+    expect(env.store.bbs_tasks.some((t: DeadlineTask) => t.id === upcomingIslamicId)).toBe(true);
+    expect(env.store.bbs_tasks.some((t: DeadlineTask) => t.id === pastId)).toBe(false);
+    expect(env.store.bbs_tombstones[upcomingIslamicId]).toBeUndefined();
+    expect(env.store.bbs_tombstones[pastId]).toBeTruthy();
+  });
 });

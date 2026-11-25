@@ -3,6 +3,7 @@ import { filterCleanUserCourses } from '../../core/courseFilter';
 import { hasValidAcademicCourseCode, isBlackboardSystemNoise } from '../../core/courseHelper';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
 import { resolveTaskWeight } from '../../core/syllabusWeights';
+import { evaluateTaskList } from '../../rulebook';
 import { setActiveUserCourses } from '../../core/userCourses';
 import {
   STORAGE_KEYS,
@@ -293,10 +294,11 @@ export async function recalculateTasksWithActiveCourses(): Promise<DeadlineTask[
     return task;
   });
 
-  if (changed) {
-    await saveTasks(updatedTasks);
+  const evaluatedTasks = evaluateTaskList(updatedTasks);
+  if (changed || JSON.stringify(evaluatedTasks) !== JSON.stringify(tasks)) {
+    await saveTasks(evaluatedTasks);
   }
-  return updatedTasks;
+  return evaluatedTasks;
 }
 
 // Automatically sync cached courses into active state on module load

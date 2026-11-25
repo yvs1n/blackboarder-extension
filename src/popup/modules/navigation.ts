@@ -1,4 +1,5 @@
 import { DeadlineTask, TaskPriority, TaskStatus, TaskType } from '../../types';
+import { evaluateTaskList } from '../../rulebook';
 import { findCourseSchedule, resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
 import { formatTaskWeightDisplay, resolveTaskWeight } from '../../core/syllabusWeights';
 import { compareTasksByTime, downloadIcsFile } from '../../utils/calendar';
@@ -607,7 +608,9 @@ export function setupNavigationAndTaskEvents() {
       updatedAt: new Date().toISOString()
     };
 
-    popupState.currentTasks = popupState.currentTasks.map(t => (t.id === targetId ? { ...t, ...updatedTaskFields } : t));
+    popupState.currentTasks = evaluateTaskList(
+      popupState.currentTasks.map(t => (t.id === targetId ? { ...t, ...updatedTaskFields } : t))
+    );
     popupState.currentTasks.sort(compareTasksByTime);
 
     popupActions.persistTasksInBackground(popupState.currentTasks);

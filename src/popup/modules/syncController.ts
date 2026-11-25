@@ -1,4 +1,5 @@
 import type { DeadlineTask, QuickLink, UserCourseConfig } from '../../types';
+import { evaluateTaskList } from '../../rulebook';
 import { sanitizePayments, sortPayments } from '../../core/payments';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
 import { sanitizeSemesters } from '../../core/semesters';
@@ -123,7 +124,8 @@ export function persistTasksInBackground(tasks: DeadlineTask[], immediate = fals
 
 export function applyTaskUpdateLocal(taskId: string, updates: Partial<DeadlineTask>): DeadlineTask[] {
   const now = new Date().toISOString();
-  popupState.currentTasks = popupState.currentTasks.map(t => (t.id === taskId ? { ...t, ...updates, updatedAt: now } : t));
+  const updated = popupState.currentTasks.map(t => (t.id === taskId ? { ...t, ...updates, updatedAt: now } : t));
+  popupState.currentTasks = evaluateTaskList(updated);
   persistTasksInBackground(popupState.currentTasks);
   return popupState.currentTasks;
 }
@@ -268,10 +270,28 @@ export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGen
         chrome.storage?.local?.set({ bbs_tombstones: tombstones });
       }
 
+      const coursesPick = pickNewerList(
+        { items: popupState.currentUserCourses, updatedAt: await getCoursesUpdatedAt() },
+        { items: res.courses, updatedAt: res.coursesUpdatedAt },
+        true
+      );
+      if (coursesPick.fromCloud && coursesPick.items && JSON.stringify(coursesPick.items) !== JSON.stringify(popupState.currentUserCourses)) {
+        popupState.currentUserCourses = coursesPick.items;
+        await saveUserCourses(popupState.currentUserCourses, coursesPick.updatedAt);
+        popupState.currentTasks = await recalculateTasksWithActiveCourses();
+        popupActions.renderUserCoursesManager();
+        popupActions.renderLegend();
+        popupActions.updateCourseFilterOptions(popupState.currentTasks);
+        refreshAllViews();
+      } else {
+        await getUserCourses().catch(() => []);
+      }
+
       const { tasks, changed } = mergeCloudTasks(popupState.currentTasks, res.tasks, tombstones);
       const dedupPreview = deduplicateTaskList(tasks);
-      if (changed || dedupPreview.length !== tasks.length) {
-        popupState.currentTasks = (await saveTasksMergingLatest(tasks)).sort(compareTasksByTime);
+      const ruleChanged = dedupPreview.length !== tasks.length || JSON.stringify(dedupPreview) !== JSON.stringify(tasks);
+      if (changed || ruleChanged) {
+        popupState.currentTasks = (await saveTasksMergingLatest(dedupPreview)).sort(compareTasksByTime);
         refreshAllViews();
         result = popupState.currentTasks;
         console.log('[Firebase Sync] Merged notes & deadline updates from mobile phone/cloud');
@@ -287,21 +307,6 @@ export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGen
         await saveQuickLinks(popupState.currentQuickLinks, linksPick.updatedAt);
         popupActions.renderQuickLinksBar();
         (popupActions as any).renderQuickLinksManager?.();
-      }
-
-      const coursesPick = pickNewerList(
-        { items: popupState.currentUserCourses, updatedAt: await getCoursesUpdatedAt() },
-        { items: res.courses, updatedAt: res.coursesUpdatedAt },
-        true
-      );
-      if (coursesPick.fromCloud && coursesPick.items && JSON.stringify(coursesPick.items) !== JSON.stringify(popupState.currentUserCourses)) {
-        popupState.currentUserCourses = coursesPick.items;
-        await saveUserCourses(popupState.currentUserCourses, coursesPick.updatedAt);
-        popupState.currentTasks = await recalculateTasksWithActiveCourses();
-        popupActions.renderUserCoursesManager();
-        popupActions.renderLegend();
-        popupActions.updateCourseFilterOptions(popupState.currentTasks);
-        refreshAllViews();
       }
 
       if (res.semesters) {

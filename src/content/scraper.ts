@@ -16,7 +16,7 @@ import { detectUniversityFromHost } from '../utils/profile';
 import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks, extractStudentFromExamDoc } from '../core/examSchedule';
 import { isFinancePortalPage, parseFinancePageFromDoc } from '../core/financePageParser';
 import { mergeCloudPayments } from '../core/payments';
-import { getLocalTombstones } from '../utils/tombstones';
+import { getLocalTombstones, setStorageTombstones } from '../utils/tombstones';
 import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
 import { fetchCourseAnnouncements, isGenericPlaceholderName, readBlackboardApi } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
@@ -132,7 +132,34 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
     }
   });
 
-  const examTasks = (await waitForExamScheduleTasks(waitMs ?? (run.interactive ? 5000 : 3500))).filter(t => !tombstones[t.id]);
+  const rawExamTasks = await waitForExamScheduleTasks(waitMs ?? (run.interactive ? 5000 : 3500));
+  const startOfTodayMs = new Date().setHours(0, 0, 0, 0);
+  let restoredUpcomingCount = 0;
+  let skippedPastTombstonedCount = 0;
+
+  if (run.interactive || run.fullRescan) {
+    let tombstonesChanged = false;
+    const nowIso = new Date().toISOString();
+    for (const exam of rawExamTasks) {
+      if (!tombstones[exam.id]) continue;
+      const dueMs = Date.parse(exam.dueDate || '');
+      if (!isNaN(dueMs) && dueMs >= startOfTodayMs) {
+        delete tombstones[exam.id];
+        exam.updatedAt = nowIso;
+        tombstonesChanged = true;
+        restoredUpcomingCount++;
+      } else {
+        skippedPastTombstonedCount++;
+      }
+    }
+    if (tombstonesChanged) {
+      await setStorageTombstones(tombstones).catch(() => {});
+    }
+  } else {
+    skippedPastTombstonedCount = rawExamTasks.filter(t => Boolean(tombstones[t.id])).length;
+  }
+
+  const examTasks = rawExamTasks.filter(t => !tombstones[t.id]);
   if (examTasks.length === 0) {
     lastTabScanResult = { ok: true, newCount: 0, message: 'No exam schedule rows found on this page.' };
     if (run.interactive) {
@@ -170,12 +197,17 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
 
   const changedTotal = addedCount + updatedCount;
   lastTabScanResult = { ok: true, newCount: addedCount, message: `Read ${examTasks.length} exams from the exam schedule.` };
+  const pastSkippedSuffix = skippedPastTombstonedCount > 0
+    ? ` (${skippedPastTombstonedCount} deleted past exam${skippedPastTombstonedCount > 1 ? 's' : ''} kept hidden)`
+    : '';
   if (run.interactive || changedTotal > 0) {
     const msg = addedCount > 0
-      ? `Added <strong>${addedCount}</strong> exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from your Exam Schedule!`
+      ? (restoredUpcomingCount > 0
+        ? `Added <strong>${addedCount}</strong> exam${addedCount > 1 ? 's' : ''} (including ${restoredUpcomingCount} restored upcoming)${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from your Exam Schedule!`
+        : `Added <strong>${addedCount}</strong> exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from your Exam Schedule!`)
       : updatedCount > 0
         ? `Updated <strong>${updatedCount}</strong> exam${updatedCount > 1 ? 's' : ''} from your Exam Schedule!`
-        : `All ${examTasks.length} exams on this schedule are already in your calendar.`;
+        : `All ${examTasks.length} exams on this schedule are already in your calendar.${pastSkippedSuffix}`;
     showSidekickToast('Exam Schedule Scanned', msg, changedTotal);
   }
   if (run.interactive) {
@@ -186,7 +218,7 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
         ? `Added ${addedCount} exam${addedCount > 1 ? 's' : ''}${updatedCount > 0 ? ` and updated ${updatedCount}` : ''} from the exam schedule!`
         : updatedCount > 0
           ? `Updated ${updatedCount} exam${updatedCount > 1 ? 's' : ''} from the exam schedule.`
-          : `Up to date. All ${examTasks.length} exams on this page are in your calendar.`,
+          : `Up to date. All ${examTasks.length} exams on this page are in your calendar.${pastSkippedSuffix}`,
       newCount: addedCount
     });
   }

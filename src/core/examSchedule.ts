@@ -4,9 +4,10 @@
  * room, exam method, and syllabus weight.
  */
 import type { DeadlineTask } from '../types';
-import { resolveCourseInfo, parseCourseDetails } from './courseHelper';
+import { resolveCourseInfo, parseCourseDetails, isExamReviewTask } from './courseHelper';
 import { getActiveUserCourses, compileCoursePattern } from './userCourses';
 import { resolveTaskWeight } from './syllabusWeights';
+import { isMakeupTask } from './makeupFilter';
 import { resolveTaskRoom, isPlausibleRoom } from './courseSchedule';
 import { format12Hour } from '../utils/uiCommon';
 
@@ -610,7 +611,19 @@ export function mergeExamScheduleTasks(
       const due = Date.parse(incoming.dueDate);
       let bestGap = Infinity;
       out.forEach((existing, i) => {
-        if (claimed.has(i) || existing.type !== 'exam' || examKindOf(existing.title) !== kind || !sameCourseForExam(existing, incoming)) return;
+        if (
+          claimed.has(i) ||
+          existing.visibility === 'hidden' ||
+          existing.status === 'dismissed' ||
+          isMakeupTask(existing) ||
+          isExamReviewTask(existing) ||
+          /\b(?:practice|mock|trial|sample|dry\s*run)\b|تجريبي/i.test(existing.title || '') ||
+          existing.type !== 'exam' ||
+          examKindOf(existing.title) !== kind ||
+          !sameCourseForExam(existing, incoming)
+        ) {
+          return;
+        }
         const gap = Math.abs(Date.parse(existing.dueDate) - due);
         const g = isNaN(gap) ? Number.MAX_SAFE_INTEGER : gap;
         if (g < bestGap) { bestGap = g; matchIdx = i; }

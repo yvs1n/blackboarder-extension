@@ -39,6 +39,7 @@ function isDeleted(task: DeadlineTask, tombstones: TombstoneMap): boolean {
 // omission is deliberate (the user cleared it or a bogus mark was dropped) and must propagate.
 const OPTIONAL_FIELDS = [
   'room', 'notes', 'weight', 'weightDisplay', 'syllabusNote',
+  'visibility', 'hiddenReason', 'hiddenReasonLabel', 'visibilityLocked',
   'isBonus', 'bonusUnit', 'bonusTarget', 'bonusTargetLabel', 'dismissedGradeSources', 'ignoreMark',
   'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId', 'markProvisional',
   'submittedAt', 'submissionReceipt'
@@ -777,7 +778,7 @@ function dropMisfiledCopies(tasks: DeadlineTask[]): DeadlineTask[] {
 export function deduplicateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
   if (!tasks || tasks.length === 0) return tasks || [];
   const sanitized = sanitizeTaskListMarks(tasks);
-  if (sanitized.length <= 1) return sanitized;
+  if (sanitized.length <= 1) return evaluateTaskList(sanitized);
 
   const result: DeadlineTask[] = [];
 

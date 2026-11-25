@@ -22,6 +22,11 @@ export type { RuleTraceEntry, TaskIntent, VisibilityDecision } from './types';
  * task list in a single fast pass. Hidden tasks stay in storage so students can still inspect
  * and share them when a friend asks, while staying completely out of active views and GPA.
  */
+function bumpMonotonicUpdatedAt(task: DeadlineTask): string {
+  const prevMs = Date.parse(task.updatedAt || task.createdAt || '') || 0;
+  return new Date(Math.max(Date.now(), prevMs + 1)).toISOString();
+}
+
 export function evaluateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
   if (!Array.isArray(tasks) || tasks.length === 0) return tasks || [];
 
@@ -40,13 +45,14 @@ export function evaluateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
         ...task,
         visibility: 'hidden' as const,
         hiddenReason: decision.hiddenReason,
-        hiddenReasonLabel: decision.hiddenReasonLabel
+        hiddenReasonLabel: decision.hiddenReasonLabel,
+        updatedAt: bumpMonotonicUpdatedAt(task)
       };
     }
 
     // Active: clear stale auto-hidden flags if task was restored or original exam unchecked
     if (task.visibility === 'hidden' && task.visibilityLocked !== 'hidden') {
-      const next: DeadlineTask = { ...task };
+      const next: DeadlineTask = { ...task, updatedAt: bumpMonotonicUpdatedAt(task) };
       delete next.visibility;
       delete next.hiddenReason;
       delete next.hiddenReasonLabel;

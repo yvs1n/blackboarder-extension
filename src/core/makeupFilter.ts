@@ -205,7 +205,7 @@ export function isMakeupSupersededByCompletedOriginal(
       const isOrigMid =
         sameComp ||
         origSingleton === 'cat:midterm' ||
-        /\b(?:mid[\s_-]*terms?|major\s*exam|first\s*exam)\b|نصفي|منتصف\s*الفصل/i.test(origMeta);
+        /\b(?:mid[\s_-]*terms?|major\s*exam|first\s*exam|1st\s*exam|exam\s*1)\b|نصفي|منتصف\s*الفصل/i.test(origMeta);
       if (isOrigMid && !(target.num !== null && origNum !== null && target.num !== origNum)) {
         return true;
       }
@@ -218,6 +218,33 @@ export function isMakeupSupersededByCompletedOriginal(
       if (orig.type === 'lab' && target.num !== null && origNum === target.num) return true;
     } else {
       if (orig.type === 'exam' && (target.num === null || origNum === target.num)) return true;
+    }
+  }
+
+  // Unnumbered makeup quiz ("Makeup Quiz" without a quiz number): superseded if at least one
+  // regular quiz in this course is completed and no regular quiz dated on/before the makeup is pending
+  if (target.kind === 'quiz' && target.num === null) {
+    const makeupDueMs = Date.parse(makeupTask.dueDate || '');
+    const regularQuizzes = Array.from(allTasks).filter(t =>
+      t &&
+      t.id !== makeupTask.id &&
+      t.status !== 'dismissed' &&
+      t.type === 'quiz' &&
+      !t.isBonus &&
+      !isBonusTaskText(t) &&
+      !isMakeupTask(t) &&
+      !PRACTICE_RE.test(t.title || '') &&
+      sameCourseNormalized(makeupTask, t)
+    );
+    const hasCompletedQuiz = regularQuizzes.some(isCompletedOrGradedTask);
+    if (hasCompletedQuiz) {
+      const hasEarlierPending = regularQuizzes.some(t => {
+        if (isCompletedOrGradedTask(t)) return false;
+        if (isNaN(makeupDueMs)) return true;
+        const tMs = Date.parse(t.dueDate || '');
+        return !isNaN(tMs) && tMs <= makeupDueMs;
+      });
+      if (!hasEarlierPending) return true;
     }
   }
   return false;
@@ -377,13 +404,16 @@ export function isCompletedExtensionOrRangeTask(
   if (nums.length === 0) return false;
 
   const targetType = normalizeSimpleType(task.type);
+  const taskComp = resolveMatchedSyllabusComponent(task);
   const completedNums = new Set<number>();
   for (const orig of allTasks) {
     if (!orig || orig.id === task.id) continue;
     if (!isCompletedOrGradedTask(orig)) continue;
     if (isMakeupTask(orig) || PRACTICE_RE.test(orig.title || '')) continue;
     if (!sameCourseNormalized(task, orig)) continue;
-    if (normalizeSimpleType(orig.type) !== targetType) continue;
+    const origComp = taskComp ? resolveMatchedSyllabusComponent(orig) : null;
+    const sameComp = Boolean(taskComp && origComp && taskComp.courseId === origComp.courseId && taskComp.comp.id === origComp.comp.id);
+    if (normalizeSimpleType(orig.type) !== targetType && !sameComp) continue;
     const origNum = extractAssessmentNumber(orig.title || '');
     if (origNum !== null) completedNums.add(origNum);
   }
@@ -432,7 +462,12 @@ export function stripAlreadyAllocatedWeights(tasks: DeadlineTask[]): DeadlineTas
     if (task.weight === undefined && !task.weightDisplay && !task.syllabusNote && task.ignoreMark) {
       return task;
     }
-    const next: DeadlineTask = { ...task, ignoreMark: true };
+    const prevMs = Date.parse(task.updatedAt || task.createdAt || '') || 0;
+    const next: DeadlineTask = {
+      ...task,
+      ignoreMark: true,
+      updatedAt: new Date(Math.max(Date.now(), prevMs + 1)).toISOString()
+    };
     delete next.weight;
     delete next.weightDisplay;
     delete next.syllabusNote;

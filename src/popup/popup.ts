@@ -1,4 +1,5 @@
 import { isValidTask } from '../core/courseHelper';
+import { setActiveUserCourses } from '../core/userCourses';
 import { sanitizeSemesters } from '../core/semesters';
 import { profileUniversity } from '../core/studentProfile';
 import { compareTasksByTime } from '../utils/calendar';
@@ -13,6 +14,7 @@ import {
   getScanStatus,
   getStoredPayments,
   getTasks,
+  getUserCourses,
   saveTasksMergingLatest,
 } from '../utils/storage';
 import { deduplicateTaskList } from '../utils/taskMerge';
@@ -264,9 +266,16 @@ async function initApp() {
 
   (async () => {
     const taskSig = (list: typeof popupState.currentTasks) =>
-      list.map(t => `${t.id}:${t.updatedAt}:${t.status}:${t.dueDate}:${t.room || ''}:${t.weight ?? ''}:${t.score ?? ''}:${t.submissionStatus || ''}:${(t.description || '').length}`).join('\n');
+      list.map(t => `${t.id}:${t.updatedAt}:${t.status}:${t.visibility || ''}:${t.hiddenReason || ''}:${t.ignoreMark ? 1 : 0}:${t.dueDate}:${t.room || ''}:${t.weight ?? ''}:${t.score ?? ''}:${t.submissionStatus || ''}:${(t.description || '').length}`).join('\n');
 
     updateSemesterSelector().catch(() => {});
+    const storedCourses = await getUserCourses().catch(() => []);
+    if (Array.isArray(storedCourses) && JSON.stringify(storedCourses) !== JSON.stringify(popupState.currentUserCourses)) {
+      popupState.currentUserCourses = storedCourses;
+      setActiveUserCourses(storedCourses);
+      renderLegend();
+    }
+
     let rawTasks = await getTasks();
     if (!rawTasks || rawTasks.length === 0) rawTasks = getCachedTasksSync();
     const validTasks = rawTasks.filter(isValidTask);
@@ -278,18 +287,19 @@ async function initApp() {
       .filter(id => !freshTasks.some(f => f.id === id));
     const allStartupPurged = [...startupPurgedIds, ...dedupPurgedIds];
     freshTasks.sort(compareTasksByTime);
+    const startupRuleChanged = taskSig(freshTasks) !== taskSig(validTasks);
 
     if (taskSig(freshTasks) !== taskSig(popupState.currentTasks)) {
       popupState.currentTasks = freshTasks;
       refreshAllViews();
     }
 
-    if (allStartupPurged.length > 0) {
+    if (allStartupPurged.length > 0 || startupRuleChanged) {
       allStartupPurged.forEach(id => recordLocalTombstone(id));
       saveTasksMergingLatest(popupState.currentTasks)
         .then(saved => {
           popupState.currentTasks = saved.sort(compareTasksByTime);
-          syncTasksToCloud(popupState.currentTasks, 'Auto-Purge Redundant Deadlines');
+          syncTasksToCloud(popupState.currentTasks, allStartupPurged.length > 0 ? 'Auto-Purge Redundant Deadlines' : 'Apply Rulebook Visibility');
         })
         .catch(() => {});
     }

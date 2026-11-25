@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.44] - 2026-11-25
+
+### Fixed
+
+- **Rulebook Visibility Persistence, Real-Time Re-Evaluation & Edge Cases (`src/rulebook/`, `src/popup/`, `src/utils/taskMerge.ts`, `src/core/makeupFilter.ts`, `src/mobile/`):**
+  - Bumped `updatedAt` monotonically in `evaluateTaskList()` and `applyGradeAllocationRules()` whenever Rulebook Branch `B5` or `B6` updates `visibility`, `hiddenReason`, `weight`, or `ignoreMark`, and added `visibility`, `hiddenReason`, `hiddenReasonLabel`, and `visibilityLocked` to `OPTIONAL_FIELDS` in `mergeCloudTasks` (`src/utils/taskMerge.ts`) and `src/mobile/app/05-sync-fetch.js` so equal-timestamp or older cloud copies never revert auto-hidden deadlines back to active.
+  - Awaited `getUserCourses()` in `popup.ts` and `pullTasksFromFirebaseIfNewer` (`syncController.ts`) before running Rulebook deduplication, updated startup/sync signatures to detect visibility & grade-allocation transitions even when array length is unchanged, and re-evaluated `evaluateTaskList()` immediately on task completion/edit/course-recalc across both Extension and Mobile Companion so checking off a Midterm, Quiz, or Assignment moves superseded makeups and completed range extensions straight into `Hidden`.
+  - Extended `isMakeupSupersededByCompletedOriginal()` to recognize `"1st Exam"` / `"Exam 1"` midterms and unnumbered `"Makeup Quiz"` deadlines when prior quizzes up to that date are completed, and allowed multi-item extension range matching (`Assignments 1-3`) across matching syllabus components.
+- **Exam Schedule Matching & Deleted Exam Recovery (`src/core/examSchedule.ts`, `src/content/scraper.ts`, `src/background/examRefresh.ts`, `src/popup/`):**
+  - Prevented `mergeExamScheduleTasks` fuzzy fallback matching from claiming `hidden`, `dismissed`, makeup, practice, or exam-review tasks when pairing official Banner exams.
+  - Interactive Exam Schedule page scans (`StudentExamPage`) and **Full Re-scan** (`refreshExamSchedule(true)`) now automatically clear tombstones and restore deleted **upcoming** official Banner exams (e.g., an accidentally deleted Final Exam) while keeping past deleted exams suppressed and reporting accurate schedule scan counts.
+  - Added **Recover Deleted Deadlines & Re-scan** inside Settings > Scanning (`#btn-restore-deleted-rescan`) so any accidentally deleted announcement or assessment can also be recovered in one click.
+
+---
+
 ## [1.8.43] - 2026-11-25
 
 ### Added
