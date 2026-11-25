@@ -159,7 +159,7 @@ export function buildMarksSummary(tasks: DeadlineTask[], syllabi: MarksSyllabus[
   const cleanTasks = sanitizeTaskListMarks(tasks || []);
 
   for (const t of cleanTasks) {
-    if (!t) continue;
+    if (!t || t.visibility === 'hidden') continue;
     const cName = t.courseName || '';
     const cCode = t.courseCode || '';
     const title = t.title || '';

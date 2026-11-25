@@ -35,7 +35,7 @@ export function buildSyllabusProgress(tasks: DeadlineTask[], syllabi: ProgressSy
     let completed = 0;
     let pending = 0;
     for (const t of tasks || []) {
-      if (!t || t.ignoreMark) continue;
+      if (!t || t.ignoreMark || t.visibility === 'hidden') continue;
       const hit = s.courseCodePattern.test(t.courseName || '') || s.courseCodePattern.test(t.courseCode || '') || s.courseCodePattern.test(t.title || '');
       if (!hit) continue;
       const w = Number(t.weight) || 0;

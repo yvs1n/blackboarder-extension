@@ -79,7 +79,7 @@ export function generateIcsContent(tasks: DeadlineTask[]): string {
   const nowUtc = formatGCalDate(new Date());
 
   // Tasks can come from the cloud; one without a usable date would produce an invalid VEVENT
-  const events = tasks.filter(task => !isNaN(new Date(task.dueDate).getTime())).map(task => {
+  const events = tasks.filter(task => task && task.visibility !== 'hidden' && !isNaN(new Date(task.dueDate).getTime())).map(task => {
     const startDate = new Date(task.dueDate);
     const endDate = new Date(startDate.getTime() + (task.hasSpecificTime ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000));
     const isAllDay = !task.hasSpecificTime;

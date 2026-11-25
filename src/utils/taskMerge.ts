@@ -5,7 +5,8 @@ import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints, resolveSingletonSyllabusKey } from '../core/syllabusWeights';
 import { isExamItem, hasScanTimeDueDate } from './gradebook';
 import { sanitizeTaskMarks, sanitizeTaskListMarks } from './taskMarkSanitize';
-import { canPairBonusWithScannedTask, filterRedundantMakeupTasks, isBonusTaskText } from '../core/makeupFilter';
+import { canPairBonusWithScannedTask, isBonusTaskText } from '../core/makeupFilter';
+import { evaluateTaskList } from '../rulebook';
 
 export { extractAssessmentNumber, sanitizeTaskMarks, sanitizeTaskListMarks };
 
@@ -792,5 +793,5 @@ export function deduplicateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
     }
   }
 
-  return filterRedundantMakeupTasks(sanitizeTaskListMarks(result)).sort(compareTasksChronologically);
+  return evaluateTaskList(sanitizeTaskListMarks(result)).sort(compareTasksChronologically);
 }

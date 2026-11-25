@@ -30,11 +30,13 @@ export function renderUnifiedTaskActionsHtml(
   const icon = options.svgIconFn || (() => '');
   const taskId = escapeAttr(task.id || '');
   const isCompleted = task.status === 'completed';
+  const isHidden = task.visibility === 'hidden';
   const isPayment = Boolean(options.isPayment || task.isPayment);
   const isReading = options.variant === 'reading';
-  const toggleLabel = isCompleted ? 'Pending' : (isPayment ? 'Mark Paid' : 'Mark Done');
-  const toggleTitle = isCompleted ? 'Mark as Pending' : (isPayment ? 'Mark as Paid' : 'Mark as Done');
-  const toggleIcon = icon(isCompleted ? 'refresh' : 'check');
+  const toggleLabel = isHidden ? 'Restore' : (isCompleted ? 'Pending' : (isPayment ? 'Mark Paid' : 'Mark Done'));
+  const toggleTitle = isHidden ? 'Restore to My Deadlines' : (isCompleted ? 'Mark as Pending' : (isPayment ? 'Mark as Paid' : 'Mark as Done'));
+  const toggleIcon = icon(isHidden ? 'refresh' : (isCompleted ? 'refresh' : 'check'));
+  const toggleClass = isHidden ? 'btn-card-restore' : 'btn-card-toggle';
   const calHref = escapeAttr(isPayment && options.portalUrl ? options.portalUrl : (options.gcalUrl || '#'));
   const calLabel = isPayment && options.portalUrl ? 'Portal' : 'Calendar';
   const calIcon = icon(isPayment && options.portalUrl ? 'external-link' : 'calendar');
@@ -42,7 +44,7 @@ export function renderUnifiedTaskActionsHtml(
 
   return `
     <div class="unified-task-actions${isReading ? ' is-reading' : ''}" data-task-id="${taskId}">
-      <button type="button" class="btn-task-act btn-task-act-primary btn-card-action btn-card-toggle${isReading ? ' modal-reading-toggle-btn' : ''}${isCompleted ? ' btn-is-completed' : ''}" data-id="${taskId}" data-task-id="${taskId}" title="${toggleTitle}">
+      <button type="button" class="btn-task-act btn-task-act-primary btn-card-action ${toggleClass}${isReading ? ' modal-reading-toggle-btn' : ''}${isCompleted && !isHidden ? ' btn-is-completed' : ''}" data-id="${taskId}" data-task-id="${taskId}" title="${toggleTitle}">
         ${toggleIcon}<span>${toggleLabel}</span>
       </button>
       <button type="button" class="btn-task-act btn-card-action btn-edit-card${isReading ? ' modal-reading-edit-btn' : ''}" data-id="${taskId}" data-task-id="${taskId}" title="${isPayment ? 'Edit payment' : 'Edit deadline'}">

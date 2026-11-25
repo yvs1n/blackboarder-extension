@@ -14,6 +14,7 @@ import {
   sameCourseNormalized
 } from '../../core/makeupFilter';
 import { resolveSingletonSyllabusKey } from '../../core/syllabusWeights';
+import { explainTaskDecision } from '../../rulebook';
 import type { DeadlineTask, PaymentItem, UserCourseConfig } from '../../types';
 import { IS_DEV_BUILD, IS_STORE_BUILD } from '../../utils/storeBuild';
 import { getLocalTombstones, getStorageTombstones } from '../../utils/tombstones';
@@ -145,6 +146,7 @@ export function buildElementDebugReport(target: HTMLElement, ctx: DebugReportCon
     payload.taskDiagnostics = {
       task,
       tombstone: ctx.tombstones[task.id] || null,
+      rulebookTrace: explainTaskDecision(task, ctx.tasks),
       engineFlags: {
         resolvedCourse,
         singletonSyllabusKey: resolveSingletonSyllabusKey(task),

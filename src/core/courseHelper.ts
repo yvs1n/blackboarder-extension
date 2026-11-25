@@ -608,6 +608,8 @@ export function isValidTask(task: {
   submissionStatus?: string;
   gradeSourceId?: string;
   dueDate?: string;
+  visibility?: string;
+  hiddenReason?: string;
 }): boolean {
   if (!task || !task.title || !task.title.trim()) return false;
   // User-created or user-edited tasks are ALWAYS valid and must never be pruned
@@ -662,10 +664,9 @@ export function isValidTask(task: {
     }
   }
 
-  // 4b. Drop tasks originating from post-exam review sessions, paper viewing, or grade disputes
-  // (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان")
-  // where the exam is already over, unless there is an explicit makeup exam or submission deadline.
-  if (isExamReviewTask(task)) {
+  // 4b. Drop active tasks originating from post-exam review sessions, paper viewing, or grade disputes;
+  // allow explicitly hidden review_session reference cards so students can look them up under Hidden.
+  if (isExamReviewTask(task) && !(task.visibility === 'hidden' && task.hiddenReason === 'review_session')) {
     return false;
   }
 

@@ -165,6 +165,27 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     if (t.ignoreMark === true) clean.ignoreMark = true;
     else delete clean.ignoreMark;
 
+    if (t.visibility === 'hidden') {
+      clean.visibility = 'hidden';
+      const validReasons = ['makeup_completed', 'extension_completed', 'quota_exhausted', 'review_session', 'manual_hide'];
+      if (validReasons.includes(t.hiddenReason)) clean.hiddenReason = t.hiddenReason;
+      else delete clean.hiddenReason;
+      if (typeof t.hiddenReasonLabel === 'string' && t.hiddenReasonLabel.trim()) {
+        clean.hiddenReasonLabel = t.hiddenReasonLabel.trim().slice(0, 140);
+      } else {
+        delete clean.hiddenReasonLabel;
+      }
+    } else {
+      delete clean.visibility;
+      delete clean.hiddenReason;
+      delete clean.hiddenReasonLabel;
+    }
+    if (t.visibilityLocked === 'active' || t.visibilityLocked === 'hidden') {
+      clean.visibilityLocked = t.visibilityLocked;
+    } else {
+      delete clean.visibilityLocked;
+    }
+
     out.push(clean as DeadlineTask);
   }
   return out;

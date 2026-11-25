@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.43] - 2026-11-25
+
+### Added
+
+- **Unified Rulebook Engine (`src/rulebook/`) & Hidden ("Not For Me") Deadlines (`Option A`):**
+  - Introduced the compiled TypeScript Rulebook (`src/rulebook/types.ts`, `b5-applicability.ts`, `b6-allocation.ts`, `index.ts`) with zero runtime DSL overhead and lazy `explainTaskDecision()` `rulebookTrace` reporting inside the Debug Stick X-Ray inspector.
+  - Instead of permanently deleting superseded makeup exams, completed multi-item range extensions (e.g. `Assignments 1-3 (Extended Deadline)`), extra items past a completed syllabus quota, or dated post-exam review/paper-viewing sessions, Rulebook Branch `B5` now routes them to `visibility: 'hidden'` with a human-readable `hiddenReasonLabel`, while Branch `B6` strips their grade weight (`ignoreMark: true`) so they never appear on Calendar, active Deadlines, Overdue badges, Notifications, `/feed.ics`, Marks, GPA, Syllabus Progress, or Target GPA.
+  - Added a **`Hidden (N)`** filter chip alongside `Pending`, `All`, and `Completed` in both the Chrome Extension and Mobile Companion Deadlines tabs, with 1-click **Share** (for forwarding times/rooms when friends ask), **Restore** (`visibilityLocked: 'active'`), and permanent **Delete**.
+
+---
+
 ## [1.8.42] - 2026-11-25
 
 ### Fixed

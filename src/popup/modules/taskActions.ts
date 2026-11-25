@@ -185,6 +185,21 @@ export function wireUnifiedTaskActions(
     toggleExtensionTaskStatus(task.id, callbacks.onAfterToggle);
   });
 
+  rootEl.querySelector('.btn-card-restore')?.addEventListener('click', e => {
+    e.stopPropagation();
+    const latest = popupActions.applyTaskUpdateLocal(task.id, {
+      visibility: undefined,
+      hiddenReason: undefined,
+      hiddenReasonLabel: undefined,
+      visibilityLocked: 'active',
+      ignoreMark: false
+    });
+    popupActions.refreshAllViews();
+    popupActions.syncTasksToCloud(latest, `Restore hidden deadline ${task.id}`);
+    popupActions.showToast(`Restored "${task.title}" to your deadlines`);
+    if (callbacks.onAfterToggle) callbacks.onAfterToggle();
+  });
+
   rootEl.querySelector('.btn-edit-card')?.addEventListener('click', e => {
     e.stopPropagation();
     if (callbacks.onBeforeEdit) callbacks.onBeforeEdit();

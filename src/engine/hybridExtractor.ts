@@ -13,6 +13,7 @@ import { parseTime } from './localDateTime';
 import { coreTitle, isPracticeTitle } from '../utils/streamParser';
 import { areTasksDuplicates } from '../utils/taskMerge';
 import { isMakeupSupersededByCompletedOriginal } from '../core/makeupFilter';
+import { evaluateTaskList, extractHiddenReviewSessionTask } from '../rulebook';
 
 /**
  * Normalizes title for deduplication comparison.
@@ -433,6 +434,17 @@ export async function processAnnouncementsBatch(
     const extracted = extractedLists[idx] || [];
 
     if (extracted.length === 0) {
+      const hiddenReview = extractHiddenReviewSessionTask(ann);
+      if (hiddenReview) {
+        const revKey = normalizeTaskKey(hiddenReview);
+        if (!existingIdMap.has(hiddenReview.id) && !existingKeyMap.has(revKey)) {
+          existingIdMap.set(hiddenReview.id, hiddenReview);
+          existingKeyMap.set(revKey, hiddenReview);
+          newTasks.push(hiddenReview);
+        }
+        continue;
+      }
+
       // No new deadline date extracted: check if this announcement gives instructions, topics,
       // rules, time, room, or weight updates for an already-existing upcoming deadline in the same course.
       const matchedExisting = findTaskForInstructionAnnouncement(ann, existingIdMap.values());
@@ -530,10 +542,8 @@ export async function processAnnouncementsBatch(
       const key = normalizeTaskKey(task);
       const titleCourseKey = titleCourseKeyFor(task);
 
-      // Skip auto-extracted makeup exams when the student already completed or has a grade for the original exam
-      if (isMakeupSupersededByCompletedOriginal(task, existingIdMap.values())) {
-        continue;
-      }
+      // Superseded makeup exams are routed to Hidden by Rulebook B5 (evaluateTaskList) so students can still look them up or share them with friends.
+      void isMakeupSupersededByCompletedOriginal;
 
       // One announcement can hold several deadlines, so its id only matches the same task
       const sameAnnouncement = task.announcementId ? existingAnnIdMap.get(`${task.announcementId}|${cleanTitle(task.title)}`) : undefined;
@@ -708,10 +718,13 @@ export async function processAnnouncementsBatch(
     }
   }
 
-  // Combine and sort by due date ascending
-  const allTasks = [...newTasks, ...existingTasks].sort(
+  // Apply Rulebook B5/B6 visibility & grade allocation, then sort by due date ascending
+  const evaluatedAll = evaluateTaskList([...newTasks, ...existingTasks]);
+  const evaluatedById = new Map(evaluatedAll.map(t => [t.id, t]));
+  const finalNewTasks = newTasks.map(t => evaluatedById.get(t.id) || t);
+  const allTasks = evaluatedAll.sort(
     (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
   );
 
-  return { newTasks, allTasks, updatedTasks };
+  return { newTasks: finalNewTasks, allTasks, updatedTasks };
 }

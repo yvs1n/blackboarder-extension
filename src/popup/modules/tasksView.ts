@@ -90,7 +90,9 @@ export async function shareTask(task: DeadlineTask) {
 
 export function updateStats(tasks: DeadlineTask[]) {
   const now = Date.now();
-  const pendingTasks = tasks.filter(t => t.status === 'pending');
+  const activeTasks = tasks.filter(t => t.visibility !== 'hidden');
+  const hiddenCount = tasks.length - activeTasks.length;
+  const pendingTasks = activeTasks.filter(t => t.status === 'pending');
 
   let urgent = 0;
   let thisWeek = 0;
@@ -112,14 +114,16 @@ export function updateStats(tasks: DeadlineTask[]) {
   dom.statTotalCount().textContent = String(pendingTasks.length);
   dom.navBadgeCount().textContent = String(pendingTasks.length);
 
-  const completedCount = tasks.filter(t => t.status === 'completed').length;
-  const allCount = tasks.length;
+  const completedCount = activeTasks.filter(t => t.status === 'completed').length;
+  const allCount = activeTasks.length;
   const btnPending = document.querySelector('.filter-chip[data-status="pending"]');
   const btnAll = document.querySelector('.filter-chip[data-status="all"]');
   const btnCompleted = document.querySelector('.filter-chip[data-status="completed"]');
+  const btnHidden = document.querySelector('.filter-chip[data-status="hidden"]');
   if (btnPending) btnPending.textContent = `Pending (${pendingTasks.length})`;
   if (btnAll) btnAll.textContent = `All (${allCount})`;
   if (btnCompleted) btnCompleted.textContent = `Completed (${completedCount})`;
+  if (btnHidden) btnHidden.textContent = `Hidden (${hiddenCount})`;
 }
 
 export function updateCourseFilterOptions(tasks: DeadlineTask[]) {
@@ -155,8 +159,14 @@ export function updateCourseFilterOptions(tasks: DeadlineTask[]) {
 export function renderTasks() {
   const taskListEl = dom.taskListEl();
   const filtered = getCombinedCalendarTasks().filter(task => {
-    if (popupState.currentFilterStatus === 'pending' && task.status !== 'pending') return false;
-    if (popupState.currentFilterStatus === 'completed' && task.status !== 'completed') return false;
+    const isHidden = task.visibility === 'hidden';
+    if (popupState.currentFilterStatus === 'hidden') {
+      if (!isHidden) return false;
+    } else {
+      if (isHidden) return false;
+      if (popupState.currentFilterStatus === 'pending' && task.status !== 'pending') return false;
+      if (popupState.currentFilterStatus === 'completed' && task.status !== 'completed') return false;
+    }
 
     if (popupState.currentFilterCourse !== 'all') {
       const resolved = resolveCourseInfo(task);
@@ -343,7 +353,8 @@ export function renderTasks() {
         ` : ''}
       </div>
 
-      ${task.priority === 'high' ? '<div class="priority-label-row"><span class="high-priority-tag">HIGH PRIORITY</span></div>' : ''}
+      ${task.visibility === 'hidden' ? `<div class="hidden-reason-row"><span class="hidden-reason-pill">HIDDEN · ${escapeHtml(task.hiddenReasonLabel || 'Not applicable to you')}</span></div>` : ''}
+      ${task.priority === 'high' && task.visibility !== 'hidden' ? '<div class="priority-label-row"><span class="high-priority-tag">HIGH PRIORITY</span></div>' : ''}
 
       ${summaryNotesHtml}
       ${studentNotesHtml}

@@ -9,6 +9,13 @@ export type TaskType =
 
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type TaskStatus = 'pending' | 'completed' | 'dismissed';
+export type TaskVisibility = 'active' | 'hidden';
+export type TaskHiddenReason =
+  | 'makeup_completed'
+  | 'extension_completed'
+  | 'quota_exhausted'
+  | 'review_session'
+  | 'manual_hide';
 
 export type Weekday = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 
@@ -219,6 +226,10 @@ export interface DeadlineTask {
   gradeSourcesBefore?: string[]; // Gradebook columns already graded before this task's date (a practice run), never applied to it
   dismissedGradeSources?: string[]; // Gradebook columns whose marks the student deleted explicitly
   ignoreMark?: boolean; // Excluded from GPA & course calculations while keeping the gradebook row visible
+  visibility?: TaskVisibility; // 'hidden' keeps non-applicable items (makeup/extensions/reviews) out of active views for friend lookup
+  hiddenReason?: TaskHiddenReason; // Rulebook B5 reason explaining why this item is hidden
+  hiddenReasonLabel?: string; // Human-readable explanation shown on Hidden cards
+  visibilityLocked?: TaskVisibility; // Explicit user Restore/Hide override so auto-rules never flip it back
   isBonus?: boolean; // Bonus mark / extra credit (adds to earned course points without increasing required weight)
   bonusUnit?: 'points' | 'percent'; // Whether bonus value is pure points ('points') or percentage ('percent')
   bonusTarget?: string; // 'total' (pure extra credit on final %) or 'comp:<id>' / 'type:<taskType>'

@@ -13,15 +13,16 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.42",
-  "build": "e126276619e4",
-  "commit": "59263b25e78969a3909d8bdd52a695e86f37b324",
-  "shortCommit": "59263b2",
-  "timestamp": "2026-11-25T14:10:35.070Z",
-  "message": "build: update generated files for a1420e0",
+  "version": "1.8.43",
+  "build": "672ec034cbe7",
+  "commit": "991ef94c27f52a199cc779585e2579ce48318eef",
+  "shortCommit": "991ef94",
+  "timestamp": "2026-11-25T15:45:10.200Z",
+  "message": "v1.8.42: suppress completed range extensions and strip duplicate grade allocation on due-date reminders",
   "changelog": [
-    "Added extractReferencedAssessmentNumbers and isCompletedExtensionOrRangeTask to detect multi-item extension and missed-work announcements (such as Assignments 1-3 (Extended Deadline) / \"This is your chance to do a missed assignment\"), suppressing and tombstoning them automatically whenever all referenced assessments (1, 2, 3) are already completed or graded in the same course.",
-    "Added stripAlreadyAllocatedWeights so any kept catch-up/extension reminder (e.g. when one of the referenced items is still incomplete) or extra unnumbered reminder in a fully allocated syllabus component has its duplicate grade weight stripped (weight: undefined, ignoreMark: true) and is excluded from Target GPA, Syllabus Progress, and Marks calculations."
+    "Introduced the compiled TypeScript Rulebook (src/rulebook/types.ts, b5-applicability.ts, b6-allocation.ts, index.ts) with zero runtime DSL overhead and lazy explainTaskDecision() rulebookTrace reporting inside the Debug Stick X-Ray inspector.",
+    "Instead of permanently deleting superseded makeup exams, completed multi-item range extensions (e.g. Assignments 1-3 (Extended Deadline)), extra items past a completed syllabus quota, or dated post-exam review/paper-viewing sessions, Rulebook Branch B5 now routes them to visibility: 'hidden' with a human-readable hiddenReasonLabel, while Branch B6 strips their grade weight (ignoreMark: true) so they never appear on Calendar, active Deadlines, Overdue badges, Notifications, /feed.ics, Marks, GPA, Syllabus Progress, or Target GPA.",
+    "Added a Hidden (N) filter chip alongside Pending, All, and Completed in both the Chrome Extension and Mobile Companion Deadlines tabs, with 1-click Share (for forwarding times/rooms when friends ask), Restore (visibilityLocked: 'active'), and permanent Delete."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

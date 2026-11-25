@@ -27,7 +27,7 @@ export const popupState = {
   currentPayments: [] as PaymentItem[],
   currentQuickLinks: [] as QuickLink[],
   currentUserCourses: [] as UserCourseConfig[],
-  currentFilterStatus: 'pending' as 'all' | 'pending' | 'completed',
+  currentFilterStatus: 'pending' as 'all' | 'pending' | 'completed' | 'hidden',
   currentFilterCourse: 'all',
   currentFilterType: 'all',
   currentSearchQuery: '',

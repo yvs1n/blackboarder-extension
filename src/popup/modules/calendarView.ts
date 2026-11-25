@@ -15,6 +15,7 @@ import { dom, formatDateKey, formatMonthYear, popupActions, popupState } from '.
  */
 export function isCalendarDeadline(task: DeadlineTask): boolean {
   if (!task || !task.dueDate) return false;
+  if (task.visibility === 'hidden') return false;
   if (task.sourceSnippet === 'gradebook') return false;
   if (typeof task.id === 'string' && task.id.startsWith('gbcol_') && !task.announcementId) return false;
   return true;

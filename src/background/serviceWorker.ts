@@ -243,7 +243,7 @@ async function updateExtensionBadge() {
 
     const now = Date.now();
     const urgentTasks = [...tasks, ...paymentTasks].filter(t => {
-      if (t.status !== 'pending') return false;
+      if (t.status !== 'pending' || t.visibility === 'hidden') return false;
       const dueTime = new Date(t.dueDate).getTime();
       const hoursLeft = (dueTime - now) / (1000 * 3600);
       return hoursLeft > -12 && hoursLeft <= 48; // Overdue recently or due in next 48h
@@ -285,7 +285,7 @@ async function checkUpcomingDeadlines() {
     const MAX_NOTIFICATIONS_PER_CHECK = 2;
 
     for (const task of [...tasks, ...paymentTasks]) {
-      if (task.status !== 'pending') continue;
+      if (task.status !== 'pending' || task.visibility === 'hidden') continue;
       const dueTime = new Date(task.dueDate).getTime();
       const timeRemaining = dueTime - now;
 

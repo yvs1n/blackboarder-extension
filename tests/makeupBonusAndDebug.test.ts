@@ -13,8 +13,10 @@ import { calculateCourseTargetAnalysis } from '../src/core/targetGpa';
 import { extractDeadlinesLocally } from '../src/engine/localExtractor';
 import { deduplicateTaskList, mergeCloudTasks } from '../src/utils/taskMerge';
 import { saveTasksMergingLatest } from '../src/utils/storage/tasksStorage';
-import { getStorageTombstones, setStorageTombstones } from '../src/utils/tombstones';
+import { setStorageTombstones } from '../src/utils/tombstones';
 import { buildElementDebugReport } from '../src/popup/modules/debugStick';
+import { evaluateTaskList, explainTaskDecision, extractHiddenReviewSessionTask, isVisibleActiveTask } from '../src/rulebook';
+import { generateIcsContent } from '../src/utils/calendar';
 
 const PHYSICS_COURSE: UserCourseConfig = {
   id: 'phys1',
@@ -88,10 +90,16 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
 
     expect(isMakeupSupersededByCompletedOriginal(makeupMidterm, [completedMidterm, makeupMidterm])).toBe(true);
     const deduped = deduplicateTaskList([completedMidterm, makeupMidterm]);
-    expect(deduped.map(t => t.id)).toEqual(['gbcol_mid1']);
+    const activeIds = deduped.filter(isVisibleActiveTask).map(t => t.id);
+    expect(activeIds).toEqual(['gbcol_mid1']);
+    const hiddenMakeup = deduped.find(t => t.id === 'task_local_makeup_phys1');
+    expect(hiddenMakeup?.visibility).toBe('hidden');
+    expect(hiddenMakeup?.hiddenReason).toBe('makeup_completed');
+    expect(hiddenMakeup?.weight).toBeUndefined();
+    expect(hiddenMakeup?.ignoreMark).toBe(true);
   });
 
-  it('records tombstones when saveTasksMergingLatest purges a stored makeup exam and prevents cloud resurrection', async () => {
+  it('routes superseded makeup exam to Hidden (for friend lookup) and excludes it from ICS feed while preserving across sync', async () => {
     const completedMidterm = makeTask({
       id: 'task_mid_done',
       title: 'Midterm Exam',
@@ -108,18 +116,29 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
       dueDate: '2026-10-27T17:00:00.000Z',
       weight: 25,
       weightDisplay: '25% (Midterm Exam)',
+      room: 'A12-102',
       description: 'The makeup exam for those who missed the midterm is scheduled on Tuesday 27-10-2026.',
       sourceSnippet: 'The makeup exam for those who missed the midterm is scheduled on Tuesday 27-10-2026.'
     });
 
     const saved = await saveTasksMergingLatest([completedMidterm, makeupMidterm]);
-    expect(saved.map(t => t.id)).toEqual(['task_mid_done']);
+    expect(saved.filter(isVisibleActiveTask).map(t => t.id)).toEqual(['task_mid_done']);
+    const hiddenItem = saved.find(t => t.id === 'task_stale_makeup');
+    expect(hiddenItem?.visibility).toBe('hidden');
+    expect(hiddenItem?.room).toBe('A12-102');
+    expect(hiddenItem?.weight).toBeUndefined();
+    expect(hiddenItem?.ignoreMark).toBe(true);
 
-    const tombs = await getStorageTombstones();
-    expect(tombs.task_stale_makeup).toBeTruthy();
+    // Hidden items never leak into ICS calendar exports
+    const ics = generateIcsContent(saved);
+    expect(ics).toContain('Midterm Exam');
+    expect(ics).not.toContain('makeup exam');
 
-    const cloudMerged = mergeCloudTasks(saved, [completedMidterm, makeupMidterm], tombs);
-    expect(cloudMerged.tasks.map(t => t.id)).toEqual(['task_mid_done']);
+    // Syncing keeps it hidden without turning it back into an active deadline
+    const cloudMerged = mergeCloudTasks(saved, [completedMidterm, makeupMidterm], {});
+    const evaluated = evaluateTaskList(cloudMerged.tasks);
+    expect(evaluated.filter(isVisibleActiveTask).map(t => t.id)).toEqual(['task_mid_done']);
+    expect(evaluated.find(t => t.id === 'task_stale_makeup')?.visibility).toBe('hidden');
   });
 
   it('auto-detects bonus announcements and sets isBonus: true in localExtractor', () => {
@@ -193,7 +212,10 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
 
     expect(isUneditedExtraPastSyllabusQuota(strayScannedQuiz, [q1, q2, q3, strayScannedQuiz])).toBe(true);
     const deduped = deduplicateTaskList([q1, q2, q3, strayScannedQuiz]);
-    expect(deduped.some(t => t.id === 'task_stray_q')).toBe(false);
+    expect(deduped.filter(isVisibleActiveTask).some(t => t.id === 'task_stray_q')).toBe(false);
+    const hiddenQuiz = deduped.find(t => t.id === 'task_stray_q');
+    expect(hiddenQuiz?.visibility).toBe('hidden');
+    expect(hiddenQuiz?.hiddenReason).toBe('quota_exhausted');
   });
 
   it('generates a redacted X-Ray debug report with engine flags and sibling course tasks for a clicked element', () => {
@@ -270,19 +292,43 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
       weightDisplay: '3.3% (Homeworks 1 of 3)'
     });
 
-    // Case 1: All 1, 2, 3 completed -> completely suppressed
+    // Case 1: All 1, 2, 3 completed -> routed to Hidden (extension_completed) with zero grade allocation
     expect(isCompletedExtensionOrRangeTask(ext, [a1, a2, a3, a4, ext])).toBe(true);
     const dedupedAllDone = deduplicateTaskList([a1, a2, a3, a4, ext]);
-    expect(dedupedAllDone.some(t => t.id === 'task_ai_ext_1_3')).toBe(false);
+    expect(dedupedAllDone.filter(isVisibleActiveTask).some(t => t.id === 'task_ai_ext_1_3')).toBe(false);
+    const hiddenExt = dedupedAllDone.find(t => t.id === 'task_ai_ext_1_3');
+    expect(hiddenExt?.visibility).toBe('hidden');
+    expect(hiddenExt?.hiddenReason).toBe('extension_completed');
+    expect(hiddenExt?.weight).toBeUndefined();
+    expect(hiddenExt?.ignoreMark).toBe(true);
+    expect(explainTaskDecision(hiddenExt!, dedupedAllDone).some(line => line.includes('B5.2.1'))).toBe(true);
 
-    // Case 2: Assignment 3 NOT completed yet -> kept as a Due Date reminder, but weight stripped & excluded from Target GPA
+    // Case 2: Assignment 3 NOT completed yet -> kept Active as a Due Date reminder, weight stripped & excluded from Target GPA
     const a3Pending = { ...a3, status: 'pending' as const, submissionStatus: undefined, score: undefined, maxScore: undefined };
     const dedupedMissedOne = deduplicateTaskList([a1, a2, a3Pending, a4, ext]);
     const keptExt = dedupedMissedOne.find(t => t.id === 'task_ai_ext_1_3');
     expect(keptExt).toBeTruthy();
+    expect(keptExt?.visibility).toBeUndefined();
     expect(keptExt?.weight).toBeUndefined();
     expect(keptExt?.weightDisplay).toBeUndefined();
     expect(keptExt?.ignoreMark).toBe(true);
+
+    // Case 3: Post-exam review session with a date is captured as a Hidden reference card
+    const reviewTask = extractHiddenReviewSessionTask({
+      id: 'ann_rev_1',
+      courseCode: '1430 115',
+      courseName: 'Physics 1',
+      title: 'Exam sheet review',
+      postedAt: '2026-10-28T10:00:00.000Z',
+      contentText: 'You can review your exam sheet tomorrow (Thursday 29th) from 2:00 pm to 2:30 pm in room M10-104.',
+      sourceUrl: '',
+      scannedAt: '2026-10-28T10:00:00.000Z'
+    });
+    expect(reviewTask).not.toBeNull();
+    expect(reviewTask?.visibility).toBe('hidden');
+    expect(reviewTask?.hiddenReason).toBe('review_session');
+    expect(reviewTask?.room).toBe('M10-104');
+    expect(reviewTask?.ignoreMark).toBe(true);
 
     const targetAnalysis = calculateCourseTargetAnalysis(
       {
