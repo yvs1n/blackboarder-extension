@@ -199,6 +199,7 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
 
   const card = document.createElement('div');
   card.className = `day-summary-card ${isCompleted ? 'is-completed' : ''} ${isPayment ? 'is-payment-item' : ''}`;
+  card.setAttribute('data-id', task.id);
   card.style.borderLeft = `4px solid ${courseHex}`;
   card.style.setProperty('border-left-color', courseHex, 'important');
 

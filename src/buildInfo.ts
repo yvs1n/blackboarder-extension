@@ -13,16 +13,17 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.47",
-  "build": "bbef9313fedc",
-  "commit": "ea45437d3e6cf7870370c56929632f892189aa3b",
-  "shortCommit": "ea45437",
-  "timestamp": "2026-11-26T05:03:34.063Z",
-  "message": "fix: keep restored Banner final exams from re-deduping into hidden/dismissed tasks (v1.8.46)",
+  "version": "1.8.48",
+  "build": "01eedc2923d2",
+  "commit": "331921eb867099ec3bcfd3541c162914582e015f",
+  "shortCommit": "331921e",
+  "timestamp": "2026-11-26T13:08:02.650Z",
+  "message": "fix: stop Banner room repair ping-pong and align exam dedup matching (v1.8.47)",
   "changelog": [
-    "Preserved Banner hall suffixes like -STU008 in extractRoomFromText() and prevented repairTaskWeightsAndRooms() from re-parsing synthetic Room: / Date: Banner strings on banner_exam_* or CRN:-stamped tasks (unless a [Professor Update]: note is present), stopping back-to-back scans from repeatedly modifying room and reporting \"Updated 1 exam\".",
-    "Updated sameCourseForExam() and mergeExamScheduleTasks() to match resolveCourseInfo() names first (like compareTaskCourses), honor resolveSingletonSyllabusKey() / bare \"Exam\" matches within 14 days, and guard completed unannounced gradebook items with empty due dates from swallowing upcoming Banner finals.",
-    "Updated areTasksIncompatibleForDedup() to keep distinct official banner_exam_* sittings on separate dates (> 24h apart, such as two unnumbered Midterms in the same course) and protect upcoming Banner exams against completed gradebook entries even when dueDate is empty."
+    "Added a one-click Hide (eye-off) toggle button alongside card actions across Deadlines cards, Calendar Day Drawer cards, Reading Sheet, and the Mobile Companion, moving any selected deadline into Hidden (N) with an instant Undo toast and restoring back via Restore (visibilityLocked: 'hidden' | 'active').",
+    "Added data-id attributes to Calendar Day Drawer .day-summary-card elements (src/popup/modules/dayDrawer.ts) so the Debug Stick displays full taskDiagnostics and rulebookTrace there too.",
+    "Fixed extractAssessmentNumber() and areTasksDuplicates() so multi-item extension announcements like \"Assignments 1-3 (Extended Deadline)\" no longer parse as #1 and silently collapse into completed \"Assignment 1\"; they now survive cleanly as dedicated cards routed to Hidden (N) when items 1–3 are completed.",
+    "Updated isBonusText() so \"optional\" inside makeup quiz announcements isn't mislabeled Bonus Credit unless explicit bonus/extra-credit wording appears, updated isMakeupSupersededByCompletedOriginal() to evaluate best-N-of-M comp.count quotas cleanly, and excluded hidden/review/extension entries when scanning regular same-kind items."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

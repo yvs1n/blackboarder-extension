@@ -536,4 +536,77 @@ describe('Makeup Purge, Bonus Deduplication, Syllabus Quotas & Debug Stick (v1.8
     expect(evaluated.find(t => t.id === 'phys_midterm_makeup_rev')?.visibility).toBe('hidden');
     expect(evaluated.find(t => t.id === 'phys_midterm_makeup_rev')?.hiddenReason).toBe('makeup_completed');
   });
+
+  it('keeps multi-item extended deadlines from merging into completed Assignment 1, hides makeup quizzes once counted quota is met, and supports manual hide/restore lock', () => {
+    const physBest2of3: UserCourseConfig = {
+      ...PHYSICS_COURSE,
+      syllabus: [
+        { id: 'quizzes', name: 'Quizzes', type: 'quiz', totalWeight: 15, count: 2, outOf: 3, keywords: ['quiz'] }
+      ]
+    };
+    const calcCourse: UserCourseConfig = {
+      id: 'calc1',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      colorHex: '#dc2626',
+      creditHours: 3,
+      aliases: ['calculus', '1440 133'],
+      scheduleSlots: [],
+      syllabus: [
+        { id: 'calc_hw', name: 'Homeworks', type: 'assignment', totalWeight: 10, count: 3, outOf: 4, keywords: ['assignment', 'hw'] }
+      ]
+    };
+    setActiveUserCourses([physBest2of3, calcCourse]);
+
+    // Optional makeup quiz is NOT falsely flagged as bonus credit
+    expect(isBonusText('Optional makeup quiz for anyone who missed a quiz')).toBe(false);
+
+    const a1 = makeTask({
+      id: 'calc_a1',
+      courseCode: '1440133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Assignment 1',
+      type: 'assignment',
+      dueDate: '2026-09-18T18:59:00.000Z',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 15,
+      maxScore: 15
+    });
+    const a2 = { ...a1, id: 'calc_a2', title: 'Assignment 2', dueDate: '2026-10-08T19:00:00.000Z' };
+    const a3 = { ...a1, id: 'calc_a3', title: 'Assignment 3', dueDate: '2026-11-19T19:59:00.000Z' };
+    const extRange = makeTask({
+      id: 'calc_ext_1_3',
+      courseCode: '1440 133',
+      courseName: 'Calculus I for Engineering',
+      title: 'Assignments 1-3 (Extended Deadline)',
+      description: 'This is your chance to do a missed assignment.',
+      type: 'assignment',
+      dueDate: '2026-12-02T08:30:00.000Z',
+      status: 'pending'
+    });
+
+    // Multi-item extension survives deduplicateTaskList as its own Hidden card instead of merging into Assignment 1
+    const mergedCalc = deduplicateTaskList([a1, a2, a3, extRange]);
+    const hiddenExt = mergedCalc.find(t => t.id === 'calc_ext_1_3');
+    expect(hiddenExt).toBeTruthy();
+    expect(hiddenExt?.visibility).toBe('hidden');
+    expect(hiddenExt?.hiddenReason).toBe('extension_completed');
+
+    // Physics 1: 2 of best 2 of 3 quizzes completed -> unnumbered "Makeup Quiz for Any" routes to Hidden
+    const pq1 = makeTask({ id: 'pq1', title: 'Quiz 1', type: 'quiz', dueDate: '2026-10-05T10:00:00.000Z', status: 'completed', submissionStatus: 'graded', score: 9, maxScore: 10 });
+    const pq2 = makeTask({ id: 'pq2', title: 'Quiz 2', type: 'quiz', dueDate: '2026-10-20T10:00:00.000Z', status: 'completed', submissionStatus: 'graded', score: 8, maxScore: 10 });
+    const makeupAny = makeTask({ id: 'phys_mk_any', title: 'Makeup Quiz for Any', type: 'quiz', dueDate: '2026-11-26T11:00:00.000Z', isBonus: true, status: 'pending' });
+    const evalPhys = evaluateTaskList([pq1, pq2, makeupAny]);
+    expect(evalPhys.find(t => t.id === 'phys_mk_any')?.visibility).toBe('hidden');
+    expect(evalPhys.find(t => t.id === 'phys_mk_any')?.hiddenReason).toBe('makeup_completed');
+
+    // Manual hide/unhide toggle lock persists across evaluateTaskList
+    const manualHidden = evaluateTaskList([{ ...pq1, id: 'pq_manual_hide', status: 'pending', visibilityLocked: 'hidden' }])[0];
+    expect(manualHidden.visibility).toBe('hidden');
+    expect(manualHidden.hiddenReason).toBe('manual_hide');
+    expect(manualHidden.ignoreMark).toBe(true);
+    const manualShown = evaluateTaskList([{ ...manualHidden, visibilityLocked: 'active', visibility: undefined, hiddenReason: undefined, ignoreMark: false }])[0];
+    expect(manualShown.visibility).toBeUndefined();
+  });
 });

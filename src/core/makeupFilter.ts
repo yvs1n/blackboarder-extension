@@ -13,6 +13,8 @@ const PRACTICE_RE = /\b(?:practice|mock|trial|sample|dry\s*run)\b|تجريبي/i
 const BONUS_SIGNAL_RE = /\b(?:bonus|extra\s*credit|extra\s*marks?|extra\s*points?|optional\s+(?:quiz|exam|test|assignment|homework|hw|lab))\b|(?:كويز|اختبار|امتحان|واجب|درجات?)\s*(?:بونص|إضافي(?:ة)?)|\bبونص\b/i;
 const BONUS_NEGATION_RE = /\b(?:no\s+bonus|not\s+optional|without\s+bonus|non[\s-]*bonus)\b|بدون\s*(?:بونص|درجات\s*إضافية)/i;
 
+const BONUS_STRICT_RE = /\b(?:bonus|extra\s*credit|extra\s*marks?|extra\s*points?)\b|(?:كويز|اختبار|امتحان|واجب|درجات?)\s*(?:بونص|إضافي(?:ة)?)|\bبونص\b/i;
+
 export function isMakeupTask(task: Pick<DeadlineTask, 'title' | 'description' | 'sourceSnippet'>): boolean {
   const combined = `${task.title || ''} ${task.description || ''} ${task.sourceSnippet || ''}`;
   return MAKEUP_SIGNAL_RE.test(combined);
@@ -21,6 +23,11 @@ export function isMakeupTask(task: Pick<DeadlineTask, 'title' | 'description' | 
 export function isBonusText(text?: string): boolean {
   if (!text) return false;
   if (BONUS_NEGATION_RE.test(text)) return false;
+  // On makeup announcements ("optional quiz for anyone who missed"), "optional" means optional
+  // make-up attendance, not bonus credit, unless explicit bonus/extra-credit wording is present.
+  if (MAKEUP_SIGNAL_RE.test(text)) {
+    return BONUS_STRICT_RE.test(text);
+  }
   return BONUS_SIGNAL_RE.test(text);
 }
 
@@ -188,7 +195,10 @@ export function isMakeupSupersededByCompletedOriginal(
   const makeupComp = resolveMatchedSyllabusComponent(makeupTask);
   if (makeupComp && makeupComp.maxItems > 0) {
     const completedInComp = countCompletedInSyllabusComponent(makeupComp, makeupTask, allTasks, makeupTask.id);
-    if (completedInComp >= makeupComp.maxItems) return true;
+    const requiredQuota = makeupComp.comp.count && makeupComp.comp.count > 0
+      ? Math.min(makeupComp.maxItems, makeupComp.comp.count)
+      : makeupComp.maxItems;
+    if (completedInComp >= requiredQuota) return true;
   }
 
   const target = resolveMakeupTarget(makeupTask);
@@ -235,10 +245,13 @@ export function isMakeupSupersededByCompletedOriginal(
       t &&
       t.id !== makeupTask.id &&
       t.status !== 'dismissed' &&
+      t.visibility !== 'hidden' &&
       normalizeSimpleType(t.type) === target.kind &&
       !t.isBonus &&
       !isBonusTaskText(t) &&
       !isMakeupTask(t) &&
+      !isExamReviewTask(t) &&
+      !isExtensionOrMissedWorkTask(t) &&
       !PRACTICE_RE.test(t.title || '') &&
       sameCourseNormalized(makeupTask, t)
     );
@@ -268,6 +281,10 @@ export function areTasksIncompatibleForDedup(a: DeadlineTask, b: DeadlineTask): 
   }
   if (isMakeupTask(a) !== isMakeupTask(b)) return true;
   if (isExamReviewTask(a) !== isExamReviewTask(b)) return true;
+  const isRangeExt = (t: DeadlineTask) =>
+    isExtensionOrMissedWorkTask(t) &&
+    extractReferencedAssessmentNumbers(`${t.title || ''} ${t.summary?.brief || ''}`).length >= 2;
+  if (isRangeExt(a) !== isRangeExt(b)) return true;
   if ((isBannerExamTask(a) && normalizeSimpleType(b.type) !== 'exam') || (isBannerExamTask(b) && normalizeSimpleType(a.type) !== 'exam')) {
     return true;
   }

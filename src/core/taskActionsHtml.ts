@@ -21,7 +21,7 @@ export interface UnifiedActionBarOptions {
 /**
  * Renders one identical horizontal deadline action bar across every view in the extension and
  * the phone companion (Deadlines cards, Day Drawer cards, Reading Sheet, Reading Pane):
- * `[Mark Done / Pending]` | `[Edit]` | `[Share]` | `[Calendar / Portal]` | `[Delete]`
+ * `[Mark Done / Pending]` | `[Edit]` | `[Share]` | `[Calendar / Portal]` | `[Hide]` | `[Delete]`
  */
 export function renderUnifiedTaskActionsHtml(
   task: Partial<DeadlineTask>,
@@ -56,6 +56,11 @@ export function renderUnifiedTaskActionsHtml(
       <a href="${calHref}" target="_blank" rel="noopener noreferrer" class="btn-task-act btn-card-action btn-gcal btn-card-gcal${isReading ? ' modal-reading-gcal-btn' : ''}" title="${calTitle}">
         ${calIcon}<span>${calLabel}</span>
       </a>
+      ${(!isHidden && !isPayment) ? `
+      <button type="button" class="btn-task-act btn-task-act-subtle btn-card-action btn-card-hide${isReading ? ' modal-reading-hide-btn' : ''}" data-id="${taskId}" data-task-id="${taskId}" aria-label="Hide deadline" title="Move to Hidden">
+        ${icon('eye-off')}
+      </button>
+      ` : ''}
       <button type="button" class="btn-task-act btn-task-act-danger btn-card-action btn-card-delete${isReading ? ' modal-reading-delete-btn' : ''}" data-id="${taskId}" data-task-id="${taskId}" aria-label="${isPayment ? 'Delete payment' : 'Delete deadline'}" title="${isPayment ? 'Delete payment' : 'Delete deadline'}">
         ${icon('trash')}
       </button>

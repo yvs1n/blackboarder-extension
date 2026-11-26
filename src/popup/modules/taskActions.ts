@@ -147,6 +147,47 @@ export function deleteExtensionTaskWithUndo(taskId: string, onAfter?: () => void
   );
 }
 
+export function hideExtensionTaskWithUndo(taskId: string, onAfter?: () => void): void {
+  const existing = popupState.currentTasks.find(t => t.id === taskId);
+  if (!existing || existing.isPayment) return;
+
+  const prevSnapshot = {
+    visibility: existing.visibility,
+    hiddenReason: existing.hiddenReason,
+    hiddenReasonLabel: existing.hiddenReasonLabel,
+    visibilityLocked: existing.visibilityLocked,
+    ignoreMark: existing.ignoreMark
+  };
+
+  let latest = popupActions.applyTaskUpdateLocal(taskId, {
+    visibility: 'hidden',
+    visibilityLocked: 'hidden',
+    hiddenReason: 'manual_hide',
+    hiddenReasonLabel: 'Hidden by you',
+    ignoreMark: true
+  });
+  popupActions.refreshAllViews();
+  popupActions.syncTasksToCloud(latest, `Hide task ${taskId}`);
+  if (onAfter) onAfter();
+
+  popupActions.showToast(
+    `Moved "${existing.title}" to Hidden`,
+    'Undo',
+    () => {
+      latest = popupActions.applyTaskUpdateLocal(taskId, {
+        visibility: prevSnapshot.visibility,
+        hiddenReason: prevSnapshot.hiddenReason,
+        hiddenReasonLabel: prevSnapshot.hiddenReasonLabel,
+        visibilityLocked: prevSnapshot.visibilityLocked,
+        ignoreMark: prevSnapshot.ignoreMark
+      });
+      popupActions.refreshAllViews();
+      popupActions.syncTasksToCloud(latest, `Undo hide ${taskId}`);
+      popupActions.showToast('Deadline restored');
+    }
+  );
+}
+
 export function wireUnifiedTaskActions(
   rootEl: HTMLElement,
   task: DeadlineTask,
@@ -218,6 +259,11 @@ export function wireUnifiedTaskActions(
 
   rootEl.querySelector('.btn-card-gcal')?.addEventListener('click', e => {
     e.stopPropagation();
+  });
+
+  rootEl.querySelector('.btn-card-hide')?.addEventListener('click', e => {
+    e.stopPropagation();
+    hideExtensionTaskWithUndo(task.id, callbacks.onAfterToggle);
   });
 
   rootEl.querySelector('.btn-card-delete')?.addEventListener('click', e => {

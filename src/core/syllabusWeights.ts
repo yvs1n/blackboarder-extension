@@ -215,6 +215,14 @@ export function extractAssessmentNumber(title: string, context?: string): number
     .replace(/\(\s*\d+(?:\.\d+)?\s*%\s*\)/gi, ' ')
     .trim();
 
+  const strippedRange = combined.replace(
+    /\b(?:quiz(?:zes)?|exams?|mid[\s_-]*terms?|assignments?|assigns?|homeworks?|hw|labs?|reports?|experiments?|exps?|projects?)\s*#?\s*\d{1,2}\s*(?:[-–—]|\bto\b|,|&|\band\b)\s*#?\s*\d{1,2}\b/gi,
+    ' '
+  );
+  if (strippedRange !== combined) {
+    return null;
+  }
+
   // 1. Explicit numbering attached to keyword: "Quiz 2", "Quiz #2", "Quiz (1)", "Quiz [2]", "Quiz - 2", "HW2", "Assignment 2", "Lab 2", "كويز 2", "Q1", "R1"
   const m = combined.match(/(?:quiz|test|exam|midterm|assignment|assign|assg|hw|homework|lab|report|exp|activity|task|كويز|اختبار|امتحان|واجب|تقرير|مشروع|\bq|\br)[^0-9a-z\u0600-\u06ff\n]*#?\s*\(?\s*(\d+|[١-٩]|١٠)(?:[^0-9a-z\u0600-\u06ff]|$)\s*\)?/i);
   if (m) {

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.48] - 2026-11-26
+
+### Added
+
+- **Manual Hide / Restore Toggle on Deadlines (`src/core/taskActionsHtml.ts`, `src/popup/modules/taskActions.ts`, `src/mobile/app/08-task-cards-reading.js`, `src/mobile/app/14-modals-actions.js`):**
+  - Added a one-click **Hide** (`eye-off`) toggle button alongside card actions across Deadlines cards, Calendar Day Drawer cards, Reading Sheet, and the Mobile Companion, moving any selected deadline into `Hidden (N)` with an instant **Undo** toast and restoring back via **Restore** (`visibilityLocked: 'hidden' | 'active'`).
+  - Added `data-id` attributes to Calendar Day Drawer `.day-summary-card` elements (`src/popup/modules/dayDrawer.ts`) so the Debug Stick displays full `taskDiagnostics` and `rulebookTrace` there too.
+
+### Fixed
+
+- **Prevent Range Extensions from Merging into Completed Assignment 1 & Fix Best-N-of-M Makeup Quota (`src/core/syllabusWeights.ts`, `src/utils/taskMerge.ts`, `src/core/makeupFilter.ts`):**
+  - Fixed `extractAssessmentNumber()` and `areTasksDuplicates()` so multi-item extension announcements like `"Assignments 1-3 (Extended Deadline)"` no longer parse as `#1` and silently collapse into completed `"Assignment 1"`; they now survive cleanly as dedicated cards routed to `Hidden (N)` when items 1–3 are completed.
+  - Updated `isBonusText()` so `"optional"` inside makeup quiz announcements isn't mislabeled Bonus Credit unless explicit bonus/extra-credit wording appears, updated `isMakeupSupersededByCompletedOriginal()` to evaluate best-N-of-M `comp.count` quotas cleanly, and excluded hidden/review/extension entries when scanning regular same-kind items.
+
+---
+
 ## [1.8.47] - 2026-11-26
 
 ### Fixed

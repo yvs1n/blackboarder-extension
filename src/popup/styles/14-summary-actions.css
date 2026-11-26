@@ -270,6 +270,7 @@
   background: var(--surface-border);
 }
 
+.unified-task-actions .btn-task-act-subtle,
 .unified-task-actions .btn-task-act-danger {
   flex: 0 0 30px;
   width: 30px;
@@ -277,6 +278,7 @@
   color: var(--text-muted);
 }
 
+.unified-task-actions .btn-task-act-subtle:hover,
 .unified-task-actions .btn-task-act-danger:hover,
 .unified-selected-actions .btn-sel-delete:hover {
   color: var(--text-main);
