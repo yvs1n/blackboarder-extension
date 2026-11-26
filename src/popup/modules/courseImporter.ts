@@ -12,8 +12,8 @@ import {
   markFirstSyllabusScanDone,
   shouldAutoScanSyllabiOnFirstScan
 } from '../../scan/syllabusScanner';
-import { isLikelyBlackboardUrl, isBuiltInBlackboardHost, originPattern } from '../../utils/blackboardSites';
-import { getSettings, getUserCourses, saveUserCourses } from '../../utils/storage';
+import { isLikelyBlackboardUrl, isBuiltInBlackboardHost, originPattern } from '../../utils/extension/blackboardSites';
+import { getSettings, getUserCourses, saveUserCourses } from '../../utils/storage/index';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 

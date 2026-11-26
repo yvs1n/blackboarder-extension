@@ -1,5 +1,5 @@
 import { BUILD_INFO } from '../buildInfo';
-import { fetchRemoteVersion, isRemoteNewer } from '../utils/updateChecker';
+import { fetchRemoteVersion, isRemoteNewer } from '../utils/extension/updateChecker';
 
 /*
  * Automatic updates for the unpacked extension, standing in for the Chrome Web Store.

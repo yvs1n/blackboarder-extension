@@ -3,7 +3,7 @@ import { resolveTaskTimeWithSchedule, resolveTaskRoom } from '../core/courseSche
 import { isBonusText } from '../core/makeupFilter';
 import { buildTaskArabicMirror } from '../core/arabicTranslator';
 import { sanitizeDoctorAnnouncementText, toEnglishDeadlineTitle } from '../core/courseHelper';
-import { isExtensionContextValid } from '../utils/storage';
+import { isExtensionContextValid } from '../utils/storage/index';
 import { AiEndpoint, OPENROUTER_CHAT_URL, DEFAULT_OPENROUTER_MODEL, aiRequestHeaders, parseAiJson } from './aiProviders';
 
 interface AiExtractedItem {

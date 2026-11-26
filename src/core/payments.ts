@@ -1,5 +1,5 @@
 import type { DeadlineTask, PaymentCategory, PaymentItem } from '../types';
-import type { TombstoneMap } from '../utils/taskMerge';
+import type { TombstoneMap } from '../utils/tasks/taskMerge';
 
 const SAFE_PAYMENT_ID = /^[^\u0000-\u001f\u007f<>"`\\]{1,160}$/;
 const VALID_CATEGORIES: PaymentCategory[] = ['tuition', 'installment', 'registration', 'housing', 'late_fee', 'other'];

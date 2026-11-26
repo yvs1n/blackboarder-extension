@@ -1,8 +1,8 @@
 import { createStateMachine } from '../../core/stateMachine';
 import { isFinancePortalPage } from '../../core/financePageParser';
-import { isBuiltInBlackboardHost, isLikelyBlackboardUrl, originPattern } from '../../utils/blackboardSites';
-import { getScanStatus, setScanStatus, SCAN_STALE_MS, type ScanStatus } from '../../utils/storage';
-import { getSvgIcon } from '../../utils/uiCommon';
+import { isBuiltInBlackboardHost, isLikelyBlackboardUrl, originPattern } from '../../utils/extension/blackboardSites';
+import { getScanStatus, setScanStatus, SCAN_STALE_MS, type ScanStatus } from '../../utils/storage/index';
+import { getSvgIcon } from '../../utils/ui/uiCommon';
 import { maybeRunFirstScanCalibration } from './calibrationModal';
 import { dom, popupActions, popupState } from './state';
 

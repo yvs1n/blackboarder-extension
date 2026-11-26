@@ -16,9 +16,9 @@ import {
 import { resolveSingletonSyllabusKey } from '../../core/syllabusWeights';
 import { explainTaskDecision } from '../../rulebook';
 import type { DeadlineTask, PaymentItem, UserCourseConfig } from '../../types';
-import { IS_DEV_BUILD, IS_STORE_BUILD } from '../../utils/storeBuild';
-import { getLocalTombstones, getStorageTombstones } from '../../utils/tombstones';
-import { escapeHtml } from '../../utils/uiCommon';
+import { IS_DEV_BUILD, IS_STORE_BUILD } from '../../utils/extension/storeBuild';
+import { getLocalTombstones, getStorageTombstones } from '../../utils/storage/tombstones';
+import { escapeHtml } from '../../utils/ui/uiCommon';
 import { popupActions, popupState } from './state';
 
 export const DEV_DEBUG_STORAGE_KEY = 'bbs_dev_debug_enabled';

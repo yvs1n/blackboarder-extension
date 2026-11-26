@@ -1,7 +1,7 @@
 import { ScanGate, ScanRun } from '../content/scanGate';
 import { runHttpBlackboardScan, resolveBlackboardOrigin, HttpScanOptions, ScanResult } from './httpScanner';
-import { getExtraSites, isLikelyBlackboardUrl } from '../utils/blackboardSites';
-import { getScanStatus, setScanStatus, ScanStatus } from '../utils/storage';
+import { getExtraSites, isLikelyBlackboardUrl } from '../utils/extension/blackboardSites';
+import { getScanStatus, setScanStatus, ScanStatus } from '../utils/storage/index';
 import { SIGN_IN_MESSAGE, UNREACHABLE_MESSAGE } from '../scan/scanFallback';
 import { stampScanStarted } from '../scan/autoScan';
 

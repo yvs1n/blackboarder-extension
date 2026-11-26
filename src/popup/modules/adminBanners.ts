@@ -13,8 +13,8 @@ import {
   getCachedAdminState,
   getDismissedAdminIds,
   syncAdminState
-} from '../../utils/adminSync';
-import { getProfile } from '../../utils/profile';
+} from '../../utils/extension/adminSync';
+import { getProfile } from '../../utils/storage/profile';
 import { popupState } from './state';
 
 let lastRenderedSnapshot: PublicAdminSnapshot | null = null;

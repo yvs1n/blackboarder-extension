@@ -1,11 +1,11 @@
-import { getProfile, saveProfile } from '../utils/profile';
+import { getProfile, saveProfile } from '../utils/storage/profile';
 import { profileUniversity, profileGradeScale } from '../core/studentProfile';
-import { getUserCourses, getTasks, isExtensionContextValid } from '../utils/storage';
-import { buildGpaSummary } from '../utils/gpa';
+import { getUserCourses, getTasks, isExtensionContextValid } from '../utils/storage/index';
+import { buildGpaSummary } from '../utils/marks/gpa';
 import { getAllSyllabi } from '../core/syllabusWeights';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { extractStudentFromBlackboardPage } from './studentProfileExtractor';
-import { escapeHtml } from '../utils/uiCommon';
+import { escapeHtml } from '../utils/ui/uiCommon';
 
 export const BADGE_ID = 'bbs-student-profile-badge';
 

@@ -1,7 +1,7 @@
-import { getProfile, saveProfile } from '../utils/profile';
+import { getProfile, saveProfile } from '../utils/storage/profile';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { profileUniversity } from '../core/studentProfile';
-import { ExamRefreshResult, isExamPageUrl } from '../utils/examRefreshNote';
+import { ExamRefreshResult, isExamPageUrl } from '../utils/tasks/examRefreshNote';
 import {
   scrapeExamScheduleFromHtml,
   extractExamScheduleRowsFromJson,
@@ -9,16 +9,16 @@ import {
   mergeExamScheduleTasks,
   extractStudentFromExamHtml
 } from '../core/examSchedule';
-import { getTasks, getUserCourses, autoRegisterDiscoveredCourses, saveTasksMergingLatest } from '../utils/storage';
-import { setStorageTombstones } from '../utils/tombstones';
-import { deduplicateTaskList } from '../utils/taskMerge';
+import { getTasks, getUserCourses, autoRegisterDiscoveredCourses, saveTasksMergingLatest } from '../utils/storage/index';
+import { setStorageTombstones } from '../utils/storage/tombstones';
+import { deduplicateTaskList } from '../utils/tasks/taskMerge';
 import { isValidTask } from '../core/courseHelper';
-import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
-import { getCachedAdminState } from '../utils/adminSync';
+import { repairTaskWeightsAndRooms } from '../utils/tasks/taskRepair';
+import { getCachedAdminState } from '../utils/extension/adminSync';
 import type { DeadlineTask } from '../types';
 
-export { examRefreshNote, isExamPageUrl } from '../utils/examRefreshNote';
-export type { ExamRefreshResult, ExamRefreshState } from '../utils/examRefreshNote';
+export { examRefreshNote, isExamPageUrl } from '../utils/tasks/examRefreshNote';
+export type { ExamRefreshResult, ExamRefreshState } from '../utils/tasks/examRefreshNote';
 
 /**
  * Reads the university's exam schedule page during a Scan via direct HTTP requests

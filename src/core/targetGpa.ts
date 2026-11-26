@@ -1,7 +1,7 @@
 import type { DeadlineTask } from '../types';
 import { GradeRow } from './universities';
-import { CourseGrade, GpaSummary, resolveCreditHours, UOS_GRADE_SCALE } from '../utils/gpa';
-import { round1, round2 } from '../utils/uiCommon';
+import { CourseGrade, GpaSummary, resolveCreditHours, UOS_GRADE_SCALE } from '../utils/marks/gpa';
+import { round1, round2 } from '../utils/ui/uiCommon';
 
 export interface UpcomingTaskRequirement {
   id: string;

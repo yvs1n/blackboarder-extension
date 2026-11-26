@@ -4,7 +4,7 @@
  * wherever the device is), the same as they were typed in.
  */
 import type { UserCourseConfig } from '../types';
-import { escapeHtml as esc } from '../utils/uiCommon';
+import { escapeHtml as esc } from '../utils/ui/uiCommon';
 
 export interface ClassOccurrence {
   /** Stable per class meeting: course, date and start time */

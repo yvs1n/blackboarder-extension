@@ -1,8 +1,8 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate } from '../types';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
-import { parseUltraStreamEntries } from '../utils/streamParser';
-import { gradebookToUpdates, gradebookReport, GradebookReportRow } from '../utils/gradebook';
-import { isSessionExpiredResponse } from '../utils/sessionStatus';
+import { parseUltraStreamEntries } from '../utils/tasks/streamParser';
+import { gradebookToUpdates, gradebookReport, GradebookReportRow } from '../utils/marks/gradebook';
+import { isSessionExpiredResponse } from '../utils/extension/sessionStatus';
 
 /**
  * The Blackboard REST calls both scanners make. Each one takes the fetch to use: the service

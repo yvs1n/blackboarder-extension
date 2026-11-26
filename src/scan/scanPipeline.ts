@@ -10,16 +10,16 @@ import {
   autoRegisterDiscoveredCourses,
   setScanStatus,
   ScanCheckpoint
-} from '../utils/storage';
+} from '../utils/storage/index';
 import { isValidTask, isBareTypeTitle } from '../core/courseHelper';
-import { deduplicateTaskList, areTasksDuplicates, mergeDuplicatePair } from '../utils/taskMerge';
-import { applySubmissionUpdates, purgeSyntheticGradebookTasks } from '../utils/gradebook';
-import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
+import { deduplicateTaskList, areTasksDuplicates, mergeDuplicatePair } from '../utils/tasks/taskMerge';
+import { applySubmissionUpdates, purgeSyntheticGradebookTasks } from '../utils/marks/gradebook';
+import { repairTaskWeightsAndRooms } from '../utils/tasks/taskRepair';
 import { translateTasksToArabicWithAi } from '../engine/aiTranslator';
 import { resolveAiEndpoint } from '../engine/aiProviders';
 import { ensureArabicMirrorsOnTasks } from '../core/arabicTranslator';
-import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
-import { getStorageTombstones, setStorageTombstones } from '../utils/tombstones';
+import { mergeStreamAndCourseAnnouncements } from '../utils/tasks/announcementMerge';
+import { getStorageTombstones, setStorageTombstones } from '../utils/storage/tombstones';
 import type { ScanSourceOutcomes } from './blackboardApi';
 import { describePartialFailures } from './scanFallback';
 

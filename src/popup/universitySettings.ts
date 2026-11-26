@@ -7,11 +7,11 @@ import type { StudentProfile } from '../types';
 import { UNIVERSITY_PRESETS, getUniversity, normalizeGradeScale, GradeRow } from '../core/universities';
 import { profileUniversity, profileGradeScale, profileLowestPass } from '../core/studentProfile';
 import { isGenericPlaceholderName } from '../scan/blackboardApi';
-import { getProfile, saveProfile, PROFILE_KEY } from '../utils/profile';
-import { getStoredSemesters, saveStoredSemesters } from '../utils/semestersStorage';
-import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/blackboardSites';
-import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
-import { esc } from '../utils/uiCommon';
+import { getProfile, saveProfile, PROFILE_KEY } from '../utils/storage/profile';
+import { getStoredSemesters, saveStoredSemesters } from '../utils/storage/semestersStorage';
+import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/extension/blackboardSites';
+import { SESSION_STATUS_KEY } from '../utils/extension/sessionStatus';
+import { esc } from '../utils/ui/uiCommon';
 
 export interface UniversitySettingsHooks {
   /** The profile changed here or from a sync: re-render marks, and push to the cloud when it changed here */

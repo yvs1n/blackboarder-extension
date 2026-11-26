@@ -1,6 +1,6 @@
 import { QuickLink } from '../../types';
 import { universityQuickLinks } from '../../core/universities';
-import { reorderQuickLinksList } from '../quickLinkMeta';
+import { reorderQuickLinksList } from '../ui/quickLinkMeta';
 import {
   STORAGE_KEYS,
   isExtensionContextValid,

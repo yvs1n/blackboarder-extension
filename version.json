@@ -1,10 +1,10 @@
 {
   "version": "1.8.50",
-  "build": "957143708597",
-  "commit": "1ace599d81fef21519009d82c19488ece993c1ae",
-  "shortCommit": "1ace599",
-  "timestamp": "2026-11-26T19:11:31.474Z",
-  "message": "feat(v1.8.49): calibration wizard, Arabic UI & mirrors, shared settings sync, updated docs",
+  "build": "178ec43f34c2",
+  "commit": "1845bdaba91fb47f5ed0db87e1fcc4e5bb1b43a2",
+  "shortCommit": "1845bda",
+  "timestamp": "2026-11-26T21:45:31.052Z",
+  "message": "feat(v1.8.50): locked admin portal, global broadcasts, kill-switches, and sidebar mode toggle",
   "changelog": [
     "Added client announcement filtering, bilingual EN/AR banner rendering, HTTPS action validation, remote hotfix kill-switch checks, and optional ECDSA P-256 signature verification (src/core/adminBroadcasts.ts, src/utils/adminSync.ts, src/popup/modules/adminBanners.ts, src/popup/styles/16-admin-banners.css).",
     "Integrated periodic admin announcement polling & OS notification delivery in src/background/serviceWorker.ts, background exam refresh kill-switch & URL overrides in src/background/examRefresh.ts, and auto-scan host kill-switch enforcement in src/content/scraper.ts.",
@@ -14,8 +14,8 @@
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-CYYxAK3W.js",
-    "assets/popup-CZRCMran.css",
+    "assets/popup-B6-1tf3y.css",
+    "assets/popup-GVsA_Dyc.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

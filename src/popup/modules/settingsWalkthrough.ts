@@ -1,6 +1,6 @@
-import { resolveBlackboardLaunchUrl } from '../../utils/blackboardSites';
-import { describeSessionBanner, SESSION_STATUS_KEY, type SessionStatus } from '../../utils/sessionStatus';
-import { getSettings } from '../../utils/storage';
+import { resolveBlackboardLaunchUrl } from '../../utils/extension/blackboardSites';
+import { describeSessionBanner, SESSION_STATUS_KEY, type SessionStatus } from '../../utils/extension/sessionStatus';
+import { getSettings } from '../../utils/storage/index';
 import { getCachedProfile } from '../universitySettings';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions } from './state';

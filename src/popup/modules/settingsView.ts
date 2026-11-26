@@ -1,9 +1,9 @@
 import { AiProvider, UserSettings } from '../../types';
 import { IFM_MODEL, normalizeAiBaseUrl, resolveAiEndpoint, testAiEndpoint } from '../../engine/aiProviders';
-import { describeAiLock, ensureAiPass, getAiLockState, newAiPass, syncAiKeyLock } from '../../utils/aiKeyLock';
-import { applySidePanelBehavior, isSidePanelBehaviorSupported, openCurrentWindowSidePanel } from '../../utils/sidePanel';
-import { getSettings, saveLastScanCheckpoint, saveSettings } from '../../utils/storage';
-import { setStorageTombstones } from '../../utils/tombstones';
+import { describeAiLock, ensureAiPass, getAiLockState, newAiPass, syncAiKeyLock } from '../../utils/sync/aiKeyLock';
+import { applySidePanelBehavior, isSidePanelBehaviorSupported, openCurrentWindowSidePanel } from '../../utils/extension/sidePanel';
+import { getSettings, saveLastScanCheckpoint, saveSettings } from '../../utils/storage/index';
+import { setStorageTombstones } from '../../utils/storage/tombstones';
 import { setLanguageNow } from './language';
 import { loadSyncStatus, setupSyncSettingsEvents } from './settingsSync';
 import { dom, popupActions, popupState } from './state';

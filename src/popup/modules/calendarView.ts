@@ -3,10 +3,10 @@ import { localizedTaskView } from '../../core/arabicTranslator';
 import { classesOnDay, formatClock, type ClassOccurrence } from '../../core/classSchedule';
 import { getCourseHex } from '../../core/courseColors';
 import { getActiveCourseLegend } from '../../core/userCourses';
-import { getCachedSettingsSync } from '../../utils/storage';
-import { compareTasksByTime, formatTaskTime } from '../../utils/calendar';
+import { getCachedSettingsSync } from '../../utils/storage/index';
+import { compareTasksByTime, formatTaskTime } from '../../utils/tasks/calendar';
 import { matchesSelectedCourseFilter, resolveCourseInfo } from '../../core/courseHelper';
-import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
+import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/ui/uiCommon';
 import { getCombinedCalendarTasks } from './paymentsView';
 import { dom, formatDateKey, formatMonthYear, popupActions, popupState } from './state';
 

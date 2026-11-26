@@ -1,28 +1,28 @@
 import { Announcement, DeadlineTask } from '../types';
-import { getSettings, getStoredPayments, getTasks, saveStoredPayments, saveTasksMergingLatest, getLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage';
+import { getSettings, getStoredPayments, getTasks, saveStoredPayments, saveTasksMergingLatest, getLastScanCheckpoint, isExtensionContextValid, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus, getScanStatus } from '../utils/storage/index';
 import { setActiveUserCourses } from '../core/userCourses';
 import { isValidTask } from '../core/courseHelper';
-import { deduplicateTaskList } from '../utils/taskMerge';
-import { GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
-import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
-import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
+import { deduplicateTaskList } from '../utils/tasks/taskMerge';
+import { GRADEBOOK_REPORT_KEY } from '../utils/marks/gradebook';
+import { repairTaskWeightsAndRooms } from '../utils/tasks/taskRepair';
+import { mergeStreamAndCourseAnnouncements } from '../utils/tasks/announcementMerge';
 import { startCourseColorPainter, discoveredCoursesWithColors } from './courseColorPainter';
 import { startActivityFilter } from './activityFilter';
 import { startStudentProfileBadge } from './studentProfileBadge';
 import { extractStudentFromBlackboardPage } from './studentProfileExtractor';
-import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
+import { SESSION_STATUS_KEY } from '../utils/extension/sessionStatus';
 import { ScanGate, ScanRun } from './scanGate';
-import { detectUniversityFromHost } from '../utils/profile';
+import { detectUniversityFromHost } from '../utils/storage/profile';
 import { isExamSchedulePage, scrapeExamScheduleFromDoc, mergeExamScheduleTasks, extractStudentFromExamDoc } from '../core/examSchedule';
 import { isFinancePortalPage, parseFinancePageFromDoc } from '../core/financePageParser';
 import { mergeCloudPayments } from '../core/payments';
-import { getLocalTombstones, setStorageTombstones } from '../utils/tombstones';
-import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
+import { getLocalTombstones, setStorageTombstones } from '../utils/storage/tombstones';
+import { ExamRefreshResult, examRefreshNote } from '../utils/tasks/examRefreshNote';
 import { fetchCourseAnnouncements, isGenericPlaceholderName, readBlackboardApi } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
 import { claimAutoScan } from '../scan/autoScan';
 import { isHostAutoScanDisabled } from '../core/adminBroadcasts';
-import { getCachedAdminState } from '../utils/adminSync';
+import { getCachedAdminState } from '../utils/extension/adminSync';
 import {
   bbFetch,
   collectPageCourses,

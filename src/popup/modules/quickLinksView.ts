@@ -1,8 +1,8 @@
 import type { QuickLinkCategory } from '../../types';
 import { profileUniversity } from '../../core/studentProfile';
 import { quickLinkPreset } from '../../core/universities';
-import { pushTasksToFirebase } from '../../utils/firebaseSync';
-import { getQuickLinkIconList, quickLinkIconHtml, quickLinkMeta, reorderQuickLinksList } from '../../utils/quickLinkMeta';
+import { pushTasksToFirebase } from '../../utils/sync/firebaseSync';
+import { getQuickLinkIconList, quickLinkIconHtml, quickLinkMeta, reorderQuickLinksList } from '../../utils/ui/quickLinkMeta';
 import {
   addQuickLink,
   deleteQuickLink,
@@ -13,9 +13,9 @@ import {
   resetQuickLinksToDefault,
   saveQuickLinks,
   updateQuickLink,
-} from '../../utils/storage';
-import { getLocalTombstones } from '../../utils/tombstones';
-import { escapeHtml } from '../../utils/uiCommon';
+} from '../../utils/storage/index';
+import { getLocalTombstones } from '../../utils/storage/tombstones';
+import { escapeHtml } from '../../utils/ui/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';

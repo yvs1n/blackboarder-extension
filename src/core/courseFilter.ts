@@ -1,6 +1,6 @@
 import type { UserCourseConfig } from '../types';
 import { isBlackboardSystemNoise } from './courseHelper';
-import { sanitizeCloudCourses } from '../utils/cloudSanitize';
+import { sanitizeCloudCourses } from '../utils/sync/cloudSanitize';
 
 /**
  * Filters out Blackboard navigation tabs (Content, Calendar, Discussions, Gradebook, etc.)

@@ -306,9 +306,19 @@ function copyPdfJs(dir) {
 }
 
 function copyWidget() {
-  // widgets/blackboarder-widget.js is the only copy to edit; the web app serves it for "Copy Widget Script"
-  const source = readText(r('widgets', 'blackboarder-widget.js'));
+  // widgets/ios/blackboarder-widget.js is the only copy to edit; the web app serves it for "Copy Widget Script"
+  const source = readText(r('widgets', 'ios', 'blackboarder-widget.js'));
   writeIfChanged(path.join(WEB_DIR, 'widget.js'), source);
+}
+
+function copyCompanionFonts() {
+  const from = r('assets', 'fonts');
+  if (!fs.existsSync(from)) return;
+  const to = path.join(WEB_DIR, 'fonts');
+  fs.mkdirSync(to, { recursive: true });
+  for (const rel of listFiles(from)) {
+    fs.copyFileSync(path.join(from, rel), path.join(to, rel));
+  }
 }
 
 function stampWebApp(git) {
@@ -345,6 +355,8 @@ function extensionSourceFiles() {
     files.push(`src/${rel}`);
   }
   for (const rel of listFiles(r('public'))) files.push(`public/${rel}`);
+  for (const rel of listFiles(r('assets', 'icons'))) files.push(`assets/icons/${rel}`);
+  for (const rel of listFiles(r('assets', 'fonts'))) files.push(`assets/fonts/${rel}`);
   for (const rel of listFiles(r('updater'))) files.push(`updater/${rel}`);
   files.push('package.json', 'package-lock.json');
   return files.filter(f => fs.existsSync(r(f)));
@@ -405,7 +417,7 @@ function firefoxManifestText(text) {
   return `${JSON.stringify(manifest, null, 2)}\n`;
 }
 
-/** The manifest for the side-by-side local developer test build (dist-dev/): distinct label + no key collision with CWS. */
+/** The manifest for the side-by-side local developer test build (build/dev/): distinct label + no key collision with CWS. */
 function devManifestText(text) {
   const manifest = JSON.parse(text);
   delete manifest.key;
@@ -485,8 +497,12 @@ async function buildExtension(info, viteDefines, { outDir = 'dist', store = fals
   fs.writeFileSync(path.join(distDir, 'manifest.json'), finalManifest, 'utf8');
   copyPdfJs(distDir);
   fs.mkdirSync(path.join(distDir, 'icons'), { recursive: true });
-  for (const icon of listFiles(r('public/icons'))) {
-    fs.copyFileSync(r('public/icons', icon), path.join(distDir, 'icons', icon));
+  for (const icon of listFiles(r('assets', 'icons'))) {
+    fs.copyFileSync(r('assets', 'icons', icon), path.join(distDir, 'icons', icon));
+  }
+  fs.mkdirSync(path.join(distDir, 'fonts'), { recursive: true });
+  for (const font of listFiles(r('assets', 'fonts'))) {
+    fs.copyFileSync(r('assets', 'fonts', font), path.join(distDir, 'fonts', font));
   }
 
   // Updater: update.bat / update.sh at the top of the extension folder, the helper in updater/
@@ -514,7 +530,7 @@ async function buildExtension(info, viteDefines, { outDir = 'dist', store = fals
 function countTests() {
   const testsDir = r('tests');
   if (!fs.existsSync(testsDir)) return 322;
-  const files = fs.readdirSync(testsDir).filter(f => f.endsWith('.test.ts') || f.endsWith('.test.js'));
+  const files = listFiles(testsDir).filter(f => f.endsWith('.test.ts') || f.endsWith('.test.js'));
   let total = 0;
   for (const f of files) {
     const txt = fs.readFileSync(path.join(testsDir, f), 'utf8');
@@ -605,15 +621,15 @@ function syncAllComponents(version) {
     }
   }
 
-  // 5. Sync windows-widget/BlackboarderWidget.csproj Version so the compiled .exe knows its release version
-  const csprojPath = r('windows-widget', 'BlackboarderWidget.csproj');
+  // 5. Sync widgets/windows/BlackboarderWidget.csproj Version so the compiled .exe knows its release version
+  const csprojPath = r('widgets', 'windows', 'BlackboarderWidget.csproj');
   if (fs.existsSync(csprojPath)) {
     let csproj = readText(csprojPath);
     csproj = csproj
       .replace(/<Version>[^<]*<\/Version>/g, `<Version>${version}</Version>`)
       .replace(/<InformationalVersion>[^<]*<\/InformationalVersion>/g, `<InformationalVersion>${version}</InformationalVersion>`);
     if (writeIfChanged(csprojPath, csproj)) {
-      console.log(`  ✓ Synced windows-widget/BlackboarderWidget.csproj to v${version}`);
+      console.log(`  ✓ Synced widgets/windows/BlackboarderWidget.csproj to v${version}`);
     }
   }
 
@@ -676,6 +692,7 @@ async function main() {
     await buildQrScanner(viteDefines);
     await buildUserscript(currentVersion, viteDefines);
     copyWidget();
+    copyCompanionFonts();
     copyPdfJs(WEB_DIR);
     if (fs.existsSync(r('scripts', 'seoPages.mjs'))) {
       const { syncSeoPagesAndSitemap } = await import('./seoPages.mjs');
@@ -687,11 +704,11 @@ async function main() {
 
   const versionJson = await buildExtension(extInfo, viteDefines);
   // The same extension without the self-updater, for the Chrome Web Store and Edge Add-ons
-  await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-store', store: true });
+  await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'build/store', store: true });
   // Firefox Desktop & Firefox for Android build (no Chromium-only sidePanel or nativeMessaging)
-  await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'dist-firefox', store: true, firefox: true });
-  // Side-by-side developer/debug unpacked build (dist-dev/) with Debug Stick enabled out of the box
-  await buildExtension(extInfo, { ...viteDefines, __DEV_BUILD__: 'true' }, { outDir: 'dist-dev', dev: true });
+  await buildExtension(extInfo, { ...viteDefines, __STORE_BUILD__: 'true' }, { outDir: 'build/firefox', store: true, firefox: true });
+  // Side-by-side developer/debug unpacked build (build/dev/) with Debug Stick enabled out of the box
+  await buildExtension(extInfo, { ...viteDefines, __DEV_BUILD__: 'true' }, { outDir: 'build/dev', dev: true });
   // The root copy is what extensions installed before the dist/version.json check still read
   writeIfChanged(r('version.json'), versionJson);
 

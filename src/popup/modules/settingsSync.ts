@@ -3,12 +3,12 @@ import { BUILD_INFO } from '../../buildInfo';
 import { calendarFeedUrl, cleanCalendarFeedShow } from '../../core/calendarLink';
 import { detectUserDevice } from '../../core/deviceDetection';
 import { createArmedAction } from '../../core/stateMachine';
-import { ensureAiPass, pairingLink } from '../../utils/aiKeyLock';
-import { applyBackupAuthoritatively, applyCloudSnapshotAuthoritatively } from '../../utils/backupRestore';
-import { getExtraSites } from '../../utils/blackboardSites';
-import { deleteSyncDataFromFirebase, fetchTasksFromFirebase, pushTasksToFirebase } from '../../utils/firebaseSync';
-import { getProfile } from '../../utils/profile';
-import { qrSvg } from '../../utils/qrCode';
+import { ensureAiPass, pairingLink } from '../../utils/sync/aiKeyLock';
+import { applyBackupAuthoritatively, applyCloudSnapshotAuthoritatively } from '../../utils/storage/backupRestore';
+import { getExtraSites } from '../../utils/extension/blackboardSites';
+import { deleteSyncDataFromFirebase, fetchTasksFromFirebase, pushTasksToFirebase } from '../../utils/sync/firebaseSync';
+import { getProfile } from '../../utils/storage/profile';
+import { qrSvg } from '../../utils/ui/qrCode';
 import {
   generateUniqueSyncKey,
   getCalendarFeedShow,
@@ -23,9 +23,9 @@ import {
   safeSetLocalStorage,
   saveCalendarFeedShow,
   saveSettings,
-} from '../../utils/storage';
-import { getLocalTombstones } from '../../utils/tombstones';
-import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
+} from '../../utils/storage/index';
+import { getLocalTombstones } from '../../utils/storage/tombstones';
+import { escapeHtml, getSvgIcon } from '../../utils/ui/uiCommon';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 import { cancelPendingSync } from './syncController';

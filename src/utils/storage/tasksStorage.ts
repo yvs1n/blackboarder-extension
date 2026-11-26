@@ -1,6 +1,6 @@
 import { DeadlineTask } from '../../types';
 import { isValidTask } from '../../core/courseHelper';
-import { purgeSyntheticGradebookTasks } from '../gradebook';
+import { purgeSyntheticGradebookTasks } from '../marks/gradebook';
 import {
   areTasksDuplicates,
   deduplicateTaskList,
@@ -8,8 +8,8 @@ import {
   mergeDuplicatePair,
   mergeTombstones,
   sanitizeTaskListMarks,
-} from '../taskMerge';
-import { getStorageTombstones, pruneSupersededTombstones, setStorageTombstones } from '../tombstones';
+} from '../tasks/taskMerge';
+import { getStorageTombstones, pruneSupersededTombstones, setStorageTombstones } from './tombstones';
 import {
   STORAGE_KEYS,
   isExtensionContextValid,

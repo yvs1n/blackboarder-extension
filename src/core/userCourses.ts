@@ -1,8 +1,8 @@
 import type { UserCourseConfig, CustomSyllabusComponent, Weekday } from '../types';
 import type { CourseScheduleEntry } from './courseSchedule';
 import type { CourseSyllabus, SyllabusComponent } from './syllabusWeights';
-import { resolveCreditHours } from '../utils/gpa';
-import { format12Hour } from '../utils/uiCommon';
+import { resolveCreditHours } from '../utils/marks/gpa';
+import { format12Hour } from '../utils/ui/uiCommon';
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -1,7 +1,7 @@
 import type { DeadlineTask, TaskArabicMirror } from '../types';
 import { buildTaskArabicMirror, computeTaskTranslationSig } from '../core/arabicTranslator';
 import { aiRequestHeaders, parseAiJson, type AiEndpoint } from './aiProviders';
-import { isExtensionContextValid } from '../utils/storage';
+import { isExtensionContextValid } from '../utils/storage/index';
 
 /**
  * Translates any new or updated tasks lacking an up-to-date AI Arabic mirror using the user's

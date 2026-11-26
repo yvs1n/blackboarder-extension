@@ -1,15 +1,15 @@
-import { getSettings, getLastScanCheckpoint, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus } from '../utils/storage';
-import { GRADEBOOK_REPORT_KEY } from '../utils/gradebook';
+import { getSettings, getLastScanCheckpoint, getUserCourses, autoRegisterDiscoveredCourses, setScanStatus } from '../utils/storage/index';
+import { GRADEBOOK_REPORT_KEY } from '../utils/marks/gradebook';
 import { discoveredCoursesWithColors } from '../content/courseColorPainter';
-import { SESSION_STATUS_KEY } from '../utils/sessionStatus';
-import { getProfile, saveProfile, detectUniversityFromHost } from '../utils/profile';
+import { SESSION_STATUS_KEY } from '../utils/extension/sessionStatus';
+import { getProfile, saveProfile, detectUniversityFromHost } from '../utils/storage/profile';
 import { profileUniversity } from '../core/studentProfile';
-import { getExtraSites, isLikelyBlackboardUrl } from '../utils/blackboardSites';
+import { getExtraSites, isLikelyBlackboardUrl } from '../utils/extension/blackboardSites';
 import { refreshExamSchedule, examRefreshNote } from './examRefresh';
 import { BbFetch, ScanSourceOutcomes, readBlackboardApi, isGenericPlaceholderName } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
 import { decideFallback, FallbackReason, SIGN_IN_MESSAGE, UNREACHABLE_MESSAGE } from '../scan/scanFallback';
-import { needsXsrf, readBlackboardXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
+import { needsXsrf, readBlackboardXsrf, XSRF_HEADER } from '../utils/extension/blackboardXsrf';
 
 async function findOpenBlackboardOrigin(extra: string[]): Promise<string | null> {
   try {

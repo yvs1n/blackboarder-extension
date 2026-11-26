@@ -33,11 +33,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Release folder and zips (built via npm run package)
+# Release folder, secondary build targets, and zips (built via npm run build / package)
+build/
 release/
-dist-store/
-dist-firefox/
-dist-dev/
 
 # Personal schedule documents
 schedule.pdf
@@ -53,6 +51,6 @@ PROJECT.md
 graphify-out/
 
 widgets/windows-lockscreen/
-windows-widget/bin/
-windows-widget/obj/
-windows-widget/publish/
+widgets/windows/bin/
+widgets/windows/obj/
+widgets/windows/publish/

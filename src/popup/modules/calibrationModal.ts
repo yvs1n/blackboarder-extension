@@ -12,7 +12,7 @@ import {
 } from '../../core/calibrationWizard';
 import { normalizeAiBaseUrl, resolveAiEndpoint, testAiEndpoint } from '../../engine/aiProviders';
 import { discoverAndExtractBlackboardSyllabi, markFirstSyllabusScanDone } from '../../scan/syllabusScanner';
-import { getSettings, getUserCourses, saveSettings } from '../../utils/storage';
+import { getSettings, getUserCourses, saveSettings } from '../../utils/storage/index';
 import { loadPdfJs, resolveActiveBlackboardScanOrigin } from './courseImporter';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { refreshAiKeyLock } from './settingsView';

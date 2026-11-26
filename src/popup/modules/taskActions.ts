@@ -1,7 +1,7 @@
 import type { DeadlineTask } from '../../types';
-import { createGoogleCalendarUrl } from '../../utils/calendar';
-import { getSvgIcon } from '../../utils/uiCommon';
-import { recordLocalTombstone, removeLocalTombstone } from '../../utils/tombstones';
+import { createGoogleCalendarUrl } from '../../utils/tasks/calendar';
+import { getSvgIcon } from '../../utils/ui/uiCommon';
+import { recordLocalTombstone, removeLocalTombstone } from '../../utils/storage/tombstones';
 import { buildStructuredDeadlineSummary, renderDeadlineSummaryBlockHtml } from '../../core/deadlineSummary';
 import { renderUnifiedTaskActionsHtml, renderSelectedDayActionsHtml } from '../../core/taskActionsHtml';
 import { resolveTaskWeight } from '../../core/syllabusWeights';

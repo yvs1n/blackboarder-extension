@@ -1,5 +1,5 @@
 import type { UserCourseConfig } from '../types';
-import { esc } from '../utils/uiCommon';
+import { esc } from '../utils/ui/uiCommon';
 
 /** The courses that fit what has been typed, best first: name starts with it, then a word does, then it appears anywhere (name, code or keyword). */
 export function filterCourses(courses: UserCourseConfig[], query: string): UserCourseConfig[] {

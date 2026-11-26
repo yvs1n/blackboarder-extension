@@ -1,4 +1,4 @@
-import { saveSettings, getCachedSettingsSync } from '../../utils/storage';
+import { saveSettings, getCachedSettingsSync } from '../../utils/storage/index';
 import { popupActions, popupState } from './state';
 
 const THEME_SYSTEM_DEFAULT_FLAG = 'bbs_theme_system_default_v1';

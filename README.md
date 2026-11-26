@@ -1,7 +1,7 @@
 # ⚡ Blackboarder
 
 <p align="center">
-  <img src="assets/logo.png" alt="Blackboarder Logo" width="160" height="160" />
+  <img src="assets/branding/logo.png" alt="Blackboarder Logo" width="160" height="160" />
 </p>
 
 <p align="center">
@@ -197,16 +197,17 @@ blackboarder-extension/
 |   |-- rulebook/         Compiled applicability & zero-weight rules for Hidden triage
 |   |-- engine/           Deadline detection & bilingual Arabic translation (local + optional AI)
 |   |-- core/             Courses, weights, schedules, i18n, calibration wizard, shared preferences
-|   `-- utils/            Storage (storage/), Firebase sync, calendar, task merging
+|   `-- utils/            Utilities grouped into storage/, sync/, tasks/, marks/, extension/, ui/
 |
 |-- dist/                 Built extension; load this folder (generated)
+|-- assets/               Shared branding, extension icons, and fonts
 |-- updater/              Optional native update helper (copied into dist/ by the build)
 |-- update.bat, update.sh Optional one-time updater registration
-|-- windows-widget/       Windows 10/11 desktop & lock screen companion source (BlackboarderWidget.exe)
-|-- public/               Extension manifest template and icons
+|-- widgets/windows/      Windows 10/11 desktop & lock screen companion source (BlackboarderWidget.exe)
+|-- public/               Extension manifest template (`manifest.json`)
 |-- scripts/              Build, lint and packaging scripts
-|-- tests/                Automated tests
-|-- docs/                 Install guide
+|-- tests/                Automated tests (grouped by domain)
+|-- docs/                 Install guide, privacy policy, and terms
 |
 |-- CHANGELOG.md          Release notes
 `-- AGENTS.md             Project map and rules for contributors and coding agents

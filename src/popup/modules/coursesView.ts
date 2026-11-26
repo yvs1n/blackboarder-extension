@@ -5,19 +5,19 @@ import type {
   UserCourseConfig,
   Weekday,
 } from '../../types';
-import { pushTasksToFirebase } from '../../utils/firebaseSync';
-import { compareTasksByTime } from '../../utils/calendar';
+import { pushTasksToFirebase } from '../../utils/sync/firebaseSync';
+import { compareTasksByTime } from '../../utils/tasks/calendar';
 import {
   getCoursesUpdatedAt,
   getQuickLinksUpdatedAt,
   getSettings,
   recalculateTasksWithActiveCourses,
   saveUserCourses,
-} from '../../utils/storage';
+} from '../../utils/storage/index';
 import { isBlackboardSystemNoise } from '../../core/courseHelper';
-import { getLocalTombstones } from '../../utils/tombstones';
+import { getLocalTombstones } from '../../utils/storage/tombstones';
 import { parseSyllabusWeightsText } from '../../core/courseImporter';
-import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
+import { escapeHtml, getSvgIcon } from '../../utils/ui/uiCommon';
 import {
   exportCoursesJson,
   handleConfirmBannerImport,

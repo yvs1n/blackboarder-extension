@@ -10,8 +10,8 @@ import type {
 } from '../types';
 import { matchExistingCourse, type CourseDraft } from './courseDocument';
 import { parseCourseDetails } from './courseHelper';
-import { round2 } from '../utils/uiCommon';
-import { esc } from '../utils/uiCommon';
+import { round2 } from '../utils/ui/uiCommon';
+import { esc } from '../utils/ui/uiCommon';
 
 function cleanCourseName(raw: string): string {
   const trimmed = String(raw || '').trim();

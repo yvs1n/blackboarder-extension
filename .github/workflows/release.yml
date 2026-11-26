@@ -33,7 +33,7 @@ jobs:
 
       - name: Publish BlackboarderWidget.exe
         run: |
-          dotnet publish windows-widget/BlackboarderWidget.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release-win
+          dotnet publish widgets/windows/BlackboarderWidget.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o release-win
 
       - name: Upload Windows widget artifact
         uses: actions/upload-artifact@v4

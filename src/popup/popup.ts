@@ -2,9 +2,9 @@ import { isValidTask } from '../core/courseHelper';
 import { setActiveUserCourses } from '../core/userCourses';
 import { sanitizeSemesters } from '../core/semesters';
 import { profileUniversity } from '../core/studentProfile';
-import { compareTasksByTime } from '../utils/calendar';
-import { purgeSyntheticGradebookTasks } from '../utils/gradebook';
-import { SEMESTERS_STORAGE_KEY } from '../utils/semestersStorage';
+import { compareTasksByTime } from '../utils/tasks/calendar';
+import { purgeSyntheticGradebookTasks } from '../utils/marks/gradebook';
+import { SEMESTERS_STORAGE_KEY } from '../utils/storage/semestersStorage';
 import {
   getCachedCoursesSync,
   getCachedPaymentsSync,
@@ -16,9 +16,9 @@ import {
   getTasks,
   getUserCourses,
   saveTasksMergingLatest,
-} from '../utils/storage';
-import { deduplicateTaskList } from '../utils/taskMerge';
-import { recordLocalTombstone } from '../utils/tombstones';
+} from '../utils/storage/index';
+import { deduplicateTaskList } from '../utils/tasks/taskMerge';
+import { recordLocalTombstone } from '../utils/storage/tombstones';
 import { initUniversitySettings } from './universitySettings';
 import { initAiExtractModal } from './modules/aiExtractModal';
 import {

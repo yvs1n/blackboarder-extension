@@ -189,14 +189,14 @@ async function runPackaging() {
   zipDirectory(RELEASE_EXT_DIR, EXT_ZIP);
 
   // The same extension without the self-updater, the file to upload to the Chrome Web Store and Edge Add-ons
-  const STORE_SRC_DIR = path.join(ROOT_DIR, 'dist-store');
+  const STORE_SRC_DIR = path.join(ROOT_DIR, 'build', 'store');
   if (fs.existsSync(STORE_SRC_DIR)) {
     console.log('  -> Compressing blackboarder-extension-store.zip...');
     zipDirectory(STORE_SRC_DIR, path.join(RELEASE_DIR, 'blackboarder-extension-store.zip'));
   }
 
   // Firefox & Firefox for Android build (no Chromium-only sidePanel or nativeMessaging permissions)
-  const FIREFOX_SRC_DIR = path.join(ROOT_DIR, 'dist-firefox');
+  const FIREFOX_SRC_DIR = path.join(ROOT_DIR, 'build', 'firefox');
   if (fs.existsSync(FIREFOX_SRC_DIR)) {
     console.log('  -> Compressing blackboarder-android-firefox.zip...');
     zipDirectory(FIREFOX_SRC_DIR, path.join(RELEASE_DIR, 'blackboarder-android-firefox.zip'));

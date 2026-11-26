@@ -9,7 +9,7 @@ import {
 } from '../../core/i18n';
 import { resolveAiEndpoint } from '../../engine/aiProviders';
 import { translateTasksToArabicWithAi } from '../../engine/aiTranslator';
-import { getSettings, saveSettings } from '../../utils/storage';
+import { getSettings, saveSettings } from '../../utils/storage/index';
 import { renderAdminBanners } from './adminBanners';
 import { popupActions, popupState } from './state';
 

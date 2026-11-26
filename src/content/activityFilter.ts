@@ -17,7 +17,7 @@ import { findConfiguredCourseHex } from '../core/courseColors';
 import { isBlackboardSystemNoise } from '../core/courseHelper';
 import { getActiveUserCourses } from '../core/userCourses';
 import { isOrientationOrSandboxCourse } from '../scan/blackboardApi';
-import { getUserCourses } from '../utils/storage';
+import { getUserCourses } from '../utils/storage/index';
 import { getBlackboardMemberships } from './courseColorPainter';
 
 type GetJson = (path: string) => Promise<any>;

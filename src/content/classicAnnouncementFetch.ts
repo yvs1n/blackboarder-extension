@@ -1,8 +1,8 @@
 import { Announcement } from '../types';
 import { getActiveUserCourses } from '../core/userCourses';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
-import { GET_BLACKBOARD_XSRF, needsXsrf, XSRF_HEADER } from '../utils/blackboardXsrf';
-import { detectUniversityFromHost, getProfile, saveProfile } from '../utils/profile';
+import { GET_BLACKBOARD_XSRF, needsXsrf, XSRF_HEADER } from '../utils/extension/blackboardXsrf';
+import { detectUniversityFromHost, getProfile, saveProfile } from '../utils/storage/profile';
 import {
   ApiResult,
   BbFetch,

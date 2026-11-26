@@ -7,9 +7,9 @@ import type {
   UserCourseConfig
 } from '../types';
 import { GradeRow } from './universities';
-import { buildGpaSummary, GpaSummary, DEFAULT_CREDIT_HOURS, resolveCreditHours } from '../utils/gpa';
+import { buildGpaSummary, GpaSummary, DEFAULT_CREDIT_HOURS, resolveCreditHours } from '../utils/marks/gpa';
 import { userCoursesToSyllabi } from './userCourses';
-import { round1, round2 } from '../utils/uiCommon';
+import { round1, round2 } from '../utils/ui/uiCommon';
 
 /** Cleans and normalizes an array of archived semesters from storage or cloud sync. */
 export function sanitizeSemesters(raw: unknown): ArchivedSemester[] {

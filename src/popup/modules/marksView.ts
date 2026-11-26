@@ -1,9 +1,9 @@
 import type { ArchivedSemester, DeadlineTask, StudentProfile, UserCourseConfig } from '../../types';
 import { getAllSyllabi } from '../../core/syllabusWeights';
 import { getCourseHex } from '../../core/courseColors';
-import { saveTasksMergingLatest, saveUserCourses } from '../../utils/storage';
-import { getStoredSemesters, saveStoredSemesters } from '../../utils/semestersStorage';
-import { saveProfile } from '../../utils/profile';
+import { saveTasksMergingLatest, saveUserCourses } from '../../utils/storage/index';
+import { getStoredSemesters, saveStoredSemesters } from '../../utils/storage/semestersStorage';
+import { saveProfile } from '../../utils/storage/profile';
 import { getCachedProfile, renderStudentIdentity } from '../universitySettings';
 import {
   initMarksViewController,
@@ -11,7 +11,7 @@ import {
   renderGradeTracker as marksRenderGradeTracker,
   updateSemesterSelector as marksUpdateSemesterSelector,
 } from '../marksViewController';
-import { shouldPromptForCompletionScore } from '../../utils/marks';
+import { shouldPromptForCompletionScore } from '../../utils/marks/marks';
 import { popupActions, popupState } from './state';
 
 export function getMarksControllerHooks() {

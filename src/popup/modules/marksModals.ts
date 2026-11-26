@@ -1,11 +1,11 @@
 import type { DeadlineTask } from '../../types';
 import { bonusTargetOptionsForCourse, formatTaskWeightDisplay } from '../../core/syllabusWeights';
-import { escapeHtml } from '../../utils/uiCommon';
+import { escapeHtml } from '../../utils/ui/uiCommon';
 import { detectSemesterName, archiveActiveSemester } from '../../core/semesters';
 import { profileGradeScale } from '../../core/studentProfile';
-import { buildGpaSummary } from '../../utils/gpa';
-import { compareTasksByTime } from '../../utils/calendar';
-import { deduplicateTaskList } from '../../utils/taskMerge';
+import { buildGpaSummary } from '../../utils/marks/gpa';
+import { compareTasksByTime } from '../../utils/tasks/calendar';
+import { deduplicateTaskList } from '../../utils/tasks/taskMerge';
 import type { MarksControllerHooks } from '../marksViewController';
 
 export interface MarksModalCallbacks {

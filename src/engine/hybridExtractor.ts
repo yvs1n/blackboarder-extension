@@ -10,8 +10,8 @@ import {
 } from '../core/announcementReconcile';
 import { isPresentationTitle, isBareTypeTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts, isExamReviewSession } from '../core/courseHelper';
 import { parseTime } from './localDateTime';
-import { coreTitle, isPracticeTitle } from '../utils/streamParser';
-import { areTasksDuplicates } from '../utils/taskMerge';
+import { coreTitle, isPracticeTitle } from '../utils/tasks/streamParser';
+import { areTasksDuplicates } from '../utils/tasks/taskMerge';
 import { isMakeupSupersededByCompletedOriginal } from '../core/makeupFilter';
 import { evaluateTaskList, extractHiddenReviewSessionTask } from '../rulebook';
 

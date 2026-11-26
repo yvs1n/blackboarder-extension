@@ -1,6 +1,6 @@
 import type { DeadlineTask, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
 import { type CourseSyllabus } from '../core/syllabusWeights';
-import { escapeHtml } from '../utils/uiCommon';
+import { escapeHtml } from '../utils/ui/uiCommon';
 import {
   partitionCoursesBySemester,
   calculateCgpa,
@@ -8,13 +8,13 @@ import {
 } from '../core/semesters';
 import { calculateTrajectoryTargetPlan } from '../core/targetGpa';
 import { profileGradeScale, profileUniversity } from '../core/studentProfile';
-import { buildGpaSummary } from '../utils/gpa';
-import { buildMarksSummary, deleteMarkFromTasks, toggleMarkIgnoredInTasks } from '../utils/marks';
-import { recordLocalTombstone, removeLocalTombstone } from '../utils/tombstones';
-import { gradesBadgeText, gradesHtml, archivedSemesterHtml } from '../utils/grades';
-import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/syllabusProgress';
-import { compareTasksByTime } from '../utils/calendar';
-import { deduplicateTaskList } from '../utils/taskMerge';
+import { buildGpaSummary } from '../utils/marks/gpa';
+import { buildMarksSummary, deleteMarkFromTasks, toggleMarkIgnoredInTasks } from '../utils/marks/marks';
+import { recordLocalTombstone, removeLocalTombstone } from '../utils/storage/tombstones';
+import { gradesBadgeText, gradesHtml, archivedSemesterHtml } from '../utils/marks/grades';
+import { buildSyllabusProgress, syllabusProgressHtml } from '../utils/marks/syllabusProgress';
+import { compareTasksByTime } from '../utils/tasks/calendar';
+import { deduplicateTaskList } from '../utils/tasks/taskMerge';
 import { initMarksModals, openCompleteScoreModal } from './modules/marksModals';
 
 export { openCompleteScoreModal };

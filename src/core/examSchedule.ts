@@ -9,7 +9,7 @@ import { getActiveUserCourses, compileCoursePattern } from './userCourses';
 import { resolveTaskWeight, resolveSingletonSyllabusKey } from './syllabusWeights';
 import { isMakeupTask } from './makeupFilter';
 import { resolveTaskRoom, isPlausibleRoom } from './courseSchedule';
-import { format12Hour } from '../utils/uiCommon';
+import { format12Hour } from '../utils/ui/uiCommon';
 
 export interface ExamScheduleRow {
   crn: string;

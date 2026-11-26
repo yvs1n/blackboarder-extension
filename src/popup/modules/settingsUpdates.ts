@@ -8,8 +8,8 @@ import {
 } from '../../background/autoUpdate';
 import { BUILD_INFO } from '../../buildInfo';
 import { createStateMachine } from '../../core/stateMachine';
-import { IS_STORE_BUILD } from '../../utils/storeBuild';
-import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/updateBanner';
+import { IS_STORE_BUILD } from '../../utils/extension/storeBuild';
+import { describeUpdateBanner, ENABLE_UPDATES_HINT, isUpdateStatusFresh } from '../../utils/extension/updateBanner';
 import {
   EDGE_ADDONS_URL,
   CHROME_WEB_STORE_URL,
@@ -19,7 +19,7 @@ import {
   PRIVACY_POLICY_URL,
   storeForBrowser,
   TERMS_OF_SERVICE_URL
-} from '../../utils/updateChecker';
+} from '../../utils/extension/updateChecker';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions } from './state';
 

@@ -126,7 +126,7 @@ jsonFiles.forEach(rel => {
 
 // 5. Check for Em-Dashes in user-facing markdown
 console.log('\n--- Checking Typography (No Em-Dashes in Documentation) ---');
-const docsFiles = ['README.md', 'docs/INSTALL_EXTENSION.md', 'docs/HOSTING_GUIDE.md', 'docs/WALKTHROUGH.md', 'AGENTS.md'];
+const docsFiles = ['README.md', 'docs/INSTALL_EXTENSION.md', 'docs/HOSTING_GUIDE.md', 'docs/WALKTHROUGH.md', 'docs/PRIVACY.md', 'docs/TERMS.md', 'AGENTS.md'];
 docsFiles.forEach(rel => {
   const full = path.join(ROOT, rel);
   if (fs.existsSync(full)) {

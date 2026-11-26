@@ -5,7 +5,7 @@
  */
 import type { UserCourseConfig } from '../types';
 import { matchExistingCourse, type CourseDraft, type CourseImportPick } from './courseDocument';
-import { esc } from '../utils/uiCommon';
+import { esc } from '../utils/ui/uiCommon';
 
 const SHORT_DAY: Record<string, string> = {
   Sunday: 'Sun', Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat'

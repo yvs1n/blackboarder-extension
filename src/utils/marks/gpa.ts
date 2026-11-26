@@ -1,0 +1,282 @@
+import type { DeadlineTask, TaskType } from '../../types';
+import { GradeRow } from '../../core/universities';
+import { sanitizeTaskListMarks, extractAssessmentNumber } from '../tasks/taskMerge';
+import { coreTitle } from '../tasks/streamParser';
+import { round1, round2 } from '../ui/uiCommon';
+import { bonusEarnedAmount, matchBonusComponent } from './marks';
+
+/**
+ * University of Sharjah undergraduate grading (4-point scale, catalog 2025-2026):
+ * a course percentage maps to a letter and its grade points. D is the lowest pass.
+ */
+export const UOS_GRADE_SCALE: ReadonlyArray<{ letter: string; min: number; points: number }> = [
+  { letter: 'A', min: 90, points: 4.0 },
+  { letter: 'B+', min: 85, points: 3.5 },
+  { letter: 'B', min: 80, points: 3.0 },
+  { letter: 'C+', min: 75, points: 2.5 },
+  { letter: 'C', min: 70, points: 2.0 },
+  { letter: 'D+', min: 65, points: 1.5 },
+  { letter: 'D', min: 60, points: 1.0 },
+  { letter: 'F', min: 0, points: 0 }
+];
+
+/** Credit hours used when a course does not say (most UOS courses are 3). */
+export const DEFAULT_CREDIT_HOURS = 3;
+
+/** Parses non-negative credit hours, keeping explicit 0 (non-credit/training courses) distinct from unset. */
+export function resolveCreditHours(raw: unknown, fallback = DEFAULT_CREDIT_HOURS): number {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+export function gradeForPercent(percent: number, scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): { letter: string; points: number } {
+  const rows = scale.length ? scale : UOS_GRADE_SCALE;
+  const row = rows.find(g => percent >= g.min) || rows[rows.length - 1];
+  return { letter: row.letter, points: row.points };
+}
+
+/** The fields this needs from a syllabus component (the extension and phone shapes both have them). */
+export interface GpaComponent {
+  id?: string;
+  name: string;
+  type: TaskType;
+  totalWeight: number;
+  /** How many items count towards the grade */
+  count?: number;
+  /** How many items are held, when only the best `count` of them count */
+  outOf?: number;
+  note?: string;
+  matcher: RegExp;
+}
+
+export interface GpaSyllabus {
+  courseName: string;
+  courseCodePattern: RegExp;
+  totalWeight?: number;
+  creditHours?: number;
+  components?: GpaComponent[];
+}
+
+export interface GradedItem {
+  title: string;
+  percent: number;
+}
+
+export interface ComponentGrade {
+  name: string;
+  /** Items that count, best first */
+  counted: GradedItem[];
+  /** Items left out because only the best ones count */
+  dropped: GradedItem[];
+  /** Count rule, e.g. "best 2 of 3" */
+  rule?: string;
+}
+
+export interface CourseGrade {
+  courseName: string;
+  creditHours: number;
+  /** Course weight already graded (counted items only) */
+  gradedWeight: number;
+  /** Course percentage earned from that weight (including bonus marks) */
+  earnedWeight: number;
+  /** Extra credit bonus marks earned */
+  bonusWeight?: number;
+  /** Score on what is graded so far, 0-100; undefined before the first mark */
+  percent?: number;
+  letter?: string;
+  points?: number;
+  components: ComponentGrade[];
+}
+
+export interface GpaSummary {
+  courses: CourseGrade[];
+  /** Projected GPA over courses with at least one mark, rounded to 2 decimals like the registrar */
+  gpa?: number;
+  /** Credit hours behind that GPA */
+  gradedCredits: number;
+  totalCredits: number;
+}
+
+/**
+ * Reads "best 2 of 3", "top 3 of 4", "4 scheduled, top 3 counted" or "best 3 out of 4" from a
+ * syllabus note, for courses set up before the count rule had its own field.
+ */
+export function bestOfFromNote(note?: string): { count: number; outOf: number } | null {
+  if (!note) return null;
+  const m = note.match(/\b(?:best|top|highest)\s+(\d+)\s+(?:out\s+)?of\s+(?:the\s+)?(\d+)/i);
+  if (m) return { count: +m[1], outOf: +m[2] };
+  const held = note.match(/(\d+)\s+(?:scheduled|held|given)[^0-9]*\b(?:best|top|highest)\s+(\d+)/i);
+  if (held) return { count: +held[2], outOf: +held[1] };
+  return null;
+}
+
+function isGraded(t: DeadlineTask): boolean {
+  if (t.isBonus) {
+    if (t.submissionStatus !== 'graded') return false;
+    if (typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0) return true;
+    return typeof (t.score ?? t.weight) === 'number' && Number(t.score ?? t.weight) > 0;
+  }
+  return t.submissionStatus === 'graded' && typeof t.score === 'number' && !!t.maxScore && t.maxScore > 0;
+}
+
+function pickComponent(task: DeadlineTask, components: GpaComponent[]): GpaComponent | undefined {
+  const title = task.title || '';
+  return components.find(c => c.type === task.type && c.matcher.test(title))
+    || components.find(c => c.matcher.test(title))
+    || components.find(c => c.type === task.type);
+}
+
+/**
+ * Each course's grade so far and the projected GPA, from the marks Blackboard has given.
+ * Where the syllabus counts only the best items ("best 2 of 3 quizzes"), the best ones count and
+ * the rest are dropped. Items not graded yet do not count either way, so the grade is the score
+ * on what has been marked so far.
+ */
+export function buildGpaSummary(tasks: DeadlineTask[], syllabi: GpaSyllabus[], scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE): GpaSummary {
+  const cleanTasks = sanitizeTaskListMarks(tasks || []).filter(t =>
+    t &&
+    !/orientation|توجيه|تهيئة/i.test(t.courseName || '') &&
+    !/orientation/i.test(t.courseCode || '') &&
+    !/orientation|توجيه|تهيئة/i.test(t.title || '')
+  );
+  const graded = cleanTasks.filter(t => t && !t.ignoreMark && t.visibility !== 'hidden' && isGraded(t));
+  const courses: CourseGrade[] = [];
+
+  for (const syl of syllabi || []) {
+    const creditHours = resolveCreditHours(syl.creditHours);
+    const totalWeight = syl.totalWeight || 100;
+    const mine = graded.filter(t =>
+      syl.courseCodePattern.test(t.courseName || '') || syl.courseCodePattern.test(t.courseCode || '')
+    );
+    const components = syl.components || [];
+    const byComponent = new Map<GpaComponent, GradedItem[]>();
+    let gradedWeight = 0;
+    let earnedWeight = 0;
+
+    const uniqueMine: DeadlineTask[] = [];
+    for (const t of mine) {
+      const exists = uniqueMine.some(u => {
+        if (Boolean(u.isBonus) !== Boolean(t.isBonus)) return false;
+        if (t.gradeSourceId && u.gradeSourceId && t.gradeSourceId === u.gradeSourceId) return true;
+        const coreT = coreTitle(t.title);
+        const coreU = coreTitle(u.title);
+        if (coreT && coreU && coreT.length >= 4 && coreT === coreU) return true;
+        const numT = extractAssessmentNumber(t.title);
+        const numU = extractAssessmentNumber(u.title);
+        const typeT = (t.type || '').toLowerCase();
+        const typeU = (u.type || '').toLowerCase();
+        if (numT !== null && numU !== null && numT === numU) {
+          const isQuizT = /quiz|كويز/i.test(t.title);
+          const isQuizU = /quiz|كويز/i.test(u.title);
+          if (isQuizT && isQuizU) return true;
+          const isLabT = /lab|تقرير/i.test(t.title);
+          const isLabU = /lab|تقرير/i.test(u.title);
+          if (isLabT && isLabU) return true;
+          if (typeT === typeU) return true;
+        }
+        return false;
+      });
+      if (!exists) uniqueMine.push(t);
+    }
+
+    let bonusWeight = 0;
+    const componentBonus = new Map<GpaComponent, number>();
+    for (const t of uniqueMine) {
+      if (t.isBonus) {
+        const targetComp = matchBonusComponent(t, components);
+        const bVal = bonusEarnedAmount(t, totalWeight, targetComp?.totalWeight);
+        if (bVal > 0) {
+          if (targetComp) {
+            componentBonus.set(targetComp, (componentBonus.get(targetComp) || 0) + bVal);
+          } else {
+            // Pure bonus on course total (adds directly even after percentage weights)
+            earnedWeight += bVal;
+            bonusWeight += bVal;
+          }
+        }
+        continue;
+      }
+      const item = { title: t.title, percent: (t.score! / t.maxScore!) * 100 };
+      const comp = pickComponent(t, components);
+      if (comp) {
+        const list = byComponent.get(comp) || [];
+        list.push(item);
+        byComponent.set(comp, list);
+      } else if (Number(t.weight) > 0) {
+        // Not in the syllabus, but the item says what it is worth
+        gradedWeight += Number(t.weight);
+        earnedWeight += (item.percent / 100) * Number(t.weight);
+      }
+    }
+
+    const componentGrades: ComponentGrade[] = [];
+    for (const comp of components) {
+      const items = (byComponent.get(comp) || []).sort((a, b) => b.percent - a.percent);
+      const compExtra = componentBonus.get(comp) || 0;
+      if (!items.length) {
+        if (compExtra > 0) {
+          const appliedExtra = comp.totalWeight > 0 ? Math.min(compExtra, comp.totalWeight) : compExtra;
+          earnedWeight += appliedExtra;
+          bonusWeight += appliedExtra;
+        }
+        continue;
+      }
+      const fromNote = bestOfFromNote(comp.note);
+      const count = comp.count || fromNote?.count;
+      const outOf = comp.outOf || fromNote?.outOf;
+      let counted = items;
+      let dropped: GradedItem[] = [];
+      let compEarned = 0;
+      if (count && count > 0) {
+        // Each counted item is worth an equal share; only the best `count` count
+        counted = items.slice(0, count);
+        dropped = items.slice(count);
+        const unit = comp.totalWeight / count;
+        gradedWeight += counted.length * unit;
+        compEarned = counted.reduce((s, i) => s + (i.percent / 100) * unit, 0);
+      } else {
+        // One item, or several averaged into the component
+        const avg = items.reduce((s, i) => s + i.percent, 0) / items.length;
+        gradedWeight += comp.totalWeight;
+        compEarned = (avg / 100) * comp.totalWeight;
+      }
+      earnedWeight += compEarned;
+      if (compExtra > 0) {
+        const roomLeft = comp.totalWeight > 0 ? Math.max(0, comp.totalWeight - compEarned) : compExtra;
+        const appliedExtra = Math.min(compExtra, roomLeft);
+        earnedWeight += appliedExtra;
+        bonusWeight += appliedExtra;
+      }
+      componentGrades.push({
+        name: comp.name,
+        counted: counted.map(i => ({ ...i, percent: round1(i.percent) })),
+        dropped: dropped.map(i => ({ ...i, percent: round1(i.percent) })),
+        rule: count && outOf && outOf > count ? `best ${count} of ${outOf}` : undefined
+      });
+    }
+
+    gradedWeight = Math.min(gradedWeight, totalWeight);
+    const course: CourseGrade = {
+      courseName: syl.courseName,
+      creditHours,
+      gradedWeight: round1(gradedWeight),
+      earnedWeight: round1(earnedWeight),
+      bonusWeight: bonusWeight > 0 ? round1(bonusWeight) : undefined,
+      components: componentGrades
+    };
+    if (gradedWeight > 0) {
+      course.percent = Math.min(100, round1((earnedWeight / gradedWeight) * 100));
+      Object.assign(course, gradeForPercent(course.percent, scale));
+    }
+    courses.push(course);
+  }
+
+  const counted = courses.filter(c => c.points !== undefined);
+  const gradedCredits = counted.reduce((s, c) => s + c.creditHours, 0);
+  const totalCredits = courses.reduce((s, c) => s + c.creditHours, 0);
+  const summary: GpaSummary = { courses, gradedCredits, totalCredits };
+  if (gradedCredits > 0) {
+    summary.gpa = round2(counted.reduce((s, c) => s + c.points! * c.creditHours, 0) / gradedCredits);
+  }
+  return summary;
+}

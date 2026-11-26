@@ -7,11 +7,11 @@ import { profileUniversity } from '../../core/studentProfile';
 import { getActiveUserCourses } from '../../core/userCourses';
 import { resolveTaskWeight } from '../../core/syllabusWeights';
 import { extractDeadlinesLocally } from '../../engine/localExtractor';
-import { fetchTasksFromFirebase, overwriteCloudVault, pushTasksToFirebase } from '../../utils/firebaseSync';
-import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer, isLocalBackupEpochNewer } from '../../utils/backupRestore';
-import { purgeSyntheticGradebookTasks } from '../../utils/gradebook';
-import { compareTasksByTime } from '../../utils/calendar';
-import { SEMESTERS_STORAGE_KEY } from '../../utils/semestersStorage';
+import { fetchTasksFromFirebase, overwriteCloudVault, pushTasksToFirebase } from '../../utils/sync/firebaseSync';
+import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer, isLocalBackupEpochNewer } from '../../utils/storage/backupRestore';
+import { purgeSyntheticGradebookTasks } from '../../utils/marks/gradebook';
+import { compareTasksByTime } from '../../utils/tasks/calendar';
+import { SEMESTERS_STORAGE_KEY } from '../../utils/storage/semestersStorage';
 import {
   generateUniqueSyncKey,
   getCachedCoursesSync,
@@ -31,16 +31,16 @@ import {
   saveUserCourses,
   SCAN_STATUS_KEY,
   type ScanStatus,
-} from '../../utils/storage';
-import { pickNewerList } from '../../utils/syncMerge';
+} from '../../utils/storage/index';
+import { pickNewerList } from '../../utils/sync/syncMerge';
 import {
   findLegacyNamelessTaskIds,
   isValidTask,
   resolveCourseInfo,
   sanitizeDoctorAnnouncementText,
 } from '../../core/courseHelper';
-import { deduplicateTaskList, getTaskSeriesInfo, mergeCloudTasks, mergeTombstones } from '../../utils/taskMerge';
-import { awaitTombstonesPersisted, getLocalTombstones, pruneSupersededTombstones, recordLocalTombstone } from '../../utils/tombstones';
+import { deduplicateTaskList, getTaskSeriesInfo, mergeCloudTasks, mergeTombstones } from '../../utils/tasks/taskMerge';
+import { awaitTombstonesPersisted, getLocalTombstones, pruneSupersededTombstones, recordLocalTombstone } from '../../utils/storage/tombstones';
 import { getCachedProfile } from '../universitySettings';
 import { applyTheme } from './theme';
 import { applyLanguageUi } from './language';

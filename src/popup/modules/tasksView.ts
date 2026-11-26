@@ -2,9 +2,9 @@ import type { DeadlineTask } from '../../types';
 import { localizedTaskView } from '../../core/arabicTranslator';
 import { localizeTaskTypeLabel } from '../../core/i18n';
 import { getCourseColorTheme } from '../../core/courseColors';
-import { compareTasksByTime, formatCountdown } from '../../utils/calendar';
+import { compareTasksByTime, formatCountdown } from '../../utils/tasks/calendar';
 import { resolveCourseInfo } from '../../core/courseHelper';
-import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/uiCommon';
+import { escapeHtml, getSvgIcon, getTaskTypeIcon } from '../../utils/ui/uiCommon';
 import { getCurrentTrajectoryPlan, getTaskTargetBadgeHtml } from './dayDrawer';
 import {
   renderSummaryAndNotesForExt,

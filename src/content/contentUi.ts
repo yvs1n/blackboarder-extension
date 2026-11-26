@@ -1,4 +1,4 @@
-import { isExtensionContextValid, setScanStatus } from '../utils/storage';
+import { isExtensionContextValid, setScanStatus } from '../utils/storage/index';
 
 const CONTENT_INSTANCE_ID = Math.random().toString(36).slice(2);
 let toastDismissTimer: any = null;

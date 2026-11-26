@@ -1,6 +1,6 @@
 import { Announcement, DeadlineTask, TaskSubmissionUpdate } from '../types';
 import { parseCourseDetails, sanitizeDoctorAnnouncementText, isBlackboardSystemNoise, hasValidAcademicCourseCode } from '../core/courseHelper';
-import { parseDirectStreamCard, parseSubmissionOrGradeCard } from '../utils/streamParser';
+import { parseDirectStreamCard, parseSubmissionOrGradeCard } from '../utils/tasks/streamParser';
 import { extractDateStringFromText, fetchFullAnnouncementBodyFromCode } from './classicAnnouncementFetch';
 
 /**

@@ -8,9 +8,9 @@ import {
   summarizePayments,
   universityPaymentGuide
 } from '../../core/payments';
-import { getCachedSettingsSync, saveSettings, saveStoredPayments } from '../../utils/storage';
-import { recordLocalTombstone, removeLocalTombstone } from '../../utils/tombstones';
-import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
+import { getCachedSettingsSync, saveSettings, saveStoredPayments } from '../../utils/storage/index';
+import { recordLocalTombstone, removeLocalTombstone } from '../../utils/storage/tombstones';
+import { escapeHtml, getSvgIcon } from '../../utils/ui/uiCommon';
 import { getCachedProfile } from '../universitySettings';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
