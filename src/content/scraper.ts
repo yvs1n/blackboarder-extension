@@ -124,6 +124,8 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
     await setScanStatus({ state: 'running', message: 'Reading exam schedule...' });
   }
 
+  await getUserCourses().catch(() => []);
+
   const tombstones: Record<string, string> = await new Promise(resolve => {
     try {
       chrome.storage.local.get(['bbs_tombstones'], res => resolve((res?.bbs_tombstones as Record<string, string>) || {}));
@@ -188,10 +190,12 @@ async function runExamScheduleScan(run: ScanRun, waitMs?: number): Promise<{ fou
 
   const badge = document.getElementById('bbs-floating-badge');
   if (badge) {
-    const pendingCount = finalTasks.filter(t => t.status === 'pending').length;
+    const pendingCount = finalTasks.filter(t => t.status === 'pending' && t.visibility !== 'hidden').length;
     if (pendingCount > 0) {
       badge.textContent = String(pendingCount);
       badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
     }
   }
 

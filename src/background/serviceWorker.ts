@@ -2,6 +2,7 @@ import { DeadlineTask, UserSettings, DEFAULT_SETTINGS, QuickLink } from '../type
 import { pushTasksToFirebase, fetchTasksFromFirebase, markCloudScanRequestCompleted, overwriteCloudVault } from '../utils/firebaseSync';
 import { applyCloudSnapshotAuthoritatively, getLocalBackupEpoch, isCloudBackupEpochNewer, isLocalBackupEpochNewer } from '../utils/backupRestore';
 import { deduplicateTaskList, mergeCloudTasks, mergeTombstones } from '../utils/taskMerge';
+import { pruneSupersededTombstones } from '../utils/tombstones';
 import { pickNewerList } from '../utils/syncMerge';
 import { OPENROUTER_CHAT_URL, aiRequestHeaders, isAllowedAiChatUrl, ifmOriginRule, IFM_ORIGIN_RULE_ID } from '../engine/aiProviders';
 import { getTasks, getUserCourses, getCoursesUpdatedAt, saveUserCourses, getQuickLinks, getQuickLinksUpdatedAt, saveQuickLinks, getStoredPayments, mergeCloudPaymentsStorage } from '../utils/storage';
@@ -165,6 +166,10 @@ async function pullTasksFromFirebaseToLocal(): Promise<boolean> {
 
     const { tasks: mergedRaw, changed: mergeChanged } = mergeCloudTasks(localTasks, res.tasks, tombstones);
     const tasks = deduplicateTaskList(mergedRaw);
+    const cleanedTombstones = pruneSupersededTombstones(tasks, tombstones);
+    if (JSON.stringify(cleanedTombstones) !== JSON.stringify(localTombs)) {
+      await chrome.storage.local.set({ bbs_tombstones: cleanedTombstones });
+    }
     const ruleChanged = JSON.stringify(tasks) !== JSON.stringify(localTasks);
     const changed = mergeChanged || ruleChanged;
     const paymentsChanged = await mergeCloudPaymentsStorage(res.payments, res.paymentsUpdatedAt, tombstones).catch(() => false);

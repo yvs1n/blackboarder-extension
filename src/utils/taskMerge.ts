@@ -5,7 +5,7 @@ import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints, resolveSingletonSyllabusKey } from '../core/syllabusWeights';
 import { isExamItem, hasScanTimeDueDate } from './gradebook';
 import { sanitizeTaskMarks, sanitizeTaskListMarks } from './taskMarkSanitize';
-import { canPairBonusWithScannedTask, isBonusTaskText } from '../core/makeupFilter';
+import { canPairBonusWithScannedTask, isBonusTaskText, areTasksIncompatibleForDedup } from '../core/makeupFilter';
 import { evaluateTaskList } from '../rulebook';
 
 export { extractAssessmentNumber, sanitizeTaskMarks, sanitizeTaskListMarks };
@@ -304,8 +304,8 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask, allTasks?: 
   const courses = compareTaskCourses(a, b);
   if (courses === 'different') return false;
 
-  // A practice run, mock exam, or sample paper never matches a real assessment
-  if (isPracticeTitle(a.title) !== isPracticeTitle(b.title)) return false;
+  // A practice run, mock exam, makeup, review, or incompatible status/visibility never merges with an active exam
+  if (isPracticeTitle(a.title) !== isPracticeTitle(b.title) || areTasksIncompatibleForDedup(a, b)) return false;
 
   // A bonus mark / bonus deadline only merges with a normal scanned task when allowed by course/quota rules
   if (!canPairBonusWithScannedTask(a, b, allTasks)) return false;

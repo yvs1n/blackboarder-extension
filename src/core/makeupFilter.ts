@@ -1,5 +1,5 @@
 import type { DeadlineTask } from '../types';
-import { resolveCourseInfo } from './courseHelper';
+import { isExamReviewTask, resolveCourseInfo } from './courseHelper';
 import {
   extractAssessmentNumber,
   findCourseSyllabus,
@@ -256,6 +256,39 @@ export function isMakeupSupersededByCompletedOriginal(
   return false;
 }
 
+export function isBannerExamTask(task?: Pick<DeadlineTask, 'id'> | null): boolean {
+  return Boolean(task && typeof task.id === 'string' && task.id.startsWith('banner_exam_'));
+}
+
+export function areTasksIncompatibleForDedup(a: DeadlineTask, b: DeadlineTask): boolean {
+  if (!a || !b) return true;
+  if ((a.status === 'dismissed') !== (b.status === 'dismissed')) return true;
+  if (((a.visibility === 'hidden') !== (b.visibility === 'hidden')) && (isBannerExamTask(a) || isBannerExamTask(b))) {
+    return true;
+  }
+  if (isMakeupTask(a) !== isMakeupTask(b)) return true;
+  if (isExamReviewTask(a) !== isExamReviewTask(b)) return true;
+  if ((isBannerExamTask(a) && normalizeSimpleType(b.type) !== 'exam') || (isBannerExamTask(b) && normalizeSimpleType(a.type) !== 'exam')) {
+    return true;
+  }
+  if (isBannerExamTask(a) !== isBannerExamTask(b)) {
+    const banner = isBannerExamTask(a) ? a : b;
+    const other = isBannerExamTask(a) ? b : a;
+    const bannerMs = Date.parse(banner.dueDate || '');
+    const otherMs = Date.parse(other.dueDate || '');
+    if (
+      isCompletedOrGradedTask(other) &&
+      !isNaN(bannerMs) &&
+      bannerMs > Date.now() &&
+      !isNaN(otherMs) &&
+      Math.abs(bannerMs - otherMs) > 3 * 24 * 60 * 60 * 1000
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Returns true when an unedited, non-bonus, ungraded auto-extracted task falls into a syllabus
  * component whose finite item quota (`count` or `outOf`) is already 100% completed/graded.
@@ -265,6 +298,7 @@ export function isUneditedExtraPastSyllabusQuota(
   allTasks: Iterable<DeadlineTask>
 ): boolean {
   if (!task || task.userEdited || task.extractedBy === 'manual') return false;
+  if (isBannerExamTask(task)) return false;
   if (isCompletedOrGradedTask(task)) return false;
   if (task.isBonus || isBonusTaskText(task)) return false;
 

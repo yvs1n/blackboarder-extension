@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.46] - 2026-11-26
+
+### Fixed
+
+- **Prevent Restored Banner Final Exams from Being Re-Merged & Re-Tombstoned (`src/core/makeupFilter.ts`, `src/utils/taskMerge.ts`, `src/core/examSchedule.ts`, `src/utils/tombstones.ts`, `src/utils/storage/tasksStorage.ts`, `src/content/scraper.ts`, `src/background/serviceWorker.ts`, `src/popup/modules/syncController.ts`, `src/utils/syncMerge.ts`):**
+  - Added `areTasksIncompatibleForDedup()` and `isBannerExamTask()` so `deduplicateTaskList()` never collapses an active official Banner exam (`banner_exam_*`) into a `dismissed`, `hidden`, `review_session`, `makeup`, or non-exam (`project`/`assignment`) sibling or a past completed item from another week, stopping `saveTasksMergingLatest` from immediately re-tombstoning freshly restored exams on every scan.
+  - Exempted `banner_exam_*` rows from `isUneditedExtraPastSyllabusQuota` (`B5.3.1`) and restored `status: 'pending'` / active visibility if an exact `banner_exam_*` match was previously `dismissed` or `hidden`.
+  - Added `pruneSupersededTombstones()` across `saveTasksMergingLatest`, `mergeForCloudWrite`, `pullTasksFromFirebaseToLocal`, and `pullTasksFromFirebaseIfNewer` so restoring an exam permanently erases its older tombstone instead of re-syncing it back from Firebase.
+  - Awaited `getUserCourses()` inside `runExamScheduleScan()` before matching exam rows and updated `#bbs-floating-badge` pending count to exclude `visibility === 'hidden'` items.
+
+---
+
 ## [1.8.45] - 2026-11-26
 
 ### Fixed

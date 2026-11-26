@@ -228,5 +228,41 @@ describe('two midterms in one course', () => {
     expect(env.store.bbs_tasks.some((t: DeadlineTask) => t.id === pastId)).toBe(false);
     expect(env.store.bbs_tombstones[upcomingIslamicId]).toBeUndefined();
     expect(env.store.bbs_tombstones[pastId]).toBeTruthy();
+
+    // Even when a course already has a hidden review, dismissed exam, or final project,
+    // deduplicateTaskList must not collapse the restored Banner Final Exam into it or re-tombstone it.
+    const existingWithCollidingItems: DeadlineTask[] = [
+      {
+        ...exam('task_islamic_review', 'Final Exam Review', `${futureYear}-12-10T10:00:00.000Z`),
+        courseCode: '0104100',
+        courseName: 'Islamic Culture',
+        visibility: 'hidden',
+        hiddenReason: 'review_session'
+      },
+      {
+        ...exam('task_islamic_project', 'Final Project', `${futureYear}-12-01T10:00:00.000Z`),
+        type: 'project',
+        status: 'completed',
+        courseCode: '0104100',
+        courseName: 'Islamic Culture'
+      }
+    ];
+    const env2 = fakeEnv({ html: htmlWithPastAndFuture, tasks: existingWithCollidingItems });
+    env2.store.bbs_tombstones = {
+      [pastId]: '2026-10-25T00:00:00.000Z',
+      [upcomingIslamicId]: '2026-11-24T00:00:00.000Z'
+    };
+    const firstPass = await refreshExamSchedule(true);
+    expect(firstPass).toMatchObject({ state: 'read', found: 1, added: 1 });
+    const restoredTask = env2.store.bbs_tasks.find((t: DeadlineTask) => t.id === upcomingIslamicId);
+    expect(restoredTask).toBeTruthy();
+    expect(restoredTask?.status).toBe('pending');
+    expect(restoredTask?.visibility).toBeUndefined();
+    expect(env2.store.bbs_tombstones[upcomingIslamicId]).toBeUndefined();
+    expect(env2.store.bbs_tombstones[pastId]).toBeTruthy();
+
+    // A second scan recognizes the exam is now in the calendar and does not re-add it
+    const secondPass = await refreshExamSchedule(true);
+    expect(secondPass).toMatchObject({ state: 'read', found: 1, added: 0 });
   });
 });

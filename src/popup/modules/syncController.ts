@@ -40,7 +40,7 @@ import {
   sanitizeDoctorAnnouncementText,
 } from '../../core/courseHelper';
 import { deduplicateTaskList, getTaskSeriesInfo, mergeCloudTasks, mergeTombstones } from '../../utils/taskMerge';
-import { awaitTombstonesPersisted, getLocalTombstones, recordLocalTombstone } from '../../utils/tombstones';
+import { awaitTombstonesPersisted, getLocalTombstones, pruneSupersededTombstones, recordLocalTombstone } from '../../utils/tombstones';
 import { getCachedProfile } from '../universitySettings';
 import { applyTheme } from './theme';
 import { dom, popupActions, popupState, type AppView } from './state';
@@ -313,6 +313,10 @@ export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGen
 
       const { tasks, changed } = mergeCloudTasks(popupState.currentTasks, res.tasks, tombstones);
       const dedupPreview = deduplicateTaskList(tasks);
+      const prunedTombs = pruneSupersededTombstones(dedupPreview, tombstones);
+      if (JSON.stringify(prunedTombs) !== JSON.stringify(localTombs)) {
+        chrome.storage?.local?.set({ bbs_tombstones: prunedTombs });
+      }
       const ruleChanged = dedupPreview.length !== tasks.length || JSON.stringify(dedupPreview) !== JSON.stringify(tasks);
       if (changed || ruleChanged) {
         popupState.currentTasks = (await saveTasksMergingLatest(dedupPreview)).sort(compareTasksByTime);

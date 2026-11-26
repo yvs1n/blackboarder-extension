@@ -9,7 +9,7 @@ import {
   mergeTombstones,
   sanitizeTaskListMarks,
 } from '../taskMerge';
-import { getStorageTombstones, setStorageTombstones } from '../tombstones';
+import { getStorageTombstones, pruneSupersededTombstones, setStorageTombstones } from '../tombstones';
 import {
   STORAGE_KEYS,
   isExtensionContextValid,
@@ -100,13 +100,17 @@ export async function saveTasksMergingLatest(tasks: DeadlineTask[]): Promise<Dea
     .map(t => t.id)
     .filter(id => !cleaned.some(c => c.id === id));
   const purgedIds = [...pre.purgedIds, ...post.purgedIds, ...dedupedAwayIds];
+  let nextTombstones = pruneSupersededTombstones(cleaned, tombstones);
   if (purgedIds.length > 0) {
     // Tombstone what was purged, as the cloud path does, so the cloud copy cannot bring it back next cycle
+    const nowIso = new Date().toISOString();
+    const purged: Record<string, string> = {};
+    for (const pid of purgedIds) purged[pid] = nowIso;
+    nextTombstones = mergeTombstones(nextTombstones, purged);
+  }
+  if (JSON.stringify(nextTombstones) !== JSON.stringify(tombstones)) {
     try {
-      const nowIso = new Date().toISOString();
-      const purged: Record<string, string> = {};
-      for (const pid of purgedIds) purged[pid] = nowIso;
-      await setStorageTombstones(mergeTombstones(tombstones, purged));
+      await setStorageTombstones(nextTombstones);
     } catch {}
   }
   await saveTasks(cleaned);

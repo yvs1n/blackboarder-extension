@@ -610,6 +610,8 @@ export function mergeExamScheduleTasks(
     if (matchIdx === -1 && kind) {
       const due = Date.parse(incoming.dueDate);
       let bestGap = Infinity;
+      const incomingMs = due;
+      const isIncomingUpcoming = !isNaN(incomingMs) && incomingMs > Date.now();
       out.forEach((existing, i) => {
         if (
           claimed.has(i) ||
@@ -624,7 +626,11 @@ export function mergeExamScheduleTasks(
         ) {
           return;
         }
-        const gap = Math.abs(Date.parse(existing.dueDate) - due);
+        const existingMs = Date.parse(existing.dueDate);
+        const gap = Math.abs(existingMs - due);
+        if (existing.status === 'completed' && isIncomingUpcoming && !isNaN(gap) && gap > 3 * 24 * 60 * 60 * 1000) {
+          return;
+        }
         const g = isNaN(gap) ? Number.MAX_SAFE_INTEGER : gap;
         if (g < bestGap) { bestGap = g; matchIdx = i; }
       });
@@ -639,11 +645,20 @@ export function mergeExamScheduleTasks(
     claimed.add(matchIdx);
 
     const existing = out[matchIdx];
-    if (existing.userEdited || existing.extractedBy === 'manual') {
+    let restoredExisting = false;
+    if (existing.id === incoming.id && (existing.status === 'dismissed' || existing.visibility === 'hidden')) {
+      existing.status = 'pending';
+      delete existing.visibility;
+      delete existing.hiddenReason;
+      delete existing.hiddenReasonLabel;
+      delete existing.ignoreMark;
+      restoredExisting = true;
+    }
+    if (!restoredExisting && (existing.userEdited || existing.extractedBy === 'manual')) {
       continue;
     }
 
-    let changed = false;
+    let changed = restoredExisting;
     if (existing.dueDate !== incoming.dueDate) {
       existing.dueDate = incoming.dueDate;
       changed = true;

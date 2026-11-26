@@ -92,4 +92,24 @@ export function removeLocalTombstone(id: string): Promise<Record<string, string>
   return tombstoneChain;
 }
 
+/**
+ * Removes tombstone entries whose task was re-added or updated strictly after the deletion timestamp.
+ */
+export function pruneSupersededTombstones(
+  tasks: ReadonlyArray<{ id?: string; status?: string; updatedAt?: string; createdAt?: string }>,
+  tombstones: Record<string, string> | undefined | null
+): Record<string, string> {
+  if (!tombstones || typeof tombstones !== 'object') return {};
+  const next = { ...tombstones };
+  for (const t of tasks || []) {
+    if (!t?.id || t.status === 'dismissed' || !next[t.id]) continue;
+    const tombMs = Date.parse(next[t.id]);
+    const taskMs = Date.parse(t.updatedAt || t.createdAt || '');
+    if (!isNaN(taskMs) && (isNaN(tombMs) || taskMs > tombMs)) {
+      delete next[t.id];
+    }
+  }
+  return next;
+}
+
 export { mergeTombstones };
