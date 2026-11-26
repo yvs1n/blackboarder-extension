@@ -4,9 +4,9 @@
  * room, exam method, and syllabus weight.
  */
 import type { DeadlineTask } from '../types';
-import { resolveCourseInfo, parseCourseDetails, isExamReviewTask } from './courseHelper';
+import { resolveCourseInfo, parseCourseDetails, isExamReviewTask, isBareTypeTitle } from './courseHelper';
 import { getActiveUserCourses, compileCoursePattern } from './userCourses';
-import { resolveTaskWeight } from './syllabusWeights';
+import { resolveTaskWeight, resolveSingletonSyllabusKey } from './syllabusWeights';
 import { isMakeupTask } from './makeupFilter';
 import { resolveTaskRoom, isPlausibleRoom } from './courseSchedule';
 import { format12Hour } from '../utils/uiCommon';
@@ -573,14 +573,18 @@ function examKindOf(title: string): string {
 }
 
 function sameCourseForExam(a: DeadlineTask, b: DeadlineTask): boolean {
+  const nameA = resolveCourseInfo(a).courseName.trim().toLowerCase();
+  const nameB = resolveCourseInfo(b).courseName.trim().toLowerCase();
+  const isUnknown = (n: string) => !n || n === 'general course' || n === 'uos';
+  if (!isUnknown(nameA) && !isUnknown(nameB) && nameA === nameB) {
+    return true;
+  }
   const codeA = (a.courseCode || '').replace(/\s+/g, '').toLowerCase();
   const codeB = (b.courseCode || '').replace(/\s+/g, '').toLowerCase();
   if (codeA && codeA !== 'uos' && codeB && codeB !== 'uos') {
     return codeA === codeB;
   }
-  const nameA = resolveCourseInfo(a).courseName.toLowerCase();
-  const nameB = resolveCourseInfo(b).courseName.toLowerCase();
-  return Boolean(nameA && nameA !== 'general course' && nameA !== 'uos' && nameA === nameB);
+  return false;
 }
 
 /**
@@ -606,8 +610,9 @@ export function mergeExamScheduleTasks(
     if (tombstones[incoming.id]) continue;
 
     const kind = examKindOf(incoming.title);
+    const incomingSingleton = resolveSingletonSyllabusKey(incoming);
     let matchIdx = out.findIndex((existing, i) => !claimed.has(i) && existing.id === incoming.id);
-    if (matchIdx === -1 && kind) {
+    if (matchIdx === -1 && (kind || incomingSingleton)) {
       const due = Date.parse(incoming.dueDate);
       let bestGap = Infinity;
       const incomingMs = due;
@@ -621,14 +626,21 @@ export function mergeExamScheduleTasks(
           isExamReviewTask(existing) ||
           /\b(?:practice|mock|trial|sample|dry\s*run)\b|تجريبي/i.test(existing.title || '') ||
           existing.type !== 'exam' ||
-          examKindOf(existing.title) !== kind ||
           !sameCourseForExam(existing, incoming)
         ) {
           return;
         }
         const existingMs = Date.parse(existing.dueDate);
         const gap = Math.abs(existingMs - due);
-        if (existing.status === 'completed' && isIncomingUpcoming && !isNaN(gap) && gap > 3 * 24 * 60 * 60 * 1000) {
+        if (existing.status === 'completed' && isIncomingUpcoming && (isNaN(gap) || gap > 3 * 24 * 60 * 60 * 1000)) {
+          return;
+        }
+        const existingKind = examKindOf(existing.title);
+        const existingSingleton = incomingSingleton ? resolveSingletonSyllabusKey(existing) : null;
+        const kindMatches = Boolean(kind && existingKind === kind);
+        const singletonMatches = Boolean(incomingSingleton && existingSingleton === incomingSingleton);
+        const bareExamClose = (kind === 'final' || kind === 'mid') && isBareTypeTitle(existing.title) && !isNaN(gap) && gap <= 14 * 24 * 60 * 60 * 1000;
+        if (!kindMatches && !singletonMatches && !bareExamClose) {
           return;
         }
         const g = isNaN(gap) ? Number.MAX_SAFE_INTEGER : gap;

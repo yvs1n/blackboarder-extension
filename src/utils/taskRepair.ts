@@ -17,13 +17,20 @@ export function repairTaskWeightsAndRooms(tasks: DeadlineTask[]): number {
     let touched = false;
 
     const notesText = t.description || t.sourceSnippet || '';
-    const latestFromNotes = resolveLatestFieldsFromNotes({
-      title: t.title,
-      notesText,
-      courseNameOrCode: t.courseName || t.courseCode,
-      taskType: t.type,
-      baseDate: t.createdAt ? new Date(t.createdAt) : undefined
-    });
+    const hasProfUpdate = /\[(?:Professor|Doctor) Update\]:/i.test(notesText);
+    const isBannerStructuredExam = !hasProfUpdate && (
+      (typeof t.id === 'string' && t.id.startsWith('banner_exam_')) ||
+      (/\bCRN:\s*\d+\b/i.test(notesText) && /\bRoom:\s*/i.test(notesText))
+    );
+    const latestFromNotes = isBannerStructuredExam
+      ? { latestRoom: undefined, latestTime: undefined, latestWeight: undefined }
+      : resolveLatestFieldsFromNotes({
+          title: t.title,
+          notesText,
+          courseNameOrCode: t.courseName || t.courseCode,
+          taskType: t.type,
+          baseDate: t.createdAt ? new Date(t.createdAt) : undefined
+        });
 
     const w = latestFromNotes.latestWeight || resolveTaskWeight(t, t.courseName);
     if (w.weight !== undefined && w.weight !== t.weight) {

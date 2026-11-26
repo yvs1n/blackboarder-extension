@@ -164,7 +164,7 @@ export function extractRoomFromText(text: string): string | null {
   //    - Letter + digits building ("A8-103", "EB2-104", "A10:006", "M9-G05", "W4-B12", "W8-Lab 3")
   //    - Multi-letter building with alpha room suffix ("MB-G05", "ESB-TH005")
   //    - Cued multi-letter building + digit room ("in MB-102", "at ESB-201") or spaced building-with-digit ("in M9 104")
-  const bldTokenRe = /\b([A-Za-z]{1,3}\d{1,2}\s*(?:[-–\u2014/]|:(?=\d{3}))\s*(?:TH\d{2,4}|Lab\s*\d+|[A-Za-z]?\d{2,4}[A-Za-z]?)|[A-Za-z]{2,4}\s*[-–\u2014/]\s*(?:TH\d{2,4}|Lab\s*\d+|[A-Za-z]\d{2,4}[A-Za-z]?))\b/gi;
+  const bldTokenRe = /\b([A-Za-z]{1,3}\d{1,2}\s*(?:[-–\u2014/]|:(?=\d{3}))\s*(?:TH\d{2,4}(?:-[A-Za-z]+\d+)?|Lab\s*\d+|[A-Za-z]?\d{2,4}[A-Za-z]?)|[A-Za-z]{2,4}\s*[-–\u2014/]\s*(?:TH\d{2,4}(?:-[A-Za-z]+\d+)?|Lab\s*\d+|[A-Za-z]\d{2,4}[A-Za-z]?))\b/gi;
   for (const m of norm.matchAll(bldTokenRe)) {
     if (!isNegatedOrOldRoomContext(norm, m.index ?? 0)) {
       return formatNormalizedRoom(m[1]);

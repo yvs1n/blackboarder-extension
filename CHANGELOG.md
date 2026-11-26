@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.47] - 2026-11-26
+
+### Fixed
+
+- **Fix Banner Room Repair Ping-Pong & Dedup Matching Symmetry (`src/utils/taskRepair.ts`, `src/core/courseSchedule.ts`, `src/core/examSchedule.ts`, `src/core/makeupFilter.ts`):**
+  - Preserved Banner hall suffixes like `-STU008` in `extractRoomFromText()` and prevented `repairTaskWeightsAndRooms()` from re-parsing synthetic `Room:` / `Date:` Banner strings on `banner_exam_*` or `CRN:`-stamped tasks (unless a `[Professor Update]:` note is present), stopping back-to-back scans from repeatedly modifying `room` and reporting `"Updated 1 exam"`.
+  - Updated `sameCourseForExam()` and `mergeExamScheduleTasks()` to match `resolveCourseInfo()` names first (like `compareTaskCourses`), honor `resolveSingletonSyllabusKey()` / bare `"Exam"` matches within 14 days, and guard completed unannounced gradebook items with empty due dates from swallowing upcoming Banner finals.
+  - Updated `areTasksIncompatibleForDedup()` to keep distinct official `banner_exam_*` sittings on separate dates (`> 24h` apart, such as two unnumbered Midterms in the same course) and protect upcoming Banner exams against completed gradebook entries even when `dueDate` is empty.
+
+---
+
 ## [1.8.46] - 2026-11-26
 
 ### Fixed

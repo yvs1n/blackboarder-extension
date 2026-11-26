@@ -1,21 +1,20 @@
 {
-  "version": "1.8.46",
-  "build": "cef43c5db040",
-  "commit": "564166b48b2d2172e407731bb77a606bfea57026",
-  "shortCommit": "564166b",
-  "timestamp": "2026-11-26T04:04:27.782Z",
-  "message": "fix: harden backup restore epoch sync and makeup assignment detection (v1.8.45)",
+  "version": "1.8.47",
+  "build": "bbef9313fedc",
+  "commit": "ea45437d3e6cf7870370c56929632f892189aa3b",
+  "shortCommit": "ea45437",
+  "timestamp": "2026-11-26T05:03:34.063Z",
+  "message": "fix: keep restored Banner final exams from re-deduping into hidden/dismissed tasks (v1.8.46)",
   "changelog": [
-    "Added areTasksIncompatibleForDedup() and isBannerExamTask() so deduplicateTaskList() never collapses an active official Banner exam (banner_exam_*) into a dismissed, hidden, review_session, makeup, or non-exam (project/assignment) sibling or a past completed item from another week, stopping saveTasksMergingLatest from immediately re-tombstoning freshly restored exams on every scan.",
-    "Exempted banner_exam_* rows from isUneditedExtraPastSyllabusQuota (B5.3.1) and restored status: 'pending' / active visibility if an exact banner_exam_* match was previously dismissed or hidden.",
-    "Added pruneSupersededTombstones() across saveTasksMergingLatest, mergeForCloudWrite, pullTasksFromFirebaseToLocal, and pullTasksFromFirebaseIfNewer so restoring an exam permanently erases its older tombstone instead of re-syncing it back from Firebase.",
-    "Awaited getUserCourses() inside runExamScheduleScan() before matching exam rows and updated #bbs-floating-badge pending count to exclude visibility === 'hidden' items."
+    "Preserved Banner hall suffixes like -STU008 in extractRoomFromText() and prevented repairTaskWeightsAndRooms() from re-parsing synthetic Room: / Date: Banner strings on banner_exam_* or CRN:-stamped tasks (unless a [Professor Update]: note is present), stopping back-to-back scans from repeatedly modifying room and reporting \"Updated 1 exam\".",
+    "Updated sameCourseForExam() and mergeExamScheduleTasks() to match resolveCourseInfo() names first (like compareTaskCourses), honor resolveSingletonSyllabusKey() / bare \"Exam\" matches within 14 days, and guard completed unannounced gradebook items with empty due dates from swallowing upcoming Banner finals.",
+    "Updated areTasksIncompatibleForDedup() to keep distinct official banner_exam_* sittings on separate dates (> 24h apart, such as two unnumbered Midterms in the same course) and protect upcoming Banner exams against completed gradebook entries even when dueDate is empty."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-BjEn6dRh.js",
     "assets/popup-CZP6ZUkd.css",
+    "assets/popup-DeOg0GJz.js",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

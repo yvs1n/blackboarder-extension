@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { refreshExamSchedule, examRefreshNote, isExamPageUrl, EXAM_READ_KEY } from '../src/background/examRefresh';
-import { mergeExamScheduleTasks } from '../src/core/examSchedule';
+import { mergeExamScheduleTasks, scrapeExamScheduleFromHtml } from '../src/core/examSchedule';
+import { repairTaskWeightsAndRooms } from '../src/utils/taskRepair';
+import { deduplicateTaskList } from '../src/utils/taskMerge';
 import { getUniversity } from '../src/core/universities';
 import { DeadlineTask } from '../src/types';
 
@@ -264,5 +266,56 @@ describe('two midterms in one course', () => {
     // A second scan recognizes the exam is now in the calendar and does not re-add it
     const secondPass = await refreshExamSchedule(true);
     expect(secondPass).toMatchObject({ state: 'read', found: 1, added: 0 });
+  });
+
+  it('keeps TH006-STU008 Banner hall intact across repairTaskWeightsAndRooms, keeps two Midterm dates distinct, and matches variant courseCode', () => {
+    const html = `
+      <table>
+        <tr><th>CRN</th><th>Course Number</th><th>Course Title</th><th>Exam Date</th><th>From / Time</th><th>To / Time</th><th>Building</th><th>Room</th><th>Exam Type</th><th>Exam Method</th><th>Comment</th></tr>
+        <tr><td>10475</td><td>0104100</td><td>Islamic Culture</td><td>28/11/2026</td><td>08:30AM</td><td>10:30AM</td><td>A13</td><td>TH006-STU008</td><td>FINAL</td><td></td><td></td></tr>
+        <tr><td>10806</td><td>1440133</td><td>Calculus I for Engineering</td><td>10/10/2026</td><td>12:30PM</td><td>13:45PM</td><td>M5</td><td>104</td><td>MIDTERM</td><td></td><td></td></tr>
+        <tr><td>10806</td><td>1440133</td><td>Calculus I for Engineering</td><td>10/11/2026</td><td>12:30PM</td><td>13:45PM</td><td>M5</td><td>104</td><td>MIDTERM</td><td></td><td></td></tr>
+      </table>
+    `;
+    const scraped = scrapeExamScheduleFromHtml(html, '2026-11-26T04:00:00.000Z');
+    expect(scraped).toHaveLength(3);
+    expect(scraped[0].room).toBe('A13-TH006-STU008');
+
+    const unannouncedCompletedGb: DeadlineTask = {
+      id: 'gbcol__isl_final_old',
+      courseName: 'Islamic Culture',
+      courseCode: '0104100-02',
+      title: 'Final Exam',
+      description: 'gradebook',
+      dueDate: '',
+      hasSpecificTime: false,
+      type: 'exam',
+      priority: 'high',
+      status: 'completed',
+      submissionStatus: 'graded',
+      score: 18,
+      maxScore: 20,
+      sourceSnippet: 'gradebook',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-10-01T08:00:00.000Z',
+      updatedAt: '2026-10-01T08:00:00.000Z'
+    };
+
+    const first = mergeExamScheduleTasks([unannouncedCompletedGb], scraped, {}, '2026-11-26T04:00:00.000Z');
+    const repaired = deduplicateTaskList(first.tasks);
+    repairTaskWeightsAndRooms(repaired);
+
+    const islamicFinal = repaired.find(t => t.id === scraped[0].id);
+    expect(islamicFinal).toBeTruthy();
+    expect(islamicFinal?.room).toBe('A13-TH006-STU008');
+    // Both distinct Banner Midterm dates survive deduplicateTaskList
+    const calcMidterms = repaired.filter(t => t.id.startsWith('banner_exam_1440133_midterm_'));
+    expect(calcMidterms).toHaveLength(2);
+
+    // Re-scanning does NOT report added or updated for any of them
+    const second = mergeExamScheduleTasks(repaired, scraped, {}, '2026-11-26T04:05:00.000Z');
+    expect(second.addedCount).toBe(0);
+    expect(second.updatedCount).toBe(0);
   });
 });

@@ -271,6 +271,13 @@ export function areTasksIncompatibleForDedup(a: DeadlineTask, b: DeadlineTask): 
   if ((isBannerExamTask(a) && normalizeSimpleType(b.type) !== 'exam') || (isBannerExamTask(b) && normalizeSimpleType(a.type) !== 'exam')) {
     return true;
   }
+  if (isBannerExamTask(a) && isBannerExamTask(b) && a.id !== b.id) {
+    const msA = Date.parse(a.dueDate || '');
+    const msB = Date.parse(b.dueDate || '');
+    if (!isNaN(msA) && !isNaN(msB) && Math.abs(msA - msB) > 24 * 60 * 60 * 1000) {
+      return true;
+    }
+  }
   if (isBannerExamTask(a) !== isBannerExamTask(b)) {
     const banner = isBannerExamTask(a) ? a : b;
     const other = isBannerExamTask(a) ? b : a;
@@ -280,8 +287,7 @@ export function areTasksIncompatibleForDedup(a: DeadlineTask, b: DeadlineTask): 
       isCompletedOrGradedTask(other) &&
       !isNaN(bannerMs) &&
       bannerMs > Date.now() &&
-      !isNaN(otherMs) &&
-      Math.abs(bannerMs - otherMs) > 3 * 24 * 60 * 60 * 1000
+      (isNaN(otherMs) || Math.abs(bannerMs - otherMs) > 3 * 24 * 60 * 60 * 1000)
     ) {
       return true;
     }
