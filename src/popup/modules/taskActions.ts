@@ -21,6 +21,7 @@ export function renderSummaryAndNotesForExt(
   return renderDeadlineSummaryBlockHtml(task, {
     ...options,
     isPayment: Boolean(task.isPayment),
+    lang: popupState.currentLanguage,
     svgIconFn: getSvgIcon
   });
 }
@@ -35,6 +36,7 @@ export function renderUnifiedActionsForExt(
     isPayment: Boolean(task.isPayment),
     portalUrl: options.portalUrl,
     variant: options.variant,
+    lang: popupState.currentLanguage,
     svgIconFn: getSvgIcon
   });
 }
@@ -42,6 +44,7 @@ export function renderUnifiedActionsForExt(
 export function renderSelectedDayActionsForExt(task: DeadlineTask): string {
   return renderSelectedDayActionsHtml(task, {
     isPayment: Boolean(task.isPayment),
+    lang: popupState.currentLanguage,
     svgIconFn: getSvgIcon
   });
 }
@@ -211,7 +214,7 @@ export function wireUnifiedTaskActions(
 
   rootEl.querySelector('.prof-notes-copy-btn')?.addEventListener('click', async e => {
     e.stopPropagation();
-    const sum = buildStructuredDeadlineSummary(task, { isPayment: Boolean(task.isPayment) });
+    const sum = buildStructuredDeadlineSummary(task, { isPayment: Boolean(task.isPayment), lang: popupState.currentLanguage });
     if (!sum.rawNotes) return;
     try {
       await navigator.clipboard.writeText(sum.rawNotes);

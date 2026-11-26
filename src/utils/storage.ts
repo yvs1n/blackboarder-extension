@@ -7,10 +7,18 @@ export {
 
 export {
   SYNC_KEY_RANDOM_LENGTH,
+  PREFERENCES_UPDATED_AT_KEY,
+  CALENDAR_FEED_SHOW_KEY,
   generateUniqueSyncKey,
   getCachedSettingsSync,
   getSettings,
   saveSettings,
+  getPreferencesUpdatedAt,
+  savePreferencesUpdatedAt,
+  getCalendarFeedShow,
+  saveCalendarFeedShow,
+  getLocalSharedPreferences,
+  applyCloudSharedPreferences,
 } from './storage/settingsStorage';
 
 export {

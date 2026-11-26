@@ -42,7 +42,7 @@ const OPTIONAL_FIELDS = [
   'visibility', 'hiddenReason', 'hiddenReasonLabel', 'visibilityLocked',
   'isBonus', 'bonusUnit', 'bonusTarget', 'bonusTargetLabel', 'dismissedGradeSources', 'ignoreMark',
   'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId', 'markProvisional',
-  'submittedAt', 'submissionReceipt'
+  'submittedAt', 'submissionReceipt', 'ar'
 ] as const;
 
 // Fields that fill a gap on a locally-newer task without overriding local edits.

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.49] - 2026-11-26
+
+### Added
+
+- **First-Scan Course & API Calibration Wizard (`src/core/calibrationWizard.ts`, `src/popup/modules/calibrationModal.ts`, `src/popup/styles/15-calibration.css`, `src/scan/syllabusScanner.ts`, `src/popup/index.html`):**
+  - Automatically scans enrolled courses and inline/attached syllabi on a student's first Blackboard scan (`allowLocalFallback: true` fallback to `analyzeCourseDocument` without requiring an API key) and opens an editable review wizard (**Courses > Calibrate**) to confirm course names, codes, credit hours, weekly class schedules, rooms, quiz/assignment/exam counts, and "best N of M" drop rules.
+  - Embeds step-by-step optional API key setup instructions (IFM K2 Horizon, OpenRouter, custom OpenAI-compatible) with live **Test & Save** and **Re-Scan Syllabi**.
+- **Full Arabic (`العربية`) RTL UI & Auto-Updating Bilingual Task Mirrors (`src/core/i18n.ts`, `src/core/arabicTranslator.ts`, `src/engine/aiTranslator.ts`, `src/popup/modules/language.ts`, `src/core/deadlineSummary.ts`, `src/core/taskActionsHtml.ts`, `src/popup/styles/14-summary-actions.css`, `src/mobile/styles/12-summary-actions.css`):**
+  - Added **App Language** (`English` / `العربية`) selector under Settings > General in both Extension and Mobile Companion, updating UI labels and RTL/LTR direction dynamically while preserving cross-app layout parity.
+  - Generates synchronized Arabic task mirrors (`task.ar`) on extraction, import, manual entry, and professor follow-up updates based on content signatures (`computeTaskTranslationSig`), with optional background AI batch refinement.
+- **Cross-Device Shared Preferences Sync (`src/core/sharedPreferences.ts`, `src/utils/syncMerge.ts`, `src/utils/storage/settingsStorage.ts`, `src/utils/firebaseSync.ts`, `src/utils/vaultCrypto.ts`, `src/utils/backupRestore.ts`, `src/worker/`, `src/mobile/`):**
+  - Synchronizes shared Extension & Companion settings (`language`, `theme`, `showClassesInCalendar`, `showPaymentsInCalendar`, `calendarFeedShow`, `reminderHoursBefore`, `classReminderMinutes`) encrypted inside the AES-256-GCM vault with timestamp resolution (`pickNewerSharedPreferences`), keeping device-local AI keys and auto-scan toggles separate.
+
+### Updated
+
+- **Landing Page, SEO Pages & Project Documentation (`mobile-web/index.html`, `mobile-web/landing-motion.js`, `mobile-web/llms.txt`, `scripts/seoPages.mjs`, `README.md`, `export/extension/README.md`, `AGENTS.md`, `docs/*.md`):**
+  - Updated all feature guides, settings tables, and marketing/university pages for Calibration Wizard, Arabic UI/mirrors, Hide/Restore toggles, and shared settings sync, and updated store guidance to accurately distinguish live **Chrome Web Store** support across Chromium browsers (including desktop Edge), `v1.8.34` on **Microsoft Edge Add-ons**, and GitHub Release ZIP loading while **Firefox Add-ons** publishing is pending.
+
+---
+
 ## [1.8.48] - 2026-11-26
 
 ### Added

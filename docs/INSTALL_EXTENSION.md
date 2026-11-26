@@ -1,8 +1,9 @@
 # Installing Blackboarder in Your Browser (60 Seconds)
 
-Blackboarder works with **Google Chrome**, **Mozilla Firefox**, **Microsoft Edge**, **Brave**, **Opera**, or **Vivaldi**.
+Blackboarder works with **Google Chrome**, **Microsoft Edge**, **Brave**, **Opera**, **Vivaldi**, and **Mozilla Firefox**.
 
-You do not need to install Node.js, code editors, or developer tools.
+- **Fastest (Automatic Updates):** Install from the **[Chrome Web Store](https://blackboarder.pages.dev/chrome-extension)** (live and current; also installs cleanly in Brave, desktop Edge, Opera, and Vivaldi). Microsoft Edge Add-ons currently hosts older `v1.8.34` while store review catches up, and Firefox Add-ons publishing is pending (use `blackboarder-android-firefox.zip` below).
+- **Manual / Developer ZIP:** Follow the steps below if installing an unpacked GitHub Release ZIP. You do not need to install Node.js, code editors, or developer tools.
 
 ---
 
@@ -43,12 +44,13 @@ In Chromium browsers (Chrome, Edge, Brave, Opera, Vivaldi), look in the top-righ
 
 ---
 
-### Step 5: Pin to Toolbar and Start Using
+### Step 5: Pin to Toolbar, Calibrate & Start Using
 1. Click the puzzle-piece icon in your browser toolbar (top right).
 2. Find **Blackboarder** and click the **Pin** icon.
-3. Open your university Blackboard stream:
+3. Optional: switch **App Language** between **English** and **العربية** under **Settings > General**.
+4. Open your university Blackboard stream:
    - For UOS: [https://elearning.sharjah.ac.ae/ultra/stream](https://elearning.sharjah.ac.ae/ultra/stream)
-4. A floating **Scan Blackboard** button (a lightning bolt) will appear on the bottom-right. Click it to automatically triage, parse, and categorize all your upcoming assignments, quizzes, and exams.
+5. A floating **Scan Blackboard** button (a lightning bolt) will appear on the bottom-right. Click it (or press **Alt+B**) to triage your quizzes, assignments, and exams. On your first scan, Blackboarder checks course syllabi automatically and opens a **Calibration Wizard** to confirm your courses, weekly meeting times, quiz counts, "best N of M" drop rules, and optional API key setup.
 
 ---
 

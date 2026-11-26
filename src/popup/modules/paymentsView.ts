@@ -8,7 +8,7 @@ import {
   summarizePayments,
   universityPaymentGuide
 } from '../../core/payments';
-import { getCachedSettingsSync, getSettings, saveSettings, saveStoredPayments } from '../../utils/storage';
+import { getCachedSettingsSync, saveSettings, saveStoredPayments } from '../../utils/storage';
 import { recordLocalTombstone, removeLocalTombstone } from '../../utils/tombstones';
 import { escapeHtml, getSvgIcon } from '../../utils/uiCommon';
 import { getCachedProfile } from '../universitySettings';
@@ -302,9 +302,9 @@ export function initPaymentsView(): void {
 
   document.getElementById('toggle-show-payments-calendar')?.addEventListener('change', async (e) => {
     const checked = (e.target as HTMLInputElement).checked;
-    const settings = await getSettings();
-    await saveSettings({ ...settings, showPaymentsInCalendar: checked });
+    await saveSettings({ showPaymentsInCalendar: checked });
     popupActions.refreshAllViews();
+    popupActions.syncTasksToCloud(popupState.currentTasks, 'Payments Calendar Visibility Update');
   });
 
   document.getElementById('payments-list')?.addEventListener('click', (e) => {

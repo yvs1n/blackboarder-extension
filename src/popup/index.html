@@ -334,7 +334,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.48</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.49</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -619,6 +619,10 @@
             <svg class="ui-icon"><use href="#icon-sparkles"></use></svg>
             <span>Scan Syllabi</span>
           </button>
+          <button type="button" class="btn-secondary" id="btn-calibrate-courses" style="font-size: 11.5px; padding: 6px 10px; display: inline-flex; align-items: center; gap: 4px;" title="Review and confirm all course names, schedules, quiz counts, best-of rules & AI key">
+            <svg class="ui-icon"><use href="#icon-list-check"></use></svg>
+            <span>Calibrate</span>
+          </button>
           <button type="button" class="btn-outline-action" id="btn-export-courses" style="font-size: 11px; padding: 5px 9px; width: auto; min-height: 28px; display: inline-flex; align-items: center; gap: 4px;" title="Download JSON course configuration backup">
             <svg class="ui-icon"><use href="#icon-download"></use></svg>
             <span>Export JSON</span>
@@ -824,6 +828,14 @@
               <input type="checkbox" id="setting-blackboard-dark-mode" checked>
               <span class="slider round"></span>
             </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" id="language-label" for="setting-language">App Language</label>
+            <select id="setting-language" class="form-select">
+              <option value="en">English</option>
+              <option value="ar">العربية (Arabic)</option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -1179,7 +1191,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.48</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.49</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>
@@ -2332,6 +2344,35 @@
         <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--surface-border); padding-top: 10px;">
           <button type="button" class="btn-primary" id="btn-dismiss-changelog-modal" style="padding: 6px 16px; font-size: 11.5px;">Got it</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: First-Scan Course & API Key Calibration Wizard -->
+  <div id="modal-calibration" class="modal-backdrop hidden" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="calibration-modal-title">
+    <div class="modal-dialog calibration-dialog">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="ui-icon" style="width: 17px; height: 17px; color: var(--primary);"><use href="#icon-list-check"></use></svg>
+          <div>
+            <h3 id="calibration-modal-title" class="modal-title">Calibrate Courses &amp; AI Setup</h3>
+            <p class="calibration-subtitle">Confirm course names, class times, quiz counts, best-of rules &amp; optional API key</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="btn-close-calibration" aria-label="Close calibration">✕</button>
+      </div>
+      <div class="modal-body calibration-body">
+        <div id="calibration-scan-banner" class="calibration-scan-banner"></div>
+        <div id="calibration-ai-container"></div>
+        <div class="calibration-section-heading">
+          <span>2. Confirm Courses, Class Times &amp; Grade Breakdown</span>
+          <button type="button" class="btn-outline-action cal-mini-add-btn" id="btn-calibration-add-course">+ Add Course</button>
+        </div>
+        <div id="calibration-courses-list" class="calibration-courses-list"></div>
+      </div>
+      <div class="modal-footer calibration-footer">
+        <button type="button" class="btn-secondary" id="btn-calibration-skip">Skip for Now</button>
+        <button type="button" class="btn-primary" id="btn-calibration-confirm">Confirm &amp; Start Using Blackboarder</button>
       </div>
     </div>
   </div>

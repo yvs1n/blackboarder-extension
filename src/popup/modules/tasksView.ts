@@ -1,4 +1,6 @@
 import type { DeadlineTask } from '../../types';
+import { localizedTaskView } from '../../core/arabicTranslator';
+import { localizeTaskTypeLabel } from '../../core/i18n';
 import { getCourseColorTheme } from '../../core/courseColors';
 import { compareTasksByTime, formatCountdown } from '../../utils/calendar';
 import { resolveCourseInfo } from '../../core/courseHelper';
@@ -114,16 +116,17 @@ export function updateStats(tasks: DeadlineTask[]) {
   dom.statTotalCount().textContent = String(pendingTasks.length);
   dom.navBadgeCount().textContent = String(pendingTasks.length);
 
+  const isAr = popupState.currentLanguage === 'ar';
   const completedCount = activeTasks.filter(t => t.status === 'completed').length;
   const allCount = activeTasks.length;
   const btnPending = document.querySelector('.filter-chip[data-status="pending"]');
   const btnAll = document.querySelector('.filter-chip[data-status="all"]');
   const btnCompleted = document.querySelector('.filter-chip[data-status="completed"]');
   const btnHidden = document.querySelector('.filter-chip[data-status="hidden"]');
-  if (btnPending) btnPending.textContent = `Pending (${pendingTasks.length})`;
-  if (btnAll) btnAll.textContent = `All (${allCount})`;
-  if (btnCompleted) btnCompleted.textContent = `Completed (${completedCount})`;
-  if (btnHidden) btnHidden.textContent = `Hidden (${hiddenCount})`;
+  if (btnPending) btnPending.textContent = isAr ? `قيد الانتظار (${pendingTasks.length})` : `Pending (${pendingTasks.length})`;
+  if (btnAll) btnAll.textContent = isAr ? `الكل (${allCount})` : `All (${allCount})`;
+  if (btnCompleted) btnCompleted.textContent = isAr ? `مكتمل (${completedCount})` : `Completed (${completedCount})`;
+  if (btnHidden) btnHidden.textContent = isAr ? `مخفي (${hiddenCount})` : `Hidden (${hiddenCount})`;
 }
 
 export function updateCourseFilterOptions(tasks: DeadlineTask[]) {
@@ -184,12 +187,16 @@ export function renderTasks() {
     if (popupState.currentSearchQuery) {
       const q = popupState.currentSearchQuery.toLowerCase();
       const resolved = resolveCourseInfo(task);
+      const ar = task.ar;
       const match = task.title.toLowerCase().includes(q) ||
                     task.courseCode.toLowerCase().includes(q) ||
                     task.courseName.toLowerCase().includes(q) ||
                     resolved.courseName.toLowerCase().includes(q) ||
                     resolved.courseCode.toLowerCase().includes(q) ||
-                    (task.description && task.description.toLowerCase().includes(q));
+                    (task.description && task.description.toLowerCase().includes(q)) ||
+                    (ar?.title && ar.title.toLowerCase().includes(q)) ||
+                    (ar?.courseName && ar.courseName.toLowerCase().includes(q)) ||
+                    (ar?.description && ar.description.toLowerCase().includes(q));
       if (!match) return false;
     }
 
@@ -225,15 +232,22 @@ export function renderTasks() {
 
   taskListEl.innerHTML = '';
 
+  const lang = popupState.currentLanguage;
+  const isAr = lang === 'ar';
+
   if (filtered.length === 0) {
     taskListEl.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">${getSvgIcon('calendar')}</div>
-        <div class="empty-title">${popupState.currentTasks.length === 0 ? 'No Deadlines Extracted Yet' : 'No Matching Deadlines'}</div>
+        <div class="empty-title">${popupState.currentTasks.length === 0
+          ? (isAr ? 'لا توجد مواعيد مستخرجة بعد' : 'No Deadlines Extracted Yet')
+          : (isAr ? 'لا توجد مواعيد مطابقة' : 'No Matching Deadlines')}</div>
         <div class="empty-desc">
           ${popupState.currentTasks.length === 0
-            ? 'Open Blackboard (e.g. <b>blackboard.sharjah.ac.ae</b>) in a browser tab and click <b>Scan Page</b> to automatically extract upcoming quizzes and assignments!'
-            : 'Try adjusting your filters or search terms.'}
+            ? (isAr
+                ? 'افتح بلاك بورد في تبويب بالمتصفح واضغط على <b>مسح الصفحة</b> لاستخراج الاختبارات والواجبات تلقائياً.'
+                : 'Open Blackboard (e.g. <b>blackboard.sharjah.ac.ae</b>) in a browser tab and click <b>Scan Page</b> to automatically extract upcoming quizzes and assignments!')
+            : (isAr ? 'جرّب تعديل عوامل التصفية أو عبارة البحث.' : 'Try adjusting your filters or search terms.')}
         </div>
       </div>
     `;
@@ -249,6 +263,7 @@ export function renderTasks() {
     const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
     const isCompleted = task.status === 'completed';
     const resolved = resolveCourseInfo(task);
+    const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
     const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
 
     const targetBadgeHtml = isPayment ? '' : getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
@@ -256,17 +271,17 @@ export function renderTasks() {
     const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
     let roomBadgeHtml = '';
     if (!isPayment && !isHwOrProject) {
-      if (task.room) {
+      if (view.room) {
         roomBadgeHtml = `
-          <button type="button" class="room-pill-btn" data-id="${escapeHtml(task.id)}" title="Click to change room">
-            <span>${getSvgIcon('pin', 'mr-1')} ${escapeHtml(task.room)}</span>
+          <button type="button" class="room-pill-btn" data-id="${escapeHtml(task.id)}" title="${isAr ? 'اضغط لتغيير القاعة' : 'Click to change room'}">
+            <span>${getSvgIcon('pin', 'mr-1')} ${escapeHtml(view.room)}</span>
             <span class="room-edit-hint">${getSvgIcon('pencil')}</span>
           </button>
         `;
       } else {
         roomBadgeHtml = `
-          <button type="button" class="room-pill-btn" data-id="${escapeHtml(task.id)}" style="background:#f1f5f9; color:#64748b; border-color:#e2e8f0;" title="Click to assign room">
-            <span>${getSvgIcon('pin', 'mr-1')} Add Room</span>
+          <button type="button" class="room-pill-btn" data-id="${escapeHtml(task.id)}" style="background:#f1f5f9; color:#64748b; border-color:#e2e8f0;" title="${isAr ? 'اضغط لتحديد القاعة' : 'Click to assign room'}">
+            <span>${getSvgIcon('pin', 'mr-1')} ${isAr ? 'إضافة قاعة' : 'Add Room'}</span>
             <span class="room-edit-hint">${getSvgIcon('plus')}</span>
           </button>
         `;
@@ -274,18 +289,18 @@ export function renderTasks() {
     }
 
     let weightBadgeHtml = '';
-    if (task.weightDisplay || task.weight) {
+    if (view.weightDisplay || task.weight) {
       const weightVal = task.weight || 0;
       const isMajor = weightVal >= 20;
       const isMedium = weightVal >= 10 && weightVal < 20;
       const weightClass = isMajor ? 'weight-major' : (isMedium ? 'weight-medium' : '');
-      const displayText = task.weightDisplay || `${task.weight}% of Grade`;
+      const displayText = view.weightDisplay || (isAr ? `${task.weight}% من الدرجة` : `${task.weight}% of Grade`);
       weightBadgeHtml = `<span class="task-weight-pill ${weightClass}" title="${task.syllabusNote ? escapeHtml(task.syllabusNote) : 'Syllabus weight'}">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(displayText)}</span>`;
     }
 
     let classTimeBadgeHtml = '';
     if (!task.hasSpecificTime) {
-      classTimeBadgeHtml = `<span class="meta-pill time-class">${getSvgIcon('clock', 'mr-1')} Class Time</span>`;
+      classTimeBadgeHtml = `<span class="meta-pill time-class">${getSvgIcon('clock', 'mr-1')} ${isAr ? 'وقت المحاضرة' : 'Class Time'}</span>`;
     }
 
     const summaryNotesHtml = renderSummaryAndNotesForExt(task, { variant: 'card', includeFullViewBtn: true });
@@ -296,7 +311,7 @@ export function renderTasks() {
         <div class="student-notes-box" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 4px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 2px;">
             ${getSvgIcon('pencil')}
-            <span>Student Notes:</span>
+            <span>${isAr ? 'ملاحظات الطالب:' : 'Student Notes:'}</span>
           </div>
           <div style="font-size: 12px; color: var(--text-main); white-space: pre-wrap; line-height: 1.4;">${escapeHtml(task.notes)}</div>
         </div>
@@ -311,24 +326,24 @@ export function renderTasks() {
 
     card.innerHTML = `
       <div class="task-course-banner">
-        <div class="course-badge-main" style="background: ${courseTheme.bgLight} !important; border: 1px solid ${courseTheme.border} !important; color: ${courseTheme.textDark} !important;" title="${escapeHtml(resolved.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
+        <div class="course-badge-main" style="background: ${courseTheme.bgLight} !important; border: 1px solid ${courseTheme.border} !important; color: ${courseTheme.textDark} !important;" title="${escapeHtml(view.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
           <span class="course-color-dot" style="width: 8px; height: 8px; border-radius: 50%; background: ${isPayment ? 'var(--accent)' : courseTheme.hex}; display: inline-block; flex-shrink: 0;"></span>
-          <span class="course-name-text" style="color: ${courseTheme.textDark}; font-weight: 700;">${escapeHtml(resolved.courseName)}</span>
+          <span class="course-name-text" style="color: ${courseTheme.textDark}; font-weight: 700;">${escapeHtml(view.courseName)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           ${(isPayment && task.paymentAmountText) ? `<span class="payment-task-pill">${escapeHtml(task.paymentAmountText)}</span>` : ''}
           <span class="type-pill type-${escapeHtml(task.type)}" style="display: inline-flex; align-items: center; gap: 3px;">
             ${isPayment ? getSvgIcon('credit-card') : getTaskTypeIcon(task.type)}
-            <span>${isPayment ? 'PAYMENT' : (task.type || 'assignment').toUpperCase()}</span>
+            <span>${isPayment ? (isAr ? 'رسوم' : 'PAYMENT') : localizeTaskTypeLabel(task.type, lang, true)}</span>
           </span>
         </div>
       </div>
 
       <div class="task-title-row">
-        <button type="button" class="status-checkbox-btn ${isCompleted ? 'checked' : ''}" data-id="${escapeHtml(task.id)}" aria-label="Toggle status" title="${isCompleted ? 'Mark as Pending' : 'Mark as Done'}">
+        <button type="button" class="status-checkbox-btn ${isCompleted ? 'checked' : ''}" data-id="${escapeHtml(task.id)}" aria-label="Toggle status" title="${isCompleted ? (isAr ? 'إعادة لقيد الانتظار' : 'Mark as Pending') : (isAr ? 'تحديد كمكتمل' : 'Mark as Done')}">
           ${isCompleted ? '✓' : ''}
         </button>
-        <div class="task-title-text">${escapeHtml(task.title)}</div>
+        <div class="task-title-text">${escapeHtml(view.title)}</div>
       </div>
 
       <div class="task-due-row">
@@ -343,18 +358,18 @@ export function renderTasks() {
         ${targetBadgeHtml}
         ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
           <span class="task-grade-pill" title="Grade / Score released on Blackboard">
-            ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
+            ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : (isAr ? 'مُقيّم' : 'Graded'))))}</span>
           </span>
         ` : ''}
         ${task.submissionStatus === 'submitted' ? `
           <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
-            ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+            ${getSvgIcon('check', 'mr-1')} <span>${isAr ? 'تم التسليم' : 'Submitted'}</span>
           </span>
         ` : ''}
       </div>
 
-      ${task.visibility === 'hidden' ? `<div class="hidden-reason-row"><span class="hidden-reason-pill">HIDDEN · ${escapeHtml(task.hiddenReasonLabel || 'Not applicable to you')}</span></div>` : ''}
-      ${task.priority === 'high' && task.visibility !== 'hidden' ? '<div class="priority-label-row"><span class="high-priority-tag">HIGH PRIORITY</span></div>' : ''}
+      ${task.visibility === 'hidden' ? `<div class="hidden-reason-row"><span class="hidden-reason-pill">${isAr ? 'مخفي' : 'HIDDEN'} · ${escapeHtml(view.hiddenReasonLabel || (isAr ? 'غير مطلوب منك' : 'Not applicable to you'))}</span></div>` : ''}
+      ${task.priority === 'high' && task.visibility !== 'hidden' ? `<div class="priority-label-row"><span class="high-priority-tag">${isAr ? 'أولوية عالية' : 'HIGH PRIORITY'}</span></div>` : ''}
 
       ${summaryNotesHtml}
       ${studentNotesHtml}

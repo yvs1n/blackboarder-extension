@@ -1,6 +1,8 @@
-import type { DeadlineTask } from '../types';
+import type { DeadlineTask, UiLanguage } from '../types';
 import { splitAnnouncementNotes } from './announcementReconcile';
 import { sanitizeDoctorAnnouncementText } from './courseHelper';
+import { localizedTaskView } from './arabicTranslator';
+import { localizeSummaryStrings } from './i18n';
 
 export interface StructuredNoteSegment {
   label: string;
@@ -192,47 +194,57 @@ export function extractBriefFromSegments(segments: string[]): string | null {
   return null;
 }
 
-function formatWhenText(task: Partial<DeadlineTask>, countdownLabel?: string): string {
-  if (!task.dueDate) return countdownLabel || 'Date not set';
+function formatWhenText(task: Partial<DeadlineTask>, countdownLabel?: string, lang: UiLanguage = 'en'): string {
+  const tr = localizeSummaryStrings(lang);
+  if (!task.dueDate) return countdownLabel || tr.dateNotSet;
   const dt = new Date(task.dueDate);
-  if (isNaN(dt.getTime())) return countdownLabel || 'Date not set';
-  const datePart = dt.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  if (isNaN(dt.getTime())) return countdownLabel || tr.dateNotSet;
+  const locale = lang === 'ar' ? 'ar-AE' : undefined;
+  const datePart = dt.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
   const timePart = task.hasSpecificTime
-    ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : 'Class Time';
+    ? dt.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+    : tr.classTime;
   return `${datePart} · ${timePart}`;
 }
 
-function formatRoomText(task: Partial<DeadlineTask>, isPayment?: boolean): string {
-  if (isPayment) return (task.room || '').trim() || 'Student Portal';
+function formatRoomText(task: Partial<DeadlineTask>, isPayment?: boolean, lang: UiLanguage = 'en'): string {
+  const tr = localizeSummaryStrings(lang);
+  if (isPayment) return (task.room || '').trim() || (lang === 'ar' ? 'بوابة الطالب' : 'Student Portal');
+  const loc = localizedTaskView(task, lang);
   const t = (task.type || '').toLowerCase();
-  const room = (task.room || '').trim();
+  const room = (loc.room || '').trim();
   if (room) return room;
-  if (t === 'assignment' || t === 'hw' || t === 'project') return 'Online Submission';
-  return 'TBA';
+  if (t === 'assignment' || t === 'hw' || t === 'project') return tr.onlineSubmission;
+  return tr.tba;
 }
 
-function formatWeightText(task: Partial<DeadlineTask>): string {
+function formatWeightText(task: Partial<DeadlineTask>, lang: UiLanguage = 'en'): string {
+  const tr = localizeSummaryStrings(lang);
+  const loc = localizedTaskView(task, lang);
   if (task.isBonus) {
     if (typeof task.weight === 'number' && task.weight > 0) {
-      const unit = task.bonusUnit === 'percent' ? '%' : ' pts';
-      return `Bonus +${task.weight}${unit}${task.bonusTargetLabel ? ` (${task.bonusTargetLabel})` : ''}`;
+      const unit = task.bonusUnit === 'percent' ? '%' : (lang === 'ar' ? ' نقطة' : ' pts');
+      const bonusPrefix = lang === 'ar' ? 'بونص' : 'Bonus';
+      return `${bonusPrefix} +${task.weight}${unit}${task.bonusTargetLabel ? ` (${task.bonusTargetLabel})` : ''}`;
     }
-    return 'Bonus Credit';
+    return lang === 'ar' ? 'درجة إضافية (بونص)' : 'Bonus Credit';
   }
-  if (task.weightDisplay && task.weightDisplay.trim()) return task.weightDisplay.trim();
-  if (typeof task.weight === 'number' && task.weight > 0) return `${task.weight}% of Grade`;
-  return 'Not set';
+  if (loc.weightDisplay && loc.weightDisplay.trim()) return loc.weightDisplay.trim();
+  if (typeof task.weight === 'number' && task.weight > 0) {
+    return lang === 'ar' ? `${task.weight}% من الدرجة` : `${task.weight}% of Grade`;
+  }
+  return tr.notSet;
 }
 
-function formatScoreText(task: Partial<DeadlineTask>): string | null {
+function formatScoreText(task: Partial<DeadlineTask>, lang: UiLanguage = 'en'): string | null {
+  const tr = localizeSummaryStrings(lang);
   if (task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) {
     if (task.scoreDisplay && task.scoreDisplay.trim()) return task.scoreDisplay.trim();
     if (typeof task.score === 'number' && task.maxScore) return `${task.score} / ${task.maxScore}`;
-    if (typeof task.score === 'number') return `${task.score} pts`;
-    return 'Graded';
+    if (typeof task.score === 'number') return `${task.score}${lang === 'ar' ? ' نقطة' : ' pts'}`;
+    return tr.graded;
   }
-  if (task.submissionStatus === 'submitted') return 'Submitted (awaiting grade)';
+  if (task.submissionStatus === 'submitted') return tr.submittedAwaiting;
   return null;
 }
 
@@ -242,10 +254,13 @@ function formatScoreText(task: Partial<DeadlineTask>): string | null {
  */
 export function buildStructuredDeadlineSummary(
   task: Partial<DeadlineTask>,
-  options: { countdownLabel?: string; isPayment?: boolean } = {}
+  options: { countdownLabel?: string; isPayment?: boolean; lang?: UiLanguage } = {}
 ): StructuredDeadlineSummary {
-  const rawDesc = (task.description || '').trim();
-  const rawSnippet = (task.sourceSnippet || '').trim();
+  const lang: UiLanguage = options.lang === 'ar' ? 'ar' : 'en';
+  const tr = localizeSummaryStrings(lang);
+  const loc = localizedTaskView(task, lang);
+  const rawDesc = (loc.description || '').trim();
+  const rawSnippet = (loc.sourceSnippet || '').trim();
   const chosenRaw = rawDesc.length >= rawSnippet.length ? rawDesc : rawSnippet;
   const rawParts = splitAnnouncementNotes(chosenRaw);
   const cleanedSegments = rawParts
@@ -253,25 +268,25 @@ export function buildStructuredDeadlineSummary(
     .filter(s => s.length >= 2);
 
   const noteSegments: StructuredNoteSegment[] = cleanedSegments.map((text, idx) => ({
-    label: idx === 0 ? 'Initial Announcement' : `Professor Update #${idx}`,
+    label: idx === 0 ? tr.initialPost : tr.profUpdate(idx),
     text
   }));
 
-  const topicsExtracted = (task.summary?.topics || '').trim() || extractTopicsFromSegments(cleanedSegments);
-  const formatExtracted = (task.summary?.formatRules || '').trim() || extractFormatRulesFromSegments(cleanedSegments, task);
-  const briefExtracted = (task.summary?.brief || '').trim() || extractBriefFromSegments(cleanedSegments);
+  const topicsExtracted = (loc.topics || '').trim() || extractTopicsFromSegments(cleanedSegments);
+  const formatExtracted = (loc.formatRules || '').trim() || extractFormatRulesFromSegments(cleanedSegments, task);
+  const briefExtracted = (loc.brief || '').trim() || extractBriefFromSegments(cleanedSegments);
 
   const rawNotes = noteSegments
-    .map((seg, i) => (i === 0 ? seg.text : `[Professor Update #${i}]:\n${seg.text}`))
+    .map((seg, i) => (i === 0 ? seg.text : `[${tr.profUpdate(i)}]:\n${seg.text}`))
     .join('\n\n');
 
   return {
-    whenText: formatWhenText(task, options.countdownLabel),
-    roomText: formatRoomText(task, options.isPayment),
-    weightText: formatWeightText(task),
-    topicsText: topicsExtracted || 'Not specified',
-    formatText: formatExtracted || (options.isPayment ? 'Portal / Bank Transfer' : 'Standard course rules'),
-    scoreText: formatScoreText(task),
+    whenText: formatWhenText(task, options.countdownLabel, lang),
+    roomText: formatRoomText(task, options.isPayment, lang),
+    weightText: formatWeightText(task, lang),
+    topicsText: topicsExtracted || tr.notSpecified,
+    formatText: formatExtracted || (options.isPayment ? tr.portalRules : tr.standardRules),
+    scoreText: formatScoreText(task, lang),
     briefText: briefExtracted,
     noteSegments,
     hasNotes: noteSegments.length > 0,
@@ -298,6 +313,7 @@ export interface DeadlineSummaryRenderOptions {
   includeCopyBtn?: boolean;
   copyBtnId?: string;
   svgIconFn?: (name: string, extraClass?: string) => string;
+  lang?: UiLanguage;
 }
 
 /**
@@ -309,9 +325,12 @@ export function renderDeadlineSummaryBlockHtml(
   task: Partial<DeadlineTask>,
   options: DeadlineSummaryRenderOptions = {}
 ): string {
+  const lang: UiLanguage = options.lang === 'ar' ? 'ar' : 'en';
+  const tr = localizeSummaryStrings(lang);
   const sum = buildStructuredDeadlineSummary(task, {
     countdownLabel: options.countdownLabel,
-    isPayment: options.isPayment
+    isPayment: options.isPayment,
+    lang
   });
   const isReading = options.variant === 'reading';
   const taskId = escapeSummaryHtml(task.id || '');
@@ -321,17 +340,17 @@ export function renderDeadlineSummaryBlockHtml(
   const searchIcon = getIcon ? getIcon('search') : '';
 
   const rows: Array<{ key: string; value: string; muted?: boolean }> = [
-    { key: 'When', value: sum.whenText },
-    { key: 'Room', value: sum.roomText, muted: sum.roomText === 'TBA' },
-    { key: 'Weight', value: sum.weightText, muted: sum.weightText === 'Not set' },
-    { key: 'Topics', value: sum.topicsText, muted: sum.topicsText === 'Not specified' },
-    { key: 'Rules', value: sum.formatText, muted: sum.formatText === 'Standard course rules' }
+    { key: tr.whenKey, value: sum.whenText },
+    { key: tr.roomKey, value: sum.roomText, muted: sum.roomText === tr.tba },
+    { key: tr.weightKey, value: sum.weightText, muted: sum.weightText === tr.notSet },
+    { key: tr.topicsKey, value: sum.topicsText, muted: sum.topicsText === tr.notSpecified },
+    { key: tr.rulesKey, value: sum.formatText, muted: sum.formatText === tr.standardRules }
   ];
   if (sum.scoreText) {
-    rows.push({ key: 'Score', value: sum.scoreText });
+    rows.push({ key: tr.scoreKey, value: sum.scoreText });
   }
   if (sum.briefText) {
-    rows.push({ key: 'Summary', value: sum.briefText });
+    rows.push({ key: tr.briefKey, value: sum.briefText });
   }
 
   const rowsHtml = rows.map(r => `
@@ -342,8 +361,8 @@ export function renderDeadlineSummaryBlockHtml(
   `).join('');
 
   const updateBadge = sum.updateCount > 0
-    ? `<span class="prof-notes-count">${sum.updateCount} ${sum.updateCount === 1 ? 'update' : 'updates'}</span>`
-    : (sum.hasNotes ? '<span class="prof-notes-count">1 post</span>' : '');
+    ? `<span class="prof-notes-count">${escapeSummaryHtml(tr.updateCount(sum.updateCount))}</span>`
+    : (sum.hasNotes ? `<span class="prof-notes-count">${escapeSummaryHtml(tr.singlePost)}</span>` : '');
 
   const notesBodyHtml = sum.hasNotes
     ? sum.noteSegments.map((seg, idx) => `
@@ -352,12 +371,12 @@ export function renderDeadlineSummaryBlockHtml(
         <div class="prof-note-segment-text">${escapeSummaryHtml(seg.text)}</div>
       </div>
     `).join('')
-    : '<div class="prof-notes-empty">No announcement text recorded for this item.</div>';
+    : `<div class="prof-notes-empty">${escapeSummaryHtml(tr.noNotes)}</div>`;
 
   const toolbarHtml = (sum.hasNotes && (options.includeFullViewBtn || options.includeCopyBtn))
     ? `<div class="prof-notes-toolbar">
-        ${options.includeCopyBtn ? `<button type="button" class="btn-copy-announcement prof-notes-copy-btn" ${options.copyBtnId ? `id="${escapeSummaryHtml(options.copyBtnId)}"` : ''} data-task-id="${taskId}">${copyIcon}<span>Copy</span></button>` : ''}
-        ${options.includeFullViewBtn ? `<button type="button" class="btn-inspect-quote prof-notes-inspect-btn" data-id="${taskId}" data-task-id="${taskId}" title="Open full details">${searchIcon}<span>Full View</span></button>` : ''}
+        ${options.includeCopyBtn ? `<button type="button" class="btn-copy-announcement prof-notes-copy-btn" ${options.copyBtnId ? `id="${escapeSummaryHtml(options.copyBtnId)}"` : ''} data-task-id="${taskId}">${copyIcon}<span>${escapeSummaryHtml(tr.copy)}</span></button>` : ''}
+        ${options.includeFullViewBtn ? `<button type="button" class="btn-inspect-quote prof-notes-inspect-btn" data-id="${taskId}" data-task-id="${taskId}" title="${escapeSummaryHtml(tr.fullView)}">${searchIcon}<span>${escapeSummaryHtml(tr.fullView)}</span></button>` : ''}
       </div>`
     : '';
 
@@ -366,7 +385,7 @@ export function renderDeadlineSummaryBlockHtml(
         <summary class="prof-notes-summary">
           <span class="prof-notes-title">
             ${msgIcon}
-            <span>Professor Notes</span>
+            <span>${escapeSummaryHtml(tr.profNotes)}</span>
             ${updateBadge}
           </span>
           <span class="prof-notes-toggle-right">
@@ -382,7 +401,7 @@ export function renderDeadlineSummaryBlockHtml(
 
   return `
     <div class="deadline-summary-block${isReading ? ' is-reading' : ''}" data-task-id="${taskId}">
-      <div class="summary-grid-header">Summary</div>
+      <div class="summary-grid-header">${escapeSummaryHtml(tr.summaryHeader)}</div>
       <div class="summary-grid-rows">${rowsHtml}</div>
       ${notesDropdownHtml}
     </div>

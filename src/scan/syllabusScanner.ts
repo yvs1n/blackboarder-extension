@@ -1,4 +1,4 @@
-import type { CourseDraft } from '../core/courseDocument';
+import { analyzeCourseDocument, type CourseDraft } from '../core/courseDocument';
 import { fileToText, type PdfJsLike } from '../core/documentText';
 import { extractCoursesWithAi } from '../engine/aiCourseImport';
 import type { AiEndpoint } from '../engine/aiProviders';
@@ -56,6 +56,7 @@ export interface DiscoverSyllabiOptions {
   origin: string;
   fetchFn: BbFetch;
   ai: AiEndpoint | null;
+  allowLocalFallback?: boolean;
   existingCourses?: UserCourseConfig[];
   loadPdfJs?: () => Promise<PdfJsLike>;
   extractTextFromFile?: (file: File) => Promise<string>;
@@ -307,7 +308,7 @@ function enrichDraftWithMeta(draft: CourseDraft, meta: CourseMeta): CourseDraft 
  * Strictly refuses to crawl if no AI API key is configured.
  */
 export async function discoverAndExtractBlackboardSyllabi(options: DiscoverSyllabiOptions): Promise<SyllabusScanResult> {
-  if (!options.ai) {
+  if (!options.ai && !options.allowLocalFallback) {
     return {
       ok: false,
       skippedReason: 'no-ai-key',
@@ -395,7 +396,7 @@ export async function discoverAndExtractBlackboardSyllabi(options: DiscoverSylla
         if (candidate.downloadPath) {
           options.onProgress?.({
             phase: 'extracting',
-            message: `Reading ${candidate.fileName || candidate.title} (${label}) with AI...`,
+            message: `Reading ${candidate.fileName || candidate.title} (${label})${options.ai ? ' with AI' : ''}...`,
             current: i + 1,
             total: courseList.length
           });
@@ -413,7 +414,17 @@ export async function discoverAndExtractBlackboardSyllabi(options: DiscoverSylla
         matchedFiles++;
 
         const aiInput = `${meta.code ? `Course Code: ${meta.code}\n` : ''}${meta.name ? `Course Name: ${meta.name}\n` : ''}\n${text}`;
-        const extracted = await aiExtract(aiInput, options.ai);
+        let extracted: CourseDraft[] = [];
+        if (options.ai) {
+          try {
+            extracted = await aiExtract(aiInput, options.ai);
+          } catch {
+            if (options.allowLocalFallback) extracted = analyzeCourseDocument(aiInput).courses;
+          }
+        }
+        if (extracted.length === 0 && options.allowLocalFallback) {
+          extracted = analyzeCourseDocument(aiInput).courses;
+        }
         for (const rawDraft of extracted) {
           const draft = enrichDraftWithMeta(rawDraft, meta);
           if (!draft.syllabus.length && !draft.scheduleSlots.length && draft.creditHours === undefined) continue;

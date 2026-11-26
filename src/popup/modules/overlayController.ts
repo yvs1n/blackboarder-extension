@@ -20,6 +20,7 @@ export type PopupOverlayId =
   | 'modal-quick-links'
   | 'modal-course-editor'
   | 'modal-course-import'
+  | 'modal-calibration'
   | 'modal-regen-key-confirm'
   | 'modal-payment'
   | 'modal-changelog'
@@ -36,6 +37,7 @@ const MODAL_DISMISS_ORDER: PopupOverlayId[] = [
   'modal-edit-task',
   'modal-reading-sheet',
   'modal-course-import',
+  'modal-calibration',
   'modal-course-editor',
   'modal-quick-links',
   'modal-ai-extract',

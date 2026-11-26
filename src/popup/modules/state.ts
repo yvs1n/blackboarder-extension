@@ -2,9 +2,11 @@ import type {
   DeadlineTask,
   PaymentItem,
   QuickLink,
+  UiLanguage,
   UserCourseConfig,
   ArchivedSemester,
 } from '../../types';
+import { getSavedUiLanguage } from '../../core/i18n';
 
 export type AppView = 'calendar' | 'details' | 'marks' | 'courses' | 'payments' | 'settings';
 
@@ -17,7 +19,7 @@ export function formatDateKey(date: Date): string {
 
 export function formatMonthYear(year: number, month: number): string {
   const d = new Date(year, month, 1);
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return d.toLocaleDateString(popupState.currentLanguage === 'ar' ? 'ar-AE' : 'en-US', { month: 'long', year: 'numeric' });
 }
 
 const todayDate = new Date();
@@ -48,6 +50,7 @@ export const popupState = {
   activeRoomPickerTaskId: null as string | null,
   scanCancelledByUser: false,
   currentThemeSetting: 'light' as 'light' | 'dark' | 'system',
+  currentLanguage: getSavedUiLanguage() as UiLanguage,
 };
 
 const domElementCache = new Map<string, HTMLElement>();

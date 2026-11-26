@@ -48,7 +48,7 @@ export function resetCourseImporterState(): void {
 }
 
 /** pdf.js ships inside the extension and is loaded only when a PDF is imported. */
-async function loadPdfJs(): Promise<PdfJsLike> {
+export async function loadPdfJs(): Promise<PdfJsLike> {
   const pdfjs = await import(/* @vite-ignore */ chrome.runtime.getURL('vendor/pdfjs/pdf.min.js'));
   pdfjs.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('vendor/pdfjs/pdf.worker.min.js');
   return pdfjs;
@@ -246,7 +246,7 @@ export async function openSyllabusReviewFromScan(drafts: CourseDraft[], summaryT
   if (container) container.style.display = 'block';
 }
 
-async function resolveActiveBlackboardScanOrigin(requestPermissionIfNeeded: boolean): Promise<string> {
+export async function resolveActiveBlackboardScanOrigin(requestPermissionIfNeeded: boolean): Promise<string> {
   let preferredOrigin = '';
   try {
     const tabs = await chrome.tabs?.query?.({ active: true, currentWindow: true }).catch(() => []) || [];

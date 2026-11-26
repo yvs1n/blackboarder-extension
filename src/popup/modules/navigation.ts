@@ -1,4 +1,5 @@
 import { DeadlineTask, TaskPriority, TaskStatus, TaskType } from '../../types';
+import { syncArabicMirrorOnTask } from '../../core/arabicTranslator';
 import { evaluateTaskList } from '../../rulebook';
 import { findCourseSchedule, resolveTaskRoom, resolveTaskTimeWithSchedule } from '../../core/courseSchedule';
 import { formatTaskWeightDisplay, resolveTaskWeight } from '../../core/syllabusWeights';
@@ -458,7 +459,8 @@ export function setupNavigationAndTaskEvents() {
       updatedAt: new Date().toISOString()
     };
 
-    popupState.currentTasks = deduplicateTaskList(await addTask(newTask));
+    const syncedNewTask = syncArabicMirrorOnTask(newTask);
+    popupState.currentTasks = deduplicateTaskList(await addTask(syncedNewTask));
     popupState.currentTasks.sort(compareTasksByTime);
     popupState.currentTasks = await saveTasksMergingLatest(popupState.currentTasks);
 

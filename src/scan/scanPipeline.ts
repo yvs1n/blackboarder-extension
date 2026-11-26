@@ -15,6 +15,9 @@ import { isValidTask, isBareTypeTitle } from '../core/courseHelper';
 import { deduplicateTaskList, areTasksDuplicates, mergeDuplicatePair } from '../utils/taskMerge';
 import { applySubmissionUpdates, purgeSyntheticGradebookTasks } from '../utils/gradebook';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
+import { translateTasksToArabicWithAi } from '../engine/aiTranslator';
+import { resolveAiEndpoint } from '../engine/aiProviders';
+import { ensureArabicMirrorsOnTasks } from '../core/arabicTranslator';
 import { mergeStreamAndCourseAnnouncements } from '../utils/announcementMerge';
 import { getStorageTombstones, setStorageTombstones } from '../utils/tombstones';
 import type { ScanSourceOutcomes } from './blackboardApi';
@@ -274,6 +277,12 @@ export async function runScanPipeline(input: ScanPipelineInput): Promise<ScanPip
 
   // Correct weights and rooms saved by older rules (tasks the student edited are left alone)
   repairTaskWeightsAndRooms(finalTasks);
+  ensureArabicMirrorsOnTasks(finalTasks);
+
+  const aiEp = resolveAiEndpoint(settings);
+  if (aiEp) {
+    finalTasks = await translateTasksToArabicWithAi(finalTasks, aiEp, 12).catch(() => finalTasks);
+  }
 
   if (input.signal?.aborted) {
     throw new DOMException('Aborted', 'AbortError');

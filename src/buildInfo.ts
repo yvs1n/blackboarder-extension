@@ -13,17 +13,19 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.48",
-  "build": "01eedc2923d2",
-  "commit": "331921eb867099ec3bcfd3541c162914582e015f",
-  "shortCommit": "331921e",
-  "timestamp": "2026-11-26T13:08:02.650Z",
-  "message": "fix: stop Banner room repair ping-pong and align exam dedup matching (v1.8.47)",
+  "version": "1.8.49",
+  "build": "b158071fc64a",
+  "commit": "7f7d1bd5898d05b67090dfc8a99b1b8d2c27b00e",
+  "shortCommit": "7f7d1bd",
+  "timestamp": "2026-11-26T15:23:01.266Z",
+  "message": "feat: add manual hide/restore toggle on deadlines and fix range extension & makeup quota hiding (v1.8.48)",
   "changelog": [
-    "Added a one-click Hide (eye-off) toggle button alongside card actions across Deadlines cards, Calendar Day Drawer cards, Reading Sheet, and the Mobile Companion, moving any selected deadline into Hidden (N) with an instant Undo toast and restoring back via Restore (visibilityLocked: 'hidden' | 'active').",
-    "Added data-id attributes to Calendar Day Drawer .day-summary-card elements (src/popup/modules/dayDrawer.ts) so the Debug Stick displays full taskDiagnostics and rulebookTrace there too.",
-    "Fixed extractAssessmentNumber() and areTasksDuplicates() so multi-item extension announcements like \"Assignments 1-3 (Extended Deadline)\" no longer parse as #1 and silently collapse into completed \"Assignment 1\"; they now survive cleanly as dedicated cards routed to Hidden (N) when items 1–3 are completed.",
-    "Updated isBonusText() so \"optional\" inside makeup quiz announcements isn't mislabeled Bonus Credit unless explicit bonus/extra-credit wording appears, updated isMakeupSupersededByCompletedOriginal() to evaluate best-N-of-M comp.count quotas cleanly, and excluded hidden/review/extension entries when scanning regular same-kind items."
+    "Automatically scans enrolled courses and inline/attached syllabi on a student's first Blackboard scan (allowLocalFallback: true fallback to analyzeCourseDocument without requiring an API key) and opens an editable review wizard (Courses > Calibrate) to confirm course names, codes, credit hours, weekly class schedules, rooms, quiz/assignment/exam counts, and \"best N of M\" drop rules.",
+    "Embeds step-by-step optional API key setup instructions (IFM K2 Horizon, OpenRouter, custom OpenAI-compatible) with live Test & Save and Re-Scan Syllabi.",
+    "Added App Language (English / العربية) selector under Settings > General in both Extension and Mobile Companion, updating UI labels and RTL/LTR direction dynamically while preserving cross-app layout parity.",
+    "Generates synchronized Arabic task mirrors (task.ar) on extraction, import, manual entry, and professor follow-up updates based on content signatures (computeTaskTranslationSig), with optional background AI batch refinement.",
+    "Synchronizes shared Extension & Companion settings (language, theme, showClassesInCalendar, showPaymentsInCalendar, calendarFeedShow, reminderHoursBefore, classReminderMinutes) encrypted inside the AES-256-GCM vault with timestamp resolution (pickNewerSharedPreferences), keeping device-local AI keys and auto-scan toggles separate.",
+    "Updated all feature guides, settings tables, and marketing/university pages for Calibration Wizard, Arabic UI/mirrors, Hide/Restore toggles, and shared settings sync, and updated store guidance to accurately distinguish live Chrome Web Store support across Chromium browsers (including desktop Edge), v1.8.34 on Microsoft Edge Add-ons, and GitHub Release ZIP loading while Firefox Add-ons publishing is pending."
   ],
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main"

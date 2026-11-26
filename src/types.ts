@@ -152,6 +152,9 @@ export interface PaymentItem {
   updatedAt: string;
 }
 
+import type { SharedPreferences } from './core/sharedPreferences';
+export type { SharedPreferences };
+
 export interface FirebaseSyncPayload {
   tasks: DeadlineTask[];
   lastSync: string;
@@ -167,6 +170,7 @@ export interface FirebaseSyncPayload {
   semestersUpdatedAt?: string;
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
+  preferences?: SharedPreferences;
 }
 
 export interface Announcement {
@@ -240,7 +244,27 @@ export interface DeadlineTask {
   paymentCategory?: PaymentCategory;
   calendarSynced?: boolean;
   userEdited?: boolean;
+  ar?: TaskArabicMirror; // Automatic bilingual mirror kept in sync with English updates
   createdAt: string;
+  updatedAt: string;
+}
+
+export type UiLanguage = 'en' | 'ar';
+
+export interface TaskArabicMirror {
+  title: string;
+  courseName?: string;
+  description?: string;
+  sourceSnippet?: string;
+  brief?: string;
+  topics?: string;
+  formatRules?: string;
+  weightDisplay?: string;
+  syllabusNote?: string;
+  room?: string;
+  hiddenReasonLabel?: string;
+  translatedBy?: 'local' | 'ai' | 'source';
+  sourceSig?: string;
   updatedAt: string;
 }
 
@@ -291,6 +315,7 @@ export interface UserSettings {
   syncKey?: string;
   theme?: 'light' | 'dark' | 'system';
   blackboardDarkMode?: boolean;
+  language?: UiLanguage;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -313,7 +338,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   autoSyncOnScan: true,
   syncKey: '',
   theme: 'system',
-  blackboardDarkMode: true
+  blackboardDarkMode: true,
+  language: 'en'
 };
 
 export interface ScanResult {

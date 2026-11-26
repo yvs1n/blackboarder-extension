@@ -122,6 +122,8 @@ import {
   updateStats,
 } from './modules/tasksView';
 import { initThemeSync, migrateThemeToSystemDefault } from './modules/theme';
+import { initLanguageSync } from './modules/language';
+import { initCalibrationModal, maybeRunFirstScanCalibration } from './modules/calibrationModal';
 
 // Wire cross-module action registry once at startup
 Object.assign(popupActions, {
@@ -229,6 +231,7 @@ async function initApp() {
 
   initThemeSync();
   migrateThemeToSystemDefault();
+  void initLanguageSync();
 
   const now = new Date();
   popupState.calendarYear = now.getFullYear();
@@ -332,11 +335,15 @@ async function initApp() {
   initSessionBanner();
   initExtensionUpdateSystem();
   initDebugStick();
+  initCalibrationModal();
   setupStorageAndSyncListeners();
 
   getScanStatus().then(status => {
     if (status?.state === 'running') renderScanStatus(status);
     else hideScanBanner();
+    if (status?.state === 'done') {
+      void maybeRunFirstScanCalibration(true);
+    }
   }).catch(() => {});
 
   const runBackgroundRefresh = () => refreshDataInBackground().catch(() => {});

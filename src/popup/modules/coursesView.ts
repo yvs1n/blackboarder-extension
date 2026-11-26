@@ -30,6 +30,7 @@ import {
   runBlackboardSyllabusScan,
   switchImporterTab,
 } from './courseImporter';
+import { openCalibrationWizard } from './calibrationModal';
 import { closeModalEl, openModalEl, registerOverlayCloseHandler } from './overlayController';
 import { popupActions, popupState } from './state';
 
@@ -523,6 +524,7 @@ export function setupCourseEvents() {
   document.getElementById('btn-add-course')?.addEventListener('click', () => openCourseEditor());
   document.getElementById('btn-import-courses')?.addEventListener('click', () => void openCourseImporter());
   document.getElementById('btn-scan-syllabi')?.addEventListener('click', () => void runBlackboardSyllabusScan());
+  document.getElementById('btn-calibrate-courses')?.addEventListener('click', () => void openCalibrationWizard({ autoScanSyllabi: true }));
   document.getElementById('btn-export-courses')?.addEventListener('click', exportCoursesJson);
   document.getElementById('btn-reset-courses')?.addEventListener('click', () => void handleResetCourses());
 

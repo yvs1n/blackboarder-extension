@@ -1,4 +1,6 @@
 import type { DeadlineTask } from '../../types';
+import { localizedTaskView } from '../../core/arabicTranslator';
+import { localizeTaskTypeLabel } from '../../core/i18n';
 import { classesOnDay, todaysClassesHtml } from '../../core/classSchedule';
 import { getCourseColorTheme, getCourseHex } from '../../core/courseColors';
 import { profileGradeScale } from '../../core/studentProfile';
@@ -44,9 +46,11 @@ export function openDayExpandedDrawer(dateKey: string) {
   const dayDrawerBody = dom.dayDrawerBody();
   if (!dayExpandedDrawer || !dayExpandedBackdrop) return;
 
+  const lang = popupState.currentLanguage;
+  const isAr = lang === 'ar';
   const [y, m, d] = dateKey.split('-').map(Number);
   const dateObj = new Date(y, m - 1, d);
-  const formattedDate = dateObj.toLocaleDateString(undefined, {
+  const formattedDate = dateObj.toLocaleDateString(isAr ? 'ar-AE' : undefined, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
@@ -62,9 +66,9 @@ export function openDayExpandedDrawer(dateKey: string) {
   tasksOnDate.sort(compareTasksByTime);
 
   dayDrawerTitle.innerHTML = `${getSvgIcon('calendar', 'mr-1')} <span>${escapeHtml(formattedDate)}</span>`;
-  dayDrawerSubtitle.textContent = tasksOnDate.length === 1
-    ? '1 Deadline Scheduled'
-    : `${tasksOnDate.length} Deadlines Scheduled`;
+  dayDrawerSubtitle.textContent = isAr
+    ? `${tasksOnDate.length} مواعيد مجدولة`
+    : (tasksOnDate.length === 1 ? '1 Deadline Scheduled' : `${tasksOnDate.length} Deadlines Scheduled`);
 
   const classesBox = document.getElementById('day-expanded-classes');
   const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
@@ -79,7 +83,7 @@ export function openDayExpandedDrawer(dateKey: string) {
         .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, popupState.selectedCourseFilter));
       const hasSchedule = popupState.currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
       classesBox.style.display = '';
-      classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+      classesBox.innerHTML = `<div class="selected-day-classes-title">${isAr ? 'المحاضرات' : 'Classes'}</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
         isToday: formatDateKey(now) === dateKey,
         hasSchedule,
       });
@@ -92,10 +96,10 @@ export function openDayExpandedDrawer(dateKey: string) {
     dayDrawerBody.innerHTML = `
       <div class="day-drawer-empty">
         <div class="empty-icon">${getSvgIcon('coffee')}</div>
-        <div class="empty-text">No deadlines scheduled for this day.</div>
+        <div class="empty-text">${isAr ? 'لا توجد مواعيد مجدولة لهذا اليوم.' : 'No deadlines scheduled for this day.'}</div>
         <button type="button" class="btn-drawer-add-action" id="btn-drawer-add-empty">
           ${getSvgIcon('plus', 'mr-1')}
-          <span>Add Deadline for this Date</span>
+          <span>${isAr ? 'إضافة موعد لهذا اليوم' : 'Add Deadline for this Date'}</span>
         </button>
       </div>
     `;
@@ -185,9 +189,12 @@ export function getTaskTargetBadgeHtml(
 }
 
 export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
+  const lang = popupState.currentLanguage;
+  const isAr = lang === 'ar';
   const isCompleted = task.status === 'completed';
   const isPayment = Boolean(task.isPayment);
   const resolved = resolveCourseInfo(task);
+  const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
   const courseHex = isPayment ? 'var(--accent)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
   const countdown = formatCountdown(task.dueDate, task.hasSpecificTime);
@@ -205,24 +212,24 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
 
   card.innerHTML = `
     <div class="day-card-header">
-      <span class="day-card-course-badge" style="background: ${courseTheme.bgLight}; color: ${courseTheme.textDark}; border: 1px solid ${courseTheme.border};" title="${escapeHtml(resolved.courseName)} ${resolved.courseCode ? `(${escapeHtml(resolved.courseCode)})` : ''}">
+      <span class="day-card-course-badge" style="background: ${courseTheme.bgLight}; color: ${courseTheme.textDark}; border: 1px solid ${courseTheme.border};" title="${escapeHtml(view.courseName)} ${resolved.courseCode ? `(${escapeHtml(resolved.courseCode)})` : ''}">
         <span class="day-card-course-dot" style="background-color: ${courseHex};"></span>
-        <span class="day-card-course-name">${escapeHtml(resolved.courseName)}</span>
+        <span class="day-card-course-name">${escapeHtml(view.courseName)}</span>
       </span>
       <div style="display: flex; align-items: center; gap: 5px;">
         <span class="type-pill type-${escapeHtml(task.type)}" style="font-size: 9px; padding: 1px 5px; display: inline-flex; align-items: center; gap: 3px;">
           ${isPayment ? getSvgIcon('credit-card') : getTaskTypeIcon(task.type)}
-          <span>${isPayment ? 'PAYMENT' : escapeHtml(task.type)}</span>
+          <span>${isPayment ? (isAr ? 'رسوم' : 'PAYMENT') : localizeTaskTypeLabel(task.type, lang, true)}</span>
         </span>
         <span class="day-card-status-badge ${isCompleted ? 'status-done' : countdown.urgency}">
-          ${isCompleted ? `${getSvgIcon('check', 'mr-1')} Completed` : countdown.label}
+          ${isCompleted ? `${getSvgIcon('check', 'mr-1')} ${isAr ? 'مكتمل' : 'Completed'}` : countdown.label}
         </span>
       </div>
     </div>
 
     <div class="day-card-title-row">
       <div class="day-card-title ${isCompleted ? 'title-completed' : ''}">
-        ${escapeHtml(task.title)}
+        ${escapeHtml(view.title)}
       </div>
     </div>
 
@@ -231,25 +238,25 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
         ${getSvgIcon('clock', 'mr-1')} <span class="day-card-time-text">${escapeHtml(timeDisplay)}</span>
       </div>
       ${(isPayment && task.paymentAmountText) ? `<span class="payment-task-pill">${escapeHtml(task.paymentAmountText)}</span>` : ''}
-      ${(!isHwOrProject && task.room) ? `
+      ${(!isHwOrProject && view.room) ? `
         <div class="day-card-room" title="Classroom / Exam Hall" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #4338ca; background: #e0e7ff; padding: 2px 7px; border-radius: 4px; border: 1px solid #c7d2fe;">
-          ${getSvgIcon('pin', 'mr-1')} <span class="day-card-room-text">${escapeHtml(task.room)}</span>
+          ${getSvgIcon('pin', 'mr-1')} <span class="day-card-room-text">${escapeHtml(view.room)}</span>
         </div>
       ` : ''}
-      ${task.weightDisplay ? `
+      ${view.weightDisplay ? `
         <div class="day-card-weight" title="${task.syllabusNote ? escapeHtml(task.syllabusNote) : 'Syllabus grade weight'}">
-          ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(task.weightDisplay)}</span>
+          ${getSvgIcon('scale', 'mr-1')} <span class="day-card-weight-text">${escapeHtml(view.weightDisplay)}</span>
         </div>
       ` : ''}
       ${targetBadgeHtml}
       ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
         <div class="task-grade-pill" title="Grade / Score released on Blackboard">
-          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
+          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : (isAr ? 'مُقيّم' : 'Graded'))))}</span>
         </div>
       ` : ''}
       ${task.submissionStatus === 'submitted' ? `
         <div class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
-          ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+          ${getSvgIcon('check', 'mr-1')} <span>${isAr ? 'تم التسليم' : 'Submitted'}</span>
         </div>
       ` : ''}
     </div>
@@ -260,7 +267,7 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
       <div class="day-card-student-notes" style="margin-top: 6px; padding: 6px 10px; background: var(--surface-hover); border-left: 3px solid var(--text-main); border-radius: 0;">
         <span style="font-size: 10px; font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;">
           ${getSvgIcon('pencil')}
-          <span>Student Notes:</span>
+          <span>${isAr ? 'ملاحظات الطالب:' : 'Student Notes:'}</span>
         </span>
         <div style="font-size: 11px; color: var(--text-main); margin-top: 2px; white-space: pre-wrap;">${escapeHtml(task.notes)}</div>
       </div>
@@ -277,11 +284,13 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
 }
 
 export function renderSelectedDay() {
+  const lang = popupState.currentLanguage;
+  const isAr = lang === 'ar';
   const selectedDayTitle = dom.selectedDayTitle();
   const selectedDayList = dom.selectedDayList();
   const [y, m, d] = popupState.selectedDateStr.split('-').map(Number);
   const dateObj = new Date(y, m - 1, d);
-  const formattedHeader = dateObj.toLocaleDateString(undefined, {
+  const formattedHeader = dateObj.toLocaleDateString(isAr ? 'ar-AE' : undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -290,7 +299,7 @@ export function renderSelectedDay() {
   const filterLabel = popupState.selectedCourseFilter
     ? ` <span style="font-weight: 500; font-size: 11px; color: var(--text-muted);">&bull; ${escapeHtml(popupState.selectedCourseFilter)}</span>`
     : '';
-  selectedDayTitle.innerHTML = `${getSvgIcon('calendar', 'mr-1')} <span>Deadlines for ${escapeHtml(formattedHeader)}${filterLabel}</span>`;
+  selectedDayTitle.innerHTML = `${getSvgIcon('calendar', 'mr-1')} <span>${isAr ? 'مواعيد' : 'Deadlines for'} ${escapeHtml(formattedHeader)}${filterLabel}</span>`;
 
   const showClasses = getCachedSettingsSync().showClassesInCalendar !== false;
   const hasCourses = popupState.currentUserCourses.length > 0;
@@ -323,7 +332,7 @@ export function renderSelectedDay() {
       .filter(o => matchesSelectedCourseFilter({ courseName: o.courseName, courseCode: o.courseCode } as DeadlineTask, popupState.selectedCourseFilter));
     const hasSchedule = popupState.currentUserCourses.some(c => (c.scheduleSlots || []).length > 0);
     classesBox.style.display = '';
-    classesBox.innerHTML = `<div class="selected-day-classes-title">Classes</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
+    classesBox.innerHTML = `<div class="selected-day-classes-title">${isAr ? 'المحاضرات' : 'Classes'}</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
       isToday: formatDateKey(now) === popupState.selectedDateStr,
       hasSchedule,
     });
@@ -342,7 +351,7 @@ export function renderSelectedDay() {
   if (tasksOnDate.length === 0) {
     selectedDayList.innerHTML = `
       <div class="selected-day-empty">
-        <span>No deadlines scheduled for this day${popupState.selectedCourseFilter ? ' matching selected course' : ''}.</span>
+        <span>${isAr ? 'لا توجد مواعيد مجدولة لهذا اليوم.' : `No deadlines scheduled for this day${popupState.selectedCourseFilter ? ' matching selected course' : ''}.`}</span>
       </div>
     `;
     return;

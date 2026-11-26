@@ -1,4 +1,5 @@
 import type { DeadlineTask } from '../../types';
+import { localizedTaskView } from '../../core/arabicTranslator';
 import { classesOnDay, formatClock, type ClassOccurrence } from '../../core/classSchedule';
 import { getCourseHex } from '../../core/courseColors';
 import { getActiveCourseLegend } from '../../core/userCourses';
@@ -187,10 +188,12 @@ export function createDayCell(
   const maxVisibleChips = 2;
   const visibleTasks = tasks.slice(0, maxVisibleChips);
 
+  const lang = popupState.currentLanguage;
   visibleTasks.forEach(task => {
     const isCompleted = task.status === 'completed';
     const isPayment = Boolean(task.isPayment);
     const resolved = resolveCourseInfo(task);
+    const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
     const courseHex = isPayment ? 'var(--accent)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
     const timeStr = formatTaskTime(task);
 
@@ -201,20 +204,20 @@ export function createDayCell(
       chip.classList.add('is-completed');
       chip.style.removeProperty('background-color');
       chip.style.borderLeftColor = courseHex;
-      chip.innerHTML = `${getSvgIcon('check')} <span>${escapeHtml(task.title)}</span>`;
-      chip.title = `[Completed] ${resolved.courseName}: ${task.title} - Click to expand day view`;
+      chip.innerHTML = `${getSvgIcon('check')} <span>${escapeHtml(view.title)}</span>`;
+      chip.title = `[${lang === 'ar' ? 'مكتمل' : 'Completed'}] ${view.courseName}: ${view.title}`;
     } else if (isPayment) {
       chip.style.setProperty('background-color', 'var(--accent)', 'important');
       chip.style.color = 'var(--on-accent)';
       chip.style.borderLeftColor = 'rgba(0, 0, 0, 0.25)';
-      chip.innerHTML = `${getSvgIcon('credit-card')} <span>${escapeHtml(task.title)}</span>`;
-      chip.title = `[Payment Due] ${task.title}${task.paymentAmountText ? ` (${task.paymentAmountText})` : ''} - ${timeStr}`;
+      chip.innerHTML = `${getSvgIcon('credit-card')} <span>${escapeHtml(view.title)}</span>`;
+      chip.title = `[${lang === 'ar' ? 'دفعة مالية' : 'Payment Due'}] ${view.title}${task.paymentAmountText ? ` (${task.paymentAmountText})` : ''} - ${timeStr}`;
     } else {
       chip.style.backgroundColor = courseHex;
       chip.style.setProperty('background-color', courseHex, 'important');
       chip.style.borderLeftColor = 'rgba(0, 0, 0, 0.25)';
-      chip.innerHTML = `${getTaskTypeIcon(task.type)} <span>${escapeHtml(task.title)}</span>`;
-      chip.title = `${resolved.courseName}: ${task.title} ${task.weightDisplay ? `(${task.weightDisplay})` : ''} - ${timeStr} - Click to expand day view`;
+      chip.innerHTML = `${getTaskTypeIcon(task.type)} <span>${escapeHtml(view.title)}</span>`;
+      chip.title = `${view.courseName}: ${view.title} ${view.weightDisplay ? `(${view.weightDisplay})` : ''} - ${timeStr}`;
     }
 
     chipsContainer.appendChild(chip);

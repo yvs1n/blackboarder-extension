@@ -1,9 +1,11 @@
-import { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester, PaymentItem } from '../types';
+import { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester, PaymentItem, SharedPreferences } from '../types';
 import { sanitizeCloudTasks, encodeCloudKeys, decodeCloudKeys, sanitizeCloudQuickLinks, sanitizeCloudCourses, sanitizeScanRequest } from './cloudSanitize';
 import type { CloudScanRequest } from './cloudSanitize';
+import { sanitizeSharedPreferences } from '../core/sharedPreferences';
 import { getProfile, mergeCloudProfile } from './profile';
 import { getStoredSemesters, getStoredSemestersUpdatedAt, mergeCloudSemesters, saveStoredSemesters } from './semestersStorage';
 import { getStoredPayments, getStoredPaymentsUpdatedAt, mergeCloudPaymentsStorage, saveStoredPayments } from './paymentsStorage';
+import { applyCloudSharedPreferences, getLocalSharedPreferences } from './storage/settingsStorage';
 import { mergeForCloudWrite, readCloudSide } from './syncMerge';
 import { wrapCloudVault, unwrapCloudVault } from './vaultCrypto';
 
@@ -95,6 +97,7 @@ export interface FirebaseSyncPayload {
   semestersUpdatedAt?: string;
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
+  preferences?: SharedPreferences;
   scanRequest?: CloudScanRequest;
   backupEpoch?: string;
 }
@@ -129,6 +132,7 @@ export async function pushTasksToFirebase(
     const semestersUpdatedAt = await getStoredSemestersUpdatedAt();
     const payments = await getStoredPayments();
     const paymentsUpdatedAt = await getStoredPaymentsUpdatedAt();
+    const localPreferences = await getLocalSharedPreferences().catch(() => undefined);
     for (let attempt = 0; ; attempt++) {
       const cloudRes = await fetch(targetUrl, { cache: 'no-store', headers: { 'X-Firebase-ETag': 'true' } });
       if (!cloudRes || !cloudRes.ok) {
@@ -149,7 +153,8 @@ export async function pushTasksToFirebase(
         semesters,
         semestersUpdatedAt,
         payments,
-        paymentsUpdatedAt: paymentsUpdatedAt || undefined
+        paymentsUpdatedAt: paymentsUpdatedAt || undefined,
+        preferences: localPreferences
       }, cloud);
 
       if (merged.semestersFromCloud && merged.semesters) {
@@ -157,6 +162,9 @@ export async function pushTasksToFirebase(
       }
       if (merged.paymentsFromCloud && merged.payments) {
         await saveStoredPayments(merged.payments, merged.paymentsUpdatedAt);
+      }
+      if (merged.preferencesFromCloud && merged.preferences) {
+        await applyCloudSharedPreferences(merged.preferences).catch(() => {});
       }
 
       const lastSync = new Date().toISOString();
@@ -178,6 +186,7 @@ export async function pushTasksToFirebase(
         semestersUpdatedAt: merged.semestersUpdatedAt,
         payments: merged.payments,
         paymentsUpdatedAt: merged.paymentsUpdatedAt,
+        preferences: merged.preferences,
         // And so does the phone's scan request, or the extension would never see it
         scanRequest: merged.scanRequest,
         ...(merged.backupEpoch ? { backupEpoch: merged.backupEpoch } : {})
@@ -225,6 +234,7 @@ export interface CloudOverrideSnapshot {
   semestersUpdatedAt?: string;
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
+  preferences?: SharedPreferences | null;
   backupEpoch?: string;
 }
 
@@ -259,6 +269,7 @@ export async function overwriteCloudVault(
     const cleanPayments = Array.isArray(snapshot.payments) ? snapshot.payments : [];
     const cleanSemesters = Array.isArray(snapshot.semesters) ? snapshot.semesters : [];
     const cleanTombstones = snapshot.tombstones && typeof snapshot.tombstones === 'object' ? snapshot.tombstones : {};
+    const cleanPreferences = sanitizeSharedPreferences(snapshot.preferences);
 
     const payload: FirebaseSyncPayload = {
       tasks: cleanTasks,
@@ -276,6 +287,7 @@ export async function overwriteCloudVault(
       semestersUpdatedAt: snapshot.semestersUpdatedAt || epoch,
       payments: cleanPayments,
       paymentsUpdatedAt: snapshot.paymentsUpdatedAt || epoch,
+      ...(cleanPreferences ? { preferences: cleanPreferences } : {}),
       ...(existingScanRequest ? { scanRequest: existingScanRequest } : {}),
       backupEpoch: epoch
     };
@@ -328,6 +340,7 @@ export async function fetchTasksFromFirebase(
   semestersUpdatedAt?: string;
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
+  preferences?: SharedPreferences;
   scanRequest?: CloudScanRequest;
   backupEpoch?: string;
 }> {
@@ -355,10 +368,14 @@ export async function fetchTasksFromFirebase(
     }
 
     const decodedTombstones = decodeCloudKeys(data?.tombstones) || {};
+    const cloudPrefs = sanitizeSharedPreferences(data?.preferences);
     if (!options?.skipLocalMerge) {
       await mergeCloudProfile(data?.profile).catch(() => false);
       await mergeCloudSemesters(data?.semesters, data?.semestersUpdatedAt).catch(() => false);
       await mergeCloudPaymentsStorage(data?.payments, data?.paymentsUpdatedAt, decodedTombstones).catch(() => false);
+      if (cloudPrefs) {
+        await applyCloudSharedPreferences(cloudPrefs).catch(() => {});
+      }
     }
     const quickLinks = sanitizeCloudQuickLinks(data?.quickLinks);
     const courses = sanitizeCloudCourses(data?.courses);
@@ -378,6 +395,7 @@ export async function fetchTasksFromFirebase(
         semestersUpdatedAt: data?.semestersUpdatedAt,
         payments: data?.payments,
         paymentsUpdatedAt: data?.paymentsUpdatedAt,
+        preferences: cloudPrefs,
         scanRequest: sanitizeScanRequest(data?.scanRequest),
         backupEpoch: typeof data?.backupEpoch === 'string' ? data.backupEpoch : undefined
       };
@@ -398,6 +416,7 @@ export async function fetchTasksFromFirebase(
       semestersUpdatedAt: data.semestersUpdatedAt,
       payments: data.payments,
       paymentsUpdatedAt: data.paymentsUpdatedAt,
+      preferences: cloudPrefs,
       scanRequest: sanitizeScanRequest(data.scanRequest),
       backupEpoch: typeof data.backupEpoch === 'string' ? data.backupEpoch : undefined
     };

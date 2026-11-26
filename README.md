@@ -10,13 +10,13 @@
 
 <p align="center">
   <a href="https://blackboarder.pages.dev/"><img src="https://img.shields.io/badge/Website-blackboarder.pages.dev-18181b?style=flat" alt="Website" /></a>
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.48-blue?logo=github&logoColor=white" alt="Version v1.8.48" /></a>
-  <a href="https://blackboarder.pages.dev/chrome-extension"><img src="https://img.shields.io/badge/Chrome-Web_Store-blue?logo=googlechrome&logoColor=white" alt="Chrome Web Store" /></a>
-  <a href="https://blackboarder.pages.dev/edge-extension"><img src="https://img.shields.io/badge/Edge-Add--ons-0078D7?logo=microsoftedge&logoColor=white" alt="Microsoft Edge Add-ons" /></a>
-  <a href="https://blackboarder.pages.dev/firefox-extension"><img src="https://img.shields.io/badge/Firefox-Add--ons-FF7139?logo=firefoxbrowser&logoColor=white" alt="Firefox Add-ons" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.49-blue?logo=github&logoColor=white" alt="Version v1.8.49" /></a>
+  <a href="https://blackboarder.pages.dev/chrome-extension"><img src="https://img.shields.io/badge/Chrome-Web_Store_Live-blue?logo=googlechrome&logoColor=white" alt="Chrome Web Store Live" /></a>
+  <a href="https://blackboarder.pages.dev/edge-extension"><img src="https://img.shields.io/badge/Edge-Add--ons_v1.8.34-0078D7?logo=microsoftedge&logoColor=white" alt="Microsoft Edge Add-ons v1.8.34" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest/download/blackboarder-android-firefox.zip"><img src="https://img.shields.io/badge/Firefox-ZIP_Release-FF7139?logo=firefoxbrowser&logoColor=white" alt="Firefox ZIP Release" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Release-Download_ZIP-black?logo=github&logoColor=white" alt="Download Release" /></a>
   <a href="#-phone-app-and-calendar"><img src="https://img.shields.io/badge/PWA-Mobile_Ready-brightgreen?logo=pwa&logoColor=white" alt="PWA" /></a>
-  <a href="#-development"><img src="https://img.shields.io/badge/Tests-738_Passing-success?logo=vitest&logoColor=white" alt="Vitest 738 Passing" /></a>
+  <a href="#-development"><img src="https://img.shields.io/badge/Tests-747_Passing-success?logo=vitest&logoColor=white" alt="Vitest 747 Passing" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-purple" alt="License" /></a>
 </p>
 
@@ -41,6 +41,10 @@ Data syncs through **Firebase**, each student under their own private sync key. 
 ## 🌟 Features
 
 - **Finds and updates deadlines automatically.** A primary built-in parser reads English and Arabic keywords (*quiz*, *assignment*, *midterm*, *كويز*, *واجب*, *امتحان*), dates, times, and classrooms offline, while an optional AI provider confirms ambiguous posts or helps on unformatted text (see Settings and AI Keys below). Singleton syllabus-category deduplication ensures unique deliverables such as `Final Exam` or single-item components never duplicate under generic titles like `Exam`, while multi-announcement updates append chronological `[Professor Update]` notes and reconcile modified fields in place.
+- **Full Arabic (RTL) interface & live bilingual task mirrors.** Switch between **English** and **العربية** anytime in Settings on the Extension or Phone App. Every extracted announcement or manual task keeps a synchronized Arabic mirror copy (enhanced when an AI key is set) that automatically refreshes whenever an instructor updates an announcement or you edit a deadline.
+- **First-scan course & AI calibration wizard.** On your first Blackboard scan (or anytime via **Courses > Calibrate**), Blackboarder inspects available course syllabi locally or with AI and opens an interactive wizard so you can confirm course names, weekly class times, rooms, credit hours, quiz/assignment/exam counts, "best N of M" rules, and step-by-step optional API key setup.
+- **Rulebook triage, `Hidden (N)` view, and manual Hide/Restore toggle.** Superseded makeups, completed multi-item range extensions, extra quota items, and post-exam review sessions route into `Hidden (N)` (kept for peer sharing, excluded from Calendar, GPA, badges, alerts, and `.ics` feeds), and every card offers a 1-click **Hide / Restore** button with Undo.
+- **Shared settings sync across devices.** Settings shared between the Extension and Phone App (**App Language**, **Theme**, **Show My Classes**, **Show Payments**, **Calendar Link Shows**, **Deadline Reminder Timing**, and **Class Reminders**) sync automatically through your encrypted vault while keeping local AI keys separate.
 - **Monthly calendar, uniform deadline summaries, and unified actions.** Monday-first grid, tasks sorted by time within each day, a standardized ordered Summary card (`When`, `Room`, `Weight`, `Topics`, `Rules`, optional `Score` and `Summary` brief) with a collapsible `Professor Notes` dropdown, and an identical action bar (`Mark Done`, `Edit`, `Share`, `Calendar`, `Delete`) across every view in both the extension and phone companion. The grid maintains the exact same height and width across 4, 5, and 6 row months without layout shifts.
 - **Scans exam schedules.** Your midterm and final dates, times, rooms, exam methods and section overrides come from your university's exam schedule page (UOS: the Banner Student Exam Page), with syllabus weights. Scan on that page, or just Scan on Blackboard: it reads the exam page in a background tab (at most once an hour) while you are signed in to Banner.
 - **Marks tab and academic tracking.** Dedicated Marks tab with student profile badge, semester bar with switcher and archiving tools, Dual-Column GPA Overview (Term SGPA, Cumulative CGPA, discrete combination rounding explanation, and Projected CGPA), Current Term Grades course cards with left color accent borders and mark breakdowns, collapsible Target Grade Breakdown accordion with momentum trends and interactive chips, and Syllabus Progress breakdown.
@@ -82,10 +86,10 @@ Works in **Chrome, Firefox, Edge, Brave, Opera and Vivaldi**.
 
 ### 1. Get the extension (or mobile scanner)
 
-- **Browser Stores (Recommended):**
-  - **Chrome / Brave / Opera / Vivaldi:** [Chrome Web Store](https://blackboarder.pages.dev/chrome-extension)
-  - **Microsoft Edge:** [Edge Add-ons](https://blackboarder.pages.dev/edge-extension)
-  - **Firefox (Desktop & Android):** [Firefox Add-ons](https://blackboarder.pages.dev/firefox-extension)
+- **Browser Stores & Packages:**
+  - **Chrome Web Store (Live & Latest - Recommended):** [Chrome Web Store](https://blackboarder.pages.dev/chrome-extension) (works on Chrome, Brave, desktop Edge, Opera, and Vivaldi with automatic updates)
+  - **Microsoft Edge Add-ons:** [Edge Add-ons](https://blackboarder.pages.dev/edge-extension) (currently hosts older `v1.8.34` while store review catches up; desktop Edge users can install from Chrome Web Store above)
+  - **Firefox (Desktop & Android):** Download **[`blackboarder-android-firefox.zip`](https://github.com/yvs1n/blackboarder-extension/releases/latest/download/blackboarder-android-firefox.zip)** from GitHub Releases (Firefox Add-ons publishing pending)
 - **iPhone / iPad Safari:** Install the free **Userscripts** Safari extension and add [`blackboarder.user.js`](https://blackboarder.pages.dev/blackboarder.user.js) (see [blackboarder.pages.dev/#install](https://blackboarder.pages.dev/#install)).
 - **GitHub Release (Unpacked / Auto-Updater):** Download **[`blackboarder-extension.zip`](https://github.com/yvs1n/blackboarder-extension/releases/latest)** from the latest release and unzip it somewhere permanent (for example `Documents\blackboarder`). Do not delete the folder afterwards; the browser loads the extension from it.
 - **With git:** `git clone https://github.com/yvs1n/blackboarder-extension.git` (loads from `dist/`).
@@ -135,15 +139,18 @@ No API key? The built-in parser reads announcements automatically, so everything
 
 | Setting | What it is for | Default |
 | :--- | :--- | :--- |
-| **AI provider** | OpenRouter, IFM K2 Horizon (free daily tokens from platform.ifm.ai), or any OpenAI-compatible API (base URL and model name). Each keeps its own key, and **Test connection** checks it | OpenRouter |
-| **API key** | AI extraction for long or vague announcements | Empty (optional) |
-| **AI model** | Model used through OpenRouter | `google/gemini-3.8-flash` |
-| **Auto-scan** | Scans announcements when a Blackboard page loads | On |
-| **Theme** | Light, dark, or match the system | Match the system |
-| **University** | Grading scale for the GPA, and the built-in quick links (UOS only) (Settings > General) | Set by the first scan, else UOS |
-| **Show My Classes** | Each day's classes on Blackboarder's calendar (Settings > Calendar) | On |
-| **Calendar Link Shows** | What the subscription link shows: deadlines and classes, deadlines only, or classes only (Settings > Calendar) | Deadlines and classes |
-| **Class Reminders** | A reminder before each class (Settings > Alerts) | 15 minutes before |
+| **App Language** *(synced)* | Switch UI and task display between English (LTR) and Arabic / العربية (RTL), keeping bilingual task mirrors updated (Settings > General) | `en` (English) |
+| **AI provider** *(local)* | OpenRouter, IFM K2 Horizon (free daily tokens from platform.ifm.ai), or any OpenAI-compatible API (base URL and model name). Each keeps its own key, and **Test connection** checks it | OpenRouter |
+| **API key** *(local)* | AI extraction, PDF syllabus assist, and Arabic translation refinement | Empty (optional) |
+| **AI model** *(local)* | Model used through OpenRouter | `google/gemini-3.8-flash` |
+| **Auto-scan** *(local)* | Scans announcements when a Blackboard page loads | On |
+| **Theme** *(synced)* | Light, dark, or match the system | Match the system |
+| **University** *(synced)* | Grading scale for the GPA, and the built-in quick links (UOS only) (Settings > General) | Set by the first scan, else UOS |
+| **Show My Classes** *(synced)* | Each day's classes on Blackboarder's calendar (Settings > Calendar) | On |
+| **Show Payments on Calendar** *(synced)* | Tuition payment due dates on Blackboarder's calendar (Settings > Calendar) | On |
+| **Calendar Link Shows** *(synced)* | What the subscription link shows: deadlines and classes, deadlines only, or classes only (Settings > Calendar) | Deadlines and classes |
+| **Deadline Reminder Timing** *(synced)* | Lead hours before deadlines trigger reminders (Settings > Alerts) | Default schedule |
+| **Class Reminders** *(synced)* | A reminder before each class (Settings > Alerts) | 15 minutes before |
 
 ---
 
@@ -183,12 +190,13 @@ This repository is published from a private source repository, so changes made d
 ```text
 blackboarder-extension/
 |-- src/                  Extension source (TypeScript)
-|   |-- popup/            Popup and side panel (modules/, styles/)
+|   |-- popup/            Popup and side panel (modules/ incl. calibrationModal, language, debugStick; styles/)
 |   |-- content/          Scraper and dark mode for Blackboard pages
 |   |-- background/       Background worker: sync, reminders, automatic updates
-|   |-- scan/             Shared Blackboard API readers and scan pipeline
-|   |-- engine/           Deadline detection: local parser, then an optional AI model
-|   |-- core/             Courses, weights, schedules
+|   |-- scan/             Shared Blackboard API readers, syllabus discovery, and scan pipeline
+|   |-- rulebook/         Compiled applicability & zero-weight rules for Hidden triage
+|   |-- engine/           Deadline detection & bilingual Arabic translation (local + optional AI)
+|   |-- core/             Courses, weights, schedules, i18n, calibration wizard, shared preferences
 |   `-- utils/            Storage (storage/), Firebase sync, calendar, task merging
 |
 |-- dist/                 Built extension; load this folder (generated)

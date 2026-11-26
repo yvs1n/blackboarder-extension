@@ -1,6 +1,7 @@
 import type { Announcement, DeadlineTask } from '../types';
 import { resolveCourseInfo, isExamReviewSession, sanitizeDoctorAnnouncementText } from '../core/courseHelper';
 import { resolveTaskRoom, resolveTaskTimeWithSchedule } from '../core/courseSchedule';
+import { computeTaskTranslationSig, syncArabicMirrorOnTask } from '../core/arabicTranslator';
 import {
   countCompletedInSyllabusComponent,
   extractReferencedAssessmentNumbers,
@@ -61,7 +62,13 @@ export function evaluateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
     return task;
   });
 
-  return applyGradeAllocationRules(withVisibility);
+  const allocated = applyGradeAllocationRules(withVisibility);
+  return allocated.map(task => {
+    if (!task) return task;
+    const sig = computeTaskTranslationSig(task);
+    if (task.ar && task.ar.sourceSig === sig) return task;
+    return syncArabicMirrorOnTask({ ...task });
+  });
 }
 
 /**

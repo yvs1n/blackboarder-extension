@@ -11,6 +11,7 @@ import { getProfile } from '../../utils/profile';
 import { qrSvg } from '../../utils/qrCode';
 import {
   generateUniqueSyncKey,
+  getCalendarFeedShow,
   getCoursesUpdatedAt,
   getQuickLinks,
   getQuickLinksUpdatedAt,
@@ -20,6 +21,7 @@ import {
   getTasks,
   getUserCourses,
   safeSetLocalStorage,
+  saveCalendarFeedShow,
   saveSettings,
 } from '../../utils/storage';
 import { getLocalTombstones } from '../../utils/tombstones';
@@ -281,9 +283,13 @@ export async function connectExistingSyncKey(parsedKey: string): Promise<{ ok: b
 export function setupSyncSettingsEvents(): void {
   const calendarShowSelect = document.getElementById('setting-calendar-show') as HTMLSelectElement | null;
   if (calendarShowSelect) {
-    try { calendarShowSelect.value = cleanCalendarFeedShow(localStorage.getItem('bbs_calendar_feed_show')); } catch {}
-    calendarShowSelect.addEventListener('change', () => {
-      try { localStorage.setItem('bbs_calendar_feed_show', calendarShowSelect.value); } catch {}
+    getCalendarFeedShow().then(v => {
+      calendarShowSelect.value = cleanCalendarFeedShow(v);
+    }).catch(() => {});
+    calendarShowSelect.addEventListener('change', async () => {
+      const cleanShow = cleanCalendarFeedShow(calendarShowSelect.value);
+      await saveCalendarFeedShow(cleanShow);
+      popupActions.syncTasksToCloud(popupState.currentTasks, 'Calendar Feed Preference Update');
     });
   }
 

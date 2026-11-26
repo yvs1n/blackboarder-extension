@@ -3,6 +3,7 @@ import { IFM_MODEL, normalizeAiBaseUrl, resolveAiEndpoint, testAiEndpoint } from
 import { describeAiLock, ensureAiPass, getAiLockState, newAiPass, syncAiKeyLock } from '../../utils/aiKeyLock';
 import { getSettings, saveLastScanCheckpoint, saveSettings } from '../../utils/storage';
 import { setStorageTombstones } from '../../utils/tombstones';
+import { setLanguageNow } from './language';
 import { loadSyncStatus, setupSyncSettingsEvents } from './settingsSync';
 import { dom, popupActions, popupState } from './state';
 import { applyTheme, setThemeNow } from './theme';
@@ -102,6 +103,8 @@ export async function loadSettingsForm() {
   if (showClasses) showClasses.checked = settings.showClassesInCalendar !== false;
   const settingTheme = document.getElementById('setting-theme') as HTMLSelectElement | null;
   if (settingTheme) settingTheme.value = settings.theme || 'system';
+  const settingLang = document.getElementById('setting-language') as HTMLSelectElement | null;
+  if (settingLang) settingLang.value = settings.language === 'ar' ? 'ar' : 'en';
 
   const settingBbDark = document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement | null;
   if (settingBbDark) settingBbDark.checked = settings.blackboardDarkMode !== false;
@@ -149,6 +152,10 @@ export function setupSettingsEvents() {
   const themeSelect = document.getElementById('setting-theme') as HTMLSelectElement | null;
   themeSelect?.addEventListener('change', () => {
     setThemeNow((themeSelect.value || 'system') as 'light' | 'dark' | 'system');
+  });
+  const languageSelect = document.getElementById('setting-language') as HTMLSelectElement | null;
+  languageSelect?.addEventListener('change', () => {
+    void setLanguageNow(languageSelect.value === 'ar' ? 'ar' : 'en');
   });
 
   if (typeof window !== 'undefined' && window.matchMedia) {
@@ -257,12 +264,14 @@ export function setupSettingsEvents() {
     if (drawer && !drawer.classList.contains('hidden') && drawer.classList.contains('open')) {
       popupActions.openDayExpandedDrawer(popupState.selectedDateStr);
     }
+    popupActions.syncTasksToCloud(popupState.currentTasks, 'Classes Visibility Update');
     popupActions.showToast(settingShowClasses.checked ? 'Classes shown in the calendar' : 'Classes hidden from the calendar');
   });
   const settingClassReminder = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;
   settingClassReminder?.addEventListener('change', async () => {
     const minutes = Math.max(0, parseInt(settingClassReminder.value, 10) || 0);
     await saveSettings({ classReminderMinutes: minutes });
+    popupActions.syncTasksToCloud(popupState.currentTasks, 'Class Reminder Update');
     popupActions.showToast(minutes ? `Class reminders ${minutes} minutes before` : 'Class reminders off');
   });
   const settingModel = document.getElementById('setting-model') as HTMLSelectElement | null;
@@ -280,9 +289,11 @@ export function setupSettingsEvents() {
 
   const settingReminderHours = document.getElementById('setting-reminder-hours') as HTMLSelectElement | null;
   settingReminderHours?.addEventListener('change', async () => {
-    const hours = parseInt(settingReminderHours.value, 10) || 24;
-    await saveSettings({ reminderHoursBefore: hours });
-    popupActions.showToast(`Notification alert window ${hours}h`);
+    const hours = parseInt(settingReminderHours.value, 10);
+    const val = Number.isFinite(hours) ? hours : 24;
+    await saveSettings({ reminderHoursBefore: val });
+    popupActions.syncTasksToCloud(popupState.currentTasks, 'Reminder Window Update');
+    popupActions.showToast(`Notification alert window ${val}h`);
   });
 
   const settingSyncMidnight = document.getElementById('setting-sync-midnight') as HTMLInputElement | null;

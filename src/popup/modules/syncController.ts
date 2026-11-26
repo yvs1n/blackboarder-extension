@@ -43,6 +43,7 @@ import { deduplicateTaskList, getTaskSeriesInfo, mergeCloudTasks, mergeTombstone
 import { awaitTombstonesPersisted, getLocalTombstones, pruneSupersededTombstones, recordLocalTombstone } from '../../utils/tombstones';
 import { getCachedProfile } from '../universitySettings';
 import { applyTheme } from './theme';
+import { applyLanguageUi } from './language';
 import { dom, popupActions, popupState, type AppView } from './state';
 
 let refreshScheduled = false;
@@ -349,6 +350,24 @@ export async function pullTasksFromFirebaseIfNewer(expectedGen: number = syncGen
         }
       }
 
+      if (res.preferences) {
+        const latestSettings = await getSettings().catch(() => settings);
+        let prefsUiChanged = false;
+        if (latestSettings.theme && latestSettings.theme !== popupState.currentThemeSetting) {
+          applyTheme(latestSettings.theme);
+          prefsUiChanged = true;
+        }
+        const nextLang = latestSettings.language === 'ar' ? 'ar' : 'en';
+        if (nextLang !== popupState.currentLanguage) {
+          applyLanguageUi(nextLang);
+          prefsUiChanged = true;
+        }
+        if (prefsUiChanged) {
+          await popupActions.loadSettingsForm();
+          refreshAllViews();
+        }
+      }
+
       if (res.lastSync === undefined && settings.syncKey) {
         const coursesUpdatedAt = await getCoursesUpdatedAt();
         pushTasksToFirebase(
@@ -382,8 +401,40 @@ export function setupStorageAndSyncListeners() {
       }
       if (area === 'local' && changes.bbs_settings) {
         const newSettings = changes.bbs_settings.newValue as any;
+        let uiNeedsReload = false;
         if (newSettings?.theme && newSettings.theme !== popupState.currentThemeSetting) {
           applyTheme(newSettings.theme);
+          uiNeedsReload = true;
+        }
+        const nextLang = newSettings?.language === 'ar' ? 'ar' : 'en';
+        if (newSettings?.language && nextLang !== popupState.currentLanguage) {
+          applyLanguageUi(nextLang);
+          uiNeedsReload = true;
+        }
+        const remHoursEl = document.getElementById('setting-reminder-hours') as HTMLSelectElement | null;
+        if (remHoursEl && typeof newSettings?.reminderHoursBefore === 'number') {
+          remHoursEl.value = String(newSettings.reminderHoursBefore);
+        }
+        const classRemEl = document.getElementById('setting-class-reminder') as HTMLSelectElement | null;
+        if (classRemEl && typeof newSettings?.classReminderMinutes === 'number') {
+          classRemEl.value = String(newSettings.classReminderMinutes);
+        }
+        const showClassesEl = document.getElementById('setting-show-classes') as HTMLInputElement | null;
+        if (showClassesEl && typeof newSettings?.showClassesInCalendar === 'boolean') {
+          showClassesEl.checked = newSettings.showClassesInCalendar;
+          uiNeedsReload = true;
+        }
+        const showPayEl = document.getElementById('toggle-show-payments-calendar') as HTMLInputElement | null;
+        if (showPayEl && typeof newSettings?.showPaymentsInCalendar === 'boolean') {
+          showPayEl.checked = newSettings.showPaymentsInCalendar;
+          uiNeedsReload = true;
+        }
+        if (uiNeedsReload) refreshAllViews();
+      }
+      if (area === 'local' && changes.bbs_calendar_feed_show) {
+        const calShowEl = document.getElementById('setting-calendar-show') as HTMLSelectElement | null;
+        if (calShowEl && typeof changes.bbs_calendar_feed_show.newValue === 'string') {
+          calShowEl.value = changes.bbs_calendar_feed_show.newValue;
         }
       }
       if (area === 'local' && changes[SCAN_STATUS_KEY]) {
@@ -418,6 +469,9 @@ export function setupStorageAndSyncListeners() {
     syncChannel.onmessage = (event) => {
       if (event.data?.type === 'THEME_CHANGED' && event.data.theme) {
         applyTheme(event.data.theme);
+      } else if (event.data?.type === 'LANGUAGE_CHANGED' && event.data.language) {
+        applyLanguageUi(event.data.language);
+        refreshAllViews();
       }
     };
   } catch {}

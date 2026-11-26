@@ -1,8 +1,9 @@
-import type { ArchivedSemester, DeadlineTask, PaymentItem, QuickLink, StudentProfile, UserCourseConfig, UserSettings } from '../types';
+import type { ArchivedSemester, DeadlineTask, PaymentItem, QuickLink, SharedPreferences, StudentProfile, UserCourseConfig, UserSettings } from '../types';
 import { compareTasksByTime } from './calendar';
 import { sanitizeCloudCourses, sanitizeCloudQuickLinks, sanitizeCloudTasks } from './cloudSanitize';
 import { filterCleanUserCourses } from '../core/courseFilter';
 import { setActiveUserCourses } from '../core/userCourses';
+import { sanitizeSharedPreferences, sharedPreferencesToSettingsPatch } from '../core/sharedPreferences';
 import { evaluateTaskList } from '../rulebook';
 import { sanitizePayments } from '../core/payments';
 import { sanitizeSemesters } from '../core/semesters';
@@ -11,10 +12,13 @@ import { saveExtraSites } from './blackboardSites';
 import { extractSyncKey, overwriteCloudVault } from './firebaseSync';
 import { clearProfile, saveProfile } from './profile';
 import {
+  getLocalSharedPreferences,
   getSettings,
   isExtensionContextValid,
   safeGetLocalStorage,
   safeSetLocalStorage,
+  saveCalendarFeedShow,
+  savePreferencesUpdatedAt,
   saveQuickLinks,
   saveSettings,
   saveStoredPayments,
@@ -38,6 +42,7 @@ export interface CloudSnapshotData {
   semestersUpdatedAt?: string;
   tombstones?: Record<string, string>;
   profile?: StudentProfile | null;
+  preferences?: SharedPreferences | null;
   backupEpoch?: string;
 }
 
@@ -124,6 +129,19 @@ export async function applyCloudSnapshotAuthoritatively(snapshot: CloudSnapshotD
     await saveProfile(cleanProfile);
   } else {
     await clearProfile();
+  }
+  const cleanPrefs = sanitizeSharedPreferences(snapshot.preferences);
+  if (cleanPrefs) {
+    const patch = sharedPreferencesToSettingsPatch(cleanPrefs);
+    const stamp = cleanPrefs.updatedAt || backupEpoch || nowIso;
+    if (cleanPrefs.calendarFeedShow) {
+      await saveCalendarFeedShow(cleanPrefs.calendarFeedShow, stamp);
+    }
+    if (Object.keys(patch).length > 0) {
+      await saveSettings(patch, { skipPreferenceStamp: true, preferencesUpdatedAt: stamp });
+    } else {
+      await savePreferencesUpdatedAt(stamp);
+    }
   }
   await setLocalBackupEpoch(backupEpoch);
   const evaluatedTasks = evaluateTaskList(tasks).sort(compareTasksByTime);
@@ -246,6 +264,7 @@ export async function applyBackupAuthoritatively(
 
   let cloudResult: BackupRestoreOutcome['cloudResult'];
   if (targetSyncKey) {
+    const restoredPrefs = await getLocalSharedPreferences().catch(() => undefined);
     cloudResult = await overwriteCloudVault(
       {
         tasks,
@@ -259,6 +278,7 @@ export async function applyBackupAuthoritatively(
         semestersUpdatedAt: nowIso,
         payments,
         paymentsUpdatedAt: nowIso,
+        ...(restoredPrefs ? { preferences: { ...restoredPrefs, updatedAt: nowIso } } : {}),
         backupEpoch: nowIso
       },
       options?.deviceLabel || 'Restored Backup',

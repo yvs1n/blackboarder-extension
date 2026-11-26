@@ -1,4 +1,6 @@
 import type { DeadlineTask } from '../../types';
+import { localizedTaskView } from '../../core/arabicTranslator';
+import { localizeTaskTypeLabel } from '../../core/i18n';
 import { getCourseColorTheme } from '../../core/courseColors';
 import { getAllCourseSchedules } from '../../core/courseSchedule';
 import { profileGradeScale } from '../../core/studentProfile';
@@ -109,7 +111,10 @@ export function openReadingSheet(task: DeadlineTask) {
   const content = document.getElementById('reading-modal-content');
   if (!modal || !badgeGroup || !content) return;
 
+  const lang = popupState.currentLanguage;
+  const isAr = lang === 'ar';
   const resolved = resolveCourseInfo(task);
+  const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
   const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
@@ -125,18 +130,18 @@ export function openReadingSheet(task: DeadlineTask) {
   const targetBadgeHtml = getTaskTargetBadgeHtml(task, trajectoryPlan, targetGpa);
 
   badgeGroup.innerHTML = `
-    <div class="course-badge-main reading-course-badge" title="${escapeHtml(resolved.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
+    <div class="course-badge-main reading-course-badge" title="${escapeHtml(view.courseName)}${resolved.courseCode && resolved.courseCode !== 'UOS' ? ` (${escapeHtml(resolved.courseCode)})` : ''}">
       <span class="course-color-dot" style="background: ${courseTheme.hex};"></span>
-      <span class="course-name-text">${escapeHtml(resolved.courseName)}</span>
+      <span class="course-name-text">${escapeHtml(view.courseName)}</span>
     </div>
     <span class="type-pill type-${escapeHtml(task.type || 'assignment')}">
       <span>${getTaskTypeIcon(task.type)}</span>
-      <span>${(task.type || 'assignment').toUpperCase()}</span>
+      <span>${localizeTaskTypeLabel(task.type, lang, true)}</span>
     </span>
   `;
 
   content.innerHTML = `
-    <h2 class="reading-pane-title">${escapeHtml(task.title)}</h2>
+    <h2 class="reading-pane-title">${escapeHtml(view.title)}</h2>
 
     <div class="reading-meta-section">
       <span class="urgency-badge ${countdown.urgency}">
@@ -146,23 +151,23 @@ export function openReadingSheet(task: DeadlineTask) {
       </span>
       ${!isHwOrProject ? `
       <button type="button" class="room-pill-btn modal-reading-room-btn" data-task-id="${escapeHtml(task.id)}">
-        <span>${getSvgIcon('pin', 'mr-1')} ${escapeHtml(task.room || 'No room set')}</span>
+        <span>${getSvgIcon('pin', 'mr-1')} ${escapeHtml(view.room || (isAr ? 'لم تُحدد القاعة' : 'No room set'))}</span>
         <span class="room-edit-hint">${getSvgIcon('pencil')}</span>
       </button>
       ` : ''}
-      ${task.weightDisplay || task.weight ? `<span class="task-weight-pill weight-major">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(task.weightDisplay || `${task.weight}%`)}</span>` : ''}
+      ${view.weightDisplay || task.weight ? `<span class="task-weight-pill weight-major">${getSvgIcon('scale', 'mr-1')} ${escapeHtml(view.weightDisplay || `${task.weight}%`)}</span>` : ''}
       ${targetBadgeHtml}
       ${(task.submissionStatus === 'graded' || (typeof task.score === 'number' && !isNaN(task.score))) ? `
         <span class="task-grade-pill" title="Grade / Score released on Blackboard">
-          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : 'Graded')))}</span>
+          ${getSvgIcon('star', 'mr-1')} <span>${escapeHtml(task.scoreDisplay || (task.maxScore ? `${task.score} / ${task.maxScore}` : (task.score !== undefined ? `${task.score} pts` : (isAr ? 'مُقيّم' : 'Graded'))))}</span>
         </span>
       ` : ''}
       ${task.submissionStatus === 'submitted' ? `
         <span class="task-submitted-pill" title="${task.submissionReceipt ? `Receipt: ${escapeHtml(task.submissionReceipt)}` : 'Submitted to Blackboard'}">
-          ${getSvgIcon('check', 'mr-1')} <span>Submitted</span>
+          ${getSvgIcon('check', 'mr-1')} <span>${isAr ? 'تم التسليم' : 'Submitted'}</span>
         </span>
       ` : ''}
-      ${task.priority === 'high' ? '<span class="high-priority-tag">HIGH PRIORITY</span>' : ''}
+      ${task.priority === 'high' ? `<span class="high-priority-tag">${isAr ? 'أولوية عالية' : 'HIGH PRIORITY'}</span>` : ''}
     </div>
 
     ${renderSummaryAndNotesForExt(task, {
@@ -176,7 +181,7 @@ export function openReadingSheet(task: DeadlineTask) {
       <div class="reading-notes-box">
         <div class="reading-notes-header">
           ${getSvgIcon('pencil')}
-          <span>Student Personal Notes</span>
+          <span>${isAr ? 'ملاحظات الطالب الشخصية' : 'Student Personal Notes'}</span>
         </div>
         <div class="reading-notes-content">${escapeHtml(task.notes)}</div>
       </div>

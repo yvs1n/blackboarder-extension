@@ -185,6 +185,27 @@ export function sanitizeCloudTasks(tasks: unknown): DeadlineTask[] {
     } else {
       delete clean.visibilityLocked;
     }
+    if (t.ar && typeof t.ar === 'object' && typeof t.ar.title === 'string' && t.ar.title.trim()) {
+      const arRaw = t.ar;
+      clean.ar = {
+        title: String(arRaw.title).trim().slice(0, 240),
+        ...(typeof arRaw.courseName === 'string' && arRaw.courseName.trim() ? { courseName: arRaw.courseName.trim().slice(0, 140) } : {}),
+        ...(typeof arRaw.description === 'string' && arRaw.description.trim() ? { description: arRaw.description.trim().slice(0, 6000) } : {}),
+        ...(typeof arRaw.sourceSnippet === 'string' && arRaw.sourceSnippet.trim() ? { sourceSnippet: arRaw.sourceSnippet.trim().slice(0, 6000) } : {}),
+        ...(typeof arRaw.brief === 'string' && arRaw.brief.trim() ? { brief: arRaw.brief.trim().slice(0, 400) } : {}),
+        ...(typeof arRaw.topics === 'string' && arRaw.topics.trim() ? { topics: arRaw.topics.trim().slice(0, 300) } : {}),
+        ...(typeof arRaw.formatRules === 'string' && arRaw.formatRules.trim() ? { formatRules: arRaw.formatRules.trim().slice(0, 300) } : {}),
+        ...(typeof arRaw.weightDisplay === 'string' && arRaw.weightDisplay.trim() ? { weightDisplay: arRaw.weightDisplay.trim().slice(0, 140) } : {}),
+        ...(typeof arRaw.syllabusNote === 'string' && arRaw.syllabusNote.trim() ? { syllabusNote: arRaw.syllabusNote.trim().slice(0, 260) } : {}),
+        ...(typeof arRaw.room === 'string' && arRaw.room.trim() ? { room: arRaw.room.trim().slice(0, 80) } : {}),
+        ...(typeof arRaw.hiddenReasonLabel === 'string' && arRaw.hiddenReasonLabel.trim() ? { hiddenReasonLabel: arRaw.hiddenReasonLabel.trim().slice(0, 160) } : {}),
+        ...(arRaw.translatedBy === 'ai' || arRaw.translatedBy === 'local' || arRaw.translatedBy === 'source' ? { translatedBy: arRaw.translatedBy } : {}),
+        ...(typeof arRaw.sourceSig === 'string' && arRaw.sourceSig ? { sourceSig: arRaw.sourceSig.slice(0, 32) } : {}),
+        updatedAt: typeof arRaw.updatedAt === 'string' && arRaw.updatedAt ? arRaw.updatedAt.slice(0, 40) : clean.updatedAt
+      };
+    } else {
+      delete clean.ar;
+    }
 
     out.push(clean as DeadlineTask);
   }

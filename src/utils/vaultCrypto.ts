@@ -162,6 +162,7 @@ export async function wrapCloudVault(payload: Record<string, any>, syncKey: stri
     semestersUpdatedAt: payload.semestersUpdatedAt,
     payments: Array.isArray(payload.payments) ? payload.payments : undefined,
     paymentsUpdatedAt: payload.paymentsUpdatedAt,
+    preferences: payload.preferences && typeof payload.preferences === 'object' ? payload.preferences : undefined,
     ...(typeof payload.backupEpoch === 'string' && payload.backupEpoch ? { backupEpoch: payload.backupEpoch } : {}),
     count: typeof payload.count === 'number' ? payload.count : (payload.tasks ? payload.tasks.length : 0),
     device,

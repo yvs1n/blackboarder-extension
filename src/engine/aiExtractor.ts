@@ -1,24 +1,30 @@
-import { Announcement, DeadlineTask, TaskType, TaskPriority } from '../types';
+import { Announcement, DeadlineTask, TaskArabicMirror, TaskType, TaskPriority } from '../types';
 import { resolveTaskTimeWithSchedule, resolveTaskRoom } from '../core/courseSchedule';
 import { isBonusText } from '../core/makeupFilter';
+import { buildTaskArabicMirror } from '../core/arabicTranslator';
 import { sanitizeDoctorAnnouncementText, toEnglishDeadlineTitle } from '../core/courseHelper';
 import { isExtensionContextValid } from '../utils/storage';
 import { AiEndpoint, OPENROUTER_CHAT_URL, DEFAULT_OPENROUTER_MODEL, aiRequestHeaders, parseAiJson } from './aiProviders';
 
 interface AiExtractedItem {
   title: string;
+  titleAr?: string;
   courseCode?: string;
   dueDate: string; // ISO 8601 string: YYYY-MM-DDTHH:mm:ss
   hasSpecificTime?: boolean;
   type: 'quiz' | 'assignment' | 'exam' | 'project' | 'lab' | 'meeting' | 'other';
   priority: 'high' | 'medium' | 'low';
   description?: string;
+  descriptionAr?: string;
   sourceSnippet: string;
   room?: string;
   summary?: {
     topics?: string;
+    topicsAr?: string;
     formatRules?: string;
+    formatRulesAr?: string;
     brief?: string;
+    briefAr?: string;
   };
 }
 
@@ -212,8 +218,7 @@ function mapAiItemsToTasks(
     const hasStructuredSummary = Boolean(summaryObj && (summaryObj.topics || summaryObj.formatRules || summaryObj.brief));
 
     const isBonus = isBonusText(`${item.title || ''} ${announcement.title || ''} ${cleanBody}`);
-
-    return {
+    const taskBase: DeadlineTask = {
       id: `task_ai_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       announcementId: announcement.id,
       ...(announcement.postedAt ? { announcementPostedAt: announcement.postedAt } : {}),
@@ -236,6 +241,18 @@ function mapAiItemsToTasks(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
+    const aiArPatch: Partial<TaskArabicMirror> | undefined =
+      (item.titleAr || item.descriptionAr || item.summary?.briefAr || item.summary?.topicsAr || item.summary?.formatRulesAr)
+        ? {
+            ...(item.titleAr ? { title: String(item.titleAr).trim() } : {}),
+            ...(item.descriptionAr ? { description: String(item.descriptionAr).trim() } : {}),
+            ...(item.summary?.briefAr ? { brief: String(item.summary.briefAr).trim() } : {}),
+            ...(item.summary?.topicsAr ? { topics: String(item.summary.topicsAr).trim() } : {}),
+            ...(item.summary?.formatRulesAr ? { formatRules: String(item.summary.formatRulesAr).trim() } : {})
+          }
+        : undefined;
+    taskBase.ar = buildTaskArabicMirror(taskBase, aiArPatch);
+    return taskBase;
   });
 }
 
@@ -282,17 +299,22 @@ CRITICAL TIME & DATE RULES:
   "deadlines": [
     {
       "title": "Short concise English title, e.g., Midterm Exam, Quiz 1, Homework 2",
+      "titleAr": "Clear natural Arabic mirror of the title, e.g., امتحان منتصف الفصل، كويز 1، واجب 2",
       "dueDate": "2026-10-12T12:30:00",
       "hasSpecificTime": true,
       "type": "quiz" | "assignment" | "exam" | "project" | "lab" | "meeting" | "other",
       "priority": "high" | "medium" | "low",
       "room": "A8-204 (or specific room/lab if mentioned by professor, otherwise null)",
       "description": "Clean explanation or instructions written by the professor",
+      "descriptionAr": "Natural Arabic translation (or original Arabic text if announcement is already in Arabic) of the professor's instructions",
       "sourceSnippet": "Exact text sentence mentioning the deadline",
       "summary": {
         "topics": "Covered chapters/topics/lectures if mentioned, otherwise null",
+        "topicsAr": "Natural Arabic translation of covered topics if mentioned, otherwise null",
         "formatRules": "Format, duration, calculator/book rules, ID requirement if mentioned, otherwise null",
-        "brief": "1 concise sentence summarizing the key action or update"
+        "formatRulesAr": "Natural Arabic translation of format/rules if mentioned, otherwise null",
+        "brief": "1 concise sentence summarizing the key action or update",
+        "briefAr": "1 concise Arabic sentence summarizing the key action or update"
       }
     }
   ]
@@ -408,7 +430,8 @@ Reference Date: ${baseDateStr}. Course: ${announcement.courseCode} - ${announcem
 Rules:
 1. Review the candidate deadlines against the announcement text. Fix any wrong date, rescheduled time, missing explicit clock time ("hasSpecificTime": true only if the text explicitly states a time), missing/wrong room/hall/lab ("room": exact room token or null if not stated in text), or title translation.
 2. Add any missed upcoming graded deadline if clearly present in the text; drop false positives (e.g. post-exam reviews or past score announcements).
-3. Keep concise English titles and ISO 8601 timestamps ("YYYY-MM-DDTHH:mm:00"). Return ONLY valid JSON: { "deadlines": [...] }.`;
+3. Also provide concise natural Arabic mirror fields ("titleAr", "descriptionAr", "summary": { "brief", "briefAr", "topics", "topicsAr", "formatRules", "formatRulesAr" }) for bilingual students.
+4. Keep concise English titles and ISO 8601 timestamps ("YYYY-MM-DDTHH:mm:00"). Return ONLY valid JSON: { "deadlines": [...] }.`;
 
   const hintBlock = buildHintBlock(hint);
   const userContent = `Announcement Title: ${announcement.title}

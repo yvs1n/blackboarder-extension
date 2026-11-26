@@ -1,5 +1,5 @@
 import { saveSettings, getCachedSettingsSync } from '../../utils/storage';
-import { popupState } from './state';
+import { popupActions, popupState } from './state';
 
 const THEME_SYSTEM_DEFAULT_FLAG = 'bbs_theme_system_default_v1';
 
@@ -24,7 +24,7 @@ export function applyTheme(theme: 'light' | 'dark' | 'system' = 'light') {
  * The Theme dropdown in Settings > General applies and saves at once
  * (it replaced the header's light/dark toggle button).
  */
-export async function setThemeNow(newTheme: 'light' | 'dark' | 'system') {
+export async function setThemeNow(newTheme: 'light' | 'dark' | 'system', syncCloud = true) {
   applyTheme(newTheme);
   try {
     localStorage.setItem('bbs_theme', newTheme);
@@ -32,6 +32,9 @@ export async function setThemeNow(newTheme: 'light' | 'dark' | 'system') {
     const channel = new BroadcastChannel('bbs_sync_channel');
     channel.postMessage({ type: 'THEME_CHANGED', theme: newTheme });
     channel.close();
+    if (syncCloud) {
+      popupActions.syncTasksToCloud(popupState.currentTasks, 'Theme Preference Update');
+    }
   } catch {}
 }
 
@@ -44,7 +47,7 @@ export async function migrateThemeToSystemDefault() {
   try {
     const flags = await chrome.storage.local.get(THEME_SYSTEM_DEFAULT_FLAG);
     if (flags[THEME_SYSTEM_DEFAULT_FLAG]) return;
-    await saveSettings({ theme: 'system' });
+    await saveSettings({ theme: 'system' }, { skipPreferenceStamp: true });
     try { localStorage.setItem('bbs_theme', 'system'); } catch {}
     applyTheme('system');
     await chrome.storage.local.set({ [THEME_SYSTEM_DEFAULT_FLAG]: true });

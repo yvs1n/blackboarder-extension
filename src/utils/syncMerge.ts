@@ -1,4 +1,5 @@
-import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester, PaymentItem } from '../types';
+import type { DeadlineTask, QuickLink, UserCourseConfig, StudentProfile, ArchivedSemester, PaymentItem, SharedPreferences } from '../types';
+import { pickNewerSharedPreferences, sanitizeSharedPreferences } from '../core/sharedPreferences';
 import { mergeCloudTasks, mergeTombstones, TombstoneMap } from './taskMerge';
 import { pruneSupersededTombstones } from './tombstones';
 import { purgeSyntheticGradebookTasks } from './gradebook';
@@ -31,6 +32,7 @@ export interface SyncSide {
   semestersUpdatedAt?: string | null;
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string | null;
+  preferences?: SharedPreferences | null;
   scanRequest?: CloudScanRequest | null;
   backupEpoch?: string | null;
 }
@@ -47,13 +49,15 @@ export interface MergedSync {
   semestersUpdatedAt?: string;
   payments?: PaymentItem[];
   paymentsUpdatedAt?: string;
+  preferences?: SharedPreferences;
   scanRequest?: CloudScanRequest;
   backupEpoch?: string;
-  /** True when the cloud's courses, quick links, semesters or payments changed/won */
+  /** True when the cloud's courses, quick links, semesters, payments or preferences changed/won */
   coursesFromCloud: boolean;
   quickLinksFromCloud: boolean;
   semestersFromCloud: boolean;
   paymentsFromCloud: boolean;
+  preferencesFromCloud: boolean;
 }
 
 const time = (stamp?: string | null) => {
@@ -116,6 +120,7 @@ export function readCloudSide(data: any): SyncSide {
     semestersUpdatedAt: typeof data.semestersUpdatedAt === 'string' ? data.semestersUpdatedAt : undefined,
     payments: sanitizeCloudPayments(data.payments),
     paymentsUpdatedAt: typeof data.paymentsUpdatedAt === 'string' ? data.paymentsUpdatedAt : undefined,
+    preferences: sanitizeSharedPreferences(data.preferences),
     scanRequest: sanitizeScanRequest(data.scanRequest),
     backupEpoch: typeof data.backupEpoch === 'string' ? data.backupEpoch : undefined
   };
@@ -151,6 +156,7 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
   const mergedPayments = mergeCloudPayments(local.payments || [], c.payments || [], tombstones);
   const payPick = pickNewerList({ items: local.payments, updatedAt: local.paymentsUpdatedAt }, { items: c.payments, updatedAt: c.paymentsUpdatedAt }, false);
   const paymentsUpdatedAt = payPick.updatedAt || (mergedPayments.length > 0 ? (local.paymentsUpdatedAt || c.paymentsUpdatedAt || new Date().toISOString()) : undefined);
+  const prefsPick = pickNewerSharedPreferences(local.preferences, c.preferences, false);
 
   return {
     tasks,
@@ -164,11 +170,13 @@ export function mergeForCloudWrite(local: SyncSide, cloud: SyncSide | null | und
     semestersUpdatedAt,
     payments: (Array.isArray(local.payments) || Array.isArray(c.payments)) ? mergedPayments : undefined,
     paymentsUpdatedAt,
+    preferences: prefsPick.preferences,
     scanRequest: newerScanRequest(local.scanRequest, c.scanRequest),
     backupEpoch: (c.backupEpoch || local.backupEpoch) || undefined,
     coursesFromCloud: courses.fromCloud,
     quickLinksFromCloud: links.fromCloud,
     semestersFromCloud: semPick.fromCloud || ((c.semesters?.length ?? 0) > (local.semesters?.length ?? 0)),
-    paymentsFromCloud: JSON.stringify(mergedPayments) !== JSON.stringify(local.payments || [])
+    paymentsFromCloud: JSON.stringify(mergedPayments) !== JSON.stringify(local.payments || []),
+    preferencesFromCloud: prefsPick.fromCloud
   };
 }
