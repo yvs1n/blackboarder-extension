@@ -10,6 +10,7 @@ import {
 import { resolveAiEndpoint } from '../../engine/aiProviders';
 import { translateTasksToArabicWithAi } from '../../engine/aiTranslator';
 import { getSettings, saveSettings } from '../../utils/storage';
+import { renderAdminBanners } from './adminBanners';
 import { popupActions, popupState } from './state';
 
 let aiTranslationInFlight = false;
@@ -22,6 +23,7 @@ export function applyLanguageUi(lang: UiLanguage): void {
   } catch {}
   applyDocumentLanguage(document, clean);
   translateStaticUiElements(document, clean);
+  renderAdminBanners();
 
   const select = document.getElementById('setting-language') as HTMLSelectElement | null;
   if (select && select.value !== clean) {

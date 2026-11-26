@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.50] - 2026-11-26
+
+### Added
+
+- **Locked Operator Console (`/admin/`), Targeted Global Announcements & Remote Hotfix Config:**
+  - Added client announcement filtering, bilingual EN/AR banner rendering, HTTPS action validation, remote hotfix kill-switch checks, and optional ECDSA P-256 signature verification (`src/core/adminBroadcasts.ts`, `src/utils/adminSync.ts`, `src/popup/modules/adminBanners.ts`, `src/popup/styles/16-admin-banners.css`).
+  - Integrated periodic admin announcement polling & OS notification delivery in `src/background/serviceWorker.ts`, background exam refresh kill-switch & URL overrides in `src/background/examRefresh.ts`, and auto-scan host kill-switch enforcement in `src/content/scraper.ts`.
+  - Added matching companion banner display, Web Push `admin_broadcast` handling, and hardened multi-factor `/admin/` backend authentication.
+- **Browser Sidebar Mode Toggle (`src/utils/sidePanel.ts`, `src/popup/index.html`, `src/popup/modules/settingsView.ts`, `src/background/serviceWorker.ts`):**
+  - Added **Open in Side Panel** inside Settings > General > Appearance & Help whenever the browser supports `chrome.sidePanel.setPanelBehavior` (automatically hidden on unsupported browsers). Switches toolbar icon clicks between popup and pinned sidebar seamlessly and opens the sidebar immediately when enabled from the popup.
+
+---
+
 ## [1.8.49] - 2026-11-26
 
 ### Added

@@ -176,6 +176,7 @@ export const UI_LABELS_AR: Record<string, string> = {
   '#btn-calibration-add-course': '+ إضافة مساق',
   '#btn-calibration-skip': 'تخطي الآن',
   '#btn-calibration-confirm': 'تأكيد والبدء في الاستخدام',
+  '#sidepanel-label': 'الفتح في الشريط الجانبي',
   '#language-label': 'لغة التطبيق / App Language'
 };
 
@@ -204,6 +205,7 @@ export const UI_LABELS_EN: Record<string, string> = {
   '#btn-calibration-add-course': '+ Add Course',
   '#btn-calibration-skip': 'Skip for Now',
   '#btn-calibration-confirm': 'Confirm & Start Using Blackboarder',
+  '#sidepanel-label': 'Open in Side Panel',
   '#language-label': 'App Language'
 };
 

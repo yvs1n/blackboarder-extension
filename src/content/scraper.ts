@@ -21,6 +21,8 @@ import { ExamRefreshResult, examRefreshNote } from '../utils/examRefreshNote';
 import { fetchCourseAnnouncements, isGenericPlaceholderName, readBlackboardApi } from '../scan/blackboardApi';
 import { runScanPipeline, emptyCheckpoint } from '../scan/scanPipeline';
 import { claimAutoScan } from '../scan/autoScan';
+import { isHostAutoScanDisabled } from '../core/adminBroadcasts';
+import { getCachedAdminState } from '../utils/adminSync';
 import {
   bbFetch,
   collectPageCourses,
@@ -638,8 +640,10 @@ function isSignInPage(): boolean {
 function scheduleAutoScan(): void {
   if (isFinancePortalPage(window.location, document)) return;
   getSettings()
-    .then(settings => {
+    .then(async settings => {
       if (!settings.autoScanOnPageLoad || !isExtensionContextValid() || isSignInPage()) return;
+      const adminCache = await getCachedAdminState().catch(() => null);
+      if (isHostAutoScanDisabled(window.location.hostname, adminCache?.snapshot?.remoteConfig)) return;
       setTimeout(async () => {
         if (!isExtensionContextValid()) return;
         if (!(await claimAutoScan(chrome.storage.local as any))) return;

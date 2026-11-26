@@ -6,8 +6,8 @@
   <title>Blackboarder</title>
   <link rel="preload" href="../../fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../../fonts/inter-tight.woff2" as="font" type="font/woff2" crossorigin>
-  <script type="module" crossorigin src="../../assets/popup-ChgGdxoc.js"></script>
-  <link rel="stylesheet" crossorigin href="../../assets/popup-CaiD8Ivw.css">
+  <script type="module" crossorigin src="../../assets/popup-CYYxAK3W.js"></script>
+  <link rel="stylesheet" crossorigin href="../../assets/popup-CZRCMran.css">
 </head>
 <body>
   <!-- Universal SVG Symbol Sprite (Zero external network dependencies, offline-first) -->
@@ -302,6 +302,9 @@
     <button type="button" class="btn-primary session-banner-action" id="btn-session-open-bb">Open Blackboard</button>
   </aside>
 
+  <!-- Remote Announcements & Service Status -->
+  <div id="admin-banners-root" class="admin-banners-root" aria-live="polite"></div>
+
   <!-- Unpacked-only Chrome Web Store Migration Banner -->
   <aside id="cws-migration-banner" class="ext-update-banner" style="display: none;" role="status" aria-live="polite">
     <div class="eub-top-row">
@@ -335,7 +338,7 @@
     <div class="eub-top-row">
       <div class="eub-badge-group">
         <span class="eub-pill">Update</span>
-        <span class="eub-commit" id="eub-commit-badge">v1.8.49</span>
+        <span class="eub-commit" id="eub-commit-badge">v1.8.50</span>
       </div>
       <button type="button" class="eub-close-btn" id="btn-ext-update-dismiss" aria-label="Dismiss update">&times;</button>
     </div>
@@ -831,6 +834,21 @@
             </label>
           </div>
 
+          <!-- Open in Browser Side Panel Toggle (visible only when browser supports chrome.sidePanel) -->
+          <div class="setting-toggle-row" id="row-setting-sidepanel" style="margin-bottom: 12px; padding: 10px 12px; background: var(--surface-hover); border: 1px solid var(--surface-border);" hidden>
+            <div class="toggle-info">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="setting-title" id="sidepanel-label" style="font-weight: 600;">Open in Side Panel</span>
+                <span class="settings-pill pill-blue" style="font-size: 10px;">Sidebar</span>
+              </div>
+              <span class="setting-desc" id="sidepanel-desc">Opens Blackboarder pinned in the browser sidebar instead of a floating popup.</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="setting-open-sidepanel" aria-label="Open in Side Panel">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
           <div class="form-group">
             <label class="form-label" id="language-label" for="setting-language">App Language</label>
             <select id="setting-language" class="form-select">
@@ -1192,7 +1210,7 @@
             <div class="settings-icon-title">
               <span class="card-icon"><svg class="ui-icon"><use href="#icon-refresh"></use></svg></span>
               <div>
-                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.49</span></h3>
+                <h3 class="settings-card-title">Updates <span id="ext-version-badge" class="settings-pill pill-blue" style="font-size: 11px; margin-left: 6px;">v1.8.50</span></h3>
                 <p class="settings-card-subtitle">Updates itself from GitHub (yvs1n/blackboarder-extension)</p>
               </div>
             </div>

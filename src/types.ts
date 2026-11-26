@@ -315,6 +315,7 @@ export interface UserSettings {
   syncKey?: string;
   theme?: 'light' | 'dark' | 'system';
   blackboardDarkMode?: boolean;
+  openInSidePanel?: boolean;
   language?: UiLanguage;
 }
 
@@ -339,6 +340,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   syncKey: '',
   theme: 'system',
   blackboardDarkMode: true,
+  openInSidePanel: false,
   language: 'en'
 };
 

@@ -1,6 +1,7 @@
 import { AiProvider, UserSettings } from '../../types';
 import { IFM_MODEL, normalizeAiBaseUrl, resolveAiEndpoint, testAiEndpoint } from '../../engine/aiProviders';
 import { describeAiLock, ensureAiPass, getAiLockState, newAiPass, syncAiKeyLock } from '../../utils/aiKeyLock';
+import { applySidePanelBehavior, isSidePanelBehaviorSupported, openCurrentWindowSidePanel } from '../../utils/sidePanel';
 import { getSettings, saveLastScanCheckpoint, saveSettings } from '../../utils/storage';
 import { setStorageTombstones } from '../../utils/tombstones';
 import { setLanguageNow } from './language';
@@ -109,6 +110,12 @@ export async function loadSettingsForm() {
   const settingBbDark = document.getElementById('setting-blackboard-dark-mode') as HTMLInputElement | null;
   if (settingBbDark) settingBbDark.checked = settings.blackboardDarkMode !== false;
 
+  const sidePanelRow = document.getElementById('row-setting-sidepanel');
+  const sidePanelSupported = isSidePanelBehaviorSupported();
+  if (sidePanelRow) sidePanelRow.hidden = !sidePanelSupported;
+  const settingSidePanel = document.getElementById('setting-open-sidepanel') as HTMLInputElement | null;
+  if (settingSidePanel) settingSidePanel.checked = Boolean(settings.openInSidePanel);
+
   const settingSyncMidnight = document.getElementById('setting-sync-midnight') as HTMLInputElement | null;
   if (settingSyncMidnight) settingSyncMidnight.checked = settings.autoSyncMidnight !== false;
   const settingSyncOnScan = document.getElementById('setting-sync-onscan') as HTMLInputElement | null;
@@ -169,6 +176,26 @@ export function setupSettingsEvents() {
     const isChecked = settingBbDarkToggle.checked;
     await setBlackboardDarkMode(isChecked);
     popupActions.showToast(`Blackboard Dark Mode ${isChecked ? 'Enabled' : 'Disabled'}`);
+  });
+
+  const settingSidePanelToggle = document.getElementById('setting-open-sidepanel') as HTMLInputElement | null;
+  settingSidePanelToggle?.addEventListener('change', async () => {
+    const openSidebar = settingSidePanelToggle.checked;
+    await saveSettings({ openInSidePanel: openSidebar });
+    await applySidePanelBehavior(openSidebar);
+    const inSidePanelView = typeof window !== 'undefined' && window.location.search.includes('view=panel');
+    if (openSidebar && !inSidePanelView) {
+      const opened = await openCurrentWindowSidePanel();
+      if (opened && typeof window !== 'undefined') {
+        window.close();
+        return;
+      }
+    }
+    popupActions.showToast(
+      openSidebar
+        ? 'Side Panel mode enabled — clicking the icon opens the sidebar'
+        : 'Popup mode restored — next click opens the popup'
+    );
   });
 
   const settingUseAi = document.getElementById('setting-use-ai') as HTMLInputElement | null;

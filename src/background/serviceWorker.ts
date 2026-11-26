@@ -16,6 +16,11 @@ import { refreshExamSchedule } from './examRefresh';
 import { scanOrchestrator } from './scanOrchestrator';
 import { GET_BLACKBOARD_XSRF, readBlackboardXsrf } from '../utils/blackboardXsrf';
 import { fetchCloudScanRequest, isScanRequestStale, SCAN_REQUEST_EXPIRED_MESSAGE } from '../utils/cloudScanRequest';
+import { notifyPendingAdminAnnouncements, syncAdminState } from '../utils/adminSync';
+import { getProfile } from '../utils/profile';
+import { syncSidePanelBehaviorFromSettings } from '../utils/sidePanel';
+import { profileUniversity } from '../core/studentProfile';
+import { normalizeUiLanguage } from '../core/i18n';
 
 const ALARM_NAME = 'bbs_check_deadlines';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
@@ -417,6 +422,7 @@ async function reinjectScraperIntoOpenBlackboardTabs() {
 reinjectDarkModeIntoOpenBlackboardTabs();
 registerExtraSiteScripts().catch(() => {});
 scheduleClassReminder();
+syncSidePanelBehaviorFromSettings().catch(() => {});
 chrome.permissions?.onAdded?.addListener(() => { registerExtraSiteScripts().catch(() => {}); });
 chrome.permissions?.onRemoved?.addListener(() => { registerExtraSiteScripts().catch(() => {}); });
 
@@ -429,6 +435,20 @@ chrome.declarativeNetRequest?.updateDynamicRules({
   addRules: [ifmOriginRule(chrome.runtime.id)]
 }).catch(err => console.error('[AI] Could not set the IFM header rule:', err));
 
+async function syncAdminAnnouncementsInBackground(force = false) {
+  try {
+    const snap = await syncAdminState(force);
+    if (!snap) return;
+    const [stored, profile] = await Promise.all([
+      chrome.storage.local.get(['bbs_settings']).catch(() => ({} as Record<string, any>)),
+      getProfile().catch(() => null)
+    ]);
+    const lang = normalizeUiLanguage((stored?.bbs_settings as UserSettings | undefined)?.language);
+    const universityId = profile ? profileUniversity(profile).id : '';
+    await notifyPendingAdminAnnouncements(snap, { lang, universityId });
+  } catch {}
+}
+
 // Listeners
 chrome.runtime.onInstalled.addListener((details) => {
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 30 });
@@ -439,6 +459,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   // A Chrome update keeps content scripts alive, so reload them only after our own install or update
   if (details?.reason === 'install' || details?.reason === 'update') reinjectScraperIntoOpenBlackboardTabs();
   pullTasksFromFirebaseToLocal().then(() => updateExtensionBadge());
+  syncAdminAnnouncementsInBackground(details?.reason === 'install');
 });
 
 chrome.runtime.onStartup?.addListener(() => {
@@ -448,6 +469,7 @@ chrome.runtime.onStartup?.addListener(() => {
   getUserCourses().catch(() => {});
   reinjectDarkModeIntoOpenBlackboardTabs();
   pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
+  syncAdminAnnouncementsInBackground(false);
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -459,6 +481,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     const after = changes.bbs_settings.newValue as Partial<UserSettings> | undefined;
     if (before?.classReminderMinutes !== after?.classReminderMinutes) scheduleClassReminder();
     if (before?.badgeNotification !== after?.badgeNotification) updateExtensionBadge().catch(() => {});
+    if (before?.openInSidePanel !== after?.openInSidePanel) syncSidePanelBehaviorFromSettings().catch(() => {});
   }
   if (areaName === 'local' && changes[EXTRA_SITES_KEY]) {
     registerExtraSiteScripts().catch(() => {});
@@ -471,6 +494,7 @@ chrome.alarms.onAlarm.addListener(alarm => {
   } else if (alarm.name === ALARM_NAME) {
     pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
     showDueClassReminders().then(() => scheduleClassReminder());
+    syncAdminAnnouncementsInBackground(false);
   } else if (alarm.name === CLOUD_SCAN_ALARM) {
     pollCloudScanRequest();
   } else if (alarm.name === MIDNIGHT_ALARM_NAME) {

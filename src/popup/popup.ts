@@ -59,6 +59,7 @@ import {
   switchView,
 } from './modules/navigation';
 import { initOverlayKeyboardHandler } from './modules/overlayController';
+import { initAdminBanners } from './modules/adminBanners';
 import { initDebugStick } from './modules/debugStick';
 import {
   initPaymentsView,
@@ -333,6 +334,7 @@ async function initApp() {
   }).catch(err => console.error('[University] Settings failed to load:', err));
 
   initSessionBanner();
+  initAdminBanners();
   initExtensionUpdateSystem();
   initDebugStick();
   initCalibrationModal();

@@ -14,6 +14,7 @@ import { setStorageTombstones } from '../utils/tombstones';
 import { deduplicateTaskList } from '../utils/taskMerge';
 import { isValidTask } from '../core/courseHelper';
 import { repairTaskWeightsAndRooms } from '../utils/taskRepair';
+import { getCachedAdminState } from '../utils/adminSync';
 import type { DeadlineTask } from '../types';
 
 export { examRefreshNote, isExamPageUrl } from '../utils/examRefreshNote';
@@ -179,7 +180,16 @@ async function readViaHttp(page: string, force = false): Promise<ExamRefreshResu
 }
 
 export async function refreshExamSchedule(force = false): Promise<ExamRefreshResult> {
-  const page = profileUniversity(await getProfile().catch(() => null)).examSchedulePage;
+  const [uni, adminCache] = await Promise.all([
+    getProfile().catch(() => null).then(p => profileUniversity(p)),
+    getCachedAdminState().catch(() => null)
+  ]);
+  const rc = adminCache?.snapshot?.remoteConfig;
+  if (rc?.disableExamRefresh || rc?.maintenanceMode) {
+    return { state: 'error' };
+  }
+  const overrideUrl = rc?.universityUrlOverrides?.[uni.id]?.examSchedulePage;
+  const page = (overrideUrl && overrideUrl.startsWith('https://')) ? overrideUrl : uni.examSchedulePage;
   if (!page) return { state: 'none' };
 
   try {
