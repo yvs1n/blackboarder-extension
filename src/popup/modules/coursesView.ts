@@ -50,8 +50,11 @@ export function renderUserCoursesManager() {
     return true;
   });
 
+  const isAr = popupState.currentLanguage === 'ar';
   if (countPill) {
-    countPill.textContent = `${popupState.currentUserCourses.length} Active`;
+    countPill.textContent = isAr
+      ? `${popupState.currentUserCourses.length} نشط`
+      : `${popupState.currentUserCourses.length} Active`;
   }
 
   container.innerHTML = '';
@@ -59,9 +62,11 @@ export function renderUserCoursesManager() {
   if (popupState.currentUserCourses.length === 0) {
     container.innerHTML = `
       <div style="text-align: center; padding: 20px 10px; color: var(--text-muted); background: var(--surface-hover); border-radius: var(--radius-sm); border: 1px dashed var(--surface-border);">
-        <p style="font-size: 12px; margin-bottom: 8px;">No courses configured yet. Click <b>+ Add Course</b> or scan Blackboard to detect your courses automatically.</p>
+        <p style="font-size: 12px; margin-bottom: 8px;">${isAr
+          ? 'لا توجد مساقات بعد. اضغط <b>+ إضافة مساق</b> أو افحص بلاك بورد لاكتشاف مساقاتك تلقائياً.'
+          : 'No courses configured yet. Click <b>+ Add Course</b> or scan Blackboard to detect your courses automatically.'}</p>
         <button type="button" class="btn-primary" id="btn-empty-add-course" style="font-size: 11px; padding: 4px 10px;">
-          + Add Your First Course
+          ${isAr ? '+ أضف مساقك الأول' : '+ Add Your First Course'}
         </button>
       </div>
     `;
@@ -72,15 +77,21 @@ export function renderUserCoursesManager() {
   popupState.currentUserCourses.forEach(course => {
     const card = document.createElement('div');
     card.className = 'user-course-card';
-    card.style.borderLeft = `3px solid ${course.colorHex}`;
+    card.style.borderInlineStart = `3px solid ${course.colorHex}`;
 
     const totalWeight = (course.syllabus || []).reduce((acc, c) => acc + (Number(c.totalWeight) || 0), 0);
 
     let scheduleHtml = '';
     if (course.scheduleSlots && course.scheduleSlots.length > 0) {
+      const DAY_SHORT_AR: Record<string, string> = { sun: 'أحد', mon: 'إثن', tue: 'ثلا', wed: 'أرب', thu: 'خمي', fri: 'جمع', sat: 'سبت' };
       scheduleHtml = course.scheduleSlots.map(slot => {
-        const daysDisplay = escapeHtml(slot.days.map(d => String(d).slice(0, 3).toUpperCase()).join('/'));
-        const roomDisplay = slot.room ? `Room ${escapeHtml(slot.room)}` : 'Room TBD';
+        const daysDisplay = escapeHtml(slot.days.map(d => {
+          const k = String(d).slice(0, 3).toLowerCase();
+          return isAr ? (DAY_SHORT_AR[k] || k) : k.toUpperCase();
+        }).join(' / '));
+        const roomDisplay = slot.room
+          ? (isAr ? `قاعة ${escapeHtml(slot.room)}` : `Room ${escapeHtml(slot.room)}`)
+          : (isAr ? 'القاعة غير محددة' : 'Room TBD');
         return `
           <span class="ucc-schedule-badge">
             ${getSvgIcon('calendar', 'mr-1')} <b>${daysDisplay}</b> • ${escapeHtml(slot.startTime)}–${escapeHtml(slot.endTime)} • ${roomDisplay}
@@ -88,14 +99,14 @@ export function renderUserCoursesManager() {
         `;
       }).join('');
     } else {
-      scheduleHtml = `<span style="font-size: 10.5px; color: var(--text-muted); font-style: italic;">No meeting times scheduled</span>`;
+      scheduleHtml = `<span style="font-size: 10.5px; color: var(--text-muted); font-style: italic;">${isAr ? 'لا توجد أوقات محاضرات مجدولة' : 'No meeting times scheduled'}</span>`;
     }
 
     let syllabusHtml = '';
     if (course.syllabus && course.syllabus.length > 0) {
       syllabusHtml = course.syllabus.map(comp => {
         const unitText = comp.count && comp.count > 1 && comp.unitWeight !== undefined
-          ? ` (${comp.count}x ${comp.unitWeight}%)`
+          ? ` (${comp.count}× ${comp.unitWeight}%)`
           : '';
         return `
           <span class="ucc-syllabus-pill" title="${escapeHtml(comp.note || comp.name)}">
@@ -104,16 +115,16 @@ export function renderUserCoursesManager() {
         `;
       }).join('');
     } else {
-      syllabusHtml = `<span style="font-size: 10.5px; color: var(--text-muted); font-style: italic;">No syllabus breakdown defined</span>`;
+      syllabusHtml = `<span style="font-size: 10.5px; color: var(--text-muted); font-style: italic;">${isAr ? 'لم يتم تحديد توزيع الدرجات' : 'No syllabus breakdown defined'}</span>`;
     }
 
     let weightStatusBadge = '';
     if (totalWeight === 100) {
-      weightStatusBadge = `<span class="settings-pill pill-green" style="font-size: 10px;">Total Weight: 100%</span>`;
+      weightStatusBadge = `<span class="settings-pill pill-green" style="font-size: 10px;">${isAr ? 'إجمالي الوزن: 100%' : 'Total Weight: 100%'}</span>`;
     } else if (totalWeight < 100) {
-      weightStatusBadge = `<span class="settings-pill pill-orange" style="font-size: 10px;">Total Weight: ${totalWeight}% (Incomplete)</span>`;
+      weightStatusBadge = `<span class="settings-pill pill-orange" style="font-size: 10px;">${isAr ? `إجمالي الوزن: ${totalWeight}% (ناقص)` : `Total Weight: ${totalWeight}% (Incomplete)`}</span>`;
     } else {
-      weightStatusBadge = `<span class="settings-pill pill-red" style="font-size: 10px; color: var(--danger);">Total Weight: ${totalWeight}% (Exceeds 100%)</span>`;
+      weightStatusBadge = `<span class="settings-pill pill-red" style="font-size: 10px; color: var(--danger);">${isAr ? `إجمالي الوزن: ${totalWeight}% (يتجاوز 100%)` : `Total Weight: ${totalWeight}% (Exceeds 100%)`}</span>`;
     }
 
     const rawCredits = course.creditHours;
@@ -123,8 +134,8 @@ export function renderUserCoursesManager() {
     const creditLabel = credits === null
       ? ''
       : credits === 0
-        ? '0 credits (Non-credit)'
-        : `${credits} credit hour${credits === 1 ? '' : 's'}`;
+        ? (isAr ? '0 ساعات (دون رصيد)' : '0 credits (Non-credit)')
+        : (isAr ? `${credits} ساعة معتمدة` : `${credits} credit hour${credits === 1 ? '' : 's'}`);
     const metaParts = [
       course.courseCode ? `<span class="ucc-code">${escapeHtml(course.courseCode)}</span>` : '',
       course.crn ? `<span title="CRN">CRN ${escapeHtml(course.crn)}</span>` : '',
@@ -141,10 +152,10 @@ export function renderUserCoursesManager() {
           </div>
         </div>
         <div class="ucc-actions">
-          <button type="button" class="ucc-action-btn edit" title="Edit course" aria-label="Edit course">
+          <button type="button" class="ucc-action-btn edit" title="${isAr ? 'تعديل المساق' : 'Edit course'}" aria-label="${isAr ? 'تعديل المساق' : 'Edit course'}">
             <svg class="ui-icon" style="width: 13px; height: 13px;"><use href="#icon-pencil"></use></svg>
           </button>
-          <button type="button" class="ucc-action-btn delete" title="Delete course" aria-label="Delete course">
+          <button type="button" class="ucc-action-btn delete" title="${isAr ? 'حذف المساق' : 'Delete course'}" aria-label="${isAr ? 'حذف المساق' : 'Delete course'}">
             <svg class="ui-icon" style="width: 13px; height: 13px;"><use href="#icon-trash"></use></svg>
           </button>
         </div>
@@ -157,7 +168,7 @@ export function renderUserCoursesManager() {
           ${syllabusHtml}
         </div>
         <div class="ucc-weight-status">
-          <span>Mark breakdown</span>
+          <span>${isAr ? 'توزيع الدرجات' : 'Mark breakdown'}</span>
           ${weightStatusBadge}
         </div>
       </div>
@@ -192,8 +203,9 @@ export function openCourseEditor(courseId?: string) {
 
   const course = courseId ? popupState.currentUserCourses.find(c => c.id === courseId) : null;
 
+  const isAr = popupState.currentLanguage === 'ar';
   if (course) {
-    if (titleEl) titleEl.textContent = 'Edit Course';
+    if (titleEl) titleEl.textContent = isAr ? 'تعديل المساق' : 'Edit Course';
     if (codeInput) codeInput.value = course.courseCode || '';
     if (nameInput) nameInput.value = course.courseName || '';
     if (crnInput) crnInput.value = course.crn || '';
@@ -216,7 +228,7 @@ export function openCourseEditor(courseId?: string) {
       addSyllabusRow();
     }
   } else {
-    if (titleEl) titleEl.textContent = 'Add Course';
+    if (titleEl) titleEl.textContent = isAr ? 'إضافة مساق' : 'Add Course';
     if (codeInput) codeInput.value = '';
     if (nameInput) nameInput.value = '';
     if (crnInput) crnInput.value = '';
@@ -377,7 +389,8 @@ export function updateEditorTotalWeight() {
     });
   }
 
-  badge.textContent = `Total: ${total}% / 100%`;
+  const isAr = popupState.currentLanguage === 'ar';
+  badge.textContent = isAr ? `المجموع: ${total}% / 100%` : `Total: ${total}% / 100%`;
   badge.classList.remove('pill-green', 'pill-blue', 'pill-orange', 'pill-red');
   if (total === 100) {
     badge.classList.add('pill-green');

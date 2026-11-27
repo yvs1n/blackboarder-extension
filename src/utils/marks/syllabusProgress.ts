@@ -1,4 +1,4 @@
-import type { DeadlineTask } from '../../types';
+import type { DeadlineTask, UiLanguage } from '../../types';
 import { round1, esc } from '../ui/uiCommon';
 
 export interface ProgressSyllabus {
@@ -59,14 +59,25 @@ export function buildSyllabusProgress(tasks: DeadlineTask[], syllabi: ProgressSy
 }
 
 /** The Syllabus Progress list, shared by the popup and the phone app (same classes in both stylesheets). */
-export function syllabusProgressHtml(p: SyllabusProgress, colorFor: (courseName: string) => string): string {
-  if (!p.courses.length) return '<div class="marks-empty">No courses configured yet.</div>';
+export function syllabusProgressHtml(
+  p: SyllabusProgress,
+  colorFor: (courseName: string) => string,
+  lang: UiLanguage = 'en'
+): string {
+  const isAr = lang === 'ar';
+  if (!p.courses.length) {
+    return `<div class="marks-empty">${isAr ? 'لا توجد مساقات مهيأة بعد.' : 'No courses configured yet.'}</div>`;
+  }
   return p.courses.map(c => {
     const pendingPct = Math.round((c.pendingWeight / c.totalWeight) * 100);
+    const doneLabel = isAr ? `${c.percentDone}% مكتمل` : `${c.percentDone}% done`;
+    const aria = isAr
+      ? `${c.completedWeight}% مكتمل، ${c.pendingWeight}% متبقي، ${c.upcomingWeight}% غير معلن`
+      : `${c.completedWeight}% done, ${c.pendingWeight}% pending, ${c.upcomingWeight}% not announced yet`;
     return `<div class="marks-course">
-      <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span><span class="marks-course-total">${c.percentDone}% done</span></div>
-      <div class="syl-bar" role="img" aria-label="${c.completedWeight}% done, ${c.pendingWeight}% pending, ${c.upcomingWeight}% not announced yet"><span class="syl-done" style="width:${c.percentDone}%"></span><span class="syl-pending" style="width:${Math.min(100 - c.percentDone, pendingPct)}%"></span></div>
-      <div class="syl-legend"><span>Done ${c.completedWeight}%</span><span>Pending ${c.pendingWeight}%</span><span>Not announced ${c.upcomingWeight}%</span></div>
+      <div class="marks-course-head"><span class="marks-dot" style="background:${esc(colorFor(c.courseName))}"></span><span class="marks-course-name">${esc(c.courseName)}</span><span class="marks-course-total">${doneLabel}</span></div>
+      <div class="syl-bar" role="img" aria-label="${aria}"><span class="syl-done" style="width:${c.percentDone}%"></span><span class="syl-pending" style="width:${Math.min(100 - c.percentDone, pendingPct)}%"></span></div>
+      <div class="syl-legend"><span>${isAr ? 'مكتمل' : 'Done'} ${c.completedWeight}%</span><span>${isAr ? 'قيد الانتظار' : 'Pending'} ${c.pendingWeight}%</span><span>${isAr ? 'غير معلن' : 'Not announced'} ${c.upcomingWeight}%</span></div>
     </div>`;
   }).join('');
 }

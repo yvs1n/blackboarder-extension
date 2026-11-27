@@ -61,7 +61,12 @@ export async function initWalkthroughModal() {
     panes.forEach(pane => pane.classList.remove('active'));
     document.getElementById(`walkthrough-pane-${currentStep}`)?.classList.add('active');
     if (btnBack) btnBack.style.visibility = currentStep > 1 ? 'visible' : 'hidden';
-    if (btnNext) btnNext.textContent = currentStep === totalSteps ? 'Get Started' : 'Next Step →';
+    if (btnNext) {
+      const isAr = (localStorage.getItem('bbs_lang') || 'en') === 'ar';
+      btnNext.textContent = currentStep === totalSteps
+        ? (isAr ? 'ابدأ الآن' : 'Get Started')
+        : (isAr ? '← الخطوة التالية' : 'Next Step →');
+    }
   }
 
   function openModal() {

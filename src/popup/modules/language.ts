@@ -29,6 +29,11 @@ export function applyLanguageUi(lang: UiLanguage): void {
   if (select && select.value !== clean) {
     select.value = clean;
   }
+
+  popupActions.renderLegend?.();
+  if (popupState.currentActiveView === 'settings') {
+    void popupActions.loadSettingsForm?.();
+  }
 }
 
 async function upgradeMissingArabicMirrorsWithAi(): Promise<void> {

@@ -332,3 +332,19 @@ html[dir="rtl"] .modal-close-btn {
   margin-left: 0;
   margin-right: auto;
 }
+
+html[dir="rtl"] .mr-1 {
+  margin-right: 0;
+  margin-left: 4px;
+}
+
+html[dir="rtl"] .course-summary-arrow,
+html[dir="rtl"] #grades-tracker-arrow,
+html[dir="rtl"] #syllabus-tracker-arrow {
+  transform: scaleX(-1);
+}
+
+html[dir="rtl"] .course-summary-header[aria-expanded="true"] .course-summary-arrow,
+html[dir="rtl"] .grade-tracker-header[aria-expanded="true"] .course-summary-arrow {
+  transform: rotate(90deg);
+}

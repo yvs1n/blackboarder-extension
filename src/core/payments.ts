@@ -1,4 +1,4 @@
-import type { DeadlineTask, PaymentCategory, PaymentItem } from '../types';
+import type { DeadlineTask, PaymentCategory, PaymentItem, UiLanguage } from '../types';
 import type { TombstoneMap } from '../utils/tasks/taskMerge';
 
 const SAFE_PAYMENT_ID = /^[^\u0000-\u001f\u007f<>"`\\]{1,160}$/;
@@ -11,6 +11,15 @@ export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
   housing: 'Housing / Dorms',
   late_fee: 'Cutoff / Late Fine',
   other: 'University Fee'
+};
+
+export const PAYMENT_CATEGORY_LABELS_AR: Record<PaymentCategory, string> = {
+  tuition: 'رسوم دراسية',
+  installment: 'قسط دراسي',
+  registration: 'تسجيل / عربون',
+  housing: 'سكن جامعي',
+  late_fee: 'غرامة تأخير',
+  other: 'رسوم جامعية'
 };
 
 export interface PaymentGuidePortal {
@@ -45,7 +54,10 @@ export interface UniversityPaymentGuide {
   presetTerms: PaymentPresetTerm[];
 }
 
-export function paymentCategoryLabel(cat?: PaymentCategory): string {
+export function paymentCategoryLabel(cat?: PaymentCategory, lang: UiLanguage = 'en'): string {
+  if (lang === 'ar') {
+    return (cat && PAYMENT_CATEGORY_LABELS_AR[cat]) || PAYMENT_CATEGORY_LABELS_AR.other;
+  }
   return (cat && PAYMENT_CATEGORY_LABELS[cat]) || PAYMENT_CATEGORY_LABELS.other;
 }
 
@@ -279,9 +291,54 @@ export function paymentsAsDeadlineTasks(items: PaymentItem[]): DeadlineTask[] {
 }
 
 /** Returns guided instructions, verified portal links, and term installment presets per university. */
-export function universityPaymentGuide(universityId?: string): UniversityPaymentGuide {
+export function universityPaymentGuide(universityId?: string, lang: UiLanguage = 'en'): UniversityPaymentGuide {
   const id = (universityId || 'uos').toLowerCase();
+  const isAr = lang === 'ar';
   if (id === 'uos') {
+    if (isAr) {
+      return {
+        universityId: 'uos',
+        headline: 'دليل الدفع المالي لطلبة جامعة الشارقة (UOS)',
+        defaultCurrency: 'AED',
+        steps: [
+          'سجّل الدخول إلى بوابة MyUoS وافتح نظام Banner Self-Service (MyUDC).',
+          'انتقل إلى الخدمات الإلكترونية -> الطالب -> حساب الطالب -> ملخص الحساب لعرض الأرصدة ومواعيد الاستحقاق.',
+          'افتح الدفع بالبطاقة داخل حساب الطالب لسداد المبلغ كاملاً أو دفع الدفعة الأولى 50% أو التقسيط عبر Tabby / Tamara.',
+          'عند الدفع بالشيكات المؤجلة (PDC)، يجب تسليم الشيكات للإدارة المالية قبل الموعد لتجنب غرامة التأخير 500 درهم.'
+        ],
+        methods: [
+          'الدفع الإلكتروني والمحافظ: Visa و MasterCard و Apple Pay و Google Pay (بوابة تحصيل)',
+          'الأقساط الفورية: خيارات Tabby و Tamara داخل بوابة الدفع في Banner',
+          'مصرف الشارقة الإسلامي (SIB): الإيداع عبر أجهزة الصراف أو الفروع باستخدام الرقم الجامعي',
+          'الشيكات المؤجلة (PDC): 50% مقدماً + شيكان بقيمة 25% و 25% تُسلم في الحرم الجامعي'
+        ],
+        portals: [
+          { title: 'حساب الطالب في Banner (MyUDC)', url: 'https://banner.sharjah.ac.ae', description: 'عرض ملخص الحساب والقيود والدفع الإلكتروني' },
+          { title: 'الموقع الرسمي لجامعة الشارقة', url: 'https://www.sharjah.ac.ae', description: 'التقويم الأكاديمي وسياسات الرسوم المعتمدة' }
+        ],
+        presetTerms: [
+          {
+            id: 'uos-fall-2026',
+            label: 'مواعيد خريف 2026/27',
+            items: [
+              { id: 'uos_fall26_initial', title: 'الدفعة الأولى لخريف 2026 (50% / آخر موعد للشيكات)', category: 'tuition', dueDate: '2026-09-03T19:59:00.000Z', currency: 'AED', termName: 'خريف 2026/27', methodNote: 'سداد المبلغ كاملاً أو 50% على الأقل. تُفرض غرامة تأخير 500 درهم بعد الموعد.', portalUrl: 'https://banner.sharjah.ac.ae' },
+              { id: 'uos_fall26_census', title: 'آخر موعد للسحب والإضافة واسترداد الرسوم (خريف)', category: 'registration', dueDate: '2026-09-13T19:59:00.000Z', currency: 'AED', termName: 'خريف 2026/27', methodNote: 'آخر يوم لتعديل التسجيل دون احتساب كامل الرسوم.', portalUrl: 'https://banner.sharjah.ac.ae' },
+              { id: 'uos_fall26_inst2', title: 'القسط الثاني لخريف 2026 (25%)', category: 'installment', dueDate: '2026-10-01T19:59:00.000Z', currency: 'AED', termName: 'خريف 2026/27', methodNote: 'سداد القسط الثاني عبر حساب الطالب أو مصرف الشارقة الإسلامي.', portalUrl: 'https://banner.sharjah.ac.ae' },
+              { id: 'uos_fall26_inst3', title: 'القسط الثالث والأخير لخريف 2026 (25%)', category: 'installment', dueDate: '2026-11-01T19:59:00.000Z', currency: 'AED', termName: 'خريف 2026/27', methodNote: 'سداد المتبقي من رسوم الفصل الدراسي.', portalUrl: 'https://banner.sharjah.ac.ae' }
+            ]
+          },
+          {
+            id: 'uos-spring-2027',
+            label: 'مواعيد ربيع 2026/27',
+            items: [
+              { id: 'uos_spring27_initial', title: 'الدفعة الأولى لربيع 2027 (50%)', category: 'tuition', dueDate: '2027-01-21T19:59:00.000Z', currency: 'AED', termName: 'ربيع 2026/27', methodNote: 'الحد الأدنى 50% أو شيكات مؤجلة لتجنب غرامة التأخير.', portalUrl: 'https://banner.sharjah.ac.ae' },
+              { id: 'uos_spring27_inst2', title: 'القسط الثاني لربيع 2027 (25%)', category: 'installment', dueDate: '2027-03-01T19:59:00.000Z', currency: 'AED', termName: 'ربيع 2026/27', methodNote: 'القسط الثاني via حساب الطالب أو SIB.', portalUrl: 'https://banner.sharjah.ac.ae' },
+              { id: 'uos_spring27_inst3', title: 'القسط الثالث والأخير لربيع 2027 (25%)', category: 'installment', dueDate: '2027-04-01T19:59:00.000Z', currency: 'AED', termName: 'ربيع 2026/27', methodNote: 'المتبقي من رسوم فصل الربيع.', portalUrl: 'https://banner.sharjah.ac.ae' }
+            ]
+          }
+        ]
+      };
+    }
     return {
       universityId: 'uos',
       headline: 'University of Sharjah (UOS) Student Finance Guide',
@@ -394,6 +451,25 @@ export function universityPaymentGuide(universityId?: string): UniversityPayment
           ]
         }
       ]
+    };
+  }
+
+  if (isAr) {
+    return {
+      universityId: id,
+      headline: 'دليل الدفع المالي والأقساط الجامعية',
+      defaultCurrency: 'AED',
+      steps: [
+        'افتح نظام معلومات الطلبة بجامعتك (Banner / PeopleSoft) وانتقل إلى حساب الطالب -> ملخص الحساب.',
+        'تحقق من إجمالي الرسوم ومواعيد الأقساط ومهل إيقاف التسجيل.',
+        'أضف كل قسط أو رسوم هنا لتصلك تنبيهات مسبقة قبل مواعيد الاستحقاق.'
+      ],
+      methods: [
+        'أضف الرسوم والأقساط يدوياً عبر زر + إضافة رسم.',
+        'حدد العملة الدقيقة (AED أو USD أو SAR) وملاحظات الدفع لكل قسط.'
+      ],
+      portals: [],
+      presetTerms: []
     };
   }
 

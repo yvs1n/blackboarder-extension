@@ -1,4 +1,4 @@
-import { DeadlineTask } from '../../types';
+import { DeadlineTask, UiLanguage } from '../../types';
 import { findCourseSchedule, resolveTaskRoom } from '../../core/courseSchedule';
 import { resolveCourseInfo } from '../../core/courseHelper';
 
@@ -156,40 +156,51 @@ export function downloadIcsFile(tasks: DeadlineTask[], filename: string = 'black
 export function formatCountdown(
   dueDateIso: string,
   hasSpecificTime: boolean = true,
-  status?: string
+  status?: string,
+  lang: UiLanguage = 'en'
 ): { label: string; urgency: 'overdue' | 'today' | 'tomorrow' | 'soon' | 'future' | 'completed' } {
+  const isAr = lang === 'ar';
   if (status === 'completed') {
-    return { label: 'Marked as Done', urgency: 'completed' };
+    return { label: isAr ? 'مكتمل' : 'Marked as Done', urgency: 'completed' };
   }
 
   const now = new Date();
   const due = new Date(dueDateIso);
   if (isNaN(due.getTime())) {
-    return { label: 'Date pending', urgency: 'future' };
+    return { label: isAr ? 'التاريخ غير محدد' : 'Date pending', urgency: 'future' };
   }
 
   const diffMs = due.getTime() - now.getTime();
   const isPast = diffMs < 0;
   const absDiffHours = Math.abs(diffMs) / (1000 * 60 * 60);
   const absDiffDays = Math.floor(absDiffHours / 24);
+  const locale = isAr ? 'ar-AE' : undefined;
 
   // Time string if available
   const timeStr = hasSpecificTime
-    ? due.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? due.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     : '';
 
   if (isPast) {
     if (absDiffHours < 24) {
-      return { label: `Overdue (${Math.round(absDiffHours)}h ago)`, urgency: 'overdue' };
+      return {
+        label: isAr ? `متأخر (منذ ${Math.round(absDiffHours)} س)` : `Overdue (${Math.round(absDiffHours)}h ago)`,
+        urgency: 'overdue'
+      };
     }
-    return { label: `Overdue by ${absDiffDays}d`, urgency: 'overdue' };
+    return {
+      label: isAr ? `متأخر بـ ${absDiffDays} ي` : `Overdue by ${absDiffDays}d`,
+      urgency: 'overdue'
+    };
   }
 
   // Today
   const isToday = now.toDateString() === due.toDateString();
   if (isToday) {
     return {
-      label: hasSpecificTime ? `Due Today at ${timeStr}` : 'Due Today',
+      label: hasSpecificTime
+        ? (isAr ? `يستحق اليوم الساعة ${timeStr}` : `Due Today at ${timeStr}`)
+        : (isAr ? 'يستحق اليوم' : 'Due Today'),
       urgency: 'today'
     };
   }
@@ -200,7 +211,9 @@ export function formatCountdown(
   const isTomorrow = tomorrow.toDateString() === due.toDateString();
   if (isTomorrow) {
     return {
-      label: hasSpecificTime ? `Due Tomorrow at ${timeStr}` : 'Due Tomorrow',
+      label: hasSpecificTime
+        ? (isAr ? `يستحق غداً الساعة ${timeStr}` : `Due Tomorrow at ${timeStr}`)
+        : (isAr ? 'يستحق غداً' : 'Due Tomorrow'),
       urgency: 'tomorrow'
     };
   }
@@ -209,17 +222,21 @@ export function formatCountdown(
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const calendarDays = Math.round((startOf(due) - startOf(now)) / 86400000);
   if (calendarDays < 7) {
-    const weekday = due.toLocaleDateString([], { weekday: 'short' });
+    const weekday = due.toLocaleDateString(locale, { weekday: 'short' });
     return {
-      label: `${weekday} (in ${calendarDays} day${calendarDays === 1 ? '' : 's'}${hasSpecificTime ? ` at ${timeStr}` : ''})`,
+      label: isAr
+        ? `${weekday} (بعد ${calendarDays} ${calendarDays === 1 ? 'يوم' : 'أيام'}${hasSpecificTime ? ` الساعة ${timeStr}` : ''})`
+        : `${weekday} (in ${calendarDays} day${calendarDays === 1 ? '' : 's'}${hasSpecificTime ? ` at ${timeStr}` : ''})`,
       urgency: 'soon'
     };
   }
 
   // Future
-  const formattedDate = due.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const formattedDate = due.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   return {
-    label: `${formattedDate}${hasSpecificTime ? ` at ${timeStr}` : ''}`,
+    label: isAr
+      ? `${formattedDate}${hasSpecificTime ? ` الساعة ${timeStr}` : ''}`
+      : `${formattedDate}${hasSpecificTime ? ` at ${timeStr}` : ''}`,
     urgency: 'future'
   };
 }
@@ -230,24 +247,26 @@ export function formatCountdown(
  * 2. If it is scheduled during class, resolves the class time range from schedule.pdf (e.g. "12:30 PM - 01:45 PM (Class time)").
  * 3. Fallback: "During class".
  */
-export function formatTaskTime(task: DeadlineTask): string {
+export function formatTaskTime(task: DeadlineTask, lang: UiLanguage = 'en'): string {
+  const isAr = lang === 'ar';
   const d = new Date(task.dueDate);
-  if (isNaN(d.getTime())) return 'No time specified';
+  if (isNaN(d.getTime())) return isAr ? 'الوقت غير محدد' : 'No time specified';
 
+  const locale = isAr ? 'ar-AE' : undefined;
   if (task.hasSpecificTime) {
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true });
   }
 
   const sched = findCourseSchedule(task.courseName || task.courseCode, task.title);
   if (sched) {
-    return `${sched.timeRangeDisplay} (Class time)`;
+    return `${sched.timeRangeDisplay} (${isAr ? 'وقت المحاضرة' : 'Class time'})`;
   }
 
   if (d.getHours() !== 0 || d.getMinutes() !== 0) {
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true });
   }
 
-  return 'During class';
+  return isAr ? 'أثناء المحاضرة' : 'During class';
 }
 
 /**

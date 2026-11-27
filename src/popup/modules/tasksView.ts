@@ -146,7 +146,8 @@ export function updateCourseFilterOptions(tasks: DeadlineTask[]) {
   });
 
   const currentVal = filterCourseSelect.value;
-  filterCourseSelect.innerHTML = '<option value="all">All Courses</option>';
+  const allLabel = popupState.currentLanguage === 'ar' ? 'جميع المساقات' : 'All Courses';
+  filterCourseSelect.innerHTML = `<option value="all">${allLabel}</option>`;
   courseMap.forEach((label, key) => {
     const opt = document.createElement('option');
     opt.value = key;
@@ -260,7 +261,7 @@ export function renderTasks() {
 
   filtered.forEach(task => {
     const isPayment = Boolean(task.isPayment);
-    const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
+    const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status, lang);
     const isCompleted = task.status === 'completed';
     const resolved = resolveCourseInfo(task);
     const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);

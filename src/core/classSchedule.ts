@@ -3,8 +3,8 @@
  * reminders and calendar events. Times are the student's local clock ("11:00" means 11:00
  * wherever the device is), the same as they were typed in.
  */
-import type { UserCourseConfig } from '../types';
-import { escapeHtml as esc } from '../utils/ui/uiCommon';
+import type { UiLanguage, UserCourseConfig } from '../types';
+import { esc } from '../utils/ui/uiCommon';
 
 export interface ClassOccurrence {
   /** Stable per class meeting: course, date and start time */
@@ -129,8 +129,15 @@ export function formatClock(d: Date): string {
 }
 
 /** "in 25 min", "in 2 h 5 min", "now" */
-export function startsIn(start: Date, now: Date): string {
+export function startsIn(start: Date, now: Date, lang: UiLanguage = 'en'): string {
   const mins = Math.round((start.getTime() - now.getTime()) / 60000);
+  if (lang === 'ar') {
+    if (mins <= 0) return 'الآن';
+    if (mins < 60) return `بعد ${mins} د`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `بعد ${h} س ${m} د` : `بعد ${h} س`;
+  }
   if (mins <= 0) return 'now';
   if (mins < 60) return `in ${mins} min`;
   const h = Math.floor(mins / 60);
@@ -155,13 +162,17 @@ export function todaysClassesHtml(
   classes: ClassOccurrence[],
   now: Date,
   colorFor: (o: ClassOccurrence) => string,
-  options: { isToday?: boolean; hasSchedule?: boolean } = {}
+  options: { isToday?: boolean; hasSchedule?: boolean; lang?: UiLanguage } = {}
 ): string {
   const isToday = options.isToday !== false;
+  const lang = options.lang || 'en';
+  const isAr = lang === 'ar';
   if (!classes.length) {
     const text = options.hasSchedule === false
-      ? 'No class times yet. Add meeting times to your courses to see your classes here.'
-      : isToday ? 'No classes today.' : 'No classes on this day.';
+      ? (isAr ? 'لا توجد أوقات محاضرات بعد. أضف أوقات المحاضرات لمساقاتك لعرضها هنا.' : 'No class times yet. Add meeting times to your courses to see your classes here.')
+      : isToday
+        ? (isAr ? 'لا توجد محاضرات اليوم.' : 'No classes today.')
+        : (isAr ? 'لا توجد محاضرات في هذا اليوم.' : 'No classes on this day.');
     return `<div class="classes-empty">${text}</div>`;
   }
   const t = isToday ? now.getTime() : 0;
@@ -169,7 +180,7 @@ export function todaysClassesHtml(
   return classes.map(o => {
     const done = isToday && o.end.getTime() <= t;
     const live = isToday && o.start.getTime() <= t && o.end.getTime() > t;
-    const state = live ? 'Now' : o === next ? startsIn(o.start, now) : done ? 'Done' : '';
+    const state = live ? (isAr ? 'الآن' : 'Now') : o === next ? startsIn(o.start, now, lang) : done ? (isAr ? 'انتهت' : 'Done') : '';
     const cls = `class-row${done ? ' is-done' : ''}${live ? ' is-live' : ''}${o === next ? ' is-next' : ''}`;
     return `<div class="${cls}">
       <span class="class-time">${formatClock(o.start)}<span class="class-time-end">${formatClock(o.end)}</span></span>

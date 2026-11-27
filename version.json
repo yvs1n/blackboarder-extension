@@ -1,10 +1,10 @@
 {
-  "version": "1.8.50",
-  "build": "178ec43f34c2",
-  "commit": "1845bdaba91fb47f5ed0db87e1fcc4e5bb1b43a2",
-  "shortCommit": "1845bda",
-  "timestamp": "2026-11-26T21:45:31.052Z",
-  "message": "feat(v1.8.50): locked admin portal, global broadcasts, kill-switches, and sidebar mode toggle",
+  "version": "1.8.51",
+  "build": "ac2f9f535b31",
+  "commit": "1f1253cfee96e0280db00b8ed8679c9105ffac38",
+  "shortCommit": "1f1253c",
+  "timestamp": "2026-11-27T09:20:20.898Z",
+  "message": "chore: reorganize repository assets, widgets, tests, utils, and build outputs",
   "changelog": [
     "Added client announcement filtering, bilingual EN/AR banner rendering, HTTPS action validation, remote hotfix kill-switch checks, and optional ECDSA P-256 signature verification (src/core/adminBroadcasts.ts, src/utils/adminSync.ts, src/popup/modules/adminBanners.ts, src/popup/styles/16-admin-banners.css).",
     "Integrated periodic admin announcement polling & OS notification delivery in src/background/serviceWorker.ts, background exam refresh kill-switch & URL overrides in src/background/examRefresh.ts, and auto-scan host kill-switch enforcement in src/content/scraper.ts.",
@@ -14,8 +14,8 @@
   "repo": "yvs1n/blackboarder-extension",
   "branch": "main",
   "files": [
-    "assets/popup-B6-1tf3y.css",
-    "assets/popup-GVsA_Dyc.js",
+    "assets/popup-0vRHMtDg.js",
+    "assets/popup-DG0-nMZv.css",
     "background.js",
     "blackboard-dark.css",
     "blackboard-dark.js",

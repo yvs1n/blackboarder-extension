@@ -53,7 +53,8 @@ export function initAiExtractModal() {
       const hint = document.getElementById('extract-course-hint') as HTMLSelectElement | null;
       if (hint) {
         const chosen = hint.value;
-        hint.innerHTML = '<option value="">Auto-detect from text</option>' + activeCourseHintOptions()
+        const autoLabel = popupState.currentLanguage === 'ar' ? 'اكتشاف تلقائي من النص' : 'Auto-detect from text';
+        hint.innerHTML = `<option value="">${autoLabel}</option>` + activeCourseHintOptions()
           .map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
         hint.value = chosen;
       }
@@ -224,7 +225,7 @@ export function initAiExtractModal() {
     } finally {
       if (btnRun) (btnRun as HTMLButtonElement).disabled = false;
       if (btnIcon) btnIcon.innerHTML = `<svg class="ui-icon mr-1"><use href="#icon-bolt"></use></svg>`;
-      if (btnText) btnText.textContent = 'Extract Deadlines';
+      if (btnText) btnText.textContent = popupState.currentLanguage === 'ar' ? 'استخراج المواعيد' : 'Extract Deadlines';
     }
   });
 }

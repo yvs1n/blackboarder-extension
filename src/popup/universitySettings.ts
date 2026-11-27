@@ -10,6 +10,7 @@ import { isGenericPlaceholderName } from '../scan/blackboardApi';
 import { getProfile, saveProfile, PROFILE_KEY } from '../utils/storage/profile';
 import { getStoredSemesters, saveStoredSemesters } from '../utils/storage/semestersStorage';
 import { getExtraSites, saveExtraSites, normalizeBlackboardOrigin, isBuiltInBlackboardHost, originPattern } from '../utils/extension/blackboardSites';
+import { getSavedUiLanguage } from '../core/i18n';
 import { SESSION_STATUS_KEY } from '../utils/extension/sessionStatus';
 import { esc } from '../utils/ui/uiCommon';
 
@@ -51,20 +52,21 @@ function renderScaleEditor(profile: StudentProfile | null) {
   const uni = profileUniversity(profile);
   const isPg = profile?.studyLevel === 'postgraduate';
   const lowestPass = profileLowestPass(profile);
+  const isAr = getSavedUiLanguage() === 'ar';
   const summaryText = document.getElementById('grade-scale-summary-text');
   if (summaryText) {
     const top = scale[0];
     summaryText.textContent = profile?.gradeScale
-      ? `Custom scale (${scale.length} grades, ${top?.letter || 'A'} from ${top?.min ?? 90}%)`
-      : `${uni.name}${isPg ? ' (Postgraduate)' : ''} scale (${top?.letter || 'A'} from ${top?.min ?? 90}%)`;
+      ? (isAr ? `سلم مخصص (${scale.length} تقديرات، ${top?.letter || 'A'} من ${top?.min ?? 90}%)` : `Custom scale (${scale.length} grades, ${top?.letter || 'A'} from ${top?.min ?? 90}%)`)
+      : (isAr ? `سلم ${uni.name}${isPg ? ' (دراسات عليا)' : ''} (${top?.letter || 'A'} من ${top?.min ?? 90}%)` : `${uni.name}${isPg ? ' (Postgraduate)' : ''} scale (${top?.letter || 'A'} from ${top?.min ?? 90}%)`);
   }
   const note = document.getElementById('grade-scale-note');
   if (note) {
     note.textContent = profile?.gradeScale
-      ? 'Your own scale. Use University Scale goes back to the published one.'
+      ? (isAr ? 'سلمك المخصص. اضغط "استخدام سلم الجامعة" للعودة إلى السلم الرسمي.' : 'Your own scale. Use University Scale goes back to the published one.')
       : uni.cutoffsFromSyllabus
-        ? `${uni.shortName === 'Other' ? 'This is a common UAE scale.' : `${uni.shortName} publishes grade points / bands;`} Lowest pass: ${lowestPass}. Edit to match your syllabus.`
-        : `${uni.name}${isPg ? ' Postgraduate' : ''}'s published scale. Lowest pass: ${lowestPass}.`;
+        ? (isAr ? `الحد الأدنى للنجاح: ${lowestPass}. يمكنك التعديل بما يوافق خطة المساق.` : `${uni.shortName === 'Other' ? 'This is a common UAE scale.' : `${uni.shortName} publishes grade points / bands;`} Lowest pass: ${lowestPass}. Edit to match your syllabus.`)
+        : (isAr ? `السلم الرسمي لـ ${uni.name}${isPg ? ' (دراسات عليا)' : ''}. الحد الأدنى للنجاح: ${lowestPass}.` : `${uni.name}${isPg ? ' Postgraduate' : ''}'s published scale. Lowest pass: ${lowestPass}.`);
   }
 }
 
@@ -136,10 +138,11 @@ function refresh() {
   }
   renderScaleEditor(cached);
   const note = document.getElementById('university-detect-note');
+  const isAr = getSavedUiLanguage() === 'ar';
   if (note) {
     note.textContent = cached?.source === 'detected'
-      ? 'Found from your Blackboard address. Change it if it is wrong.'
-      : cached ? '' : 'Not set yet. Pick yours, or scan any Blackboard page and it is filled in.';
+      ? (isAr ? 'تم التعرف من عنوان بلاك بورد الخاص بك. يمكنك تغييره إذا لزم.' : 'Found from your Blackboard address. Change it if it is wrong.')
+      : cached ? '' : (isAr ? 'لم تُحدد بعد. اختر جامعتك أو افحص أي صفحة بلاك بورد.' : 'Not set yet. Pick yours, or scan any Blackboard page and it is filled in.');
   }
   renderStudentIdentity(cached);
   renderAcademicBaseline(cached);
@@ -155,8 +158,9 @@ async function renderArchivedSemestersManager() {
   const container = document.getElementById('archived-semesters-list');
   if (!container) return;
   const list = await getStoredSemesters();
+  const isAr = getSavedUiLanguage() === 'ar';
   if (!list.length) {
-    container.innerHTML = '<span style="font-size: 11px; color: var(--text-muted);">No semesters archived yet. Archive at the end of a semester from the Courses tab.</span>';
+    container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted);">${isAr ? 'لا توجد فصول مؤرشفة بعد. يمكنك الأرشفة في نهاية الفصل من تبويب الدرجات.' : 'No semesters archived yet. Archive at the end of a semester from the Courses tab.'}</span>`;
     return;
   }
   container.innerHTML = list.map(s => {
@@ -164,9 +168,9 @@ async function renderArchivedSemestersManager() {
     return `<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; background: var(--surface-hover); border: 1px solid var(--surface-border); font-size: 11px;">
       <div style="min-width: 0; flex: 1;">
         <span style="font-weight: 600; color: var(--text-main);">${esc(s.name)}</span>
-        <span style="color: var(--text-muted); margin-left: 6px;">${s.gradedCredits} cr · Term GPA ${termGpa}</span>
+        <span style="color: var(--text-muted); margin-inline-start: 6px;">${s.gradedCredits} ${isAr ? 'ساعة' : 'cr'} · ${isAr ? 'المعدل الفصلي' : 'Term GPA'} ${termGpa}</span>
       </div>
-      <button type="button" class="btn-xs-manage-links btn-delete-archived-semester" data-sem-id="${esc(s.id)}" style="font-size: 10px; padding: 2px 6px; min-height: 22px; color: var(--text-muted);" title="Delete archived record">Delete</button>
+      <button type="button" class="btn-xs-manage-links btn-delete-archived-semester" data-sem-id="${esc(s.id)}" style="font-size: 10px; padding: 2px 6px; min-height: 22px; color: var(--text-muted);" title="${isAr ? 'حذف السجل المؤرشف' : 'Delete archived record'}">${isAr ? 'حذف' : 'Delete'}</button>
     </div>`;
   }).join('');
 }

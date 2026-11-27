@@ -86,6 +86,7 @@ export function openDayExpandedDrawer(dateKey: string) {
       classesBox.innerHTML = `<div class="selected-day-classes-title">${isAr ? 'المحاضرات' : 'Classes'}</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
         isToday: formatDateKey(now) === dateKey,
         hasSchedule,
+        lang,
       });
     }
   }
@@ -173,17 +174,20 @@ export function getTaskTargetBadgeHtml(
   const taskTarget = trajectoryPlan.taskTargetMap[task.id];
   if (!taskTarget) return '';
 
+  const isAr = popupState.currentLanguage === 'ar';
   const pct = taskTarget.requiredPercent;
   let text = '';
   if (pct <= 0) {
-    text = `Target: Secured (${escapeHtml(taskTarget.targetLetter)})`;
+    text = isAr ? `المستهدف: مضمون (${escapeHtml(taskTarget.targetLetter)})` : `Target: Secured (${escapeHtml(taskTarget.targetLetter)})`;
   } else if (pct > 100) {
-    text = `Target: >100% (${escapeHtml(taskTarget.targetLetter)})`;
+    text = isAr ? `المستهدف: >100% (${escapeHtml(taskTarget.targetLetter)})` : `Target: >100% (${escapeHtml(taskTarget.targetLetter)})`;
   } else {
-    text = `Target: ${pct.toFixed(1)}% (${escapeHtml(taskTarget.targetLetter)})`;
+    text = isAr ? `المستهدف: ${pct.toFixed(1)}% (${escapeHtml(taskTarget.targetLetter)})` : `Target: ${pct.toFixed(1)}% (${escapeHtml(taskTarget.targetLetter)})`;
   }
 
-  const tooltip = `Target required score: ${pct.toFixed(1)}% (${taskTarget.targetScore}/${taskTarget.maxScore} pts) for ${escapeHtml(taskTarget.targetLetter)} grade to achieve ${targetGpa.toFixed(2)} GPA`;
+  const tooltip = isAr
+    ? `الدرجة المطلوبة: ${pct.toFixed(1)}% (${taskTarget.targetScore}/${taskTarget.maxScore}) لتحقيق تقدير ${escapeHtml(taskTarget.targetLetter)} ومعدل ${targetGpa.toFixed(2)}`
+    : `Target required score: ${pct.toFixed(1)}% (${taskTarget.targetScore}/${taskTarget.maxScore} pts) for ${escapeHtml(taskTarget.targetLetter)} grade to achieve ${targetGpa.toFixed(2)} GPA`;
 
   return `<span class="task-target-pill" title="${tooltip}">${getSvgIcon('star', 'mr-1')}<span>${text}</span></span>`;
 }
@@ -197,8 +201,8 @@ export function createDaySummaryCard(task: DeadlineTask): HTMLDivElement {
   const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
   const courseHex = isPayment ? 'var(--accent)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
-  const countdown = formatCountdown(task.dueDate, task.hasSpecificTime);
-  const timeDisplay = formatTaskTime(task);
+  const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status, lang);
+  const timeDisplay = formatTaskTime(task, lang);
 
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
   const { plan: trajectoryPlan, targetGpa } = getCurrentTrajectoryPlan();
@@ -335,6 +339,7 @@ export function renderSelectedDay() {
     classesBox.innerHTML = `<div class="selected-day-classes-title">${isAr ? 'المحاضرات' : 'Classes'}</div>` + todaysClassesHtml(classes, now, o => o.colorHex || getCourseHex(o.courseName), {
       isToday: formatDateKey(now) === popupState.selectedDateStr,
       hasSchedule,
+      lang,
     });
   }
 

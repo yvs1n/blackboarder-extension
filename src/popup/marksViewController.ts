@@ -1,5 +1,6 @@
-import type { DeadlineTask, UserCourseConfig, StudentProfile, ArchivedSemester } from '../types';
+import type { DeadlineTask, UserCourseConfig, StudentProfile, ArchivedSemester, UiLanguage } from '../types';
 import { type CourseSyllabus } from '../core/syllabusWeights';
+import { getSavedUiLanguage } from '../core/i18n';
 import { escapeHtml } from '../utils/ui/uiCommon';
 import {
   partitionCoursesBySemester,
@@ -37,6 +38,7 @@ export interface MarksControllerHooks {
   showToast: (msg: string, actionLabel?: string, onAction?: () => void | Promise<void>) => void;
   getSelectedSemesterId: () => string;
   setSelectedSemesterId: (id: string) => void;
+  getLanguage?: () => UiLanguage;
 }
 
 /**
@@ -147,20 +149,23 @@ export async function updateSemesterSelector(hooks: MarksControllerHooks): Promi
   const tasks = hooks.getTasks();
 
   const autoPartitionBtn = document.getElementById('btn-auto-partition-semesters') as HTMLButtonElement | null;
+  const lang = hooks.getLanguage ? hooks.getLanguage() : getSavedUiLanguage();
+  const isAr = lang === 'ar';
+
   if (autoPartitionBtn) {
     const partitions = partitionCoursesBySemester(userCourses, tasks);
     if (partitions.length > 1) {
       autoPartitionBtn.style.display = 'inline-flex';
-      autoPartitionBtn.textContent = `Organize Terms (${partitions.length})`;
+      autoPartitionBtn.textContent = isAr ? `تنظيم الفصول (${partitions.length})` : `Organize Terms (${partitions.length})`;
     } else {
       autoPartitionBtn.style.display = 'none';
     }
   }
 
   const currentVal = select.value || hooks.getSelectedSemesterId() || 'active';
-  let html = `<option value="active">Active Semester</option>`;
+  let html = `<option value="active">${isAr ? 'الفصل الحالي (النشط)' : 'Active Semester'}</option>`;
   if (semesters.length > 0) {
-    html += `<optgroup label="Archived Terms">`;
+    html += `<optgroup label="${isAr ? 'الفصول المؤرشفة' : 'Archived Terms'}">`;
     for (const sem of semesters) {
       const gpaStr = typeof sem.termGpa === 'number' ? ` (${sem.termGpa.toFixed(2)})` : '';
       html += `<option value="${escapeHtml(sem.id)}">${escapeHtml(sem.name)}${gpaStr}</option>`;
@@ -195,6 +200,8 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
   const profile = hooks.getProfile();
   hooks.renderStudentIdentity(profile);
 
+  const lang = hooks.getLanguage ? hooks.getLanguage() : getSavedUiLanguage();
+  const isAr = lang === 'ar';
   const selectedSemesterViewId = hooks.getSelectedSemesterId();
 
   // If a past archived semester is selected in the dropdown:
@@ -204,11 +211,13 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
       gradesBody.hidden = false;
       const scale = profileGradeScale(profile);
       const uni = profileUniversity(profile);
-      gradesBadge.textContent = typeof sem.termGpa === 'number' ? `Term ${sem.termGpa.toFixed(2)}` : 'Archived';
+      gradesBadge.textContent = typeof sem.termGpa === 'number'
+        ? (isAr ? `الفصلي ${sem.termGpa.toFixed(2)}` : `Term ${sem.termGpa.toFixed(2)}`)
+        : (isAr ? 'مؤرشف' : 'Archived');
       gradesBody.innerHTML = archivedSemesterHtml(sem, {
-        name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
+        name: profile?.gradeScale ? (isAr ? 'مخصص' : 'Your') : uni.shortName === 'Other' ? (isAr ? 'قياسي' : 'Standard') : uni.shortName,
         scale
-      });
+      }, lang);
       if (syllabusCard) syllabusCard.style.display = 'none';
       return;
     }
@@ -222,12 +231,12 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
     const gpa = buildGpaSummary(tasks, syllabi, scale);
     const marks = buildMarksSummary(tasks, syllabi);
     const cumulative = calculateCgpa(gpa, semesters, profile);
-    gradesBadge.textContent = gradesBadgeText(gpa, marks, cumulative);
+    gradesBadge.textContent = gradesBadgeText(gpa, marks, cumulative, lang);
     let isBreakdownOpen = false;
     try { isBreakdownOpen = localStorage.getItem('bbs_open_target_breakdown') === '1'; } catch {}
 
     gradesBody.innerHTML = gradesHtml(gpa, marks, name => hooks.getCourseHex(name), {
-      name: profile?.gradeScale ? 'Your' : uni.shortName === 'Other' ? 'Standard' : uni.shortName,
+      name: profile?.gradeScale ? (isAr ? 'مخصص' : 'Your') : uni.shortName === 'Other' ? (isAr ? 'قياسي' : 'Standard') : uni.shortName,
       scale,
       fromSyllabus: !profile?.gradeScale && uni.cutoffsFromSyllabus
     }, cumulative, {
@@ -239,7 +248,8 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
       showGuide: guideOpenState,
       openTargetBreakdown: isBreakdownOpen,
       userCourses,
-      adjustedFrom: lastAdjustedTarget
+      adjustedFrom: lastAdjustedTarget,
+      lang
     });
   }
 
@@ -248,8 +258,8 @@ export function renderGradeTracker(tasks: DeadlineTask[], hooks: MarksController
   const sylBody = document.getElementById('syllabus-tracker-breakdown');
   if (sylBadge && sylBody) {
     const progress = buildSyllabusProgress(tasks, hooks.getAllSyllabi());
-    sylBadge.textContent = `${progress.overallPercent}% done`;
-    sylBody.innerHTML = syllabusProgressHtml(progress, name => hooks.getCourseHex(name));
+    sylBadge.textContent = isAr ? `${progress.overallPercent}% مكتمل` : `${progress.overallPercent}% done`;
+    sylBody.innerHTML = syllabusProgressHtml(progress, name => hooks.getCourseHex(name), lang);
   }
 }
 

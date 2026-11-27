@@ -55,9 +55,14 @@ export function syncBonusFormUi(prefix: 'add' | 'edit', courseInputVal: string, 
     bonusUnitSelect.value = preferredUnit === 'percent' ? 'percent' : 'points';
   }
   const unitVal = bonusUnitSelect?.value === 'percent' ? 'percent' : 'points';
-  if (weightLabel) weightLabel.textContent = isBonus ? (unitVal === 'percent' ? 'Bonus Value (%)' : 'Bonus Points (pts)') : 'Grade Weight (%)';
-  if (weightSublabel) weightSublabel.textContent = isBonus ? '(extra credit)' : '(from Syllabus)';
-  if (weightInput) weightInput.placeholder = isBonus ? 'e.g. 2' : 'e.g. 5';
+  const isAr = popupState.currentLanguage === 'ar';
+  if (weightLabel) {
+    weightLabel.textContent = isBonus
+      ? (unitVal === 'percent' ? (isAr ? 'قيمة البونص (%)' : 'Bonus Value (%)') : (isAr ? 'نقاط البونص (pts)' : 'Bonus Points (pts)'))
+      : (isAr ? 'وزن الدرجة (%)' : 'Grade Weight (%)');
+  }
+  if (weightSublabel) weightSublabel.textContent = isBonus ? (isAr ? '(درجة إضافية)' : '(extra credit)') : (isAr ? '(من الخطة الدراسية)' : '(from Syllabus)');
+  if (weightInput) weightInput.placeholder = isBonus ? (isAr ? 'مثال: 2' : 'e.g. 2') : (isAr ? 'مثال: 5' : 'e.g. 5');
   if (calcBtn) (calcBtn as HTMLElement).style.display = isBonus ? 'none' : '';
   if (bonusOpts) bonusOpts.style.display = isBonus ? '' : 'none';
 
@@ -117,7 +122,7 @@ export function openReadingSheet(task: DeadlineTask) {
   const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
   const courseTheme = getCourseColorTheme(resolved.courseName, resolved.courseCode, task.title);
   const isHwOrProject = task.type === 'assignment' || (task.type as string) === 'hw' || task.type === 'project';
-  const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status);
+  const countdown = formatCountdown(task.dueDate, task.hasSpecificTime, task.status, lang);
 
   const profile = getCachedProfile();
   const scale = profileGradeScale(profile);
@@ -233,13 +238,14 @@ export function openRoomPicker(taskId: string) {
   });
   presetsContainer.innerHTML = roomPresets.map(s => {
     const isCurrent = currentRoom.toLowerCase() === s.room.toLowerCase();
+    const isAr = popupState.currentLanguage === 'ar';
     return `
       <button type="button" class="room-preset-btn ${isCurrent ? 'is-active' : ''}" data-room="${escapeHtml(s.room)}">
         <div class="room-preset-left">
           <span class="room-preset-code">${getSvgIcon('pin', 'mr-1')} ${escapeHtml(s.room)}</span>
           <span class="room-preset-course">${escapeHtml(s.courseName)}</span>
         </div>
-        ${isCurrent ? '<span style="color:#4338ca; font-size:11px; font-weight:700;">✓ Current</span>' : '<span style="color:var(--text-muted); font-size:11px;">Select</span>'}
+        ${isCurrent ? `<span style="color:#4338ca; font-size:11px; font-weight:700;">${isAr ? '✓ الحالية' : '✓ Current'}</span>` : `<span style="color:var(--text-muted); font-size:11px;">${isAr ? 'اختر' : 'Select'}</span>`}
       </button>
     `;
   }).join('');

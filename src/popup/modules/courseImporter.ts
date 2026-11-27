@@ -157,7 +157,7 @@ export async function handlePreviewBanner() {
   courseImportMachine.send('REVIEW');
   const n = detectedImportCourses.length;
   setImportStatus(`Found ${n} course${n === 1 ? '' : 's'}${result.source === 'ai' ? ' with your AI model' : ''}.${result.aiProblem ? ` The AI could not help (${result.aiProblem}), so the built-in reader was used.` : ''}`);
-  list.innerHTML = courseImportReviewHtml(detectedImportCourses, popupState.currentUserCourses);
+  list.innerHTML = courseImportReviewHtml(detectedImportCourses, popupState.currentUserCourses, undefined, popupState.currentLanguage);
   container.style.display = 'block';
 }
 

@@ -13,26 +13,30 @@ export { exportJsonBackup, handleRestoreJson } from './settingsSync';
 export { initWalkthroughModal, initSessionBanner } from './settingsWalkthrough';
 export { initExtensionUpdateSystem } from './settingsUpdates';
 
-const AI_PROVIDER_UI: Record<AiProvider, { label: string; placeholder: string; keyField: 'openRouterApiKey' | 'ifmApiKey' | 'customAiApiKey'; hint: string }> = {
-  openrouter: {
-    label: 'OpenRouter API Key (AI Fallback)',
+function aiProviderUiText(provider: AiProvider, isAr: boolean): { label: string; placeholder: string; keyField: 'openRouterApiKey' | 'ifmApiKey' | 'customAiApiKey'; hint: string } {
+  if (provider === 'ifm') {
+    return {
+      label: isAr ? 'مفتاح IFM API (اختياري)' : 'IFM API Key (AI Fallback)',
+      placeholder: isAr ? 'المفتاح من platform.ifm.ai' : 'Key from platform.ifm.ai',
+      keyField: 'ifmApiKey',
+      hint: isAr ? `يستخدم ${IFM_MODEL.replace('IFM/', '')}. احصل على مفتاح مجاني من platform.ifm.ai.` : `Uses ${IFM_MODEL.replace('IFM/', '')}. Get a free key at platform.ifm.ai.`
+    };
+  }
+  if (provider === 'custom') {
+    return {
+      label: isAr ? 'مفتاح API المخصص (اختياري)' : 'API Key (AI Fallback)',
+      placeholder: isAr ? 'مفتاح المزود الخاص بك' : 'Key for your provider',
+      keyField: 'customAiApiKey',
+      hint: isAr ? 'أي خدمة توفر واجهة /chat/completions متوافقة مع OpenAI.' : 'Any service that offers an OpenAI-compatible /chat/completions API.'
+    };
+  }
+  return {
+    label: isAr ? 'مفتاح OpenRouter API (اختياري)' : 'OpenRouter API Key (AI Fallback)',
     placeholder: 'sk-or-v1-...',
     keyField: 'openRouterApiKey',
-    hint: 'Paid per use. Pick the model below.'
-  },
-  ifm: {
-    label: 'IFM API Key (AI Fallback)',
-    placeholder: 'Key from platform.ifm.ai',
-    keyField: 'ifmApiKey',
-    hint: `Uses ${IFM_MODEL.replace('IFM/', '')}. Get a free key at platform.ifm.ai.`
-  },
-  custom: {
-    label: 'API Key (AI Fallback)',
-    placeholder: 'Key for your provider',
-    keyField: 'customAiApiKey',
-    hint: 'Any service that offers an OpenAI-compatible /chat/completions API.'
-  }
-};
+    hint: isAr ? 'الدفع حسب الاستخدام. اختر النموذج أدناه.' : 'Paid per use. Pick the model below.'
+  };
+}
 
 function selectedAiProvider(): AiProvider {
   const v = (document.getElementById('setting-ai-provider') as HTMLSelectElement | null)?.value;
@@ -40,7 +44,8 @@ function selectedAiProvider(): AiProvider {
 }
 
 function showAiProviderFields(provider: AiProvider, settings: Partial<UserSettings>): void {
-  const ui = AI_PROVIDER_UI[provider];
+  const isAr = popupState.currentLanguage === 'ar';
+  const ui = aiProviderUiText(provider, isAr);
   const label = document.getElementById('setting-apikey-label');
   const key = document.getElementById('setting-apikey') as HTMLInputElement | null;
   const hint = document.getElementById('setting-ai-provider-hint');
@@ -210,7 +215,7 @@ export function setupSettingsEvents() {
     }
   });
   settingApiKey?.addEventListener('change', async () => {
-    const ui = AI_PROVIDER_UI[selectedAiProvider()];
+    const ui = aiProviderUiText(selectedAiProvider(), popupState.currentLanguage === 'ar');
     await saveSettings({ [ui.keyField]: settingApiKey.value.trim() });
     popupActions.showToast('API key saved');
   });
@@ -263,7 +268,7 @@ export function setupSettingsEvents() {
     const key = settingApiKey?.value.trim() || '';
     const endpoint = resolveAiEndpoint({
       aiProvider: provider,
-      [AI_PROVIDER_UI[provider].keyField]: key,
+      [aiProviderUiText(provider, popupState.currentLanguage === 'ar').keyField]: key,
       openRouterModel: (document.getElementById('setting-model') as HTMLSelectElement | null)?.value,
       customAiBaseUrl: settingAiBaseUrl?.value,
       customAiModel: settingAiCustomModel?.value
@@ -364,7 +369,7 @@ export function setupSettingsEvents() {
     const customModel = (document.getElementById('setting-ai-custom-model') as HTMLInputElement | null)?.value.trim() || '';
 
     await saveSettings({
-      [AI_PROVIDER_UI[aiProvider].keyField]: apiKey.trim(),
+      [aiProviderUiText(aiProvider, popupState.currentLanguage === 'ar').keyField]: apiKey.trim(),
       aiProvider,
       customAiBaseUrl: customBase,
       customAiModel: customModel,

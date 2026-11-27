@@ -33,19 +33,20 @@ export function updatePaymentsHeaderBadge(): void {
   }
 
   const strip = document.getElementById('deadlines-payments-strip');
+  const isAr = popupState.currentLanguage === 'ar';
   if (strip) {
     if (summary.pendingCount > 0 && summary.nextDue) {
-      const dueStr = new Date(summary.nextDue.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric' });
+      const dueStr = new Date(summary.nextDue.dueDate).toLocaleDateString(isAr ? 'ar-AE' : [], { month: 'short', day: 'numeric' });
       const amtStr = formatPaymentAmount(summary.nextDue.amount, summary.nextDue.currency);
       strip.hidden = false;
       strip.classList.toggle('is-overdue', summary.overdueCount > 0);
       strip.innerHTML = `
         <span class="payments-strip-text">
           ${getSvgIcon('credit-card', 'mr-1')}
-          <strong>${summary.pendingCount} unpaid fee${summary.pendingCount > 1 ? 's' : ''}</strong>
-          · Next: ${escapeHtml(summary.nextDue.title)} (${dueStr}${amtStr ? ` · ${escapeHtml(amtStr)}` : ''})
+          <strong>${isAr ? `${summary.pendingCount} رسوم مستحقة` : `${summary.pendingCount} unpaid fee${summary.pendingCount > 1 ? 's' : ''}`}</strong>
+          · ${isAr ? 'القادم:' : 'Next:'} ${escapeHtml(summary.nextDue.title)} (${dueStr}${amtStr ? ` · ${escapeHtml(amtStr)}` : ''})
         </span>
-        <button type="button" class="btn-secondary payments-strip-btn" id="btn-strip-open-payments">Payments</button>
+        <button type="button" class="btn-secondary payments-strip-btn" id="btn-strip-open-payments">${isAr ? 'المدفوعات' : 'Payments'}</button>
       `;
     } else {
       strip.hidden = true;
@@ -136,7 +137,8 @@ export function openPaymentModal(existing?: PaymentItem): void {
     ? new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
     : '';
 
-  if (titleHeading) titleHeading.textContent = existing ? 'Edit Financial Deadline' : 'Add Payment / Fee Deadline';
+  const isAr = popupState.currentLanguage === 'ar';
+  if (titleHeading) titleHeading.textContent = existing ? (isAr ? 'تعديل موعد الدفع' : 'Edit Financial Deadline') : (isAr ? 'إضافة موعد دفع' : 'Add Payment / Fee Deadline');
   idInput.value = existing?.id || '';
   titleInput.value = existing?.title || '';
   catSelect.value = existing?.category || 'installment';
@@ -162,47 +164,49 @@ export function renderPaymentsView(): void {
 
   if (toggleShow) toggleShow.checked = getCachedSettingsSync().showPaymentsInCalendar !== false;
 
+  const lang = popupState.currentLanguage;
+  const isAr = lang === 'ar';
   const profile = getCachedProfile();
-  const guide = universityPaymentGuide(profile?.universityId);
+  const guide = universityPaymentGuide(profile?.universityId, lang);
   const summary = summarizePayments(popupState.currentPayments);
 
   const overviewPill = document.getElementById('payments-overview-pill');
   if (overviewPill) {
     overviewPill.textContent = summary.overdueCount > 0
-      ? `${summary.overdueCount} Overdue`
-      : (summary.pendingCount > 0 ? `${summary.pendingCount} Pending` : 'All Settled');
+      ? (isAr ? `${summary.overdueCount} متأخرة` : `${summary.overdueCount} Overdue`)
+      : (summary.pendingCount > 0 ? (isAr ? `${summary.pendingCount} مستحقة` : `${summary.pendingCount} Pending`) : (isAr ? 'مسددة بالكامل' : 'All Settled'));
     overviewPill.className = `settings-pill ${summary.overdueCount > 0 ? 'pill-orange' : (summary.pendingCount > 0 ? 'pill-blue' : 'pill-green')}`;
   }
   const countPill = document.getElementById('payments-count-pill');
   if (countPill) {
     const count = popupState.currentPayments.length;
-    countPill.textContent = `${count} Tracked`;
+    countPill.textContent = isAr ? `${count} متتبعة` : `${count} Tracked`;
   }
 
   const totalsStr = summary.totalsByCurrency.length > 0
     ? summary.totalsByCurrency.map(t => formatPaymentAmount(t.amount, t.currency)).join(' + ')
-    : 'Amount optional';
+    : (isAr ? 'المبلغ اختياري' : 'Amount optional');
   const nextLabel = summary.nextDue
     ? (summary.nextDueDays !== undefined && summary.nextDueDays < 0
-      ? `Overdue by ${Math.abs(summary.nextDueDays)}d`
+      ? (isAr ? `متأخر بـ ${Math.abs(summary.nextDueDays)} ي` : `Overdue by ${Math.abs(summary.nextDueDays)}d`)
       : summary.nextDueDays === 0
-        ? 'Due today'
-        : `Due in ${summary.nextDueDays}d`)
-    : 'All settled';
+        ? (isAr ? 'مستحق اليوم' : 'Due today')
+        : (isAr ? `يستحق خلال ${summary.nextDueDays} ي` : `Due in ${summary.nextDueDays}d`))
+    : (isAr ? 'مسددة بالكامل' : 'All settled');
 
   summaryEl.innerHTML = `
     <div class="payments-stats-grid">
       <div class="payments-stat-box">
         <strong class="payments-stat-val">${summary.pendingCount}</strong>
-        <span class="payments-stat-label">Pending</span>
+        <span class="payments-stat-label">${isAr ? 'مستحقة' : 'Pending'}</span>
       </div>
       <div class="payments-stat-box">
         <strong class="payments-stat-val">${escapeHtml(totalsStr)}</strong>
-        <span class="payments-stat-label">Balance Listed</span>
+        <span class="payments-stat-label">${isAr ? 'الرصيد المسجل' : 'Balance Listed'}</span>
       </div>
       <div class="payments-stat-box">
         <strong class="payments-stat-val ${summary.overdueCount > 0 ? 'is-overdue' : ''}">${escapeHtml(nextLabel)}</strong>
-        <span class="payments-stat-label">Next Status</span>
+        <span class="payments-stat-label">${isAr ? 'الحالة القادمة' : 'Next Status'}</span>
       </div>
     </div>
   `;
@@ -210,19 +214,19 @@ export function renderPaymentsView(): void {
   if (popupState.currentPayments.length === 0) {
     listEl.innerHTML = `
       <div class="payments-empty">
-        <strong>No payment deadlines added yet</strong>
-        <span>Add an installment with <b>Add Fee</b> or load your published term dates below.</span>
+        <strong>${isAr ? 'لا توجد مواعيد دفع مضافة بعد' : 'No payment deadlines added yet'}</strong>
+        <span>${isAr ? 'أضف قسطاً عبر زر <b>إضافة رسم</b> أو حمّل مواعيد الفصل الرسمية أدناه.' : 'Add an installment with <b>Add Fee</b> or load your published term dates below.'}</span>
       </div>
     `;
   } else {
     listEl.innerHTML = popupState.currentPayments.map(p => {
       const isPaid = p.status === 'paid';
       const amtStr = formatPaymentAmount(p.amount, p.currency);
-      const dueStr = new Date(p.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      const dueStr = new Date(p.dueDate).toLocaleDateString(isAr ? 'ar-AE' : [], { month: 'short', day: 'numeric', year: 'numeric' });
       const overdue = !isPaid && Date.parse(p.dueDate) < Date.now();
       return `
         <div class="payment-row ${isPaid ? 'is-paid' : ''}" data-payment-id="${escapeHtml(p.id)}">
-          <button type="button" class="payment-check-btn ${isPaid ? 'checked' : ''}" data-action="toggle-paid" data-payment-id="${escapeHtml(p.id)}" aria-label="Mark ${escapeHtml(p.title)} as ${isPaid ? 'pending' : 'paid'}">
+          <button type="button" class="payment-check-btn ${isPaid ? 'checked' : ''}" data-action="toggle-paid" data-payment-id="${escapeHtml(p.id)}" aria-label="${escapeHtml(p.title)}">
             ${isPaid ? getSvgIcon('check') : ''}
           </button>
           <div class="payment-row-main">
@@ -231,16 +235,16 @@ export function renderPaymentsView(): void {
               ${amtStr ? `<span class="payment-amt-badge">${escapeHtml(amtStr)}</span>` : ''}
             </div>
             <div class="payment-row-meta">
-              <span class="payment-cat-tag">${escapeHtml(paymentCategoryLabel(p.category))}</span>
-              <span class="${overdue ? 'payment-overdue-text' : ''}">${overdue ? 'Overdue · ' : 'Due '}${escapeHtml(dueStr)}</span>
+              <span class="payment-cat-tag">${escapeHtml(paymentCategoryLabel(p.category, lang))}</span>
+              <span class="${overdue ? 'payment-overdue-text' : ''}">${overdue ? (isAr ? 'متأخر · ' : 'Overdue · ') : (isAr ? 'الاستحقاق ' : 'Due ')}${escapeHtml(dueStr)}</span>
               ${p.termName ? `<span>· ${escapeHtml(p.termName)}</span>` : ''}
             </div>
             ${p.methodNote ? `<div class="payment-row-note">${escapeHtml(p.methodNote)}</div>` : ''}
           </div>
           <div class="payment-row-actions">
-            ${p.portalUrl ? `<button type="button" class="btn-icon-tiny" data-action="open-portal" data-url="${escapeHtml(p.portalUrl)}" title="Open payment portal" aria-label="Open payment portal">${getSvgIcon('external-link')}</button>` : ''}
-            <button type="button" class="btn-icon-tiny" data-action="edit" data-payment-id="${escapeHtml(p.id)}" title="Edit payment" aria-label="Edit ${escapeHtml(p.title)}">${getSvgIcon('pencil')}</button>
-            <button type="button" class="btn-icon-tiny btn-icon-danger" data-action="delete" data-payment-id="${escapeHtml(p.id)}" title="Delete payment" aria-label="Delete ${escapeHtml(p.title)}">${getSvgIcon('trash')}</button>
+            ${p.portalUrl ? `<button type="button" class="btn-icon-tiny" data-action="open-portal" data-url="${escapeHtml(p.portalUrl)}" title="${isAr ? 'فتح بوابة الدفع' : 'Open payment portal'}">${getSvgIcon('external-link')}</button>` : ''}
+            <button type="button" class="btn-icon-tiny" data-action="edit" data-payment-id="${escapeHtml(p.id)}" title="${isAr ? 'تعديل الدفعة' : 'Edit payment'}">${getSvgIcon('pencil')}</button>
+            <button type="button" class="btn-icon-tiny btn-icon-danger" data-action="delete" data-payment-id="${escapeHtml(p.id)}" title="${isAr ? 'حذف الدفعة' : 'Delete payment'}">${getSvgIcon('trash')}</button>
           </div>
         </div>
       `;
@@ -253,7 +257,7 @@ export function renderPaymentsView(): void {
         <span class="card-icon">${getSvgIcon('book')}</span>
         <div>
           <h3 class="settings-card-title">${escapeHtml(guide.headline)}</h3>
-          <p class="settings-card-subtitle">Verified portals, payment channels, and term dates</p>
+          <p class="settings-card-subtitle">${isAr ? 'البوابات الرسمية وقنوات الدفع وتواريخ الفصول' : 'Verified portals, payment channels, and term dates'}</p>
         </div>
       </div>
     </div>
@@ -269,20 +273,20 @@ export function renderPaymentsView(): void {
     ` : ''}
     ${guide.presetTerms.length > 0 ? `
       <div class="payments-presets-bar">
-        <span class="payments-sublabel">Quick-Load Published Dates</span>
+        <span class="payments-sublabel">${isAr ? 'تحميل تواريخ الفصل المعتمدة' : 'Quick-Load Published Dates'}</span>
         <div class="payments-presets-btns">
           ${guide.presetTerms.map(t => `<button type="button" class="btn-secondary payments-preset-btn" data-term-id="${escapeHtml(t.id)}">+ ${escapeHtml(t.label)}</button>`).join('')}
         </div>
       </div>
     ` : ''}
     <div class="payments-guide-section">
-      <span class="payments-sublabel">Where To Check &amp; Pay</span>
+      <span class="payments-sublabel">${isAr ? 'أين تتحقق وتدفع' : 'Where To Check & Pay'}</span>
       <ol class="payments-steps-list">
         ${guide.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
       </ol>
     </div>
     <div class="payments-guide-section">
-      <span class="payments-sublabel">Accepted Channels &amp; Tips</span>
+      <span class="payments-sublabel">${isAr ? 'قنوات الدفع المقبولة' : 'Accepted Channels & Tips'}</span>
       <ul class="payments-methods-list">
         ${guide.methods.map(m => `<li>${escapeHtml(m)}</li>`).join('')}
       </ul>

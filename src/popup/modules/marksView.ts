@@ -16,6 +16,7 @@ import { popupActions, popupState } from './state';
 
 export function getMarksControllerHooks() {
   return {
+    getLanguage: () => popupState.currentLanguage,
     getTasks: () => popupState.currentTasks,
     saveTasks: async (tasks: DeadlineTask[]) => {
       popupState.currentTasks = await saveTasksMergingLatest(tasks);

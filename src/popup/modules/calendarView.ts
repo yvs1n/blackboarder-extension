@@ -195,7 +195,7 @@ export function createDayCell(
     const resolved = resolveCourseInfo(task);
     const view = localizedTaskView({ ...task, courseName: resolved.courseName }, lang);
     const courseHex = isPayment ? 'var(--accent)' : getCourseHex(resolved.courseName, resolved.courseCode, task.title);
-    const timeStr = formatTaskTime(task);
+    const timeStr = formatTaskTime(task, lang);
 
     const chip = document.createElement('div');
     chip.className = `cal-event-chip${isPayment ? ' is-payment' : ''}`;
@@ -274,8 +274,8 @@ export function renderLegend() {
   allChip.setAttribute('data-course', '');
   allChip.setAttribute('role', 'button');
   allChip.setAttribute('tabindex', '0');
-  allChip.setAttribute('title', 'Show deadlines for all courses');
-  allChip.innerHTML = `<span>All</span>`;
+  allChip.setAttribute('title', popupState.currentLanguage === 'ar' ? 'عرض مواعيد جميع المساقات' : 'Show deadlines for all courses');
+  allChip.innerHTML = `<span>${popupState.currentLanguage === 'ar' ? 'الكل' : 'All'}</span>`;
   allChip.addEventListener('click', () => {
     popupState.selectedCourseFilter = null;
     renderLegend();
