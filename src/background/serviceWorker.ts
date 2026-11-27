@@ -23,10 +23,45 @@ import { profileUniversity } from '../core/studentProfile';
 import { normalizeUiLanguage } from '../core/i18n';
 
 const ALARM_NAME = 'bbs_check_deadlines';
+const DEADLINE_ALARM_NAME = 'bbs_exact_deadline_reminder';
 const MIDNIGHT_ALARM_NAME = 'bbs_midnight_sync';
 const CLASS_ALARM_NAME = 'bbs_class_reminder';
 const CLOUD_SCAN_ALARM = 'bbs_cloud_scan_poll';
 const CLASS_NOTIFIED_KEY = 'bbs_class_notified';
+
+async function scheduleDeadlineReminderAlarm() {
+  try {
+    const data = await chrome.storage.local.get(['bbs_tasks', 'bbs_settings']) as {
+      bbs_tasks?: DeadlineTask[];
+      bbs_settings?: UserSettings;
+    };
+    const settings: UserSettings = data.bbs_settings || DEFAULT_SETTINGS;
+    const reminderHours = typeof settings.reminderHoursBefore === 'number' ? settings.reminderHoursBefore : 24;
+    await chrome.alarms.clear(DEADLINE_ALARM_NAME);
+    if (reminderHours <= 0) return;
+
+    const paymentTasks = settings.showPaymentsInCalendar !== false
+      ? paymentsAsDeadlineTasks(await getStoredPayments().catch(() => []))
+      : [];
+    const now = Date.now();
+    const thresholdMs = reminderHours * 3600 * 1000;
+    let nextAt = Infinity;
+
+    for (const t of [...(data.bbs_tasks || []), ...paymentTasks]) {
+      if (!t || t.status !== 'pending' || t.visibility === 'hidden') continue;
+      const dueMs = new Date(t.dueDate).getTime();
+      if (isNaN(dueMs) || dueMs < now) continue;
+      const advAt = dueMs - thresholdMs;
+      if (advAt > now + 2000 && advAt < nextAt) nextAt = advAt;
+      const dueAlertAt = dueMs - 2 * 60 * 1000;
+      if (dueAlertAt > now + 2000 && dueAlertAt < nextAt) nextAt = dueAlertAt;
+      else if (dueMs > now + 2000 && dueMs < nextAt) nextAt = dueMs;
+    }
+    if (Number.isFinite(nextAt)) {
+      chrome.alarms.create(DEADLINE_ALARM_NAME, { when: nextAt });
+    }
+  } catch {}
+}
 
 async function classReminderMinutes(): Promise<number> {
   const data = await chrome.storage.local.get(['bbs_settings']) as { bbs_settings?: UserSettings };
@@ -315,13 +350,16 @@ async function checkUpcomingDeadlines() {
 
     const now = Date.now();
     const alertThresholdMs = reminderHours * 3600 * 1000;
+    const DUE_EARLY_MS = 2 * 60 * 1000;
 
     let notificationsTriggered = 0;
-    const MAX_NOTIFICATIONS_PER_CHECK = 2;
+    const MAX_NOTIFICATIONS_PER_CHECK = 4;
+    const candidates: Array<{ task: DeadlineTask; dueTime: number; timeRemaining: number; isDue: boolean; key: string }> = [];
 
     for (const task of [...tasks, ...paymentTasks]) {
       if (task.status !== 'pending' || task.visibility === 'hidden') continue;
       const dueTime = new Date(task.dueDate).getTime();
+      if (isNaN(dueTime)) continue;
       const timeRemaining = dueTime - now;
 
       // Past deadlines older than 15 minutes are stale; mark them acknowledged silently
@@ -335,33 +373,39 @@ async function checkUpcomingDeadlines() {
 
       // If within notification window (up to 15 minutes overdue on wake) and hasn't been notified in past 12 hours
       if (timeRemaining >= -15 * 60 * 1000 && timeRemaining <= alertThresholdMs) {
-        const lastNotified = notifiedMap[task.id] || 0;
+        const isDue = timeRemaining <= DUE_EARLY_MS;
+        const key = isDue ? `${task.id}_due` : task.id;
+        const lastNotified = notifiedMap[key] || 0;
         if (now - lastNotified > 12 * 3600 * 1000) {
-          notifiedMap[task.id] = now;
-
-          if (notificationsTriggered < MAX_NOTIFICATIONS_PER_CHECK) {
-            notificationsTriggered++;
-            const windowLabel = timeRemaining <= 0
-              ? 'due'
-              : reminderHours >= 24
-                ? `${Math.round(reminderHours / 24)}d`
-                : `${reminderHours}h`;
-            const { title, body } = formatNotificationPayload(task, windowLabel, timeRemaining);
-
-            chrome.notifications.create(`reminder_${task.id}`, {
-              type: 'basic',
-              iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-              title,
-              message: body,
-              priority: 2
-            });
-          }
+          candidates.push({ task, dueTime, timeRemaining, isDue, key });
         }
       }
     }
 
+    candidates.sort((a, b) => (Number(b.isDue) - Number(a.isDue)) || (a.dueTime - b.dueTime));
+    for (const { task, timeRemaining, isDue, key } of candidates) {
+      if (notificationsTriggered >= MAX_NOTIFICATIONS_PER_CHECK) break;
+      notifiedMap[key] = now;
+      notificationsTriggered++;
+      const windowLabel = isDue
+        ? 'due'
+        : reminderHours >= 24
+          ? `${Math.round(reminderHours / 24)}d`
+          : `${reminderHours}h`;
+      const { title, body } = formatNotificationPayload(task, windowLabel, timeRemaining);
+
+      chrome.notifications.create(`reminder_${task.id}`, {
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title,
+        message: body,
+        priority: 2
+      });
+    }
+
     await chrome.storage.local.set({ bbs_notified: notifiedMap });
     await updateExtensionBadge();
+    await scheduleDeadlineReminderAlarm();
   } catch (err) {
     console.error('Failed checking upcoming deadlines:', err);
   }
@@ -451,21 +495,23 @@ async function syncAdminAnnouncementsInBackground(force = false) {
 
 // Listeners
 chrome.runtime.onInstalled.addListener((details) => {
-  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 30 });
+  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 10 });
   chrome.alarms.create(CLOUD_SCAN_ALARM, { periodInMinutes: 1 });
   scheduleMidnightAlarm();
+  scheduleDeadlineReminderAlarm();
   getUserCourses().catch(() => {});
   reinjectDarkModeIntoOpenBlackboardTabs();
   // A Chrome update keeps content scripts alive, so reload them only after our own install or update
   if (details?.reason === 'install' || details?.reason === 'update') reinjectScraperIntoOpenBlackboardTabs();
-  pullTasksFromFirebaseToLocal().then(() => updateExtensionBadge());
+  pullTasksFromFirebaseToLocal().then(() => updateExtensionBadge()).then(() => scheduleDeadlineReminderAlarm());
   syncAdminAnnouncementsInBackground(details?.reason === 'install');
 });
 
 chrome.runtime.onStartup?.addListener(() => {
-  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 30 });
+  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 10 });
   chrome.alarms.create(CLOUD_SCAN_ALARM, { periodInMinutes: 1 });
   scheduleMidnightAlarm();
+  scheduleDeadlineReminderAlarm();
   getUserCourses().catch(() => {});
   reinjectDarkModeIntoOpenBlackboardTabs();
   pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
@@ -476,10 +522,16 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && changes.bbs_user_courses) {
     getUserCourses().then(() => scheduleClassReminder()).catch(() => {});
   }
+  if (areaName === 'local' && (changes.bbs_tasks || changes.bbs_payments)) {
+    scheduleDeadlineReminderAlarm();
+  }
   if (areaName === 'local' && changes.bbs_settings) {
     const before = changes.bbs_settings.oldValue as Partial<UserSettings> | undefined;
     const after = changes.bbs_settings.newValue as Partial<UserSettings> | undefined;
     if (before?.classReminderMinutes !== after?.classReminderMinutes) scheduleClassReminder();
+    if (before?.reminderHoursBefore !== after?.reminderHoursBefore || before?.showPaymentsInCalendar !== after?.showPaymentsInCalendar) {
+      scheduleDeadlineReminderAlarm();
+    }
     if (before?.badgeNotification !== after?.badgeNotification) updateExtensionBadge().catch(() => {});
     if (before?.openInSidePanel !== after?.openInSidePanel) syncSidePanelBehaviorFromSettings().catch(() => {});
   }
@@ -491,6 +543,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === CLASS_ALARM_NAME) {
     showDueClassReminders().then(() => scheduleClassReminder());
+  } else if (alarm.name === DEADLINE_ALARM_NAME) {
+    checkUpcomingDeadlines();
   } else if (alarm.name === ALARM_NAME) {
     pullTasksFromFirebaseToLocal().then(() => checkUpcomingDeadlines());
     showDueClassReminders().then(() => scheduleClassReminder());

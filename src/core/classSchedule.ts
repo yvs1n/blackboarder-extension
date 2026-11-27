@@ -146,7 +146,14 @@ export function startsIn(start: Date, now: Date, lang: UiLanguage = 'en'): strin
 }
 
 /** The reminder text, the same in the extension, the phone and pushes. */
-export function classReminderText(o: ClassOccurrence, now: Date): { title: string; body: string } {
+export function classReminderText(o: ClassOccurrence, now: Date, lang: UiLanguage = 'en'): { title: string; body: string } {
+  if (lang === 'ar') {
+    const where = o.room ? ` · قاعة ${o.room}` : '';
+    return {
+      title: `محاضرة ${startsIn(o.start, now, 'ar')}: ${o.courseName}`,
+      body: `${formatClock(o.start)} - ${formatClock(o.end)}${where}`
+    };
+  }
   const where = o.room ? ` in ${o.room}` : '';
   return {
     title: `Class ${startsIn(o.start, now)}: ${o.courseName}`,

@@ -269,4 +269,115 @@ describe('announcement tasks are not swallowed by an older task with the same ti
       expect(res.announcements[0].contentText).toContain('Quiz 2 on Thursday, Nov 19');
     }
   });
+
+  it('merges same-day relative AI follow-up ("Tomorrow\'s Test") into Banner Final Exam and strips relative titles', async () => {
+    const { toEnglishDeadlineTitle } = await import('../../src/core/courseHelper');
+    expect(toEnglishDeadlineTitle("Tomorrow's Test", 'quiz')).toBe('Quiz');
+    expect(toEnglishDeadlineTitle('اختبار الغد', 'exam')).toBe('Exam');
+
+    const bannerFinal: DeadlineTask = {
+      id: 'banner_exam_0104100_final_2026-11-28',
+      courseCode: '0104 100',
+      courseName: 'Islamic Culture',
+      title: 'Final Exam',
+      type: 'exam',
+      priority: 'high',
+      status: 'pending',
+      dueDate: '2026-11-28T04:30:00.000Z',
+      hasSpecificTime: true,
+      timeSource: 'explicit',
+      room: 'A13-006',
+      weight: 50,
+      weightDisplay: '50% (Final Exam)',
+      description: 'سينعقد الامتحان النهائي يوم السبت 28/11/2026 بالقاعة (A13-006 و A13-008)',
+      sourceSnippet: 'سينعقد الامتحان النهائي يوم السبت 28/11/2026 بالقاعة (A13-006 و A13-008)',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-10-27T18:40:18.886Z',
+      updatedAt: '2026-11-26T05:53:59.689Z'
+    };
+    const aiFollowUpDup: DeadlineTask = {
+      id: 'task_ai_1795785648447_r6kpc',
+      announcementId: 'ann_api__607871_1',
+      announcementPostedAt: '2026-11-27T11:47:03.142Z',
+      courseCode: '0104 100',
+      courseName: 'Islamic Culture',
+      title: "Tomorrow's Test",
+      type: 'quiz',
+      priority: 'medium',
+      status: 'pending',
+      dueDate: '2026-11-28T13:00:00.000Z',
+      hasSpecificTime: true,
+      timeSource: 'schedule',
+      room: 'A8-TH005',
+      description: 'أعزائي الطلبة، يرجى اتّباع التعليمات الآتية في اختبار الغد: تحديد نموذج الاختبار Bubble Sheet',
+      sourceSnippet: 'أعزائي الطلبة، يرجى اتّباع التعليمات الآتية في اختبار الغد: تحديد نموذج الاختبار Bubble Sheet',
+      confidence: 0.95,
+      summary: { brief: 'Follow version and shading rules.', formatRules: 'Shade Version A or B on the answer sheet.' },
+      ar: {
+        title: 'اختبار الغد',
+        room: 'A8-TH005',
+        courseName: 'الثقافة الإسلامية',
+        sourceSig: 'sig1',
+        brief: 'اتبع تعليمات التظليل.',
+        formatRules: 'ظلل نموذج A أو B.',
+        updatedAt: '2026-11-27T13:20:48.448Z'
+      },
+      extractedBy: 'ai',
+      createdAt: '2026-11-27T13:20:48.447Z',
+      updatedAt: '2026-11-27T13:20:48.447Z'
+    };
+
+    const deduped = deduplicateTaskList([bannerFinal, aiFollowUpDup]);
+    expect(deduped).toHaveLength(1);
+    const kept = deduped[0];
+    expect(kept.id).toBe('banner_exam_0104100_final_2026-11-28');
+    expect(kept.title).toBe('Final Exam');
+    expect(kept.type).toBe('exam');
+    expect(kept.dueDate).toBe('2026-11-28T04:30:00.000Z');
+    expect(kept.room).toBe('A13-006');
+    expect(kept.weight).toBe(50);
+    expect(kept.description).toContain('نموذج الاختبار Bubble Sheet');
+    expect(kept.summary?.formatRules).toContain('Version A or B');
+    expect(kept.ar?.title).toBe('الامتحان النهائي');
+    expect(kept.ar?.room).toBe('A13-006');
+
+    // Explicit same-day Quiz 1 must remain separate and never merge into Final Exam
+    const realQuiz1: DeadlineTask = {
+      id: 'task_real_quiz1',
+      courseCode: '0104 100',
+      courseName: 'Islamic Culture',
+      title: 'Quiz 1',
+      type: 'quiz',
+      priority: 'medium',
+      status: 'pending',
+      dueDate: '2026-11-28T10:00:00.000Z',
+      hasSpecificTime: true,
+      timeSource: 'explicit',
+      description: 'Quiz 1 at 2:00 PM',
+      sourceSnippet: 'Quiz 1 at 2:00 PM',
+      confidence: 1,
+      extractedBy: 'local',
+      createdAt: '2026-11-20T08:00:00.000Z',
+      updatedAt: '2026-11-20T08:00:00.000Z'
+    };
+    expect(deduplicateTaskList([bannerFinal, realQuiz1])).toHaveLength(2);
+
+    // Undated instruction post for "اختبار الغد" merges directly into tomorrow's Final Exam
+    const followUpAnn: Announcement = {
+      id: 'ann_api__607871_1',
+      courseCode: '0104 100',
+      courseName: 'Islamic Culture',
+      title: 'تعليمات اختبار الغد',
+      contentText: 'أعزائي الطلبة، يرجى اتّباع التعليمات الآتية في اختبار الغد: تحديد نموذج الاختبار Version A/B والتظليل على Bubble Sheet.',
+      postedAt: '2026-11-27T11:47:03.142Z',
+      sourceUrl: 'https://elearning.sharjah.ac.ae/ultra/stream',
+      scannedAt: '2026-11-27T13:20:00.000Z'
+    };
+    const batchRes = await processAnnouncementsBatch([followUpAnn], [bannerFinal], DEFAULT_SETTINGS);
+    expect(batchRes.newTasks).toHaveLength(0);
+    expect(batchRes.allTasks).toHaveLength(1);
+    expect(batchRes.allTasks[0].id).toBe('banner_exam_0104100_final_2026-11-28');
+    expect(batchRes.allTasks[0].description).toContain('Bubble Sheet');
+  });
 });

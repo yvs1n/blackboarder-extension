@@ -8,7 +8,14 @@ import {
   extractAnnouncementFieldDelta,
   applyAnnouncementDeltaToTask
 } from '../core/announcementReconcile';
-import { isPresentationTitle, isBareTypeTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts, isExamReviewSession } from '../core/courseHelper';
+import {
+  isPresentationTitle,
+  isBareTypeTitle,
+  isSameDayExamAndFollowUp,
+  toEnglishDeadlineTitle,
+  mergeAnnouncementTexts,
+  isExamReviewSession
+} from '../core/courseHelper';
 import { parseTime } from './localDateTime';
 import { coreTitle, isPracticeTitle } from '../utils/tasks/streamParser';
 import { areTasksDuplicates } from '../utils/tasks/taskMerge';
@@ -95,6 +102,13 @@ function findSameExam(task: DeadlineTask, existing: Iterable<DeadlineTask>): Dea
       }
     }
   }
+  for (const e of existing) {
+    if (!sameKnownCourse(e, task)) continue;
+    const eDay = dayOf(e.dueDate);
+    if (eDay && eDay === dayOf(task.dueDate) && isSameDayExamAndFollowUp(e, task, extractAssessmentNumber)) {
+      return e;
+    }
+  }
   return undefined;
 }
 
@@ -116,8 +130,20 @@ function sameCourseForUpdate(ann: Announcement, task: DeadlineTask): boolean {
   return true;
 }
 
-const INSTRUCTION_CUE_RE = /\b(?:cover(?:s|ing|ed)?|topics?|chapters?|modules?|sections?|material|syllab(?:us|i)|format|duration|minutes?|hours?|calculators?|closed\s*book|open\s*book|bring|instructions?|guidelines?|rules?|room|hall|lab|building|online|blackboard|reminder|update|quiz(?:zes)?|midterms?|finals?|exams?|assignments?|homework|hw\d*|projects?|reports?)\b|يغطي|تغطي|مواضيع|فصول|وحدات|تعليمات|قاعة|مختبر|مدة|ملاحظات|كويز|امتحان|اختبار|واجب|مشروع|تقرير/i;
+const INSTRUCTION_CUE_RE = /\b(?:cover(?:s|ing|ed)?|topics?|chapters?|modules?|sections?|material|syllab(?:us|i)|format|duration|minutes?|hours?|calculators?|closed\s*book|open\s*book|bring|instructions?|guidelines?|rules?|bubble\s*sheet|scantron|version\s*[a-z]|answer\s*sheet|question\s*paper|room|hall|lab|building|online|blackboard|reminder|update|quiz(?:zes)?|midterms?|finals?|exams?|tests?|assignments?|homework|hw\d*|projects?|reports?)\b|يغطي|تغطي|مواضيع|فصول|وحدات|تعليمات|قاعة|مختبر|مدة|ملاحظات|نموذج|تظليل|بابل\s*شيت|ورقة\s*الأسئلة|ورقة\s*الإجابة|اختبار\s*الغد|كويز|امتحان|اختبار|واجب|مشروع|تقرير/i;
 const GRADE_REPORT_RE = /(?:^|[^\p{L}\p{N}])(?:درجات|درجة|علامات|علامة|نتائج|النتائج|العلامات|الدرجات|grades?|marks?|scores?|results?|feedback|solutions?|answer\s*keys?)(?:$|[^\p{L}\p{N}])/iu;
+
+function relativeAnnTargetDay(ann: Announcement, text: string): string {
+  const postedMs = ann.postedAt ? Date.parse(ann.postedAt) : NaN;
+  if (isNaN(postedMs)) return '';
+  if (/\b(?:tomorrow|tmrw)\b|الغد|غداً|غدا/i.test(text)) {
+    return new Date(postedMs + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
+  if (/\btoday\b|اليوم/i.test(text)) {
+    return new Date(postedMs).toISOString().slice(0, 10);
+  }
+  return '';
+}
 
 function taskKind(t: DeadlineTask): 'midterm' | 'final' | 'exam' | 'quiz' | 'assignment' | 'lab' | 'project' | null {
   const title = t.title || '';
@@ -157,6 +183,8 @@ function findTaskForInstructionAnnouncement(ann: Announcement, tasks: Iterable<D
   const annPractice = isPracticeTitle(annCombined);
   const numAnn = extractAssessmentNumber(annCombined);
   const coreAnn = coreTitle(ann.title || '');
+  const targetDay = relativeAnnTargetDay(ann, annCombined);
+  const isBareArabicTest = /(?:اختبار|امتحان)/.test(annCombined) && !/\bquiz(?:zes)?\b|كويز|اختبار\s*قصير/i.test(annCombined);
   const list = Array.from(tasks);
 
   const candidates: DeadlineTask[] = [];
@@ -166,7 +194,14 @@ function findTaskForInstructionAnnouncement(ann: Announcement, tasks: Iterable<D
     if (isPracticeTitle(existing.title) !== annPractice) continue;
 
     const kind = taskKind(existing);
-    if (!kind || !annMatchesKind(annCombined, kind)) continue;
+    if (!kind) continue;
+    const sameRelativeDayExam = Boolean(
+      targetDay &&
+      dayOf(existing.dueDate) === targetDay &&
+      (kind === 'final' || kind === 'midterm' || kind === 'exam') &&
+      isBareArabicTest
+    );
+    if (!annMatchesKind(annCombined, kind) && !sameRelativeDayExam) continue;
 
     const numEx = extractAssessmentNumber(existing.title);
     if (numEx !== null && numAnn !== null && numEx !== numAnn) continue;
@@ -177,7 +212,7 @@ function findTaskForInstructionAnnouncement(ann: Announcement, tasks: Iterable<D
     const singletonExam = kind === 'midterm' || kind === 'final';
     const bothUnnumbered = numEx === null && numAnn === null;
 
-    if (strongNumberMatch || sameCore || singletonExam || bothUnnumbered) {
+    if (strongNumberMatch || sameCore || sameRelativeDayExam || singletonExam || bothUnnumbered) {
       candidates.push(existing);
       continue;
     }
@@ -414,11 +449,24 @@ export async function processAnnouncementsBatch(
     })
     .map(item => item.ann);
 
-  // Extraction (AI calls) runs a few at a time; merging below stays in order so dedupe is stable
+  // Extraction (AI calls) runs a few at a time; merging below stays in order so dedupe is stable.
+  // If local parser found nothing AND the post is an instruction follow-up for an already-known
+  // pending assessment (e.g. "اختبار الغد" / bubble-sheet rules for tomorrow's Final Exam) with no
+  // explicit clock time or reschedule cue, skip AI extraction so it attaches cleanly as an update.
   let finished = 0;
   onProgress?.(0, toProcess.length);
   const extractedLists = await mapWithLimit(toProcess, EXTRACTION_CONCURRENCY, async ann => {
     try {
+      const localCheck = extractDeadlinesLocally(ann).filter(t => !isPresentationTask(t));
+      if (localCheck.length === 0) {
+        const annCombined = `${ann.title || ''} ${ann.contentText || ''}`.trim();
+        const hasExplicitTimeOrShift =
+          parseTime(annCombined).hasTime ||
+          /(?:postpon|reschedul|delay|moved\s+to|shifted\s+to|extend(?:ed)?\s+(?:until|to)|تأجيل|تمديد|تغيير\s*موعد)/i.test(annCombined);
+        if (!hasExplicitTimeOrShift && findTaskForInstructionAnnouncement(ann, existingIdMap.values())) {
+          return [] as DeadlineTask[];
+        }
+      }
       return await extractDeadlinesHybrid(ann, settings);
     } catch (err) {
       console.warn('[HybridExtractor] Extraction failed for', ann.title, err);

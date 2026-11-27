@@ -1,5 +1,9 @@
 import { DeadlineTask } from '../../types';
-import { resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle, mergeAnnouncementTexts, isBareTypeTitle } from '../../core/courseHelper';
+import {
+  resolveCourseInfo, isValidTask, stripAutoNotes, toEnglishDeadlineTitle,
+  mergeAnnouncementTexts, isBareTypeTitle, isRelativeAssessmentTitle, isSameDayExamAndFollowUp
+} from '../../core/courseHelper';
+import { buildTaskArabicMirror } from '../../core/arabicTranslator';
 import { resolveLatestFieldsFromNotes } from '../../core/announcementReconcile';
 import { coreTitle, isPracticeTitle } from './streamParser';
 import { extractAssessmentNumber, extractExplicitPoints, resolveSingletonSyllabusKey } from '../../core/syllabusWeights';
@@ -489,9 +493,8 @@ export function areTasksDuplicates(a: DeadlineTask, b: DeadlineTask, allTasks?: 
       if (cleanA && cleanB && (cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA))) {
         if (typeA === typeB || isGenericA || isGenericB || compatibleCoursework) return true;
       }
-      if (coreA && coreB && coreA.length >= 4 && (coreA.includes(coreB) || coreB.includes(coreA)) && compatibleCoursework) {
-        return true;
-      }
+      if (coreA && coreB && coreA.length >= 4 && (coreA.includes(coreB) || coreB.includes(coreA)) && compatibleCoursework) return true;
+      if (isSameDayExamAndFollowUp(a, b, extractAssessmentNumber)) return true;
     }
   }
 
@@ -507,21 +510,21 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const incoming = sanitizeTaskMarks(rawIncoming);
   const isUserEdited = Boolean(existing.userEdited || incoming.userEdited);
 
-  // Stable ID: prefer announcement task ID so real announcements stay in place, then gbcol
+  // Stable ID: preserve Banner structured exam IDs, else prefer announcement / gradebook IDs
   let id = existing.id;
+  const isBannerExam = (s: string) => (s || '').startsWith('banner_exam_');
   const isAnnouncement = (s: string) => (s || '').startsWith('task_') || (s || '').startsWith('ann_');
-  if (isAnnouncement(existing.id)) {
-    id = existing.id;
-  } else if (isAnnouncement(incoming.id)) {
-    id = incoming.id;
-  } else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_')) {
-    id = incoming.id;
-  } else if (existing.id.startsWith('stream_UOS_Assignment_') && !incoming.id.startsWith('stream_UOS_Assignment_')) {
-    id = incoming.id;
-  }
+  if (isBannerExam(existing.id)) id = existing.id;
+  else if (isBannerExam(incoming.id)) id = incoming.id;
+  else if (isAnnouncement(existing.id)) id = existing.id;
+  else if (isAnnouncement(incoming.id)) id = incoming.id;
+  else if (incoming.id.startsWith('gbcol_') && !existing.id.startsWith('gbcol_')) id = incoming.id;
+  else if (existing.id.startsWith('stream_UOS_Assignment_') && !incoming.id.startsWith('stream_UOS_Assignment_')) id = incoming.id;
 
-  // Type: prefer specific type over generic assignment
-  const type = (existing.type && existing.type !== 'assignment' ? existing.type : incoming.type) || existing.type;
+  // Type: preserve exam when merged with generic/AI follow-up, else prefer specific type over generic assignment
+  const type = (existing.type === 'exam' || incoming.type === 'exam')
+    ? 'exam'
+    : ((existing.type && existing.type !== 'assignment' ? existing.type : incoming.type) || existing.type);
 
   const existingManualOrEdited = Boolean(existing.userEdited || existing.extractedBy === 'manual');
   const incomingManualOrEdited = Boolean(incoming.userEdited || incoming.extractedBy === 'manual');
@@ -540,26 +543,16 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   } else if (existing.id.startsWith('gbcol_') && !incoming.id.startsWith('gbcol_') && isExtensionWrapper(incoming.title)) {
     title = existing.title;
   } else {
-    const isExistingGeneric = isBareTypeTitle(existing.title);
-    const isIncomingGeneric = isBareTypeTitle(incoming.title);
+    const isExistingGeneric = isBareTypeTitle(existing.title) || isRelativeAssessmentTitle(existing.title);
+    const isIncomingGeneric = isBareTypeTitle(incoming.title) || isRelativeAssessmentTitle(incoming.title);
     const hasArabicEx = /[\u0600-\u06FF]/.test(existing.title);
     const hasArabicInc = /[\u0600-\u06FF]/.test(incoming.title);
-
-    if (hasArabicEx && !hasArabicInc) {
-      title = incoming.title;
-    } else if (!hasArabicEx && hasArabicInc) {
-      title = existing.title;
-    } else if (isExistingGeneric && !isIncomingGeneric) {
-      title = incoming.title;
-    } else if (!isExistingGeneric && isIncomingGeneric) {
-      title = existing.title;
-    } else {
-      title = existing.title.length >= incoming.title.length ? existing.title : incoming.title;
-    }
-
-    if (!isUserEdited) {
-      title = toEnglishDeadlineTitle(title, type);
-    }
+    if (hasArabicEx && !hasArabicInc) title = incoming.title;
+    else if (!hasArabicEx && hasArabicInc) title = existing.title;
+    else if (isExistingGeneric && !isIncomingGeneric) title = incoming.title;
+    else if (!isExistingGeneric && isIncomingGeneric) title = existing.title;
+    else title = existing.title.length >= incoming.title.length ? existing.title : incoming.title;
+    if (!isUserEdited) title = toEnglishDeadlineTitle(title, type);
   }
 
   // Due date: student edits win (Rule 3); otherwise prefer real announcement/schedule date over scan-time gbcol date
@@ -606,7 +599,9 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   const announcedRoom = (!isUserEdited && type !== 'assignment' && type !== 'project')
     ? (resolveLatestFieldsFromNotes({ title, notesText: mergedNotesPreview, courseNameOrCode: existing.courseName || incoming.courseName, taskType: type }).latestRoom || null)
     : null;
-  const room = isUserEdited ? (existing.room || incoming.room) : (announcedRoom || incoming.room || existing.room);
+  const bannerRoom = isBannerExam(existing.id) ? existing.room : (isBannerExam(incoming.id) ? incoming.room : undefined);
+  const preferredInRoom = (incoming.timeSource === 'schedule' && bannerRoom) ? bannerRoom : incoming.room;
+  const room = isUserEdited ? (existing.room || incoming.room) : (announcedRoom || preferredInRoom || existing.room);
   const preferIncomingWeight = incoming.type === type && existing.type !== type && incoming.weight !== undefined;
   const weight = preferIncomingWeight
     ? incoming.weight
@@ -719,17 +714,10 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
     )).toISOString()
   };
 
-  delete merged.submissionStatus;
-  delete merged.score;
-  delete merged.maxScore;
-  delete merged.scoreDisplay;
-  delete merged.gradedAt;
-  delete merged.gradeSourceId;
-  delete merged.markProvisional;
-  delete merged.gradeSourcesBefore;
-  delete merged.dismissedGradeSources;
-  delete merged.submissionReceipt;
-  delete merged.submittedAt;
+  for (const k of [
+    'submissionStatus', 'score', 'maxScore', 'scoreDisplay', 'gradedAt', 'gradeSourceId',
+    'markProvisional', 'gradeSourcesBefore', 'dismissedGradeSources', 'submissionReceipt', 'submittedAt'
+  ]) delete merged[k];
 
   if (submissionStatus) merged.submissionStatus = submissionStatus;
   if (score !== undefined) merged.score = score;
@@ -742,7 +730,9 @@ export function mergeDuplicatePair(rawExisting: DeadlineTask, rawIncoming: Deadl
   if (dismissedGradeSources.length) merged.dismissedGradeSources = dismissedGradeSources;
   if (submissionReceipt) merged.submissionReceipt = submissionReceipt;
   if (submittedAt) merged.submittedAt = submittedAt;
-
+  merged.ar = buildTaskArabicMirror(merged as DeadlineTask, (existing.ar || incoming.ar)
+    ? { brief: incoming.ar?.brief || existing.ar?.brief, topics: incoming.ar?.topics || existing.ar?.topics, formatRules: incoming.ar?.formatRules || existing.ar?.formatRules }
+    : undefined);
   return sanitizeTaskMarks(merged as DeadlineTask);
 }
 
@@ -791,6 +781,12 @@ export function deduplicateTaskList(tasks: DeadlineTask[]): DeadlineTask[] {
       result.push({ ...incoming });
     } else {
       result[existingIndex] = mergeDuplicatePair(result[existingIndex], incoming);
+    }
+  }
+
+  for (const task of result) {
+    if (!task.userEdited && task.extractedBy !== 'manual' && isRelativeAssessmentTitle(task.title)) {
+      task.title = toEnglishDeadlineTitle(task.title, task.type);
     }
   }
 

@@ -1,5 +1,5 @@
 import type { DeadlineTask } from '../types';
-import { isExamReviewTask, resolveCourseInfo } from './courseHelper';
+import { isExamReviewTask, isSameDayExamAndFollowUp, resolveCourseInfo } from './courseHelper';
 import {
   extractAssessmentNumber,
   findCourseSyllabus,
@@ -286,7 +286,13 @@ export function areTasksIncompatibleForDedup(a: DeadlineTask, b: DeadlineTask): 
     extractReferencedAssessmentNumbers(`${t.title || ''} ${t.summary?.brief || ''}`).length >= 2;
   if (isRangeExt(a) !== isRangeExt(b)) return true;
   if ((isBannerExamTask(a) && normalizeSimpleType(b.type) !== 'exam') || (isBannerExamTask(b) && normalizeSimpleType(a.type) !== 'exam')) {
-    return true;
+    const msA = Date.parse(a.dueDate || '');
+    const msB = Date.parse(b.dueDate || '');
+    const sameCalendarDay = !isNaN(msA) && !isNaN(msB) &&
+      new Date(msA).toISOString().slice(0, 10) === new Date(msB).toISOString().slice(0, 10);
+    if (!(sameCalendarDay && isSameDayExamAndFollowUp(a, b, extractAssessmentNumber))) {
+      return true;
+    }
   }
   if (isBannerExamTask(a) && isBannerExamTask(b) && a.id !== b.id) {
     const msA = Date.parse(a.dueDate || '');

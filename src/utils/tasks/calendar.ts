@@ -314,33 +314,37 @@ export function compareTasksByTime(a: DeadlineTask, b: DeadlineTask): number {
   return (a.title || '').localeCompare(b.title || '');
 }
 
-function formatRemainingDuration(timeRemaining: number): { short: string; detail: string } {
-  if (timeRemaining <= 0) return { short: 'Now', detail: 'Due now' };
+function formatRemainingDuration(timeRemaining: number, lang: UiLanguage = 'en'): { short: string; detail: string } {
+  const isAr = lang === 'ar';
+  if (timeRemaining <= 0) return isAr ? { short: 'الآن', detail: 'مطلوب الآن' } : { short: 'Now', detail: 'Due now' };
   const totalMins = Math.max(1, Math.round(timeRemaining / 60000));
   if (totalMins < 60) {
-    return { short: `${totalMins}m`, detail: `${totalMins} min remaining` };
+    return isAr
+      ? { short: `${totalMins} د`, detail: `متبقي ${totalMins} دقيقة` }
+      : { short: `${totalMins}m`, detail: `${totalMins} min remaining` };
   }
   if (totalMins < 24 * 60) {
     const h = Math.floor(totalMins / 60);
     const m = totalMins % 60;
-    const label = m >= 5 && h < 6 ? `${h}h ${m}m` : `${Math.round(totalMins / 60)}h`;
-    return { short: label, detail: `${label} remaining` };
+    const label = m >= 5 && h < 6 ? (isAr ? `${h} س ${m} د` : `${h}h ${m}m`) : (isAr ? `${Math.round(totalMins / 60)} س` : `${Math.round(totalMins / 60)}h`);
+    return { short: label, detail: isAr ? `متبقي ${label}` : `${label} remaining` };
   }
   const d = Math.floor(totalMins / 1440);
   const remH = Math.round((totalMins % 1440) / 60);
-  const label = remH > 0 && d < 3 ? `${d}d ${remH}h` : `${Math.round(totalMins / 1440)}d`;
-  return { short: label, detail: `${label} remaining` };
+  const label = remH > 0 && d < 3 ? (isAr ? `${d} ي ${remH} س` : `${d}d ${remH}h`) : (isAr ? `${Math.round(totalMins / 1440)} ي` : `${Math.round(totalMins / 1440)}d`);
+  return { short: label, detail: isAr ? `متبقي ${label}` : `${label} remaining` };
 }
 
-function formatAssessmentTypeLabel(type?: string, isPayment?: boolean): string {
-  if (isPayment || type === 'payment') return 'Payment';
+function formatAssessmentTypeLabel(type?: string, isPayment?: boolean, lang: UiLanguage = 'en'): string {
+  const isAr = lang === 'ar';
+  if (isPayment || type === 'payment') return isAr ? 'دفعة مالية' : 'Payment';
   switch ((type || '').toLowerCase()) {
-    case 'exam': return 'Exam';
-    case 'quiz': return 'Quiz';
-    case 'homework': return 'Homework';
-    case 'lab': return 'Lab';
-    case 'project': return 'Project';
-    default: return 'Deadline';
+    case 'exam': return isAr ? 'اختبار' : 'Exam';
+    case 'quiz': return isAr ? 'كويز' : 'Quiz';
+    case 'homework': return isAr ? 'واجب' : 'Homework';
+    case 'lab': return isAr ? 'مختبر' : 'Lab';
+    case 'project': return isAr ? 'مشروع' : 'Project';
+    default: return isAr ? 'موعد' : 'Deadline';
   }
 }
 
@@ -351,28 +355,32 @@ function formatAssessmentTypeLabel(type?: string, isPayment?: boolean): string {
 export function formatNotificationPayload(
   task: DeadlineTask,
   windowType: string,
-  timeRemaining: number
+  timeRemaining: number,
+  lang: UiLanguage = 'en'
 ): { title: string; body: string } {
+  const isAr = lang === 'ar';
+  const locale = isAr ? 'ar-AE' : undefined;
   const isPayment = Boolean(task.isPayment || (task.type as string) === 'payment');
   const resolved = resolveCourseInfo(task);
   const rawCourseName = isPayment
-    ? (task.courseName || 'Payments & Fees')
-    : (resolved.courseName || task.courseName || 'General Course');
+    ? (task.courseName || (isAr ? 'الرسوم والدفعات' : 'Payments & Fees'))
+    : (isAr && task.ar?.courseName) || resolved.courseName || task.courseName || (isAr ? 'مساق عام' : 'General Course');
   const rawCourseCode = isPayment
     ? ''
     : (resolved.courseCode && resolved.courseCode.toLowerCase() !== 'uos' && resolved.courseCode !== rawCourseName
       ? resolved.courseCode
       : '');
   const courseDisplay = rawCourseCode ? `${rawCourseName} (${rawCourseCode})` : rawCourseName;
-  const shortCourse = rawCourseName && rawCourseName !== 'General Course'
+  const shortCourse = rawCourseName && rawCourseName !== 'General Course' && rawCourseName !== 'مساق عام'
     ? (rawCourseName.length <= 28 ? rawCourseName : (rawCourseCode || `${rawCourseName.slice(0, 25).trim()}...`))
     : rawCourseCode;
 
+  const taskTitle = (isAr && task.ar?.title) ? task.ar.title : task.title;
   const dueDateObj = new Date(task.dueDate);
   const validDate = !isNaN(dueDateObj.getTime());
   const hasTime = task.hasSpecificTime !== false;
-  const timeStr = validDate && hasTime ? dueDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-  const dateStr = validDate ? dueDateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+  const timeStr = validDate && hasTime ? dueDateObj.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }) : '';
+  const dateStr = validDate ? dueDateObj.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' }) : '';
 
   const room = isPayment
     ? ''
@@ -386,39 +394,39 @@ export function formatNotificationPayload(
 
   let locationStr = '';
   if (isPayment) {
-    locationStr = 'Portal: University Finance / Payment Portal';
+    locationStr = isAr ? 'البوابة: النظام المالي للجامعة' : 'Portal: University Finance / Payment Portal';
   } else if (room) {
     const cleanRoom = String(room).replace(/^room\s*:?\s*/i, '').trim();
-    locationStr = `Location: Room ${cleanRoom}`;
+    locationStr = isAr ? `المكان: قاعة ${cleanRoom}` : `Location: Room ${cleanRoom}`;
   } else if (task.type === 'exam' || task.type === 'quiz') {
-    locationStr = 'Location: In-class assessment';
+    locationStr = isAr ? 'المكان: تقييم حضوري في القاعة' : 'Location: In-class assessment';
   } else {
-    locationStr = 'Submission: Online on Blackboard';
+    locationStr = isAr ? 'التسليم: إلكترونياً عبر بلاك بورد' : 'Submission: Online on Blackboard';
   }
 
-  const typeLabel = formatAssessmentTypeLabel(task.type, isPayment);
-  const titleLower = (task.title || '').toLowerCase();
+  const typeLabel = formatAssessmentTypeLabel(task.type, isPayment, lang);
+  const titleLower = (taskTitle || '').toLowerCase();
   const metaParts: string[] = [courseDisplay];
-  if (!isPayment && typeLabel !== 'Deadline' && !titleLower.includes(typeLabel.toLowerCase())) {
+  if (!isPayment && typeLabel !== 'Deadline' && typeLabel !== 'موعد' && !titleLower.includes(typeLabel.toLowerCase())) {
     metaParts.push(typeLabel);
   }
   if (isPayment && task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase())) {
-    metaParts.push(`Amount: ${task.paymentAmountText}`);
+    metaParts.push(isAr ? `المبلغ: ${task.paymentAmountText}` : `Amount: ${task.paymentAmountText}`);
   } else if (!isPayment) {
     if (task.isBonus) {
-      metaParts.push(task.weight ? `Bonus (+${task.weight}%)` : 'Bonus');
+      metaParts.push(task.weight ? (isAr ? `بونص (+${task.weight}%)` : `Bonus (+${task.weight}%)`) : (isAr ? 'بونص' : 'Bonus'));
     } else if (task.weight) {
-      metaParts.push(`Worth ${task.weight}% of grade`);
+      metaParts.push(isAr ? `الوزن ${task.weight}% من الدرجة` : `Worth ${task.weight}% of grade`);
     }
     if (typeof task.maxScore === 'number' && task.maxScore > 0) {
-      metaParts.push(`${task.maxScore} pts`);
+      metaParts.push(isAr ? `${task.maxScore} درجة` : `${task.maxScore} pts`);
     }
   }
 
-  const { short: shortLeft, detail: detailLeft } = formatRemainingDuration(timeRemaining);
+  const { short: shortLeft, detail: detailLeft } = formatRemainingDuration(timeRemaining, lang);
   const scheduleWhen = dateStr
-    ? (timeStr ? `${dateStr} at ${timeStr}` : (isPayment ? dateStr : `${dateStr} (During class)`))
-    : 'Scheduled time';
+    ? (timeStr ? (isAr ? `${dateStr} الساعة ${timeStr}` : `${dateStr} at ${timeStr}`) : (isPayment ? dateStr : (isAr ? `${dateStr} (أثناء المحاضرة)` : `${dateStr} (During class)`)))
+    : (isAr ? 'الوقت المجدول' : 'Scheduled time');
 
   let title = '';
   let timeDesc = '';
@@ -426,18 +434,24 @@ export function formatNotificationPayload(
 
   if (isDueNow) {
     if (isPayment) {
-      title = `Payment Due Now: ${task.title}${task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase()) ? ` (${task.paymentAmountText})` : ''}`;
+      const amtSuffix = task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase()) ? ` (${task.paymentAmountText})` : '';
+      title = isAr ? `دفعة مستحقة الآن: ${taskTitle}${amtSuffix}` : `Payment Due Now: ${taskTitle}${amtSuffix}`;
     } else {
-      title = `Due Now: ${task.title}${shortCourse ? ` · ${shortCourse}` : ''}`;
+      title = isAr
+        ? `مطلوب الآن: ${taskTitle}${shortCourse ? ` · ${shortCourse}` : ''}`
+        : `Due Now: ${taskTitle}${shortCourse ? ` · ${shortCourse}` : ''}`;
     }
-    timeDesc = `Due: ${scheduleWhen} (Due now)`;
+    timeDesc = isAr ? `الموعد: ${scheduleWhen} (مطلوب الآن)` : `Due: ${scheduleWhen} (Due now)`;
   } else {
     if (isPayment) {
-      title = `Payment Due in ${shortLeft}: ${task.title}${task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase()) ? ` (${task.paymentAmountText})` : ''}`;
+      const amtSuffix = task.paymentAmountText && !titleLower.includes(task.paymentAmountText.toLowerCase()) ? ` (${task.paymentAmountText})` : '';
+      title = isAr ? `دفعة تستحق خلال ${shortLeft}: ${taskTitle}${amtSuffix}` : `Payment Due in ${shortLeft}: ${taskTitle}${amtSuffix}`;
     } else {
-      title = `Due in ${shortLeft}: ${task.title}${shortCourse ? ` · ${shortCourse}` : ''}`;
+      title = isAr
+        ? `باقي ${shortLeft}: ${taskTitle}${shortCourse ? ` · ${shortCourse}` : ''}`
+        : `Due in ${shortLeft}: ${taskTitle}${shortCourse ? ` · ${shortCourse}` : ''}`;
     }
-    timeDesc = `Due: ${scheduleWhen} (${detailLeft})`;
+    timeDesc = isAr ? `الموعد: ${scheduleWhen} (${detailLeft})` : `Due: ${scheduleWhen} (${detailLeft})`;
   }
 
   const body = `${metaParts.join(' · ')}\n${timeDesc}\n${locationStr}`;

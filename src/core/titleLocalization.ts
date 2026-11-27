@@ -10,6 +10,70 @@ export function normalizeDigits(text: string): string {
     .replace(/[۰-۹]/g, ch => String(ch.charCodeAt(0) - 0x06F0));
 }
 
+const RELATIVE_TITLE_PREFIX_RE = /^(?:today'?s|tomorrow'?s|tonight'?s|yesterday'?s|this\s+(?:week|morning|afternoon|evening)'?s|upcoming|next)\s+/i;
+const RELATIVE_TITLE_SUFFIX_RE = /\s+(?:for\s+)?(?:tomorrow|today|tonight|this\s+(?:week|morning|afternoon|evening)|الغد|غدا|غداً|اليوم|الليلة)$/i;
+const EXPLICIT_SHORT_QUIZ_RE = /\bquiz(?:zes)?\b|كويز|اختبار\s*قصير/i;
+const EXAM_FORMAT_RULE_CUE_RE = /(?:bubble\s*sheet|scantron|version\s*[a-z]|answer\s*sheet|question\s*paper|id\s*card|proctor|seat(?:ing)?|نموذج|تظليل|بابل\s*شيت|ورقة\s*الأسئلة|ورقة\s*الإجابة|بطاقة\s*إثبات|اختبار\s*الغد)/i;
+
+/** True for titles that use relative temporal framing for a generic/unnumbered assessment ("Tomorrow's Test", "اختبار الغد"). */
+export function isRelativeAssessmentTitle(title: string): boolean {
+  const clean = (title || '').trim();
+  if (!clean || /\d/.test(clean)) return false;
+  if (!(RELATIVE_TITLE_PREFIX_RE.test(clean) || RELATIVE_TITLE_SUFFIX_RE.test(clean))) return false;
+  const stripped = clean.replace(RELATIVE_TITLE_PREFIX_RE, '').replace(RELATIVE_TITLE_SUFFIX_RE, '').trim();
+  return isBareTypeTitle(stripped);
+}
+
+/**
+ * Checks whether two same-course tasks on the same calendar day represent one exam and an
+ * unnumbered relative/bare follow-up instruction post (e.g. "Final Exam" + AI "Tomorrow's Test"
+ * extracted from an Arabic Bubble-Sheet / Version instruction post for "اختبار الغد").
+ */
+export function isSameDayExamAndFollowUp(
+  a: { id?: string; title?: string; type?: string; dueDate?: string; timeSource?: string; extractedBy?: string; userEdited?: boolean; description?: string; sourceSnippet?: string },
+  b: { id?: string; title?: string; type?: string; dueDate?: string; timeSource?: string; extractedBy?: string; userEdited?: boolean; description?: string; sourceSnippet?: string },
+  extractNum: (title: string) => number | null
+): boolean {
+  const numA = extractNum(a.title || '');
+  const numB = extractNum(b.title || '');
+  if (numA !== null || numB !== null) return false;
+
+  const isExamSide = (t: typeof a) =>
+    t.type === 'exam' ||
+    String(t.id || '').startsWith('banner_exam_') ||
+    /(?:\bfinals?\b|\bmid[\s_-]*terms?\b|نهائي|نصفي)/i.test(t.title || '');
+
+  let examSide: typeof a | null = null;
+  let followSide: typeof a | null = null;
+  if (isExamSide(a) && !isExamSide(b)) {
+    examSide = a;
+    followSide = b;
+  } else if (isExamSide(b) && !isExamSide(a)) {
+    examSide = b;
+    followSide = a;
+  } else {
+    return false;
+  }
+
+  if (String(followSide.id || '').startsWith('banner_exam_')) return false;
+  if (followSide.userEdited || followSide.extractedBy === 'manual') return false;
+
+  const followType = String(followSide.type || '').toLowerCase();
+  if (followType === 'assignment' || followType === 'hw' || followType === 'homework' || followType === 'lab' || followType === 'project') {
+    return false;
+  }
+
+  const followText = `${followSide.title || ''} ${followSide.description || followSide.sourceSnippet || ''}`;
+  if (EXPLICIT_SHORT_QUIZ_RE.test(followText)) return false;
+
+  const isGenericOrAiSchedule =
+    isRelativeAssessmentTitle(followSide.title || '') ||
+    (isBareTypeTitle(followSide.title || '') && followSide.timeSource !== 'explicit') ||
+    (followSide.extractedBy === 'ai' && followSide.timeSource !== 'explicit' && EXAM_FORMAT_RULE_CUE_RE.test(followText));
+
+  return Boolean(examSide && isGenericOrAiSchedule);
+}
+
 /** True for titles that are only a task type word, such as "Exam", "Meeting" or "Other". */
 export function isBareTypeTitle(title: string): boolean {
   const trimmed = title.trim();
@@ -39,6 +103,9 @@ export function toEnglishDeadlineTitle(rawTitle: string, taskType?: string): str
   // 2. Strip leading course code prefixes like "[CS101] ", "MATH 101 - "
   title = title.replace(/^\s*\[?[A-Z]{2,5}\s*\d{3,4}[A-Z]?\]?\s*[-:|]\s*/i, '');
 
+  // 2b. Strip relative temporal qualifiers so deadlines never read "Tomorrow's Test" or "اختبار الغد"
+  title = title.replace(RELATIVE_TITLE_PREFIX_RE, '').replace(RELATIVE_TITLE_SUFFIX_RE, '').trim() || title;
+
   // 3. Convert Arabic-Indic / Eastern Arabic digits to ASCII digits (0-9)
   title = normalizeDigits(title);
 
@@ -48,6 +115,10 @@ export function toEnglishDeadlineTitle(rawTitle: string, taskType?: string): str
     if (/^hw\s*#?\s*(\d+)$/i.test(trimmed)) return trimmed.replace(/^hw\s*#?\s*(\d+)$/i, 'Homework $1');
     if (/^hw$/i.test(trimmed)) return 'Homework';
     if (/^midterm\s+(?:exam|examination|test)$/i.test(trimmed)) return 'Midterm';
+    if (/^test$/i.test(trimmed)) {
+      if (taskType === 'exam') return 'Exam';
+      if (taskType === 'quiz') return 'Quiz';
+    }
     return title;
   }
 

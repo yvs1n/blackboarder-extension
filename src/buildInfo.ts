@@ -13,12 +13,12 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.51",
-  "build": "ac2f9f535b31",
-  "commit": "1f1253cfee96e0280db00b8ed8679c9105ffac38",
-  "shortCommit": "1f1253c",
-  "timestamp": "2026-11-27T09:20:20.898Z",
-  "message": "chore: reorganize repository assets, widgets, tests, utils, and build outputs",
+  "version": "1.8.52",
+  "build": "7f7573b48b11",
+  "commit": "dead836fdaa68eea0e7b5deb8f3c2cca4898dc9f",
+  "shortCommit": "dead836",
+  "timestamp": "2026-11-27T14:10:54.085Z",
+  "message": "Merge remote-tracking branch 'origin/main'",
   "changelog": [
     "Added client announcement filtering, bilingual EN/AR banner rendering, HTTPS action validation, remote hotfix kill-switch checks, and optional ECDSA P-256 signature verification (src/core/adminBroadcasts.ts, src/utils/adminSync.ts, src/popup/modules/adminBanners.ts, src/popup/styles/16-admin-banners.css).",
     "Integrated periodic admin announcement polling & OS notification delivery in src/background/serviceWorker.ts, background exam refresh kill-switch & URL overrides in src/background/examRefresh.ts, and auto-scan host kill-switch enforcement in src/content/scraper.ts.",

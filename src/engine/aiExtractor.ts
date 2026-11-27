@@ -190,11 +190,21 @@ function mapAiItemsToTasks(
       title: item.title
     });
 
-    const resolvedType = (item.type && item.type !== 'other')
+    let resolvedType = (item.type && item.type !== 'other')
       ? (item.type as TaskType)
       : (hint?.category && hint.category !== 'other'
           ? hint.category
           : (item.type as TaskType || 'other'));
+
+    // Bare Arabic "اختبار" with bubble-sheet / answer-sheet / version A-B rules is an exam unless text explicitly says quiz/كويز
+    if (
+      resolvedType === 'quiz' &&
+      !hint?.category &&
+      !/\bquiz(?:zes)?\b|كويز|اختبار\s*قصير/i.test(`${item.title || ''} ${combinedText}`) &&
+      /(?:bubble\s*sheet|scantron|version\s*[a-z]|answer\s*sheet|نموذج\s*الاختبار|بابل\s*شيت|ورقة\s*الأسئلة|ورقة\s*الإجابة)/i.test(combinedText)
+    ) {
+      resolvedType = 'exam';
+    }
 
     const roomInfo = resolveTaskRoom({
       courseNameOrCode: announcement.courseName || item.courseCode || announcement.courseCode,
@@ -319,7 +329,7 @@ CRITICAL TIME & DATE RULES:
     }
   ]
 }
-6. CRITICAL LANGUAGE RULE: All deadline titles MUST be in English (e.g. 'Midterm Exam', 'Quiz 1', 'Homework 2', 'Final Exam', 'Course Project'). Even if the announcement is in Arabic, translate and standardize the title into concise English.
+6. CRITICAL LANGUAGE & TITLE RULE: All deadline titles MUST be standardized English assessment names (e.g. 'Midterm Exam', 'Quiz 1', 'Homework 2', 'Final Exam', 'Course Project'). NEVER include relative temporal words in "title" (no "Tomorrow's Test", "Today's Quiz", "Upcoming Exam", "This Week's Assignment"). Translate Arabic titles concisely without "Tomorrow's"/"Today's". For unnumbered exams/tests giving bubble-sheet, Version A/B, seating, or exam-day rules ("اختبار الغد"), use type "exam" unless explicitly called "quiz" / "كويز" / "اختبار قصير".
 7. If the professor mentions a specific classroom, hall, or lab to attend in (e.g. "room A8-204", "hall TH005", "Lab 3", "قاعة 103", "مختبر 105"), extract it into "room". Otherwise set "room" to null.
 8. DO NOT extract post-exam reviews, paper viewing sessions, Akkindi / bubble sheet checks, grade disputes, or answer key discussions where the exam has already concluded (e.g. "review your exam sheet", "Akkindi sheet", "paper viewing", "مراجعة أوراق الامتحان", "الاطلاع على ورقة الإجابة"). Only extract upcoming future assessments, exams to be taken, or work to be submitted.
 If no deadlines or tasks are found, return { "deadlines": [] }. Output valid JSON only.`;

@@ -1,7 +1,19 @@
 import { getActiveCourseLegend, getActiveUserCourses, findActiveCourseInText } from './userCourses';
-import { isBareTypeTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts } from './titleLocalization';
+import {
+  isBareTypeTitle,
+  isRelativeAssessmentTitle,
+  isSameDayExamAndFollowUp,
+  toEnglishDeadlineTitle,
+  mergeAnnouncementTexts
+} from './titleLocalization';
 
-export { isBareTypeTitle, toEnglishDeadlineTitle, mergeAnnouncementTexts };
+export {
+  isBareTypeTitle,
+  isRelativeAssessmentTitle,
+  isSameDayExamAndFollowUp,
+  toEnglishDeadlineTitle,
+  mergeAnnouncementTexts
+};
 
 /**
  * Utility to extract clean course names and course codes from Blackboard text.
