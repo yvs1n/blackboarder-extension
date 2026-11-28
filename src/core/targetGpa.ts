@@ -1,7 +1,61 @@
-import type { DeadlineTask } from '../types';
+import type { ArchivedSemester, DeadlineTask, StudentProfile } from '../types';
 import { GradeRow } from './universities';
+import { resolveCourseInfo } from './courseHelper';
+import { calculateCgpa } from './semesters';
 import { CourseGrade, GpaSummary, resolveCreditHours, UOS_GRADE_SCALE } from '../utils/marks/gpa';
 import { round1, round2 } from '../utils/ui/uiCommon';
+
+/**
+ * Matches a task to a course entry, checking canonical resolution (course code, aliases,
+ * bilingual variants) as well as normalized course name matching while preventing Lab/Lecture bleed.
+ */
+function doesTaskBelongToCourse(task: DeadlineTask, targetCourseName: string): boolean {
+  const targetName = (targetCourseName || '').trim().toLowerCase();
+  if (!task || !targetName) return false;
+  const rawName = (task.courseName || '').trim().toLowerCase();
+  const resolvedName = (resolveCourseInfo(task).courseName || '').trim().toLowerCase();
+  if (resolvedName === targetName || rawName === targetName) return true;
+  // If resolveCourseInfo matched a different configured course, never cross-match by substring
+  if (resolvedName && resolvedName !== rawName) return false;
+  return Boolean(rawName && (targetName.includes(rawName) || rawName.includes(targetName)));
+}
+
+/**
+ * Resolves the effective Term SGPA target for both Term GPA mode and Cumulative CGPA mode.
+ */
+export function resolveEffectiveTargetTermGpa(
+  gpaSummary: GpaSummary,
+  profile?: StudentProfile | null,
+  semesters: ArchivedSemester[] = [],
+  scale: ReadonlyArray<GradeRow> = UOS_GRADE_SCALE
+): number {
+  const activeScale = scale.length ? scale : UOS_GRADE_SCALE;
+  const topPoints = activeScale.length > 0 ? Math.max(...activeScale.map(s => s.points)) : 4.0;
+  const defaultTargetTerm = gpaSummary.gpa !== undefined
+    ? Math.min(topPoints, Math.round((Math.max(2.0, gpaSummary.gpa) + 0.25) * 20) / 20)
+    : Math.min(topPoints, 3.75);
+
+  let targetGpa = (profile && typeof profile.targetTermGpa === 'number' && profile.targetTermGpa > 0)
+    ? profile.targetTermGpa
+    : defaultTargetTerm;
+
+  if (profile && profile.targetGpaMode === 'cgpa' && typeof profile.targetCgpa === 'number' && profile.targetCgpa > 0) {
+    const cumulative = calculateCgpa(gpaSummary, semesters || [], profile);
+    const priorCredits = Math.max(0, (cumulative.totalGradedCredits || 0) - (gpaSummary.gradedCredits || 0));
+    if (priorCredits > 0) {
+      const termCredits = gpaSummary.totalCredits || (gpaSummary.courses.length * 3) || 3;
+      const priorWeighted = (cumulative.cgpa || 0) * (cumulative.totalGradedCredits || 0);
+      const activeWeighted = (gpaSummary.gpa || 0) * (gpaSummary.gradedCredits || 0);
+      const priorPoints = Math.max(0, priorWeighted - activeWeighted);
+      const totalCredsAfterTerm = priorCredits + termCredits;
+      const requiredTermSgpaRaw = ((profile.targetCgpa * totalCredsAfterTerm) - priorPoints) / termCredits;
+      targetGpa = Math.min(topPoints, Math.max(1.0, Math.round(requiredTermSgpaRaw * 100) / 100));
+    } else {
+      targetGpa = Math.min(topPoints, profile.targetCgpa);
+    }
+  }
+  return targetGpa;
+}
 
 export interface UpcomingTaskRequirement {
   id: string;
@@ -81,9 +135,7 @@ export function calculateCourseTargetAnalysis(
   // Find upcoming pending graded tasks for this course (skip completed, dismissed, or due-date-only unallocated reminders)
   const pendingTasks = tasks.filter(t => {
     if (!t || t.status === 'completed' || t.status === 'dismissed' || t.ignoreMark || t.visibility === 'hidden') return false;
-    const cName = (t.courseName || '').toLowerCase();
-    const targetName = (courseGrade.courseName || '').toLowerCase();
-    return cName && (cName === targetName || targetName.includes(cName) || cName.includes(targetName));
+    return doesTaskBelongToCourse(t, courseGrade.courseName);
   });
 
   const activeScale = scale.length ? scale : UOS_GRADE_SCALE;
@@ -294,11 +346,9 @@ export function calculateCourseTrend(
   tasks: DeadlineTask[] = [],
   courseName: string
 ): CourseScoreTrend {
-  const cTarget = (courseName || '').toLowerCase().trim();
   const scoredTasks = tasks.filter(t => {
     if (!t || typeof t.score !== 'number' || typeof t.maxScore !== 'number' || t.maxScore <= 0) return false;
-    const cName = (t.courseName || '').toLowerCase().trim();
-    return cName && (cName === cTarget || cTarget.includes(cName) || cName.includes(cTarget));
+    return doesTaskBelongToCourse(t, courseName);
   });
 
   if (scoredTasks.length === 0) {
@@ -419,9 +469,7 @@ export function calculateTrajectoryTargetPlan(
 
     const pendingTasks = tasks.filter(t => {
       if (!t || t.status === 'completed' || t.status === 'dismissed' || t.ignoreMark || t.visibility === 'hidden') return false;
-      const cName = (t.courseName || '').toLowerCase();
-      const targetName = (c.courseName || '').toLowerCase();
-      return cName && (cName === targetName || targetName.includes(cName) || cName.includes(targetName));
+      return doesTaskBelongToCourse(t, c.courseName);
     });
 
     const options = sortedScale.map(row => {

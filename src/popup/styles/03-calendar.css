@@ -544,18 +544,18 @@
 .selected-day-course {
   font-size: 10px;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .selected-day-item-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 .selected-day-item.status-completed .selected-day-item-title {

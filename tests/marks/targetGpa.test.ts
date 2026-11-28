@@ -4,10 +4,12 @@ import {
   calculateCourseTargetAnalysis,
   calculateTermTargetPlan,
   calculateTrajectoryTargetPlan,
-  calculateCourseTrend
+  calculateCourseTrend,
+  resolveEffectiveTargetTermGpa
 } from '../../src/core/targetGpa';
+import { setActiveUserCourses } from '../../src/core/userCourses';
 import { UOS_GRADE_SCALE, GpaSummary, CourseGrade } from '../../src/utils/marks/gpa';
-import { DeadlineTask } from '../../src/types';
+import { DeadlineTask, UserCourseConfig } from '../../src/types';
 
 describe('Target Grade & Required Score Calculator', () => {
   it('calculates required score on remaining weight for standard cutoffs', () => {
@@ -454,6 +456,89 @@ describe('Term Target GPA Planning', () => {
       expect(lowerPlan.possible).toBe(true);
       expect(lowerPlan.plannedGpa).toBeGreaterThanOrEqual(3.60);
       expect(lowerPlan.plannedGpa).toBeLessThan(3.97);
+    });
+
+    it('matches course-code and alias task names to configured syllabi without Lab/Lecture bleed and resolves CGPA mode', () => {
+      const courses: UserCourseConfig[] = [
+        {
+          id: 'isl',
+          courseName: 'Islamic Culture',
+          courseCode: '0104 100',
+          creditHours: 3,
+          aliases: ['0104100'],
+          colorHex: '#18181b',
+          scheduleSlots: [],
+          syllabus: [{ id: 'f', name: 'Final Exam', type: 'exam', totalWeight: 50 }]
+        },
+        {
+          id: 'phys',
+          courseName: 'Physics 1',
+          courseCode: '1430 101',
+          aliases: [],
+          creditHours: 3,
+          colorHex: '#2563eb',
+          scheduleSlots: [],
+          syllabus: [{ id: 'm', name: 'Midterm', type: 'exam', totalWeight: 30 }]
+        },
+        {
+          id: 'phys_lab',
+          courseName: 'Physics 1 Lab',
+          courseCode: '1430 102',
+          aliases: [],
+          creditHours: 1,
+          colorHex: '#dc2626',
+          scheduleSlots: [],
+          syllabus: [{ id: 'l', name: 'Lab Exam', type: 'lab', totalWeight: 40 }]
+        }
+      ];
+      setActiveUserCourses(courses);
+      try {
+        const tasks: DeadlineTask[] = [
+          {
+            id: 't_isl_code',
+            courseName: '0104100',
+            courseCode: '0104 100',
+            title: 'Final Exam',
+            type: 'exam',
+            dueDate: '2026-12-10T08:30:00.000Z',
+            status: 'pending',
+            maxScore: 100
+          } as DeadlineTask,
+          {
+            id: 't_phys_lab',
+            courseName: 'Physics 1 Lab',
+            title: 'Lab Quiz',
+            type: 'quiz',
+            dueDate: '2026-12-11T08:30:00.000Z',
+            status: 'pending',
+            maxScore: 20
+          } as DeadlineTask
+        ];
+        const summary: GpaSummary = {
+          totalCredits: 7,
+          gradedCredits: 0,
+          courses: [
+            { courseName: 'Islamic Culture', creditHours: 3, gradedWeight: 0, earnedWeight: 0, components: [] },
+            { courseName: 'Physics 1', creditHours: 3, gradedWeight: 0, earnedWeight: 0, components: [] },
+            { courseName: 'Physics 1 Lab', creditHours: 1, gradedWeight: 0, earnedWeight: 0, components: [] }
+          ]
+        };
+        const effectiveTerm = resolveEffectiveTargetTermGpa(summary, {
+          universityId: 'uos',
+          targetGpaMode: 'cgpa',
+          targetCgpa: 3.6,
+          priorCredits: 14,
+          priorGpa: 3.4,
+          updatedAt: '2026-11-28T00:00:00.000Z'
+        }, [], UOS_GRADE_SCALE);
+        expect(effectiveTerm).toBe(4.0);
+
+        const plan = calculateTrajectoryTargetPlan(summary, effectiveTerm, tasks, UOS_GRADE_SCALE);
+        expect(plan.taskTargetMap['t_isl_code']?.courseName).toBe('Islamic Culture');
+        expect(plan.taskTargetMap['t_phys_lab']?.courseName).toBe('Physics 1 Lab');
+      } finally {
+        setActiveUserCourses([]);
+      }
     });
   });
 });

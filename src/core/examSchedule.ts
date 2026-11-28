@@ -616,7 +616,9 @@ export function mergeExamScheduleTasks(
       const due = Date.parse(incoming.dueDate);
       let bestGap = Infinity;
       const incomingMs = due;
-      const isIncomingUpcoming = !isNaN(incomingMs) && incomingMs > Date.now();
+      const parsedNowMs = Date.parse(nowIso);
+      const refNowMs = Number.isFinite(parsedNowMs) ? parsedNowMs : Date.now();
+      const isIncomingUpcoming = !isNaN(incomingMs) && incomingMs > refNowMs;
       out.forEach((existing, i) => {
         if (
           claimed.has(i) ||

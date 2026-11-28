@@ -502,11 +502,11 @@ export function gradesHtml(
 
   const currentGradesCard = `
     <div class="marks-section-wrap" id="marks-card-current-grades" style="margin-top: 10px; margin-bottom: 8px;">
-      <div class="marks-section-head" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding: 0 1px;">
+      <div class="marks-section-head" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding: 0 1px;">
         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">${lbl.currentTermGrades}</span>
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px;">
           <span style="font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;">${lbl.gradedSummary(marks.gradedCount, marks.submittedCount, gpa.courses.length)}</span>
-          <button type="button" class="btn-outline-action btn-add-bonus-trigger" style="font-size: 10px; padding: 1px 7px; height: 20px; min-height: 20px; width: auto; line-height: 18px;" title="${lbl.addBonusMarkBtn}">${lbl.addBonusMarkBtn}</button>
+          <button type="button" class="btn-outline-action btn-add-bonus-trigger" style="font-size: 10px; padding: 2px 8px; height: auto; min-height: 22px; width: auto; line-height: 1.3; white-space: nowrap; flex-shrink: 0;" title="${lbl.addBonusMarkBtn}">${lbl.addBonusMarkBtn}</button>
         </div>
       </div>
       <div class="marks-courses-list" style="display: flex; flex-direction: column; gap: 4px;">

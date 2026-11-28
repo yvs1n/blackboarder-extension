@@ -150,9 +150,10 @@
 
 .day-card-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px 8px;
 }
 
 .day-card-course-badge {
@@ -163,10 +164,9 @@
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 4px;
-  max-width: 75%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 
 .day-card-course-dot {
@@ -178,6 +178,9 @@
 
 .day-card-course-name {
   font-weight: 700;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 

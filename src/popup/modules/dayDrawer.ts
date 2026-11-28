@@ -5,7 +5,7 @@ import { classesOnDay, todaysClassesHtml } from '../../core/classSchedule';
 import { getCourseColorTheme, getCourseHex } from '../../core/courseColors';
 import { profileGradeScale } from '../../core/studentProfile';
 import { getAllSyllabi } from '../../core/syllabusWeights';
-import { calculateTrajectoryTargetPlan, type TrajectoryTargetPlan } from '../../core/targetGpa';
+import { calculateTrajectoryTargetPlan, resolveEffectiveTargetTermGpa, type TrajectoryTargetPlan } from '../../core/targetGpa';
 import { buildGpaSummary } from '../../utils/marks/gpa';
 import { compareTasksByTime, formatCountdown, formatTaskTime } from '../../utils/tasks/calendar';
 import { getCachedSettingsSync } from '../../utils/storage/index';
@@ -139,14 +139,19 @@ export function getCurrentTrajectoryPlan(): { plan: TrajectoryTargetPlan | null;
   const profile = getCachedProfile();
   const tasks = popupState.currentTasks;
   const courses = popupState.currentUserCourses;
+  const semesters = popupState.cachedSemesters || [];
   const sig = [
     profile?.universityId || '',
     profile?.studyLevel || '',
+    profile?.targetGpaMode || '',
     profile?.targetTermGpa ?? '',
+    profile?.targetCgpa ?? '',
+    popupState.currentLanguage,
+    semesters.length,
     courses.length,
-    ...courses.map(c => `${c.id}:${c.creditHours ?? ''}:${(c.syllabus || []).map(s => `${s.id}:${s.totalWeight}:${s.count ?? ''}`).join(',')}`),
+    ...courses.map(c => `${c.id}:${c.courseName}:${c.creditHours ?? ''}:${(c.syllabus || []).map(s => `${s.id}:${s.totalWeight}:${s.count ?? ''}`).join(',')}`),
     tasks.length,
-    ...tasks.map(t => `${t.id}:${t.status}:${t.score ?? ''}:${t.maxScore ?? ''}:${t.weight ?? ''}:${t.ignoreMark ? 1 : 0}`)
+    ...tasks.map(t => `${t.id}:${t.courseName}:${t.status}:${t.submissionStatus ?? ''}:${t.visibility ?? ''}:${t.score ?? ''}:${t.maxScore ?? ''}:${t.weight ?? ''}:${t.isBonus ? 1 : 0}:${t.ignoreMark ? 1 : 0}`)
   ].join('|');
 
   if (sig === cachedTrajectorySig) {
@@ -156,9 +161,7 @@ export function getCurrentTrajectoryPlan(): { plan: TrajectoryTargetPlan | null;
   const scale = profileGradeScale(profile);
   const syllabi = getAllSyllabi();
   const gpa = buildGpaSummary(tasks, syllabi, scale);
-  const targetGpa = (typeof profile?.targetTermGpa === 'number' && profile.targetTermGpa > 0)
-    ? profile.targetTermGpa
-    : (gpa.gpa !== undefined ? Math.min(4.0, Math.round((Math.max(2.0, gpa.gpa) + 0.25) * 20) / 20) : 3.75);
+  const targetGpa = resolveEffectiveTargetTermGpa(gpa, profile, semesters, scale);
   const plan = calculateTrajectoryTargetPlan(gpa, targetGpa, tasks, scale);
   cachedTrajectorySig = sig;
   cachedTrajectoryResult = { plan, targetGpa };

@@ -306,10 +306,12 @@ export function areTasksIncompatibleForDedup(a: DeadlineTask, b: DeadlineTask): 
     const other = isBannerExamTask(a) ? b : a;
     const bannerMs = Date.parse(banner.dueDate || '');
     const otherMs = Date.parse(other.dueDate || '');
+    const bannerAnchorMs = Date.parse(banner.createdAt || banner.updatedAt || '');
+    const refNowMs = Number.isFinite(bannerAnchorMs) ? Math.min(Date.now(), bannerAnchorMs) : Date.now();
     if (
       isCompletedOrGradedTask(other) &&
       !isNaN(bannerMs) &&
-      bannerMs > Date.now() &&
+      bannerMs > refNowMs &&
       (isNaN(otherMs) || Math.abs(bannerMs - otherMs) > 3 * 24 * 60 * 60 * 1000)
     ) {
       return true;

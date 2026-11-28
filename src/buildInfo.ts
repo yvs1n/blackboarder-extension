@@ -13,11 +13,11 @@ export interface BuildInfo {
 }
 
 export const BUILD_INFO: BuildInfo = {
-  "version": "1.8.52",
-  "build": "7f7573b48b11",
-  "commit": "dead836fdaa68eea0e7b5deb8f3c2cca4898dc9f",
-  "shortCommit": "dead836",
-  "timestamp": "2026-11-27T14:10:54.085Z",
+  "version": "1.8.53",
+  "build": "aa4abdf4bfce",
+  "commit": "366019b69935f9c335f79397aa369760f6333852",
+  "shortCommit": "366019b",
+  "timestamp": "2026-11-28T19:04:18.177Z",
   "message": "Merge remote-tracking branch 'origin/main'",
   "changelog": [
     "Added client announcement filtering, bilingual EN/AR banner rendering, HTTPS action validation, remote hotfix kill-switch checks, and optional ECDSA P-256 signature verification (src/core/adminBroadcasts.ts, src/utils/adminSync.ts, src/popup/modules/adminBanners.ts, src/popup/styles/16-admin-banners.css).",
