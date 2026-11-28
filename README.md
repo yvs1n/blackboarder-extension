@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://blackboarder.pages.dev/"><img src="https://img.shields.io/badge/Website-blackboarder.pages.dev-18181b?style=flat" alt="Website" /></a>
-  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.53-blue?logo=github&logoColor=white" alt="Version v1.8.53" /></a>
+  <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest"><img src="https://img.shields.io/badge/Version-v1.8.54-blue?logo=github&logoColor=white" alt="Version v1.8.54" /></a>
   <a href="https://blackboarder.pages.dev/chrome-extension"><img src="https://img.shields.io/badge/Chrome-Web_Store_Live-blue?logo=googlechrome&logoColor=white" alt="Chrome Web Store Live" /></a>
   <a href="https://blackboarder.pages.dev/edge-extension"><img src="https://img.shields.io/badge/Edge-Add--ons_v1.8.34-0078D7?logo=microsoftedge&logoColor=white" alt="Microsoft Edge Add-ons v1.8.34" /></a>
   <a href="https://github.com/yvs1n/blackboarder-extension/releases/latest/download/blackboarder-android-firefox.zip"><img src="https://img.shields.io/badge/Firefox-ZIP_Release-FF7139?logo=firefoxbrowser&logoColor=white" alt="Firefox ZIP Release" /></a>
